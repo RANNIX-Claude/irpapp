@@ -1,8 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
-  Wrench, HardHat, Truck, UserCheck, Car, PortalIcon,
-  Search, BarChart3, Settings, ChevronRight, BriefcaseBusiness
+  Wrench, HardHat, Truck, UserCheck, Car,
+  Search, BarChart3, Settings, ChevronRight
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 

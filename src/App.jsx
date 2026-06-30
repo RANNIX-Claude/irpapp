@@ -9,6 +9,9 @@ import LoadingSpinner from './components/ui/LoadingSpinner'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Inmuebles from './pages/Inmuebles.jsx'
+import Contratos from './pages/Contratos.jsx'
+import Cobranza from './pages/Cobranza.jsx'
+import Arrendatarios from './pages/Arrendatarios.jsx'
 import ComingSoon from './pages/ComingSoon'
 import './styles/theme.css'
 
@@ -38,9 +41,9 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inmuebles" element={<Inmuebles />} />
-          <Route path="/contratos" element={<ComingSoon modulo="Contratos de Arrendamiento" />} />
-          <Route path="/cobranza" element={<ComingSoon modulo="Cobranza y Conciliacion Bancaria" />} />
-          <Route path="/arrendatarios" element={<ComingSoon modulo="Arrendatarios" />} />
+          <Route path="/contratos" element={<Contratos />} />
+          <Route path="/cobranza" element={<Cobranza />} />
+          <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<ComingSoon modulo="Mantenimiento y Ordenes de Trabajo" />} />
           <Route path="/proyectos" element={<ComingSoon modulo="Proyectos y Obras" />} />
           <Route path="/proveedores" element={<ComingSoon modulo="Proveedores" />} />
