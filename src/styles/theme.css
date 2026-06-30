@@ -1,0 +1,46 @@
+/* IRP — Inmueble Resource Planning | RANNIX Consulting */
+:root {
+  /* Colores principales — RANNIX Standard */
+  --color-primary:       #0A66C2;
+  --color-primary-dark:  #1A3C5E;
+  --color-primary-light: #E8EEF7;
+  --color-secondary:     #E8A020;
+  --color-success:       #057642;
+  --color-warning:       #F59E0B;
+  --color-danger:        #B24020;
+  --color-neutral:       #E0DFDC;
+  --color-text:          #000000E6;
+  --color-text-light:    #6B7280;
+  --color-background:    #F3F2EF;
+  --color-surface:       #FFFFFF;
+
+  /* Tipografía */
+  --font-primary:  'Inter', 'Roboto', sans-serif;
+  --font-heading:  'Inter', 'Roboto', sans-serif;
+
+  /* Geometría */
+  --border-radius: 6px;
+  --header-height: 64px;
+
+  /* Header */
+  --header-bg:   #0A66C2;
+  --header-text: #FFFFFF;
+
+  /* Footer */
+  --footer-bg:   #1A3C5E;
+  --footer-text: #FFFFFF;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font-primary);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); }
