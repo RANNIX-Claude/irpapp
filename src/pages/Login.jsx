@@ -1,116 +1,166 @@
 import { useState } from 'react'
+import { signInWithEmail, signInWithGoogle } from '../lib/auth'
 import { Building2 } from 'lucide-react'
-import { signInWithGoogle, signInWithEmail } from '../lib/auth'
+import toast from 'react-hot-toast'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const handleEmail = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError('')
     const { error } = await signInWithEmail(email, password)
-    if (error) setError(error.message)
+    if (error) toast.error(error.message)
     setLoading(false)
   }
 
   const handleGoogle = async () => {
-    setLoading(true)
-    setError('')
     const { error } = await signInWithGoogle()
-    if (error) setError(error.message)
-    setLoading(false)
+    if (error) toast.error(error.message)
   }
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh',
       background: 'linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%)',
-      padding: '16px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
     }}>
       <div style={{
-        background: 'white', borderRadius: '12px', padding: '40px',
-        width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        background: 'var(--color-surface)',
+        borderRadius: '12px',
+        padding: '48px 40px',
+        width: '100%',
+        maxWidth: '420px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: '64px', height: '64px', borderRadius: '16px',
-            background: 'var(--color-primary)', marginBottom: '16px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '64px',
+            height: '64px',
+            background: 'var(--color-primary)',
+            borderRadius: '12px',
+            marginBottom: '16px',
           }}>
             <Building2 size={32} color="white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--color-text)' }}>IRP</h1>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-light)' }}>Inmueble Resource Planning</p>
-          <div style={{ width: '40px', height: '3px', background: 'var(--color-secondary)', margin: '12px auto 0', borderRadius: '2px' }} />
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px' }}>
+            IRP
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>
+            Inmueble Resource Planning
+          </p>
         </div>
 
-        {/* Form email */}
-        <form onSubmit={handleEmail} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '6px' }}>
-              Correo electronico
+        {/* Formulario email */}
+        <form onSubmit={handleEmail}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '6px' }}>
+              Correo electrónico
             </label>
             <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="admin@ejemplo.com"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-neutral)', borderRadius: 'var(--border-radius)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-primary)', boxSizing: 'border-box' }}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              placeholder="usuario@empresa.com"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1.5px solid #D1D5DB',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '6px' }}>
-              Contrasena
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '6px' }}>
+              Contraseña
             </label>
             <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              placeholder="Tu contrasena"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-neutral)', borderRadius: 'var(--border-radius)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-primary)', boxSizing: 'border-box' }}
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1.5px solid #D1D5DB',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
-          {error && (
-            <div style={{ padding: '10px 12px', background: '#FEE2E2', color: '#991b1b', borderRadius: 'var(--border-radius)', fontSize: '13px' }}>
-              {error}
-            </div>
-          )}
-          <button type="submit" disabled={loading} style={{
-            padding: '12px', background: 'var(--color-primary)', color: 'white', border: 'none',
-            borderRadius: 'var(--border-radius)', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
-            opacity: loading ? 0.7 : 1, fontFamily: 'var(--font-primary)',
-          }}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '11px',
+              background: loading ? '#93C5FD' : 'var(--color-primary)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              marginBottom: '12px',
+            }}
+          >
+            {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
           </button>
         </form>
 
         {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--color-neutral)' }} />
-          <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>o continua con</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--color-neutral)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0 12px' }}>
+          <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+          <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>o continúa con</span>
+          <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
         </div>
 
-        {/* Google */}
-        <button onClick={handleGoogle} disabled={loading} style={{
-          width: '100%', padding: '11px', background: 'white', color: 'var(--color-text)',
-          border: '1px solid var(--color-neutral)', borderRadius: 'var(--border-radius)',
-          cursor: 'pointer', fontSize: '14px', fontWeight: 500, display: 'flex',
-          alignItems: 'center', justifyContent: 'center', gap: '10px',
-          fontFamily: 'var(--font-primary)',
-        }}>
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        {/* Google OAuth */}
+        <button
+          onClick={handleGoogle}
+          style={{
+            width: '100%',
+            padding: '10px',
+            background: 'white',
+            border: '1.5px solid #D1D5DB',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            color: 'var(--color-text)',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18">
+            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+            <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
           </svg>
           Continuar con Google
         </button>
 
-        <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--color-text-light)', marginTop: '20px', marginBottom: 0 }}>
-          RANNIX Consulting &copy; 2026 - Confidencial
+        <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--color-text-light)', marginTop: '32px', marginBottom: 0 }}>
+          RANNIX Consulting © 2026 — Confidencial
         </p>
       </div>
     </div>
