@@ -8,6 +8,7 @@ import AgenteOperativo from './components/agents/AgenteOperativo.jsx'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Inmuebles from './pages/Inmuebles.jsx'
 import ComingSoon from './pages/ComingSoon'
 import './styles/theme.css'
 
@@ -36,7 +37,7 @@ function AppLayout() {
       }}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/inmuebles" element={<ComingSoon modulo="Inmuebles y Unidades" />} />
+          <Route path="/inmuebles" element={<Inmuebles />} />
           <Route path="/contratos" element={<ComingSoon modulo="Contratos de Arrendamiento" />} />
           <Route path="/cobranza" element={<ComingSoon modulo="Cobranza y Conciliacion Bancaria" />} />
           <Route path="/arrendatarios" element={<ComingSoon modulo="Arrendatarios" />} />
