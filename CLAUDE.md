@@ -88,7 +88,7 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 
 ## Base de Datos — Supabase
 
-**Proyecto**: `lrcoagjswpequmuaaxep`
+**Proyecto**: `ywashdlhkbvleigakjus`
 
 ### Tablas Principales
 - `public.cat_estado_general` — Catálogo de estados (VIGENTE, DISPONIBLE, VENCIDO, EN_MORA, PENDIENTE, COMPLETADO, CANCELADO, EN_PROCESO, MANTENIMIENTO, ACTIVO, INACTIVO)
