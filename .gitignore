@@ -6,3 +6,4 @@ dist/
 netlify/functions/.env
 .DS_Store
 *.log
+Gemini_Generated_Image*
