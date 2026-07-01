@@ -12,6 +12,8 @@ import Inmuebles from './pages/Inmuebles.jsx'
 import Contratos from './pages/Contratos.jsx'
 import Cobranza from './pages/Cobranza.jsx'
 import Arrendatarios from './pages/Arrendatarios.jsx'
+import Mantenimiento from './pages/Mantenimiento.jsx'
+import Proyectos from './pages/Proyectos.jsx'
 import ComingSoon from './pages/ComingSoon'
 import './styles/theme.css'
 
@@ -44,8 +46,8 @@ function AppLayout() {
           <Route path="/contratos" element={<Contratos />} />
           <Route path="/cobranza" element={<Cobranza />} />
           <Route path="/arrendatarios" element={<Arrendatarios />} />
-          <Route path="/mantenimiento" element={<ComingSoon modulo="Mantenimiento y Ordenes de Trabajo" />} />
-          <Route path="/proyectos" element={<ComingSoon modulo="Proyectos y Obras" />} />
+          <Route path="/mantenimiento" element={<Mantenimiento />} />
+          <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/proveedores" element={<ComingSoon modulo="Proveedores" />} />
           <Route path="/rh" element={<ComingSoon modulo="RH y Nomina" />} />
           <Route path="/estacionamiento" element={<ComingSoon modulo="Estacionamiento" />} />
