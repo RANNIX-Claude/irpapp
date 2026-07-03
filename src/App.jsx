@@ -14,7 +14,12 @@ import Cobranza from './pages/Cobranza.jsx'
 import Arrendatarios from './pages/Arrendatarios.jsx'
 import Mantenimiento from './pages/Mantenimiento.jsx'
 import Proyectos from './pages/Proyectos.jsx'
-import ComingSoon from './pages/ComingSoon'
+import Proveedores from './pages/Proveedores.jsx'
+import RH from './pages/RH.jsx'
+import Estacionamiento from './pages/Estacionamiento.jsx'
+import Prospectos from './pages/Prospectos.jsx'
+import Reportes from './pages/Reportes.jsx'
+import Configuracion from './pages/Configuracion.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
@@ -48,12 +53,12 @@ function AppLayout() {
           <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<Mantenimiento />} />
           <Route path="/proyectos" element={<Proyectos />} />
-          <Route path="/proveedores" element={<ComingSoon modulo="Proveedores" />} />
-          <Route path="/rh" element={<ComingSoon modulo="RH y Nomina" />} />
-          <Route path="/estacionamiento" element={<ComingSoon modulo="Estacionamiento" />} />
-          <Route path="/prospectos" element={<ComingSoon modulo="Prospectos y CRM" />} />
-          <Route path="/reportes" element={<ComingSoon modulo="Reportes y BI" />} />
-          <Route path="/config" element={<ComingSoon modulo="Configuracion" />} />
+          <Route path="/proveedores" element={<Proveedores />} />
+          <Route path="/rh" element={<RH />} />
+          <Route path="/estacionamiento" element={<Estacionamiento />} />
+          <Route path="/prospectos" element={<Prospectos />} />
+          <Route path="/reportes" element={<Reportes />} />
+          <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Footer />

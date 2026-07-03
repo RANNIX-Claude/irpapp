@@ -1,27 +1,19 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { onAuthChange } from '../lib/auth'
+import { createContext, useContext, useState } from 'react'
 
 const AppContext = createContext(null)
 
+// DEMO MODE — sin autenticación, usuario mock para visualización
+const DEMO_USER = {
+  id: 'demo-user-001',
+  email: 'roberto.aguilar.cota@gmail.com',
+  user_metadata: { full_name: 'Roberto Aguilar Cota' },
+}
+
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-    const { data: { subscription } } = onAuthChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
   return (
-    <AppContext.Provider value={{ user, loading, sidebarOpen, setSidebarOpen }}>
+    <AppContext.Provider value={{ user: DEMO_USER, loading: false, sidebarOpen, setSidebarOpen }}>
       {children}
     </AppContext.Provider>
   )
