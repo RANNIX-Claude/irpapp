@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AppProvider, useApp } from './context/AppContext'
 import Header from './components/layout/Header'
@@ -26,10 +26,21 @@ import Agua from './pages/Agua.jsx'
 import Vending from './pages/Vending.jsx'
 import EDR from './pages/EDR.jsx'
 import ResumenSemanal from './pages/ResumenSemanal.jsx'
+import PortalProspecto from './pages/PortalProspecto.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
   const { user, loading, sidebarOpen } = useApp()
+  const location = useLocation()
+
+  // Ruta pública — sin auth
+  if (location.pathname.startsWith('/portal/')) {
+    return (
+      <Routes>
+        <Route path="/portal/prospecto/:token" element={<PortalProspecto />} />
+      </Routes>
+    )
+  }
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary-dark)' }}>

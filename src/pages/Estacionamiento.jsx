@@ -1,6 +1,6 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
-import { Car, Plus, Search, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Car, Plus, Search, DollarSign, AlertTriangle, CheckCircle, X, Calendar, User, FileText } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -8,27 +8,177 @@ import { usePRP } from '../hooks/usePRP'
 
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
-function CajonCard({ c }) {
+const HISTORIAL_DEMO = [
+  { fecha_inicio: '2025-02-01', fecha_fin: '2026-02-01', titular: 'Ing. García Ramos', placa: 'MXK-234-A', marca: 'Nissan Sentra', color: 'Gris', monto: 800 },
+  { fecha_inicio: '2024-05-15', fecha_fin: '2025-01-31', titular: 'Lic. Soto Medina', placa: 'TBJ-112-B', marca: 'Honda City', color: 'Blanco', monto: 750 },
+  { fecha_inicio: '2023-09-01', fecha_fin: '2024-05-14', titular: 'Sr. Ramírez V.', placa: 'BAC-567-C', marca: 'VW Jetta', color: 'Azul', monto: 700 },
+]
+
+function NuevaPensionModal({ cajon, onClose }) {
+  const [form, setForm] = useState({ titular: '', telefono: '', placa: '', marca: '', color: '', monto: 900 })
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const guardar = () => {
+    const win = window.open('', '_blank')
+    win.document.write(`<html><head><title>Pensión Cajón #${cajon.numero_cajon}</title>
+    <style>body{font-family:Arial;padding:32px;max-width:600px;margin:0 auto}h2{color:#0A66C2}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #eee}td:first-child{font-weight:600;color:#666;width:40%}.firma{margin-top:60px;display:flex;gap:80px}.firma-box{flex:1;border-top:1px solid #000;padding-top:8px;font-size:12px;color:#666}</style>
+    </head><body>
+    <h2>Contrato de Pensión de Estacionamiento</h2>
+    <p>Cajón #${cajon.numero_cajon} · Tipo: ${cajon.tipo || 'General'}</p>
+    <table>
+      <tr><td>Titular</td><td>${form.titular}</td></tr>
+      <tr><td>Teléfono</td><td>${form.telefono}</td></tr>
+      <tr><td>Placa</td><td>${form.placa}</td></tr>
+      <tr><td>Vehículo</td><td>${form.marca} ${form.color}</td></tr>
+      <tr><td>Monto mensual</td><td>${fmt(form.monto)}</td></tr>
+      <tr><td>Fecha inicio</td><td>${new Date().toLocaleDateString('es-MX')}</td></tr>
+    </table>
+    <div class="firma">
+      <div class="firma-box">Firma del Titular</div>
+      <div class="firma-box">Firma del Administrador</div>
+    </div>
+    </body></html>`)
+    win.document.close()
+    win.print()
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Nueva Pensión — Cajón #{cajon.numero_cajon}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+        </div>
+        {[['titular', 'Titular / Nombre'], ['telefono', 'Teléfono'], ['placa', 'Placa del vehículo'], ['marca', 'Marca y modelo'], ['color', 'Color del vehículo']].map(([k, label]) => (
+          <div key={k} style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-light)', display: 'block', marginBottom: '4px' }}>{label}</label>
+            <input value={form[k]} onChange={set(k)} style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }} />
+          </div>
+        ))}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-light)', display: 'block', marginBottom: '4px' }}>Monto mensual</label>
+          <input type="number" value={form.monto} onChange={set('monto')} style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Cancelar</button>
+          <button onClick={guardar} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>Guardar e imprimir</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CajonModal({ cajon, onClose, onNuevaPension }) {
+  const [tab, setTab] = useState('info')
+  const ocupado = cajon.estatus === 'OCUPADO'
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '12px', width: '560px', maxWidth: '95vw', maxHeight: '88vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cajon.tipo || 'General'}</div>
+            <h2 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 800 }}>Cajón #{cajon.numero_cajon}</h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px',
+              background: ocupado ? '#EFF6FF' : '#F0FDF4',
+              color: ocupado ? 'var(--color-primary)' : 'var(--color-success)' }}>
+              {cajon.estatus}
+            </span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={20} /></button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid #F3F4F6', padding: '0 24px' }}>
+          {[['info', 'Información'], ['historial', 'Historial']].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+              color: tab === id ? 'var(--color-primary)' : 'var(--color-text-light)',
+              borderBottom: tab === id ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: '-2px',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {tab === 'info' && (
+            ocupado ? (
+              <>
+                <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '16px', marginBottom: '16px', display: 'grid', gap: '10px' }}>
+                  {[
+                    [User, 'Titular', cajon.pension_titular],
+                    [Car, 'Vehículo', `${cajon.vehiculo_marca || ''} ${cajon.vehiculo_color || ''}`.trim()],
+                    [FileText, 'Placa', cajon.vehiculo_placa],
+                    [DollarSign, 'Monto mensual', fmt(cajon.monto_mensual)],
+                    [Calendar, 'Vigencia', cajon.fecha_fin_pension ? `Hasta ${cajon.fecha_fin_pension}` : 'Indefinida'],
+                  ].filter(([, , v]) => v).map(([Icon, label, val]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                      <Icon size={14} color="var(--color-text-light)" style={{ flexShrink: 0 }} />
+                      <span style={{ color: 'var(--color-text-light)', fontWeight: 600, minWidth: '100px' }}>{label}</span>
+                      <span style={{ fontWeight: 600 }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <button style={{ width: '100%', padding: '10px', background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: '8px', color: 'var(--color-danger)', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  Liberar cajón
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <Car size={40} color="#D1D5DB" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-light)', marginBottom: '20px' }}>Cajón disponible</div>
+                <button onClick={() => onNuevaPension(cajon)} style={{ padding: '12px 24px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  + Asignar pensión
+                </button>
+              </div>
+            )
+          )}
+          {tab === 'historial' && (
+            <div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-light)', marginBottom: '12px' }}>Historial de ocupación</div>
+              {HISTORIAL_DEMO.map((h, i) => (
+                <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{h.titular}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(h.monto)}/mes</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{h.placa} · {h.marca} {h.color}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px' }}>{h.fecha_inicio} → {h.fecha_fin}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CajonCard({ c, onClick }) {
   const ocupado = c.estatus === 'OCUPADO'
   return (
-    <div style={{
-      background: ocupado ? 'var(--color-primary)08' : '#F0FDF4',
-      border: `2px solid ${ocupado ? 'var(--color-primary)30' : '#86EFAC'}`,
-      borderRadius: '10px',
-      padding: '14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '6px',
-    }}>
+    <div
+      onClick={() => onClick(c)}
+      style={{
+        background: ocupado ? 'var(--color-primary)08' : '#F0FDF4',
+        border: `2px solid ${ocupado ? 'var(--color-primary)30' : '#86EFAC'}`,
+        borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '6px',
+        cursor: 'pointer', transition: 'box-shadow 0.15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.10)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ fontWeight: 800, fontSize: '16px', color: ocupado ? 'var(--color-primary)' : 'var(--color-success)' }}>
           #{c.numero_cajon}
         </div>
-        <span style={{
-          fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
+        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
           background: ocupado ? 'var(--color-primary)20' : '#DCF5DC',
-          color: ocupado ? 'var(--color-primary)' : 'var(--color-success)',
-        }}>{c.estatus}</span>
+          color: ocupado ? 'var(--color-primary)' : 'var(--color-success)' }}>{c.estatus}</span>
       </div>
       <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>{c.tipo || 'General'}</div>
       {ocupado && c.pension_titular && (
@@ -38,6 +188,7 @@ function CajonCard({ c }) {
           {c.monto_mensual > 0 && <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 700, marginTop: '4px' }}>{fmt(c.monto_mensual)}/mes</div>}
         </div>
       )}
+      <div style={{ fontSize: '10px', color: 'var(--color-primary)', fontWeight: 600, marginTop: '2px' }}>Ver detalle →</div>
     </div>
   )
 }
@@ -46,6 +197,8 @@ export default function Estacionamiento() {
   useModuleAudit('ESTACIONAMIENTO')
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState('Todos')
+  const [selected, setSelected] = useState(null)
+  const [nuevaPension, setNuevaPension] = useState(null)
   const { data, loading } = usePRP('prp_estacionamiento')
 
   const lista = data ?? []
@@ -67,16 +220,16 @@ export default function Estacionamiento() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Estacionamiento</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cajones totales</p>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cajones · clic en cualquier cajón para ver detalle</p>
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => setNuevaPension({ numero_cajon: '—', tipo: 'General', estatus: 'DISPONIBLE' })} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
           <Plus size={15} /> Nueva Pensión
         </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Ocupados" value={ocupados} icon={Car} color="var(--color-primary)" />
-        <KPICard title="Disponibles" value={disponibles} icon={CheckCircle} color="var(--color-success)" />
+        <div onClick={() => setFiltro('OCUPADO')} style={{ cursor: 'pointer' }}><KPICard title="Ocupados" value={ocupados} icon={Car} color="var(--color-primary)" /></div>
+        <div onClick={() => setFiltro('DISPONIBLE')} style={{ cursor: 'pointer' }}><KPICard title="Disponibles" value={disponibles} icon={CheckCircle} color="var(--color-success)" /></div>
         <KPICard title="Ocupación" value={lista.length ? `${Math.round(ocupados/lista.length*100)}%` : '0%'} icon={AlertTriangle} color="var(--color-warning)" />
         <KPICard title="Ingresos/mes" value={`$${(ingresos/1000).toFixed(1)}K`} icon={DollarSign} color="var(--color-secondary)" />
       </div>
@@ -102,9 +255,20 @@ export default function Estacionamiento() {
         : filtrados.length === 0
         ? <EmptyState title="Sin cajones" description="No hay cajones que coincidan con los filtros." />
         : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-            {filtrados.map(c => <CajonCard key={c.id} c={c} />)}
+            {filtrados.map(c => <CajonCard key={c.id} c={c} onClick={setSelected} />)}
           </div>
       }
+
+      {selected && (
+        <CajonModal
+          cajon={selected}
+          onClose={() => setSelected(null)}
+          onNuevaPension={c => { setSelected(null); setNuevaPension(c) }}
+        />
+      )}
+      {nuevaPension && (
+        <NuevaPensionModal cajon={nuevaPension} onClose={() => setNuevaPension(null)} />
+      )}
     </div>
   )
 }

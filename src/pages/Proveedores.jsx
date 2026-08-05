@@ -1,21 +1,161 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
-import { Truck, Plus, Search, Star, Phone, Mail, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Truck, Plus, Search, Star, Phone, Mail, FileText, CheckCircle, AlertTriangle, X, Wrench, DollarSign } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import StatusBadge from '../components/ui/StatusBadge'
 
 const PROVEEDORES = [
-  { id: 'PRV-001', nombre: 'Servicios Eléctricos del Noroeste SA', contacto: 'Ing. Pérez Rueda', telefono: '667-123-4567', email: 'contacto@senoreste.mx', categoria: 'Eléctrico', calificacion: 4.8, contratos_activos: 3, monto_anual: 285000, estado: 'ACTIVO', rfc: 'SEN920314KL2' },
-  { id: 'PRV-002', nombre: 'Limpieza Industrial Sinaloa SC', contacto: 'Lic. Torres Medina', telefono: '668-234-5678', email: 'ventas@limpsin.mx', categoria: 'Limpieza', calificacion: 4.5, contratos_activos: 1, monto_anual: 96000, estado: 'ACTIVO', rfc: 'LIS050819AB3' },
-  { id: 'PRV-003', nombre: 'Fontanería y Plomería del Pacífico', contacto: 'Sr. Ramírez López', telefono: '669-345-6789', email: 'fppacifico@gmail.com', categoria: 'Plomería', calificacion: 4.2, contratos_activos: 2, monto_anual: 54000, estado: 'ACTIVO', rfc: 'RPL780901FG4' },
-  { id: 'PRV-004', nombre: 'Seguridad Privada GAMA SA de CV', contacto: 'Lic. Soto Carrillo', telefono: '667-456-7890', email: 'operaciones@gama-seg.mx', categoria: 'Seguridad', calificacion: 3.9, contratos_activos: 1, monto_anual: 420000, estado: 'ACTIVO', rfc: 'SGA991210HJ5' },
-  { id: 'PRV-005', nombre: 'Materiales de Construcción Hernández', contacto: 'Sr. Hernández Vega', telefono: '668-567-8901', email: 'ventas@mchernandez.mx', categoria: 'Materiales', calificacion: 4.0, contratos_activos: 0, monto_anual: 0, estado: 'INACTIVO', rfc: 'HVE650715MN6' },
-  { id: 'PRV-006', nombre: 'Clima y Refrigeración Norte', contacto: 'Ing. Acosta Ruiz', telefono: '667-678-9012', email: 'clima@crn.mx', categoria: 'HVAC', calificacion: 4.6, contratos_activos: 2, monto_anual: 180000, estado: 'ACTIVO', rfc: 'CRN110420OP7' },
+  { id: 'PRV-001', nombre: 'Servicios Eléctricos del Noroeste SA', contacto: 'Ing. Pérez Rueda', telefono: '667-123-4567', email: 'contacto@senoreste.mx', categoria: 'Eléctrico', calificacion: 4.8, contratos_activos: 3, monto_anual: 285000, estado: 'ACTIVO', rfc: 'SEN920314KL2',
+    ots: [
+      { id: 'OT-2026-089', descripcion: 'Revisión tablero eléctrico L3', estado: 'COMPLETADO', fecha: '2026-07-20', monto: 4500 },
+      { id: 'OT-2026-092', descripcion: 'Cambio luminaria LED estacionamiento', estado: 'EN_PROCESO', fecha: '2026-08-01', monto: 12800 },
+      { id: 'OT-2026-095', descripcion: 'Instalación tierra física local 14', estado: 'PENDIENTE', fecha: '2026-08-10', monto: 3200 },
+    ] },
+  { id: 'PRV-002', nombre: 'Limpieza Industrial Sinaloa SC', contacto: 'Lic. Torres Medina', telefono: '668-234-5678', email: 'ventas@limpsin.mx', categoria: 'Limpieza', calificacion: 4.5, contratos_activos: 1, monto_anual: 96000, estado: 'ACTIVO', rfc: 'LIS050819AB3',
+    ots: [
+      { id: 'OT-2026-081', descripcion: 'Limpieza profunda área foodcourt', estado: 'COMPLETADO', fecha: '2026-07-15', monto: 8000 },
+      { id: 'OT-2026-091', descripcion: 'Lavado de fachada exterior', estado: 'EN_PROCESO', fecha: '2026-08-03', monto: 15000 },
+    ] },
+  { id: 'PRV-003', nombre: 'Fontanería y Plomería del Pacífico', contacto: 'Sr. Ramírez López', telefono: '669-345-6789', email: 'fppacifico@gmail.com', categoria: 'Plomería', calificacion: 4.2, contratos_activos: 2, monto_anual: 54000, estado: 'ACTIVO', rfc: 'RPL780901FG4', ots: [] },
+  { id: 'PRV-004', nombre: 'Seguridad Privada GAMA SA de CV', contacto: 'Lic. Soto Carrillo', telefono: '667-456-7890', email: 'operaciones@gama-seg.mx', categoria: 'Seguridad', calificacion: 3.9, contratos_activos: 1, monto_anual: 420000, estado: 'ACTIVO', rfc: 'SGA991210HJ5',
+    ots: [
+      { id: 'OT-2026-078', descripcion: 'Reparación cámara acceso principal', estado: 'COMPLETADO', fecha: '2026-07-10', monto: 2800 },
+    ] },
+  { id: 'PRV-005', nombre: 'Materiales de Construcción Hernández', contacto: 'Sr. Hernández Vega', telefono: '668-567-8901', email: 'ventas@mchernandez.mx', categoria: 'Materiales', calificacion: 4.0, contratos_activos: 0, monto_anual: 0, estado: 'INACTIVO', rfc: 'HVE650715MN6', ots: [] },
+  { id: 'PRV-006', nombre: 'Clima y Refrigeración Norte', contacto: 'Ing. Acosta Ruiz', telefono: '667-678-9012', email: 'clima@crn.mx', categoria: 'HVAC', calificacion: 4.6, contratos_activos: 2, monto_anual: 180000, estado: 'ACTIVO', rfc: 'CRN110420OP7',
+    ots: [
+      { id: 'OT-2026-085', descripcion: 'Mantenimiento preventivo climatización', estado: 'COMPLETADO', fecha: '2026-07-22', monto: 9500 },
+      { id: 'OT-2026-094', descripcion: 'Recarga refrigerante equipo B3', estado: 'PENDIENTE', fecha: '2026-08-12', monto: 4200 },
+    ] },
 ]
 
 const CATS = ['Todos', 'Eléctrico', 'Limpieza', 'Plomería', 'Seguridad', 'Materiales', 'HVAC']
 const CAT_COLORS = { Eléctrico: '#FEF9C3', Limpieza: '#DCFCE7', Plomería: '#DBEAFE', Seguridad: '#FEE2E2', Materiales: '#F3E8FF', HVAC: '#E0F2FE' }
 const CAT_TEXT = { Eléctrico: '#854D0E', Limpieza: '#166534', Plomería: '#1E40AF', Seguridad: '#991B1B', Materiales: '#6B21A8', HVAC: '#0C4A6E' }
+const OT_COLOR = { COMPLETADO: 'var(--color-success)', EN_PROCESO: 'var(--color-secondary)', PENDIENTE: 'var(--color-warning)' }
+function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
+
+function ProveedorModal({ p, onClose }) {
+  const [tab, setTab] = useState('info')
+  if (!p) return null
+  const ots = p.ots || []
+  const montoOTs = ots.reduce((a, b) => a + (b.monto || 0), 0)
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '580px', maxWidth: '95vw', maxHeight: '88vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '4px' }}>{p.categoria} · {p.rfc}</div>
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>{p.nombre}</h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <StatusBadge status={p.estado} />
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={20} /></button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '2px solid #F3F4F6', padding: '0 24px' }}>
+          {[['info', 'Datos'], ['ots', `OTs (${ots.length})`], ['evaluar', 'Calificación']].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+              color: tab === id ? 'var(--color-primary)' : 'var(--color-text-light)',
+              borderBottom: tab === id ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: '-2px',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {tab === 'info' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                {[['Contacto', p.contacto], ['Teléfono', p.telefono], ['Email', p.email], ['Categoría', p.categoria]].map(([k, v]) => (
+                  <div key={k} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{k}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
+                {[
+                  ['Contratos activos', p.contratos_activos, 'var(--color-primary)'],
+                  ['Monto anual', fmt(p.monto_anual), 'var(--color-success)'],
+                  ['Calificación', `${p.calificacion} ★`, 'var(--color-warning)'],
+                ].map(([label, val, color]) => (
+                  <div key={label} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color }}>{val}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px', textTransform: 'uppercase' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button style={{ flex: 1, padding: '9px', border: '1.5px solid var(--color-primary)', borderRadius: '8px', color: 'var(--color-primary)', background: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>Nueva OT</button>
+                <button style={{ flex: 1, padding: '9px', border: '1.5px solid #E5E7EB', borderRadius: '8px', color: 'var(--color-text)', background: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>Ver contratos</button>
+              </div>
+            </>
+          )}
+
+          {tab === 'ots' && (
+            <>
+              {ots.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-light)', fontSize: '13px' }}>Sin órdenes de trabajo registradas</div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1, padding: '10px', background: '#F9FAFB', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-primary)' }}>{ots.length}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Total OTs</div>
+                    </div>
+                    <div style={{ flex: 1, padding: '10px', background: '#F9FAFB', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(montoOTs)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Monto total</div>
+                    </div>
+                  </div>
+                  {ots.map(o => (
+                    <div key={o.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{o.descripcion}</div>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px',
+                          background: (OT_COLOR[o.estado] || '#E5E7EB') + '20',
+                          color: OT_COLOR[o.estado] || '#9CA3AF' }}>{o.estado.replace('_',' ')}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-light)' }}>
+                        <span>{o.id} · {o.fecha}</span>
+                        <span style={{ fontWeight: 700 }}>{fmt(o.monto)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+
+          {tab === 'evaluar' && (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: '48px', color: '#F59E0B', marginBottom: '8px' }}>{'★'.repeat(Math.floor(p.calificacion))}{'☆'.repeat(5 - Math.floor(p.calificacion))}</div>
+              <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-text)', marginBottom: '4px' }}>{p.calificacion} / 5.0</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-light)', marginBottom: '24px' }}>Calificación promedio acumulada</div>
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #F59E0B', background: n <= Math.floor(p.calificacion) ? '#F59E0B' : 'white', color: n <= Math.floor(p.calificacion) ? 'white' : '#F59E0B', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button style={{ padding: '10px 24px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                Registrar evaluación
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Proveedores() {
   useModuleAudit('PROVEEDORES')
@@ -33,13 +173,14 @@ export default function Proveedores() {
   const activos = PROVEEDORES.filter(p => p.estado === 'ACTIVO').length
   const montoTotal = PROVEEDORES.reduce((a, b) => a + b.monto_anual, 0)
   const contratos = PROVEEDORES.reduce((a, b) => a + b.contratos_activos, 0)
+  const calProm = (PROVEEDORES.filter(p => p.estado === 'ACTIVO').reduce((a, b) => a + b.calificacion, 0) / activos).toFixed(1)
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Proveedores</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{PROVEEDORES.length} proveedores registrados</p>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>Clic en un proveedor para ver detalle, OTs y calificación</p>
         </div>
         <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
           <Plus size={16} /> Nuevo Proveedor
@@ -49,8 +190,8 @@ export default function Proveedores() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         <KPICard title="Proveedores Activos" value={activos} icon={Truck} color="var(--color-primary)" />
         <KPICard title="Contratos Vigentes" value={contratos} icon={FileText} color="var(--color-success)" />
-        <KPICard title="Monto Anual" value={`$${(montoTotal / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-secondary)" />
-        <KPICard title="Calificación Promedio" value="4.4★" icon={Star} color="var(--color-warning)" />
+        <KPICard title="Monto Anual" value={`$${(montoTotal / 1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
+        <KPICard title="Calificación Promedio" value={`${calProm}★`} icon={Star} color="var(--color-warning)" />
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -73,7 +214,9 @@ export default function Proveedores() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '14px' }}>
         {filtrados.map(p => (
-          <div key={p.id} onClick={() => setSelected(p)} style={{ background: 'white', borderRadius: '10px', border: '1.5px solid', borderColor: selected?.id === p.id ? 'var(--color-primary)' : '#E5E7EB', padding: '18px', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+          <div key={p.id} onClick={() => setSelected(p)} style={{ background: 'white', borderRadius: '10px', border: '1.5px solid', borderColor: selected?.id === p.id ? 'var(--color-primary)' : '#E5E7EB', padding: '18px', cursor: 'pointer', transition: 'all 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(10,102,194,0.10)'}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{p.nombre}</div>
@@ -89,48 +232,28 @@ export default function Proveedores() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={12} />{p.telefono}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={12} />{p.email}</div>
             </div>
-            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid #F3F4F6', paddingTop: '10px' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>{p.contratos_activos}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Contratos</div>
+            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid #F3F4F6', paddingTop: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>{p.contratos_activos}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Contratos</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-success)' }}>${(p.monto_anual/1000).toFixed(0)}K</div>
+                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Anual</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-warning)' }}>{(p.ots||[]).length}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>OTs</div>
+                </div>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-success)' }}>${p.monto_anual.toLocaleString()}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Monto anual</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-light)' }}>{p.contacto}</div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Contacto</div>
-              </div>
+              <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 600 }}>Ver detalle →</span>
             </div>
           </div>
         ))}
       </div>
 
-      {selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelected(null)}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '500px', maxWidth: '95vw' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>{selected.nombre}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--color-text-light)' }}>{selected.rfc}</div>
-              </div>
-              <button onClick={() => setSelected(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '18px' }}>×</button>
-            </div>
-            {[['Categoría', selected.categoria], ['Contacto', selected.contacto], ['Teléfono', selected.telefono], ['Email', selected.email], ['Calificación', `${selected.calificacion} / 5.0`], ['Contratos activos', selected.contratos_activos], ['Monto anual', `$${selected.monto_anual.toLocaleString()}`]].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F3F4F6', fontSize: '13px' }}>
-                <span style={{ color: 'var(--color-text-light)', fontWeight: 600 }}>{k}</span>
-                <span style={{ fontWeight: 600 }}>{v}</span>
-              </div>
-            ))}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              {['Ver contratos', 'Nueva OT', 'Evaluar'].map(label => (
-                <button key={label} style={{ flex: 1, padding: '9px', border: '1.5px solid var(--color-primary)', borderRadius: '8px', color: 'var(--color-primary)', background: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>{label}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {selected && <ProveedorModal p={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }
