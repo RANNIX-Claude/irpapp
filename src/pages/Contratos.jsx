@@ -3,8 +3,9 @@ import { useState, useRef, useEffect } from 'react'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
-  Send, Download, Eye, ChevronRight
+  Send, Download, Eye, ChevronRight, Wand2
 } from 'lucide-react'
+import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
@@ -89,6 +90,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
   const [uploadingPDF, setUploadingPDF] = useState(false)
   const [pdfUrl, setPdfUrl] = useState(c?.archivo_contrato_url || null)
   const [notaErr, setNotaErr] = useState(null)
+  const [showElaborar, setShowElaborar] = useState(false)
   const pdfRef = useRef()
 
   useEffect(() => {
@@ -229,10 +231,13 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
               )}
               {/* Acciones */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E5E7EB' }}>
+                <button
+                  onClick={() => setShowElaborar(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 18px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                  <Wand2 size={15} /> Elaborar Contrato
+                </button>
                 {[
-                  ['Renovar contrato', 'var(--color-primary)'],
-                  ['Generar addenda', 'var(--color-secondary)'],
-                  ['Ver cobranza', 'var(--color-success)'],
+                  ['Renovar contrato', 'var(--color-success)'],
                   ['Cancelar', 'var(--color-danger)'],
                 ].map(([label, bg]) => (
                   <button key={label} style={{ padding: '8px 14px', background: bg, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
@@ -240,6 +245,23 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
                   </button>
                 ))}
               </div>
+              {showElaborar && (
+                <ElaborarContratoModal
+                  prospecto={{
+                    nombre: c.arrendatario_nombre,
+                    domicilio: c.fiador_domicilio || '',
+                    rfc: c.fiador_rfc || '',
+                    telefono: '',
+                    giro_solicitado: c.giro_autorizado || '',
+                    fiador_nombre: c.fiador_nombre || '',
+                    fiador_telefono: '',
+                    fiador_domicilio: c.fiador_domicilio || '',
+                    monto_ofertado: c.renta_mensual,
+                  }}
+                  unidad={{ numero_local: c.unidad_numero }}
+                  onClose={() => setShowElaborar(false)}
+                />
+              )}
             </div>
           )}
 

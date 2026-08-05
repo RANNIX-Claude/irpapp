@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import ElaborarContratoModal from './ElaborarContratoModal'
 import {
   X, FileText, Upload, Download, Eye, CheckCircle, Clock,
   AlertTriangle, CreditCard, Paperclip, User, Building2,
@@ -45,6 +46,7 @@ export default function ExpedienteModal({ entidad, entidadTipo = 'ARRENDATARIO',
   const [tab, setTab] = useState('resumen')
   const [docs, setDocs] = useState([])
   const [docsLoading, setDocsLoading] = useState(false)
+  const [showElaborar, setShowElaborar] = useState(false)
   const [uploading, setUploading] = useState(null)
   const fileRefs = useRef({})
 
@@ -241,14 +243,47 @@ export default function ExpedienteModal({ entidad, entidadTipo = 'ARRENDATARIO',
                       ⚠️ El contrato firmado (PDF) aún no ha sido adjuntado
                     </div>
                   )}
+                  {/* Botón Elaborar Contrato */}
+                  <div style={{ paddingTop: '16px', borderTop: '1px solid #E5E7EB' }}>
+                    <button
+                      onClick={() => setShowElaborar(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                      <Download size={15} /> Elaborar Contrato Word + Pagarés
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-light)' }}>
                   <FileText size={40} style={{ marginBottom: '12px', opacity: 0.4 }} />
                   <div style={{ fontWeight: 700 }}>Sin contrato activo</div>
+                  <div style={{ marginTop: '16px' }}>
+                    <button
+                      onClick={() => setShowElaborar(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '10px 20px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                      <Download size={15} /> Elaborar Contrato
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+          )}
+          {showElaborar && (
+            <ElaborarContratoModal
+              prospecto={{
+                nombre: entidad.nombre || '',
+                apellidos: entidad.apellidos || '',
+                domicilio: entidad.domicilio || '',
+                rfc: entidad.rfc || '',
+                telefono: entidad.telefono || '',
+                giro_solicitado: entidad.giro_autorizado || '',
+                fiador_nombre: entidad.fiador_nombre || '',
+                fiador_telefono: '',
+                fiador_domicilio: entidad.fiador_domicilio || '',
+                monto_ofertado: entidad.renta_mensual || '',
+              }}
+              unidad={{ numero_local: entidad.unidad_numero || '' }}
+              onClose={() => setShowElaborar(false)}
+            />
           )}
 
           {/* ── COBRANZA ── */}
