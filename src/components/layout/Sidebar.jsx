@@ -47,7 +47,7 @@ export default function Sidebar() {
             whiteSpace: 'nowrap', transition: 'all 0.15s',
             borderRadius: '0 6px 6px 0', margin: '1px 8px 1px 0',
           })}>
-            <Icon size={17} style={{ flexShrink: 0, marginLeft: isActive ? '0' : '1px' }} />
+            <Icon size={17} style={{ flexShrink: 0, marginLeft: '1px' }} />
             {sidebarOpen && <span>{label}</span>}
           </NavLink>
         ))}

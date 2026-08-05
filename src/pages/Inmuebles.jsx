@@ -3,41 +3,10 @@ import { Building2, Plus, Search, MapPin, Home, TrendingUp, MoreVertical, Eye, E
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { usePRP } from '../hooks/usePRP'
 
-const TIPOS = ['Todos', 'Plaza Comercial', 'Edificio Oficinas', 'Consultorio', 'Bodega Industrial']
-
-const INMUEBLES_DEMO = [
-  {
-    id: '1', nombre: 'Plaza Reforma Norte', tipo: 'Plaza Comercial',
-    ciudad: 'CDMX', colonia: 'Cuauhtémoc', m2_totales: 12400,
-    total_unidades: 48, unidades_ocupadas: 44, estado: 'ACTIVO',
-    renta_promedio: 320, imagen: null,
-  },
-  {
-    id: '2', nombre: 'Torre Corporativa Insurgentes', tipo: 'Edificio Oficinas',
-    ciudad: 'CDMX', colonia: 'Benito Juárez', m2_totales: 8200,
-    total_unidades: 24, unidades_ocupadas: 20, estado: 'ACTIVO',
-    renta_promedio: 580, imagen: null,
-  },
-  {
-    id: '3', nombre: 'Clínica Especialidades Satélite', tipo: 'Consultorio',
-    ciudad: 'Naucalpan', colonia: 'Ciudad Satélite', m2_totales: 1800,
-    total_unidades: 18, unidades_ocupadas: 16, estado: 'ACTIVO',
-    renta_promedio: 210, imagen: null,
-  },
-  {
-    id: '4', nombre: 'Nave Industrial Vallejo', tipo: 'Bodega Industrial',
-    ciudad: 'CDMX', colonia: 'Vallejo', m2_totales: 6500,
-    total_unidades: 8, unidades_ocupadas: 5, estado: 'MANTENIMIENTO',
-    renta_promedio: 95, imagen: null,
-  },
-  {
-    id: '5', nombre: 'Plaza del Valle Monterrey', tipo: 'Plaza Comercial',
-    ciudad: 'Monterrey', colonia: 'Del Valle', m2_totales: 9800,
-    total_unidades: 62, unidades_ocupadas: 58, estado: 'ACTIVO',
-    renta_promedio: 410, imagen: null,
-  },
-]
+const TIPOS = ['Todos']
 
 function InmuebleCard({ item, onView }) {
   const pct = Math.round((item.unidades_ocupadas / item.total_unidades) * 100)
@@ -165,14 +134,15 @@ function InmuebleCard({ item, onView }) {
 }
 
 function UnidadesModal({ inmueble, onClose }) {
-  const UNIDADES = Array.from({ length: inmueble.total_unidades }, (_, i) => ({
-    id: i + 1,
-    numero: `${String.fromCharCode(65 + Math.floor(i / 10))}${String(i % 10 + 1).padStart(2, '0')}`,
-    tipo: inmueble.tipo === 'Edificio Oficinas' ? 'Oficina' : inmueble.tipo === 'Consultorio' ? 'Consultorio' : 'Local',
-    m2: Math.floor(Math.random() * 150 + 40),
-    renta: Math.floor(inmueble.renta_promedio * (0.8 + Math.random() * 0.4)),
-    estado: i < inmueble.unidades_ocupadas ? 'VIGENTE' : i === inmueble.unidades_ocupadas ? 'EN_PROCESO' : 'DISPONIBLE',
-    arrendatario: i < inmueble.unidades_ocupadas ? `Arrendatario ${i + 1}` : null,
+  const { data: rawUnidades, loading } = usePRP('prp_unidades', {
+    filters: [['inmueble_id', 'eq', inmueble.id]],
+    order: { col: 'numero_local' },
+  })
+  const UNIDADES = (rawUnidades ?? []).map(u => ({
+    id: u.id, numero: u.numero_local,
+    tipo: u.tipo_unidad ?? '—', m2: parseInt(u.m2_totales) || 0,
+    renta: parseFloat(u.renta_base) || 0, estado: u.estado_id ?? 'DISPONIBLE',
+    arrendatario: null,
   }))
 
   return (
@@ -194,30 +164,33 @@ function UnidadesModal({ inmueble, onClose }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--color-text-light)' }}>✕</button>
         </div>
         <div style={{ overflow: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#F9FAFB' }}>
-                {['Unidad', 'Tipo', 'm²', 'Renta/mes', 'Arrendatario', 'Estado'].map(h => (
-                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {UNIDADES.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #F3F4F6' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <td style={{ padding: '10px 16px', fontWeight: 700 }}>{u.numero}</td>
-                  <td style={{ padding: '10px 16px', color: 'var(--color-text-light)' }}>{u.tipo}</td>
-                  <td style={{ padding: '10px 16px' }}>{u.m2} m²</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 600 }}>${u.renta.toLocaleString()}</td>
-                  <td style={{ padding: '10px 16px', color: 'var(--color-text-light)' }}>{u.arrendatario || '—'}</td>
-                  <td style={{ padding: '10px 16px' }}><StatusBadge status={u.estado} /></td>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><LoadingSpinner /></div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB' }}>
+                  {['Unidad', 'Tipo', 'm²', 'Renta Base', 'Estado'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB' }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {UNIDADES.map(u => (
+                  <tr key={u.id} style={{ borderBottom: '1px solid #F3F4F6' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 16px', fontWeight: 700 }}>{u.numero}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--color-text-light)' }}>{u.tipo}</td>
+                    <td style={{ padding: '10px 16px' }}>{u.m2} m²</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{u.renta > 0 ? `$${u.renta.toLocaleString()}` : '—'}</td>
+                    <td style={{ padding: '10px 16px' }}><StatusBadge status={u.estado} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
@@ -229,18 +202,31 @@ export default function Inmuebles() {
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [selected, setSelected] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const { data: rawData, loading } = usePRP('prp_inmuebles', { order: { col: 'nombre' } })
+  const { data: unidadesData } = usePRP('prp_unidades', { order: { col: 'numero_local' } })
 
-  const filtrados = INMUEBLES_DEMO.filter(i => {
+  const INMUEBLES_DATA = (rawData ?? []).map(i => ({
+    id: i.id, nombre: i.nombre, tipo: i.tipo_inmueble ?? 'Inmueble',
+    ciudad: i.ciudad ?? '—', colonia: i.estado ?? '', m2_totales: parseInt(i.m2_totales) || 0,
+    total_unidades: parseInt(i.unidades_total) || 0,
+    unidades_ocupadas: parseInt(i.unidades_ocupadas) || 0,
+    estado: i.estado_id ?? 'ACTIVO',
+    renta_promedio: 0, imagen: null,
+  }))
+
+  const tipos = ['Todos', ...new Set(INMUEBLES_DATA.map(i => i.tipo).filter(Boolean))]
+
+  const filtrados = INMUEBLES_DATA.filter(i => {
     const matchSearch = i.nombre.toLowerCase().includes(search.toLowerCase()) ||
       i.ciudad.toLowerCase().includes(search.toLowerCase())
     const matchTipo = tipoFiltro === 'Todos' || i.tipo === tipoFiltro
     return matchSearch && matchTipo
   })
 
-  const totalUnidades = INMUEBLES_DEMO.reduce((a, b) => a + b.total_unidades, 0)
-  const totalOcupadas = INMUEBLES_DEMO.reduce((a, b) => a + b.unidades_ocupadas, 0)
-  const ocupacionGlobal = Math.round((totalOcupadas / totalUnidades) * 100)
-  const rentaTotal = INMUEBLES_DEMO.reduce((a, b) => a + b.renta_promedio * b.unidades_ocupadas, 0)
+  const totalUnidades = INMUEBLES_DATA.reduce((a, b) => a + b.total_unidades, 0)
+  const totalOcupadas = INMUEBLES_DATA.reduce((a, b) => a + b.unidades_ocupadas, 0)
+  const ocupacionGlobal = totalUnidades > 0 ? Math.round((totalOcupadas / totalUnidades) * 100) : 0
+  const rentaTotal = 0
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
@@ -251,7 +237,7 @@ export default function Inmuebles() {
             Inmuebles y Unidades
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>
-            {INMUEBLES_DEMO.length} inmuebles registrados · {totalUnidades} unidades totales
+            {INMUEBLES_DATA.length} inmuebles registrados · {totalUnidades} unidades totales
           </p>
         </div>
         <button
@@ -269,7 +255,7 @@ export default function Inmuebles() {
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-        <KPICard title="Inmuebles" value={INMUEBLES_DEMO.length} icon={Building2} color="var(--color-primary)" />
+        <KPICard title="Inmuebles" value={INMUEBLES_DATA.length} icon={Building2} color="var(--color-primary)" />
         <KPICard title="Unidades Totales" value={totalUnidades} icon={Home} color="var(--color-secondary)" />
         <KPICard title="Ocupación Global" value={`${ocupacionGlobal}%`} icon={TrendingUp}
           color={ocupacionGlobal >= 90 ? 'var(--color-success)' : 'var(--color-warning)'}
@@ -292,7 +278,7 @@ export default function Inmuebles() {
           />
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {TIPOS.map(t => (
+          {tipos.map(t => (
             <button key={t} onClick={() => setTipoFiltro(t)} style={{
               padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
               cursor: 'pointer', border: '1.5px solid',
@@ -307,7 +293,9 @@ export default function Inmuebles() {
       </div>
 
       {/* Grid */}
-      {filtrados.length === 0 ? (
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
+      ) : filtrados.length === 0 ? (
         <EmptyState title="Sin resultados" description="Ajusta los filtros de búsqueda o agrega un nuevo inmueble." />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
