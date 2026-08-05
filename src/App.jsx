@@ -22,6 +22,10 @@ import Reportes from './pages/Reportes.jsx'
 import Configuracion from './pages/Configuracion.jsx'
 import FondoRevolvente from './pages/FondoRevolvente.jsx'
 import Conciliacion from './pages/Conciliacion.jsx'
+import Agua from './pages/Agua.jsx'
+import Vending from './pages/Vending.jsx'
+import EDR from './pages/EDR.jsx'
+import ResumenSemanal from './pages/ResumenSemanal.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
@@ -62,6 +66,10 @@ function AppLayout() {
           <Route path="/reportes" element={<Reportes />} />
           <Route path="/fondo-revolvente" element={<FondoRevolvente />} />
           <Route path="/conciliacion" element={<Conciliacion />} />
+          <Route path="/agua" element={<Agua />} />
+          <Route path="/vending" element={<Vending />} />
+          <Route path="/edr" element={<EDR />} />
+          <Route path="/resumen-semanal" element={<ResumenSemanal />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

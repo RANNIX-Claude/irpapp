@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
-  Search, BarChart3, Settings, Wallet, RefreshCw
+  Search, BarChart3, Settings, Wallet, RefreshCw,
+  Droplets, ShoppingBag, TrendingUp, CalendarRange
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -20,6 +21,10 @@ const NAV_ITEMS = [
   { label: 'Prospectos', path: '/prospectos', icon: Search },
   { label: 'Fondo Revolvente', path: '/fondo-revolvente', icon: Wallet },
   { label: 'Conciliación', path: '/conciliacion', icon: RefreshCw },
+  { label: 'Agua Potable', path: '/agua', icon: Droplets },
+  { label: 'Vending', path: '/vending', icon: ShoppingBag },
+  { label: 'Est. Resultados', path: '/edr', icon: TrendingUp },
+  { label: 'Resumen Semanal', path: '/resumen-semanal', icon: CalendarRange },
   { label: 'Reportes', path: '/reportes', icon: BarChart3 },
   { label: 'Configuración', path: '/config', icon: Settings },
 ]

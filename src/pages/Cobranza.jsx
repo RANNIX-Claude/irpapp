@@ -1,10 +1,11 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
-import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, RefreshCw, X } from 'lucide-react'
+import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, RefreshCw, X, ExternalLink } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import ExpedienteModal from '../components/ui/ExpedienteModal'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 
@@ -12,7 +13,7 @@ const MES_NOMBRES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','O
 
 function fmt(n) { return '$' + (parseFloat(n)||0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
-function CobroRow({ c, onSelect }) {
+function CobroRow({ c, onSelect, onExpediente }) {
   const vencida = !c.fecha_pago_real && new Date(c.fecha_limite_pago) < new Date()
   const colorEstatus = c.estatus === 'PAGADO' ? 'var(--color-success)' : vencida ? 'var(--color-danger)' : 'var(--color-warning)'
   return (
@@ -25,7 +26,15 @@ function CobroRow({ c, onSelect }) {
         <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{MES_NOMBRES[c.mes]} {c.anio} · Pagaré #{c.pagare_numero}</div>
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600 }}>{c.arrendatario_nombre}</div>
+        <button
+          onClick={e => { e.stopPropagation(); onExpediente(c) }}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+          title="Ver expediente completo">
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {c.arrendatario_nombre}
+            <ExternalLink size={11} />
+          </div>
+        </button>
         <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · {c.unidad_numero}</div>
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
@@ -125,7 +134,19 @@ export default function Cobranza() {
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1)
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
   const [selected, setSelected] = useState(null)
+  const [expedienteData, setExpedienteData] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
+
+  const abrirExpediente = (c) => {
+    setExpedienteData({
+      id: c.arrendatario_id,
+      nombre_completo: c.arrendatario_nombre,
+      rfc: c.arrendatario_rfc,
+      telefono: c.arrendatario_telefono,
+      inmueble_nombre: c.inmueble_nombre,
+      numero_local: c.unidad_numero,
+    })
+  }
 
   const { data, loading } = usePRP('prp_cobros', {
     order: { col: 'fecha_limite_pago', asc: true },
@@ -211,7 +232,7 @@ export default function Cobranza() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrados.map(c => <CobroRow key={c.id} c={c} onSelect={setSelected} />)}
+                  {filtrados.map(c => <CobroRow key={c.id} c={c} onSelect={setSelected} onExpediente={abrirExpediente} />)}
                 </tbody>
               </table>
             </div>
@@ -220,6 +241,14 @@ export default function Cobranza() {
 
       {selected && selected.estatus !== 'PAGADO' && (
         <PagoModal cobro={selected} onClose={() => setSelected(null)} onSaved={() => setRefreshKey(k => k + 1)} />
+      )}
+      {expedienteData && (
+        <ExpedienteModal
+          entidad={expedienteData}
+          entidadTipo="ARRENDATARIO"
+          titulo={`Expediente — ${expedienteData.nombre_completo}`}
+          onClose={() => setExpedienteData(null)}
+        />
       )}
     </div>
   )
