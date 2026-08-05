@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Building2, Plus, Search, MapPin, Home, TrendingUp, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -198,6 +199,7 @@ function UnidadesModal({ inmueble, onClose }) {
 }
 
 export default function Inmuebles() {
+  useModuleAudit('INMUEBLES')
   const [search, setSearch] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [selected, setSelected] = useState(null)

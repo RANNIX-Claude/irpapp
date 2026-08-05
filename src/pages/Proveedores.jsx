@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Truck, Plus, Search, Star, Phone, Mail, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -17,6 +18,7 @@ const CAT_COLORS = { Eléctrico: '#FEF9C3', Limpieza: '#DCFCE7', Plomería: '#DB
 const CAT_TEXT = { Eléctrico: '#854D0E', Limpieza: '#166534', Plomería: '#1E40AF', Seguridad: '#991B1B', Materiales: '#6B21A8', HVAC: '#0C4A6E' }
 
 export default function Proveedores() {
+  useModuleAudit('PROVEEDORES')
   const [search, setSearch] = useState('')
   const [cat, setCat] = useState('Todos')
   const [selected, setSelected] = useState(null)

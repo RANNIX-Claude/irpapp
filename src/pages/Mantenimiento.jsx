@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Wrench, Plus, Search, AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar, User, MapPin } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -131,6 +132,7 @@ function OTModal({ ot, onClose }) {
 }
 
 export default function Mantenimiento() {
+  useModuleAudit('MANTENIMIENTO')
   const [search, setSearch] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [prioFiltro, setPrioFiltro] = useState('Todas')

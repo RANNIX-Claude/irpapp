@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Car, Plus, Search, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -42,6 +43,7 @@ function CajonCard({ c }) {
 }
 
 export default function Estacionamiento() {
+  useModuleAudit('ESTACIONAMIENTO')
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState('Todos')
   const { data, loading } = usePRP('prp_estacionamiento')

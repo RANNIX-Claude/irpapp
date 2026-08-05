@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { UserPlus, Plus, Search, Phone, Mail, TrendingUp, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -59,6 +60,7 @@ function ProspectoCard({ p }) {
 }
 
 export default function Prospectos() {
+  useModuleAudit('PROSPECTOS')
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
   const { data, loading } = usePRP('prp_prospectos', { order: { col: 'created_at', asc: false } })

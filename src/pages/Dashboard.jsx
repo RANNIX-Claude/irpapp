@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { Building2, FileText, CreditCard, Users, TrendingUp, AlertTriangle } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -26,6 +27,7 @@ function AlertaContrato({ c }) {
 }
 
 export default function Dashboard() {
+  useModuleAudit('DASHBOARD')
   const { data: kpis, loading: kLoading } = usePRP('prp_kpis', { single: true })
   const { data: alertas } = usePRP('prp_contratos', {
     filters: [['semaforo_vencimiento', 'in', '("CRITICO","ALERTA","VENCIDO")']],

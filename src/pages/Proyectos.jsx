@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { HardHat, Plus, Search, Calendar, TrendingUp, AlertTriangle, CheckCircle, DollarSign, BarChart3 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -210,6 +211,7 @@ function ProyectoModal({ proyecto: p, onClose }) {
 }
 
 export default function Proyectos() {
+  useModuleAudit('PROYECTOS')
   const [search, setSearch] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('Todos')
   const [selected, setSelected] = useState(null)

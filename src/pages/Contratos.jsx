@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useRef, useEffect } from 'react'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
@@ -484,6 +485,7 @@ function NuevoContratoModal({ onClose, onCreated }) {
 // ─── Página principal ────────────────────────────────────────────────────────
 
 export default function Contratos() {
+  useModuleAudit('CONTRATOS')
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
   const [selected, setSelected] = useState(null)

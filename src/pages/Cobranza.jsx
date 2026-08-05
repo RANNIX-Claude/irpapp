@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, RefreshCw, X } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -118,6 +119,7 @@ function PagoModal({ cobro, onClose, onSaved }) {
 }
 
 export default function Cobranza() {
+  useModuleAudit('COBRANZA')
   const [search, setSearch] = useState('')
   const [filtroEstatus, setFiltroEstatus] = useState('Todos')
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1)

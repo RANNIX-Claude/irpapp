@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { BarChart2, TrendingUp, DollarSign, Users, FileText, Download, Calendar, Filter } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -45,6 +46,7 @@ const REPORTES_CAT = [
 const maxCobranza = Math.max(...COBRANZA_MENSUAL.filter(v => v > 0))
 
 export default function Reportes() {
+  useModuleAudit('REPORTES')
   const [tab, setTab] = useState('dashboard')
   const [year, setYear] = useState('2026')
 

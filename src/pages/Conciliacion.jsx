@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useRef } from 'react'
 import { Upload, CheckCircle, AlertCircle, Clock, Search, RefreshCw, FileText, X } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -185,6 +186,7 @@ function parseBBVAcsv(text) {
 }
 
 export default function Conciliacion() {
+  useModuleAudit('CONCILIACION')
   const [search, setSearch] = useState('')
   const [filtroMes, setFiltroMes] = useState('')
   const [filtroEst, setFiltroEst] = useState('PENDIENTE')

@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Settings, Building2, Users, Bell, Shield, CreditCard, FileText, Globe, ChevronRight } from 'lucide-react'
 
@@ -90,6 +91,7 @@ const USERS_DEMO = [
 ]
 
 export default function Configuracion() {
+  useModuleAudit('CONFIGURACION')
   const [activeSection, setActiveSection] = useState('empresa')
   const [formValues, setFormValues] = useState({})
 

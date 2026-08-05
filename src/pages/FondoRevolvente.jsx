@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect } from 'react'
 import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, List } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -194,6 +195,7 @@ function GastoRow({ g }) {
 }
 
 export default function FondoRevolvente() {
+  useModuleAudit('FONDO_REVOLVENTE')
   const [showModal, setShowModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [vista, setVista] = useState('semana') // 'semana' | 'rubros'

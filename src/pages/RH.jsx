@@ -1,3 +1,4 @@
+﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState } from 'react'
 import { Users, Search, Plus, AlertTriangle, CheckCircle, Clock, TrendingUp, UserCheck, Download, X } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -496,6 +497,7 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
 }
 
 export default function RH() {
+  useModuleAudit('RH')
   const [tab, setTab] = useState(0)
   const [showNuevoEmpleado, setShowNuevoEmpleado] = useState(false)
 
