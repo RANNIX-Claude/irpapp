@@ -20,6 +20,8 @@ import Estacionamiento from './pages/Estacionamiento.jsx'
 import Prospectos from './pages/Prospectos.jsx'
 import Reportes from './pages/Reportes.jsx'
 import Configuracion from './pages/Configuracion.jsx'
+import FondoRevolvente from './pages/FondoRevolvente.jsx'
+import Conciliacion from './pages/Conciliacion.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
@@ -58,6 +60,8 @@ function AppLayout() {
           <Route path="/estacionamiento" element={<Estacionamiento />} />
           <Route path="/prospectos" element={<Prospectos />} />
           <Route path="/reportes" element={<Reportes />} />
+          <Route path="/fondo-revolvente" element={<FondoRevolvente />} />
+          <Route path="/conciliacion" element={<Conciliacion />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

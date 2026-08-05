@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
-  Search, BarChart3, Settings, ChevronRight
+  Search, BarChart3, Settings, Wallet, RefreshCw
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
   { label: 'Estacionamiento', path: '/estacionamiento', icon: Car },
   { label: 'Prospectos', path: '/prospectos', icon: Search },
+  { label: 'Fondo Revolvente', path: '/fondo-revolvente', icon: Wallet },
+  { label: 'Conciliación', path: '/conciliacion', icon: RefreshCw },
   { label: 'Reportes', path: '/reportes', icon: BarChart3 },
   { label: 'Configuración', path: '/config', icon: Settings },
 ]
