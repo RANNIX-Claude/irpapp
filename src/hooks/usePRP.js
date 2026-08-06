@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function usePRP(view, options = {}) {
-  const { select = '*', filters = [], order, limit, single } = options
+  const { select = '*', filters = [], order, limit, single, refreshKey } = options
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -31,7 +31,7 @@ export function usePRP(view, options = {}) {
     fetch()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, JSON.stringify(filters), order?.col, limit])
+  }, [view, JSON.stringify(filters), order?.col, limit, refreshKey])
 
   return { data, loading, error }
 }
