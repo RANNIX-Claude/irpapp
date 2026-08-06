@@ -1,10 +1,12 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
-import { Car, Plus, Search, DollarSign, AlertTriangle, CheckCircle, X, Calendar, User, FileText } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Car, Plus, Search, DollarSign, AlertTriangle, CheckCircle, X, Calendar, User, FileText, TrendingUp, ChevronDown } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
+import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
@@ -193,8 +195,150 @@ function CajonCard({ c, onClick }) {
   )
 }
 
+// ── Captura Diaria de Ingresos ────────────────────────────────────────────────
+function CapturaDiaria() {
+  const today = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({ fecha: today, cantidad: '', notas: '' })
+  const [guardando, setGuardando] = useState(false)
+  const [registros, setRegistros] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expandMes, setExpandMes] = useState(null)
+
+  const cargar = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('estacionamiento_diario')
+      .select('*')
+      .order('fecha', { ascending: false })
+      .limit(120)
+    setRegistros(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { cargar() }, [])
+
+  const guardar = async () => {
+    if (!form.fecha || !form.cantidad) return toast.error('Fecha y monto son obligatorios')
+    setGuardando(true)
+    const dt = new Date(form.fecha + 'T12:00:00')
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+    const anio = dt.getFullYear()
+    const mes = MESES[dt.getMonth()]
+    const dia_semana = DIAS[dt.getDay()]
+    const sem = `S${Math.ceil(dt.getDate()/7)}`
+
+    const { error } = await supabase.from('estacionamiento_diario').upsert({
+      fecha: form.fecha,
+      cantidad: parseFloat(form.cantidad),
+      notas: form.notas || null,
+      anio, mes, dia_semana, semana: sem
+    }, { onConflict: 'fecha' })
+
+    if (error) { toast.error('Error al guardar: ' + error.message) }
+    else {
+      toast.success('Ingreso registrado')
+      setForm({ fecha: today, cantidad: '', notas: '' })
+      cargar()
+    }
+    setGuardando(false)
+  }
+
+  // Agrupar por mes para el historial
+  const porMes = {}
+  registros.forEach(r => {
+    const key = `${r.anio || r.fecha?.slice(0,4)}-${r.mes || r.fecha?.slice(5,7)}`
+    if (!porMes[key]) porMes[key] = { label: `${r.mes || r.fecha?.slice(5,7)} ${r.anio || r.fecha?.slice(0,4)}`, registros: [], total: 0 }
+    porMes[key].registros.push(r)
+    porMes[key].total += parseFloat(r.cantidad) || 0
+  })
+  const meses = Object.entries(porMes).slice(0, 14)
+  const totalHistorial = registros.reduce((a, b) => a + (parseFloat(b.cantidad) || 0), 0)
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'start' }}>
+      {/* Formulario */}
+      <div style={{ background: 'white', borderRadius: '12px', border: '1.5px solid #E5E7EB', padding: '24px' }}>
+        <h3 style={{ margin: '0 0 20px', fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Plus size={18} color="var(--color-primary)" /> Registrar ingreso del día
+        </h3>
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '6px' }}>Fecha</label>
+          <input type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))}
+            style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '6px' }}>Monto en efectivo ($)</label>
+          <input type="number" min="0" step="0.50" value={form.cantidad}
+            onChange={e => setForm(p => ({ ...p, cantidad: e.target.value }))}
+            placeholder="0.00"
+            style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '20px', fontWeight: 700, boxSizing: 'border-box', textAlign: 'right' }} />
+        </div>
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '6px' }}>Notas (opcional)</label>
+          <input value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: día festivo, lluvia..."
+            style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
+        </div>
+        <button onClick={guardar} disabled={guardando}
+          style={{ width: '100%', padding: '12px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.7 : 1 }}>
+          {guardando ? 'Guardando...' : 'Guardar ingreso'}
+        </button>
+        <p style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '12px', textAlign: 'center' }}>
+          Si ya existe un registro para esa fecha, se reemplaza el monto.
+        </p>
+      </div>
+
+      {/* Historial */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Historial de ingresos</h3>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>
+            Total: {fmt(totalHistorial)}
+          </div>
+        </div>
+        {loading ? <LoadingSpinner /> : (
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {meses.map(([key, grupo]) => {
+              const open = expandMes === key
+              return (
+                <div key={key} style={{ background: 'white', borderRadius: '10px', border: '1.5px solid #E5E7EB', overflow: 'hidden' }}>
+                  <div onClick={() => setExpandMes(open ? null : key)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', cursor: 'pointer', userSelect: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <ChevronDown size={16} color="var(--color-text-light)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700 }}>{grupo.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{grupo.registros.length} días registrados</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-success)' }}>{fmt(grupo.total)}</div>
+                  </div>
+                  {open && (
+                    <div style={{ borderTop: '1px solid #F3F4F6', maxHeight: '320px', overflowY: 'auto' }}>
+                      {grupo.registros.map(r => (
+                        <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', padding: '10px 18px', borderBottom: '1px solid #F9FAFB', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600 }}>{r.fecha}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{r.dia_semana} {r.semana} {r.notas ? '· ' + r.notas : ''}</div>
+                          </div>
+                          <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-success)' }}>{fmt(r.cantidad)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Estacionamiento() {
   useModuleAudit('ESTACIONAMIENTO')
+  const [mainTab, setMainTab] = useState('cajones')
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState('Todos')
   const [selected, setSelected] = useState(null)
@@ -217,47 +361,73 @@ export default function Estacionamiento() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Estacionamiento</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cajones · clic en cualquier cajón para ver detalle</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Car size={22} color="var(--color-primary)" /> Estacionamiento
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>Pensiones mensuales e ingresos diarios de estacionamiento público</p>
         </div>
-        <button onClick={() => setNuevaPension({ numero_cajon: '—', tipo: 'General', estatus: 'DISPONIBLE' })} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-          <Plus size={15} /> Nueva Pensión
-        </button>
+        {mainTab === 'cajones' && (
+          <button onClick={() => setNuevaPension({ numero_cajon: '—', tipo: 'General', estatus: 'DISPONIBLE' })} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            <Plus size={15} /> Nueva Pensión
+          </button>
+        )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <div onClick={() => setFiltro('OCUPADO')} style={{ cursor: 'pointer' }}><KPICard title="Ocupados" value={ocupados} icon={Car} color="var(--color-primary)" /></div>
-        <div onClick={() => setFiltro('DISPONIBLE')} style={{ cursor: 'pointer' }}><KPICard title="Disponibles" value={disponibles} icon={CheckCircle} color="var(--color-success)" /></div>
-        <KPICard title="Ocupación" value={lista.length ? `${Math.round(ocupados/lista.length*100)}%` : '0%'} icon={AlertTriangle} color="var(--color-warning)" />
-        <KPICard title="Ingresos/mes" value={`$${(ingresos/1000).toFixed(1)}K`} icon={DollarSign} color="var(--color-secondary)" />
-      </div>
-
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por titular, placa o número..."
-            style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
-        </div>
-        {['Todos', 'OCUPADO', 'DISPONIBLE'].map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{
-            padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-            borderColor: filtro === f ? 'var(--color-primary)' : '#E5E7EB',
-            background: filtro === f ? 'var(--color-primary)' : 'white',
-            color: filtro === f ? 'white' : 'var(--color-text-light)',
-          }}>{f}</button>
+      {/* Tabs principales */}
+      <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid #E5E7EB', marginBottom: '24px' }}>
+        {[['cajones', Car, 'Pensiones / Cajones'], ['diario', TrendingUp, 'Ingreso Diario']].map(([id, Icon, label]) => (
+          <button key={id} onClick={() => setMainTab(id)} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
+            fontSize: '14px', fontWeight: 600,
+            color: mainTab === id ? 'var(--color-primary)' : 'var(--color-text-light)',
+            borderBottom: mainTab === id ? '2px solid var(--color-primary)' : '2px solid transparent',
+            marginBottom: '-2px',
+          }}>
+            <Icon size={16} /> {label}
+          </button>
         ))}
       </div>
 
-      {loading
-        ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
-        : filtrados.length === 0
-        ? <EmptyState title="Sin cajones" description="No hay cajones que coincidan con los filtros." />
-        : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-            {filtrados.map(c => <CajonCard key={c.id} c={c} onClick={setSelected} />)}
+      {mainTab === 'cajones' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+            <div onClick={() => setFiltro('OCUPADO')} style={{ cursor: 'pointer' }}><KPICard title="Ocupados" value={ocupados} icon={Car} color="var(--color-primary)" /></div>
+            <div onClick={() => setFiltro('DISPONIBLE')} style={{ cursor: 'pointer' }}><KPICard title="Disponibles" value={disponibles} icon={CheckCircle} color="var(--color-success)" /></div>
+            <KPICard title="Ocupación" value={lista.length ? `${Math.round(ocupados/lista.length*100)}%` : '0%'} icon={AlertTriangle} color="var(--color-warning)" />
+            <KPICard title="Ingresos/mes" value={`$${(ingresos/1000).toFixed(1)}K`} icon={DollarSign} color="var(--color-secondary)" />
           </div>
-      }
+
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por titular, placa o número..."
+                style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
+            </div>
+            {['Todos', 'OCUPADO', 'DISPONIBLE'].map(f => (
+              <button key={f} onClick={() => setFiltro(f)} style={{
+                padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                borderColor: filtro === f ? 'var(--color-primary)' : '#E5E7EB',
+                background: filtro === f ? 'var(--color-primary)' : 'white',
+                color: filtro === f ? 'white' : 'var(--color-text-light)',
+              }}>{f}</button>
+            ))}
+          </div>
+
+          {loading
+            ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
+            : filtrados.length === 0
+            ? <EmptyState title="Sin cajones" description="No hay cajones que coincidan con los filtros." />
+            : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                {filtrados.map(c => <CajonCard key={c.id} c={c} onClick={setSelected} />)}
+              </div>
+          }
+        </>
+      )}
+
+      {mainTab === 'diario' && <CapturaDiaria />}
 
       {selected && (
         <CajonModal
