@@ -15,6 +15,7 @@ const GRUPOS = [
   'Plomería',
   'Herramienta y equipo',
   'Servicios externos',
+  'Vending / Reabasto',
   'Combustible',
   'Seguridad',
   'Alimentación',
@@ -29,17 +30,106 @@ const COLORS = {
   'Plomería': '#3B82F6',
   'Herramienta y equipo': '#6366F1',
   'Servicios externos': '#8B5CF6',
+  'Vending / Reabasto': '#EC4899',
   'Combustible': '#EF4444',
   'Seguridad': '#B24020',
-  'Alimentación': '#EC4899',
+  'Alimentación': '#10B981',
   'Otros': '#6B7280',
 }
+
+// Catálogo de conceptos frecuentes para sugerencia rápida
+const CATALOGO_CONCEPTOS = [
+  { concepto: 'Agua', grupo: 'Limpieza e higiene', proveedores: ['Oxxo', 'Dogo'] },
+  { concepto: 'Bolsa', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Bolsa Grande', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Papel higienico', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Cloro', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Limpiador', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Atomizador', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Guante', grupo: 'Limpieza e higiene', proveedores: ['Dogo', 'Home Depot'] },
+  { concepto: 'Mechudo', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Tapete antisalpicadura', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Desengrasante', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Fibra Verde', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Jabon Liq p/manos', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Pastilla WC', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Microfibra', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Cepillo', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Windex', grupo: 'Limpieza e higiene', proveedores: ['Wm'] },
+  { concepto: 'Glade', grupo: 'Limpieza e higiene', proveedores: ['Sam\'s'] },
+  { concepto: 'Salvo', grupo: 'Limpieza e higiene', proveedores: ['Sam\'s'] },
+  { concepto: 'Garrafon', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+  { concepto: 'Cable 12', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Cable 14', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Taquete', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Cinta de aislar', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Broca', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Brocha', grupo: 'Ferretería y materiales', proveedores: ['Los Canarios'] },
+  { concepto: 'Silicon', grupo: 'Ferretería y materiales', proveedores: ['Com Gao'] },
+  { concepto: 'Thinner', grupo: 'Ferretería y materiales', proveedores: ['Comex'] },
+  { concepto: 'Pintura', grupo: 'Ferretería y materiales', proveedores: ['Comex'] },
+  { concepto: 'Rodillo', grupo: 'Ferretería y materiales', proveedores: ['Comex'] },
+  { concepto: 'Extension electrica', grupo: 'Ferretería y materiales', proveedores: [] },
+  { concepto: 'Hilo Podadora', grupo: 'Ferretería y materiales', proveedores: ['Ferre Frany'] },
+  { concepto: 'No mas clavos', grupo: 'Ferretería y materiales', proveedores: ['Cravioto'] },
+  { concepto: 'Cutter', grupo: 'Ferretería y materiales', proveedores: ['Moriyama'] },
+  { concepto: 'Grapas', grupo: 'Ferretería y materiales', proveedores: ['Moriyama'] },
+  { concepto: 'Diurex', grupo: 'Papelería y oficina', proveedores: ['Office Depot'] },
+  { concepto: 'Libretas', grupo: 'Papelería y oficina', proveedores: ['Office Depot'] },
+  { concepto: 'Marcatexto', grupo: 'Papelería y oficina', proveedores: ['Office Depot'] },
+  { concepto: 'Hojas', grupo: 'Papelería y oficina', proveedores: ['Office Depot'] },
+  { concepto: 'Letreros', grupo: 'Servicios externos', proveedores: ['Rojas', 'Imprenta', 'Moriyama'] },
+  { concepto: 'Dictamen', grupo: 'Servicios externos', proveedores: ['Asigas'] },
+  { concepto: 'Fumigacion', grupo: 'Servicios externos', proveedores: [] },
+  { concepto: 'Total Play', grupo: 'Servicios externos', proveedores: ['Oxxo'] },
+  { concepto: 'Recarga Cel', grupo: 'Servicios externos', proveedores: ['Oxxo'] },
+  { concepto: 'Traslado y recepcion', grupo: 'Servicios externos', proveedores: ['Amazon'] },
+  { concepto: 'Mix Barcel', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Florentinas', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Sabriminis', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Chocolate', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Coca', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Principe', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Nescafe', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Jarritos', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Gatorade', grupo: 'Vending / Reabasto', proveedores: ['Sam\'s'] },
+  { concepto: 'Regulador', grupo: 'Herramienta y equipo', proveedores: ['Amazon'] },
+  { concepto: 'Checador', grupo: 'Herramienta y equipo', proveedores: ['Amazon'] },
+  { concepto: 'Mouse', grupo: 'Herramienta y equipo', proveedores: ['Cornelio Perichon'] },
+  { concepto: 'Cargador', grupo: 'Herramienta y equipo', proveedores: ['Cornelio Perichon'] },
+  { concepto: 'Cubeta', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
+]
 
 function NuevoGastoModal({ onClose, onSaved }) {
   const today = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({ fecha: today, proveedor: '', grupo_gasto: GRUPOS[0], descripcion: '', cantidad: '' })
   const [guardando, setGuardando] = useState(false)
+  const [sugerencias, setSugerencias] = useState([])
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  // Autosugerencia de concepto desde catálogo
+  const onDescChange = e => {
+    const val = e.target.value
+    setForm(p => ({ ...p, descripcion: val }))
+    if (val.length >= 2) {
+      const matches = CATALOGO_CONCEPTOS.filter(c =>
+        c.concepto.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 6)
+      setSugerencias(matches)
+    } else {
+      setSugerencias([])
+    }
+  }
+
+  const aplicarSugerencia = (s) => {
+    setForm(p => ({
+      ...p,
+      descripcion: s.concepto,
+      grupo_gasto: s.grupo,
+      proveedor: s.proveedores[0] || p.proveedor,
+    }))
+    setSugerencias([])
+  }
 
   const guardar = async () => {
     if (!form.fecha || !form.cantidad || !form.grupo_gasto) return toast.error('Fecha, grupo y monto son obligatorios')
@@ -86,6 +176,28 @@ function NuevoGastoModal({ onClose, onSaved }) {
           </div>
         </div>
 
+        {/* Descripción con autosugerencia */}
+        <div style={{ marginBottom: '14px', position: 'relative' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>
+            Concepto <span style={{ fontWeight: 400, color: '#9CA3AF' }}>— empieza a escribir para sugerencias</span>
+          </label>
+          <input value={form.descripcion} onChange={onDescChange} placeholder="¿Qué se compró o pagó?"
+            style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
+          {sugerencias.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 10, overflow: 'hidden' }}>
+              {sugerencias.map(s => (
+                <button key={s.concepto} onClick={() => aplicarSugerencia(s)}
+                  style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #F3F4F6', fontSize: '13px' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                  <span style={{ fontWeight: 600 }}>{s.concepto}</span>
+                  <span style={{ fontSize: '11px', color: COLORS[s.grupo] || '#6B7280', background: '#F3F4F6', padding: '2px 8px', borderRadius: '4px' }}>{s.grupo}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div style={{ marginBottom: '14px' }}>
           <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>Categoría</label>
           <select value={form.grupo_gasto} onChange={set('grupo_gasto')}
@@ -94,15 +206,9 @@ function NuevoGastoModal({ onClose, onSaved }) {
           </select>
         </div>
 
-        <div style={{ marginBottom: '14px' }}>
+        <div style={{ marginBottom: '22px' }}>
           <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>Proveedor</label>
           <input value={form.proveedor} onChange={set('proveedor')} placeholder="Nombre del proveedor"
-            style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
-        </div>
-
-        <div style={{ marginBottom: '22px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>Descripción</label>
-          <input value={form.descripcion} onChange={set('descripcion')} placeholder="¿Qué se compró o pagó?"
             style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
         </div>
 

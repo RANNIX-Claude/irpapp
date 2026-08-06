@@ -1,234 +1,514 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
-import { ShoppingBag, Plus, ChevronRight, X, TrendingUp, DollarSign, Calendar, Printer } from 'lucide-react'
-import KPICard from '../components/ui/KPICard'
-import EmptyState from '../components/ui/EmptyState'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  ShoppingBag, Plus, ChevronLeft, ChevronRight, TrendingUp,
+  DollarSign, PackageCheck, X, Edit2, Save, AlertTriangle
+} from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
-function fmt(n) { return '$' + (parseFloat(n)||0).toLocaleString('es-MX', {minimumFractionDigits:2}) }
-function fmtK(n) { return '$' + (parseFloat(n)/1000).toFixed(1) + 'K' }
+function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }
+function fmtN(n) { return (parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 }) }
 
-const MAQUINAS_DEMO = [
-  { id: 'v01', nombre: 'Vending Central', ubicacion: 'Pasillo principal frente a Farmacia', proveedor: 'Compañía Refresquera del Norte S.A.', comision_pct: 15, activa: true, cierres: [
-    { id: 'c1', semana: '2026-06-23/2026-06-29', fecha_cierre: '2026-06-30', monto_bruto: 3840, comision: 576, monto_neto: 3264, productos: 128, registrado_por: 'Roberto A.', notas: '' },
-    { id: 'c2', semana: '2026-06-30/2026-07-06', fecha_cierre: '2026-07-07', monto_bruto: 4120, comision: 618, monto_neto: 3502, productos: 138, registrado_por: 'Roberto A.', notas: 'Máquina sin cambio el miércoles' },
-    { id: 'c3', semana: '2026-07-07/2026-07-13', fecha_cierre: '2026-07-14', monto_bruto: 3950, comision: 592.50, monto_neto: 3357.50, productos: 132, registrado_por: 'Roberto A.', notas: '' },
-    { id: 'c4', semana: '2026-07-14/2026-07-20', fecha_cierre: null, monto_bruto: null, comision: null, monto_neto: null, productos: null, registrado_por: null, notas: '', pendiente: true },
-  ]},
-  { id: 'v02', nombre: 'Vending Estacionamiento', ubicacion: 'Entrada estacionamiento subterráneo', proveedor: 'Distribuidora Snacks Premium', comision_pct: 12, activa: true, cierres: [
-    { id: 'c5', semana: '2026-06-23/2026-06-29', fecha_cierre: '2026-06-30', monto_bruto: 1560, comision: 187.20, monto_neto: 1372.80, productos: 52, registrado_por: 'Roberto A.', notas: '' },
-    { id: 'c6', semana: '2026-06-30/2026-07-06', fecha_cierre: '2026-07-07', monto_bruto: 1720, comision: 206.40, monto_neto: 1513.60, productos: 58, registrado_por: 'Roberto A.', notas: '' },
-    { id: 'c7', semana: '2026-07-07/2026-07-13', fecha_cierre: '2026-07-14', monto_bruto: 1840, comision: 220.80, monto_neto: 1619.20, productos: 62, registrado_por: 'Roberto A.', notas: '' },
-    { id: 'c8', semana: '2026-07-14/2026-07-20', fecha_cierre: null, monto_bruto: null, comision: null, monto_neto: null, productos: null, registrado_por: null, notas: '', pendiente: true },
-  ]},
-  { id: 'v03', nombre: 'Vending Locales B', ubicacion: 'Corredor B entre locales B-05 y B-06', proveedor: 'Compañía Refresquera del Norte S.A.', comision_pct: 15, activa: false, cierres: [
-    { id: 'c9', semana: '2026-06-23/2026-06-29', fecha_cierre: '2026-06-30', monto_bruto: 980, comision: 147, monto_neto: 833, productos: 32, registrado_por: 'Roberto A.', notas: 'Máquina fuera de servicio parte de la semana' },
-  ]},
-]
+const CATEGORIAS = { snack: 'Snack', bebida: 'Bebida', otro: 'Otro' }
 
-// ── Modal detalle máquina ──────────────────────────────────────────────────────
-function MaquinaModal({ maq, onClose }) {
-  const [tab, setTab] = useState('historial')
-  const [cierre, setCierre] = useState({ monto_bruto: '', productos: '', notas: '', fecha: new Date().toISOString().split('T')[0] })
+// ── Semana helpers ─────────────────────────────────────────────────────────
+function semanaDeJulio(offset = 0) {
+  const hoy = new Date()
+  const lunes = new Date(hoy)
+  lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7) + offset * 7)
+  const domingo = new Date(lunes)
+  domingo.setDate(lunes.getDate() + 6)
+  return {
+    ini: lunes.toISOString().split('T')[0],
+    fin: domingo.toISOString().split('T')[0],
+    label: `${lunes.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} – ${domingo.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+  }
+}
 
-  const cerradosCierres = maq.cierres.filter(c => !c.pendiente)
-  const pendienteCierre = maq.cierres.find(c => c.pendiente)
-  const totalNeto = cerradosCierres.reduce((a, b) => a + (b.monto_neto || 0), 0)
-  const totalBruto = cerradosCierres.reduce((a, b) => a + (b.monto_bruto || 0), 0)
+// ── Modal captura semanal ──────────────────────────────────────────────────
+function CapturaModal({ semana, productos, onClose, onSaved }) {
+  const [rows, setRows] = useState([])
+  const [guardando, setGuardando] = useState(false)
 
-  const comisionCalc = cierre.monto_bruto ? (+cierre.monto_bruto * maq.comision_pct / 100) : 0
-  const netoCalc = cierre.monto_bruto ? (+cierre.monto_bruto - comisionCalc) : 0
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('vending_inventario_semanal')
+        .select('*')
+        .eq('fecha_inicio', semana.ini)
+      const existentes = {}
+      ;(data || []).forEach(r => { existentes[r.producto_nombre] = r })
+      setRows(productos.map(p => existentes[p.nombre] ? { ...existentes[p.nombre], _dirty: false } : {
+        producto_nombre: p.nombre, producto_id: p.id,
+        compras_unidades: 0, inventario_unidades: 0,
+        ventas_unidades: 0, ventas_monto: 0, utilidad_semana: 0,
+        semanas_inventario: null, status: p.activo ? 'ACTIVO' : 'BAJA', notas: '',
+        _dirty: false,
+      }))
+    }
+    load()
+  }, [semana, productos])
 
-  const handlePrint = (c) => {
-    const w = window.open('', '_blank', 'width=600,height=450')
-    w.document.write(`<!DOCTYPE html><html><head><title>Cierre Vending</title><style>
-      body{font-family:Arial,sans-serif;margin:40px;font-size:13px}
-      h1{font-size:18px;color:#0A66C2;margin:0}.sub{color:#6B7280;font-size:12px}
-      .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #0A66C2;padding-bottom:16px;margin-bottom:20px}
-      .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
-      .lbl{color:#6B7280;font-weight:600;font-size:11px;text-transform:uppercase}.val{font-weight:600}
-      .totals{background:#F9FAFB;border-radius:8px;padding:14px;margin:20px 0}
-      @media print{body{margin:20px}}
-    </style></head><body>
-      <div class="hdr"><div><h1>CIERRE SEMANAL VENDING</h1><div class="sub">${maq.nombre} — ${maq.ubicacion}</div></div>
-      <div style="text-align:right"><div style="font-weight:700;color:#0A66C2">CIE-${c.id.toUpperCase()}</div><div class="sub">${c.fecha_cierre}</div></div></div>
-      <div class="grid">
-        <div><div class="lbl">Semana</div><div class="val">${c.semana}</div></div>
-        <div><div class="lbl">Proveedor</div><div class="val">${maq.proveedor}</div></div>
-        <div><div class="lbl">Productos vendidos</div><div class="val">${c.productos}</div></div>
-        <div><div class="lbl">Comisión</div><div class="val">${maq.comision_pct}%</div></div>
-      </div>
-      <div class="totals">
-        <div class="grid">
-          <div><div class="lbl">Monto bruto</div><div style="font-size:20px;font-weight:800">${fmt(c.monto_bruto)}</div></div>
-          <div><div class="lbl">A plaza (neto)</div><div style="font-size:20px;font-weight:800;color:#057642">${fmt(c.monto_neto)}</div></div>
-          <div><div class="lbl">Comisión proveedor</div><div style="font-weight:700;color:#B45309">${fmt(c.comision)}</div></div>
-        </div>
-      </div>
-      ${c.notas ? `<div><div class="lbl">Notas</div><div>${c.notas}</div></div>` : ''}
-    </body></html>`)
-    w.document.close(); w.print()
+  const set = (i, k, v) => setRows(prev => prev.map((r, j) => j === i ? { ...r, [k]: v, _dirty: true } : r))
+
+  const guardar = async () => {
+    setGuardando(true)
+    const dirty = rows.filter(r => r._dirty)
+    if (!dirty.length) { toast('Sin cambios'); setGuardando(false); return }
+    const { error } = await supabase.from('vending_inventario_semanal').upsert(
+      dirty.map(r => ({
+        fecha_inicio: semana.ini, fecha_fin: semana.fin,
+        anio: new Date(semana.ini).getFullYear(),
+        semana_num: Math.ceil((new Date(semana.ini) - new Date(new Date(semana.ini).getFullYear(), 0, 1)) / 604800000) + 1,
+        producto_id: r.producto_id, producto_nombre: r.producto_nombre,
+        compras_unidades: +r.compras_unidades || 0,
+        inventario_unidades: +r.inventario_unidades || 0,
+        ventas_unidades: +r.ventas_unidades || 0,
+        ventas_monto: +r.ventas_monto || 0,
+        utilidad_semana: +r.utilidad_semana || 0,
+        semanas_inventario: r.semanas_inventario ? +r.semanas_inventario : null,
+        status: r.status, notas: r.notas || null,
+      })),
+      { onConflict: 'fecha_inicio,producto_nombre' }
+    )
+    setGuardando(false)
+    if (error) return toast.error(error.message)
+    toast.success('Semana guardada')
+    onSaved()
+    onClose()
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '660px', maxHeight: '88vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-auto py-8">
+      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-5xl mx-4 shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <ShoppingBag size={17} color="var(--color-primary)" />
-              <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', background: maq.activa ? '#D1FAE5' : '#F3F4F6', color: maq.activa ? '#057642' : '#9CA3AF' }}>{maq.activa ? 'ACTIVA' : 'INACTIVA'}</span>
-            </div>
-            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>{maq.nombre}</h2>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-light)', marginTop: '2px' }}>{maq.ubicacion}</div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Captura Semanal — Vending</h2>
+            <p className="text-sm text-gray-500">{semana.label}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={18} /></button>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><X size={18} /></button>
         </div>
 
-        {/* Resumen */}
-        <div style={{ padding: '14px 24px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', flexShrink: 0 }}>
-          <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Total bruto acum.</div><div style={{ fontWeight: 800, fontSize: '17px' }}>{fmt(totalBruto)}</div></div>
-          <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Neto para plaza</div><div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--color-success)' }}>{fmt(totalNeto)}</div></div>
-          <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Comisión {maq.comision_pct}%</div><div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--color-warning)' }}>{fmt(totalBruto - totalNeto)}</div></div>
-        </div>
-
-        <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', flexShrink: 0 }}>
-          {[['historial','Historial cierres'],['cerrar','Registrar cierre']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} style={{ padding: '12px 20px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none', borderBottom: tab === k ? '2px solid var(--color-primary)' : '2px solid transparent', background: 'none', color: tab === k ? 'var(--color-primary)' : 'var(--color-text-light)' }}>{l}</button>
-          ))}
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          {tab === 'historial' && (
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {[...maq.cierres].reverse().map(c => (
-                c.pendiente ? (
-                  <div key={c.id} style={{ border: '2px dashed #E8A020', borderRadius: '10px', padding: '16px', background: '#FFFBEB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div><div style={{ fontWeight: 600, color: '#B45309' }}>Semana {c.semana}</div><div style={{ fontSize: '12px', color: '#9CA3AF' }}>Pendiente de cierre</div></div>
-                    <button onClick={() => setTab('cerrar')} style={{ padding: '7px 14px', background: 'var(--color-secondary)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>Cerrar semana</button>
-                  </div>
-                ) : (
-                  <div key={c.id} style={{ border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '8px', alignItems: 'center' }}>
-                    <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Semana</div><div style={{ fontWeight: 600, fontSize: '12px' }}>{c.semana.split('/')[0]}</div></div>
-                    <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Bruto</div><div style={{ fontWeight: 700 }}>{fmt(c.monto_bruto)}</div></div>
-                    <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Neto plaza</div><div style={{ fontWeight: 700, color: 'var(--color-success)' }}>{fmt(c.monto_neto)}</div></div>
-                    <div><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Productos</div><div style={{ fontWeight: 700 }}>{c.productos}</div></div>
-                    <button onClick={() => handlePrint(c)} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
-                      <Printer size={12} /> PDF
-                    </button>
-                  </div>
-                )
+        <div className="overflow-x-auto p-4">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <th className="pb-2 pr-3 min-w-[140px]">Producto</th>
+                <th className="pb-2 px-2 text-center w-20">Compras</th>
+                <th className="pb-2 px-2 text-center w-22">Inventario</th>
+                <th className="pb-2 px-2 text-center w-20">V.Unid</th>
+                <th className="pb-2 px-2 text-center w-24">Venta $$</th>
+                <th className="pb-2 px-2 text-center w-24">Utilidad</th>
+                <th className="pb-2 px-2 text-center w-24">Sem.Inv.</th>
+                <th className="pb-2 px-2 w-24">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.producto_nombre}
+                  className={`border-t dark:border-gray-700 ${r.status === 'BAJA' ? 'opacity-50 bg-orange-50 dark:bg-orange-900/10' : ''}`}>
+                  <td className="py-1.5 pr-3 font-medium text-gray-800 dark:text-gray-200">{r.producto_nombre}</td>
+                  {['compras_unidades','inventario_unidades','ventas_unidades'].map(k => (
+                    <td key={k} className="px-2">
+                      <input type="number" value={r[k]} onChange={e => set(i, k, e.target.value)}
+                        className="w-16 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                    </td>
+                  ))}
+                  {['ventas_monto','utilidad_semana'].map(k => (
+                    <td key={k} className="px-2">
+                      <input type="number" step="0.01" value={r[k]} onChange={e => set(i, k, e.target.value)}
+                        className="w-20 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                    </td>
+                  ))}
+                  <td className="px-2">
+                    <input type="number" step="0.01" value={r.semanas_inventario ?? ''} onChange={e => set(i, 'semanas_inventario', e.target.value)}
+                      className="w-16 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                  </td>
+                  <td className="px-2">
+                    <select value={r.status} onChange={e => set(i, 'status', e.target.value)}
+                      className="text-xs border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                      <option value="ACTIVO">ACTIVO</option>
+                      <option value="BAJA">BAJA</option>
+                      <option value="PAUSADO">PAUSADO</option>
+                    </select>
+                  </td>
+                </tr>
               ))}
-            </div>
-          )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-400 font-bold text-gray-700 dark:text-gray-300">
+                <td className="py-2 pr-3">TOTAL</td>
+                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.compras_unidades || 0), 0)}</td>
+                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.inventario_unidades || 0), 0)}</td>
+                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.ventas_unidades || 0), 0)}</td>
+                <td className="px-2 text-center">{fmt(rows.reduce((s, r) => s + (+r.ventas_monto || 0), 0))}</td>
+                <td className="px-2 text-center">{fmt(rows.reduce((s, r) => s + (+r.utilidad_semana || 0), 0))}</td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
 
-          {tab === 'cerrar' && (
-            <div style={{ display: 'grid', gap: '14px', maxWidth: '400px' }}>
-              {[
-                { label: 'Fecha de cierre', type: 'date', key: 'fecha' },
-                { label: 'Monto bruto recaudado ($)', type: 'number', key: 'monto_bruto', placeholder: 'Ej. 3840.00' },
-                { label: 'Productos vendidos (pzas)', type: 'number', key: 'productos', placeholder: 'Ej. 128' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '5px' }}>{f.label}</label>
-                  <input type={f.type} value={cierre[f.key]} onChange={e => setCierre(c => ({...c, [f.key]: e.target.value}))} placeholder={f.placeholder}
-                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
-                </div>
-              ))}
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '5px' }}>Notas (opcional)</label>
-                <textarea value={cierre.notas} onChange={e => setCierre(c => ({...c, notas: e.target.value}))} rows={2}
-                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', resize: 'vertical' }} />
-              </div>
-              {cierre.monto_bruto && (
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div><div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600 }}>Comisión ({maq.comision_pct}%)</div><div style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{fmt(comisionCalc)}</div></div>
-                  <div><div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600 }}>Neto para plaza</div><div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--color-success)' }}>{fmt(netoCalc)}</div></div>
-                </div>
-              )}
-              <button disabled={!cierre.monto_bruto}
-                style={{ padding: '11px', background: cierre.monto_bruto ? 'var(--color-primary)' : '#E5E7EB', color: cierre.monto_bruto ? 'white' : '#9CA3AF', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: cierre.monto_bruto ? 'pointer' : 'default' }}>
-                Registrar cierre semanal
-              </button>
-            </div>
-          )}
+        <div className="flex justify-end gap-3 p-5 border-t dark:border-gray-700">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Cancelar
+          </button>
+          <button onClick={guardar} disabled={guardando}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-semibold"
+            style={{ backgroundColor: '#0A66C2' }}>
+            <Save size={16} />
+            {guardando ? 'Guardando…' : 'Guardar semana'}
+          </button>
         </div>
       </div>
     </div>
   )
 }
 
-export default function Vending() {
-  useModuleAudit('VENDING')
-  const [selected, setSelected] = useState(null)
+// ── Modal agregar producto ─────────────────────────────────────────────────
+function ProductoModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ nombre: '', precio_venta: '', precio_costo: '', categoria: 'snack', notas: '' })
+  const [guardando, setGuardando] = useState(false)
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
 
-  const totalBrutoMes = MAQUINAS_DEMO.flatMap(m => m.cierres.filter(c => !c.pendiente)).reduce((a, b) => a + (b.monto_bruto || 0), 0)
-  const totalNetoMes = MAQUINAS_DEMO.flatMap(m => m.cierres.filter(c => !c.pendiente)).reduce((a, b) => a + (b.monto_neto || 0), 0)
-  const pendientesCierre = MAQUINAS_DEMO.filter(m => m.activa && m.cierres.some(c => c.pendiente)).length
+  const guardar = async () => {
+    if (!form.nombre || !form.precio_venta) return toast.error('Nombre y precio de venta son obligatorios')
+    setGuardando(true)
+    const { error } = await supabase.from('cat_productos_vending').insert({
+      nombre: form.nombre.trim(),
+      precio_venta: parseFloat(form.precio_venta),
+      precio_costo: form.precio_costo ? parseFloat(form.precio_costo) : null,
+      categoria: form.categoria,
+      notas: form.notas || null,
+    })
+    setGuardando(false)
+    if (error) return toast.error(error.message)
+    toast.success('Producto agregado')
+    onSaved(); onClose()
+  }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1280px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-md mx-4 shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Nuevo Producto</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><X size={18} /></button>
+        </div>
+        <div className="space-y-4">
+          {[['nombre','Nombre del producto','text'],['precio_venta','Precio de venta (MXN)','number'],['precio_costo','Precio de costo (MXN)','number']].map(([k, label, type]) => (
+            <div key={k}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+              <input type={type} value={form[k]} onChange={set(k)} step={type==='number'?'0.01':undefined}
+                className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+            </div>
+          ))}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
+            <select value={form.categoria} onChange={set('categoria')}
+              className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+              {Object.entries(CATEGORIAS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
+            <input type="text" value={form.notas} onChange={set('notas')}
+              className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg dark:border-gray-600 text-gray-600 dark:text-gray-400">Cancelar</button>
+          <button onClick={guardar} disabled={guardando}
+            className="px-5 py-2 rounded-lg text-white font-semibold" style={{ backgroundColor: '#0A66C2' }}>
+            {guardando ? 'Guardando…' : 'Agregar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tabla de inventario semanal ────────────────────────────────────────────
+function TablaInventario({ datos, total }) {
+  const semInvColor = (s) => {
+    if (s === null) return ''
+    if (s <= 1) return 'text-red-600 font-bold'
+    if (s <= 2) return 'text-yellow-600 font-semibold'
+    return 'text-green-700'
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b dark:border-gray-700">
+            <th className="pb-3 pr-3 min-w-[140px]">Producto</th>
+            <th className="pb-3 px-3 text-center">Compras</th>
+            <th className="pb-3 px-3 text-center">Inventario</th>
+            <th className="pb-3 px-3 text-center">V. Unid</th>
+            <th className="pb-3 px-3 text-right">Venta $$</th>
+            <th className="pb-3 px-3 text-right">Utilidad</th>
+            <th className="pb-3 px-3 text-center">Sem. Inv.</th>
+            <th className="pb-3 px-2 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {datos.map(r => (
+            <tr key={r.id || r.producto_nombre}
+              className={`border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors
+                ${r.status === 'BAJA' ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
+              <td className="py-2.5 pr-3 font-medium text-gray-800 dark:text-gray-200">{r.producto_nombre}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums text-gray-600 dark:text-gray-400">
+                {r.compras_unidades > 0 ? r.compras_unidades : <span className="text-gray-300">—</span>}
+              </td>
+              <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{r.inventario_unidades}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums text-gray-600 dark:text-gray-400">{r.ventas_unidades}</td>
+              <td className="py-2.5 px-3 text-right tabular-nums text-gray-700 dark:text-gray-300">{fmt(r.ventas_monto)}</td>
+              <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-green-700">{fmt(r.utilidad_semana)}</td>
+              <td className={`py-2.5 px-3 text-center tabular-nums ${semInvColor(r.semanas_inventario)}`}>
+                {r.semanas_inventario != null ? fmtN(r.semanas_inventario) : <span className="text-gray-300">—</span>}
+              </td>
+              <td className="py-2.5 px-2 text-center">
+                {r.status === 'BAJA'
+                  ? <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">Baja</span>
+                  : r.status === 'PAUSADO'
+                  ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Pausado</span>
+                  : <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Activo</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        {total && (
+          <tfoot>
+            <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50">
+              <td className="py-3 pr-3">TOTAL</td>
+              <td className="px-3 text-center tabular-nums">{total.compras}</td>
+              <td className="px-3 text-center tabular-nums">{total.inventario}</td>
+              <td className="px-3 text-center tabular-nums">{total.ventas_u}</td>
+              <td className="px-3 text-right tabular-nums">{fmt(total.ventas_m)}</td>
+              <td className="px-3 text-right tabular-nums text-green-700">{fmt(total.utilidad)}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  )
+}
+
+// ── Página principal ───────────────────────────────────────────────────────
+export default function Vending() {
+  useModuleAudit('Vending')
+  const [tab, setTab] = useState('semanal')
+  const [semOffset, setSemOffset] = useState(0)
+  const [semana, setSemana] = useState(semanaDeJulio(0))
+  const [datos, setDatos] = useState([])
+  const [productos, setProductos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showCaptura, setShowCaptura] = useState(false)
+  const [showProducto, setShowProducto] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => { setSemana(semanaDeJulio(semOffset)) }, [semOffset])
+
+  const loadProductos = useCallback(async () => {
+    const { data } = await supabase.from('cat_productos_vending').select('*').order('nombre')
+    setProductos(data || [])
+  }, [])
+
+  const loadDatos = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('vending_inventario_semanal')
+      .select('*')
+      .eq('fecha_inicio', semana.ini)
+      .order('producto_nombre')
+    setDatos(data || [])
+    setLoading(false)
+  }, [semana.ini])
+
+  useEffect(() => { loadProductos() }, [loadProductos, refreshKey])
+  useEffect(() => { loadDatos() }, [loadDatos, refreshKey])
+
+  const total = datos.length ? {
+    compras: datos.reduce((s, r) => s + (r.compras_unidades || 0), 0),
+    inventario: datos.reduce((s, r) => s + (r.inventario_unidades || 0), 0),
+    ventas_u: datos.reduce((s, r) => s + (r.ventas_unidades || 0), 0),
+    ventas_m: datos.reduce((s, r) => s + (r.ventas_monto || 0), 0),
+    utilidad: datos.reduce((s, r) => s + (r.utilidad_semana || 0), 0),
+  } : null
+
+  const bajas = datos.filter(r => r.status === 'BAJA').length
+  const stocBajo = datos.filter(r => r.semanas_inventario !== null && r.semanas_inventario <= 1).length
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShoppingBag size={22} color="var(--color-primary)" /> Vending Machine
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <ShoppingBag size={28} style={{ color: '#0A66C2' }} />
+            Vending Machine
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{MAQUINAS_DEMO.filter(m => m.activa).length} máquinas activas · Cierre semanal (lunes)</p>
+          <p className="text-gray-500 text-sm mt-0.5">Control de inventario y ventas</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowProducto(true)}
+            className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+            <Plus size={16} /> Producto
+          </button>
+          <button onClick={() => setShowCaptura(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold"
+            style={{ backgroundColor: '#0A66C2' }}>
+            <Edit2 size={16} /> Capturar semana
+          </button>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Cierres pendientes" value={pendientesCierre} icon={Calendar} color="var(--color-warning)" />
-        <KPICard title="Total bruto acum." value={fmtK(totalBrutoMes)} icon={ShoppingBag} color="var(--color-primary)" />
-        <KPICard title="Neto para plaza" value={fmtK(totalNetoMes)} icon={DollarSign} color="var(--color-success)" />
-        <KPICard title="Máquinas activas" value={MAQUINAS_DEMO.filter(m => m.activa).length} icon={TrendingUp} color="var(--color-secondary)" />
+      {/* Tabs */}
+      <div className="flex gap-1 border-b dark:border-gray-700">
+        {[['semanal', 'Control Semanal'], ['catalogo', 'Catálogo']].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>{l}</button>
+        ))}
       </div>
 
-      {/* Cards de máquinas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px,1fr))', gap: '14px' }}>
-        {MAQUINAS_DEMO.map(m => {
-          const cerrados = m.cierres.filter(c => !c.pendiente)
-          const tiene_pendiente = m.cierres.some(c => c.pendiente)
-          const neto = cerrados.reduce((a, b) => a + (b.monto_neto || 0), 0)
-          const ultimoCierre = cerrados[cerrados.length - 1]
-          return (
-            <div key={m.id} onClick={() => setSelected(m)}
-              style={{ background: 'white', borderRadius: '10px', border: `1.5px solid ${tiene_pendiente && m.activa ? '#FCD34D' : '#E5E7EB'}`, padding: '18px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(10,102,194,0.10)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '15px' }}>{m.nombre}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px' }}>{m.ubicacion}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', marginTop: '2px' }}>Proveedor: {m.proveedor}</div>
-                </div>
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '8px', background: m.activa ? '#D1FAE5' : '#F3F4F6', color: m.activa ? '#057642' : '#9CA3AF', flexShrink: 0 }}>
-                  {m.activa ? 'ACTIVA' : 'INACTIVA'}
-                </span>
+      {/* Semanal tab */}
+      {tab === 'semanal' && (
+        <div className="space-y-5">
+          {/* Navegador de semana */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSemOffset(o => o - 1)}
+              className="p-2 border rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800">
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex-1 text-center">
+              <p className="font-semibold text-gray-800 dark:text-white">{semana.label}</p>
+              <p className="text-xs text-gray-500">{semana.ini} → {semana.fin}</p>
+            </div>
+            <button onClick={() => setSemOffset(o => o + 1)}
+              className="p-2 border rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* KPIs */}
+          {total && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Ventas</p>
+                <p className="text-2xl font-bold tabular-nums" style={{ color: '#0A66C2' }}>{fmt(total.ventas_m)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{total.ventas_u} unidades</p>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px', borderTop: '1px solid #F3F4F6', paddingTop: '12px', marginBottom: '12px' }}>
-                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Cierres</div><div style={{ fontWeight: 700, fontSize: '16px' }}>{cerrados.length}</div></div>
-                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Neto acum.</div><div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-success)' }}>{fmtK(neto)}</div></div>
-                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '10px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Comisión</div><div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--color-warning)' }}>{m.comision_pct}%</div></div>
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Utilidad</p>
+                <p className="text-2xl font-bold tabular-nums text-green-700">{fmt(total.utilidad)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {total.ventas_m > 0 ? ((total.utilidad / total.ventas_m) * 100).toFixed(1) + '% margen' : '—'}
+                </p>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {tiene_pendiente && m.activa ? (
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#B45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    ⚠️ Cierre pendiente esta semana
-                  </span>
-                ) : (
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>
-                    Último cierre: {ultimoCierre?.fecha_cierre || '—'}
-                  </span>
-                )}
-                <ChevronRight size={15} color="var(--color-text-light)" />
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Inventario</p>
+                <p className="text-2xl font-bold tabular-nums text-gray-700 dark:text-gray-300">{total.inventario}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{total.compras} comprados</p>
+              </div>
+              <div className={`rounded-xl p-4 shadow-sm border ${stocBajo > 0 ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : 'bg-white dark:bg-gray-900 dark:border-gray-700'}`}>
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Alertas</p>
+                <p className={`text-2xl font-bold tabular-nums ${stocBajo > 0 ? 'text-red-600' : 'text-gray-400'}`}>{stocBajo}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Stock &lt;1 sem · {bajas} en baja</p>
               </div>
             </div>
-          )
-        })}
-      </div>
+          )}
 
-      {selected && <MaquinaModal maq={selected} onClose={() => setSelected(null)} />}
+          {/* Alerta productos en baja */}
+          {stocBajo > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
+              <AlertTriangle size={16} />
+              {datos.filter(r => r.semanas_inventario !== null && r.semanas_inventario <= 1)
+                .map(r => r.producto_nombre).join(', ')} — stock para menos de 1 semana
+            </div>
+          )}
+
+          {/* Tabla */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border dark:border-gray-700 p-5">
+            {loading ? (
+              <div className="text-center py-12 text-gray-400">Cargando…</div>
+            ) : datos.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <ShoppingBag size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Sin datos para esta semana</p>
+                <button onClick={() => setShowCaptura(true)}
+                  className="mt-3 text-sm text-blue-600 hover:underline">Capturar ahora →</button>
+              </div>
+            ) : (
+              <TablaInventario datos={datos} total={total} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Catálogo tab */}
+      {tab === 'catalogo' && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b dark:border-gray-700 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <th className="p-4 text-left">Producto</th>
+                <th className="p-4 text-center">Categoría</th>
+                <th className="p-4 text-right">Precio Venta</th>
+                <th className="p-4 text-right">Precio Costo</th>
+                <th className="p-4 text-right">Margen</th>
+                <th className="p-4 text-center">Estado</th>
+                <th className="p-4 text-left">Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productos.map(p => {
+                const margen = p.precio_venta && p.precio_costo
+                  ? ((p.precio_venta - p.precio_costo) / p.precio_venta * 100).toFixed(0)
+                  : null
+                return (
+                  <tr key={p.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                    <td className="p-4 font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
+                    <td className="p-4 text-center">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {CATEGORIAS[p.categoria] || p.categoria}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right tabular-nums">{fmt(p.precio_venta)}</td>
+                    <td className="p-4 text-right tabular-nums text-gray-500">{p.precio_costo ? fmt(p.precio_costo) : '—'}</td>
+                    <td className="p-4 text-right tabular-nums font-semibold text-green-700">{margen ? margen + '%' : '—'}</td>
+                    <td className="p-4 text-center">
+                      {p.activo
+                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Activo</span>
+                        : <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Baja</span>}
+                    </td>
+                    <td className="p-4 text-gray-400 text-xs">{p.notas || '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modales */}
+      {showCaptura && productos.length > 0 && (
+        <CapturaModal
+          semana={semana}
+          productos={productos}
+          onClose={() => setShowCaptura(false)}
+          onSaved={() => setRefreshKey(k => k + 1)}
+        />
+      )}
+      {showProducto && (
+        <ProductoModal
+          onClose={() => setShowProducto(false)}
+          onSaved={() => setRefreshKey(k => k + 1)}
+        />
+      )}
     </div>
   )
 }
