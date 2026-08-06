@@ -21,6 +21,7 @@ import Prospectos from './pages/Prospectos.jsx'
 import Reportes from './pages/Reportes.jsx'
 import Configuracion from './pages/Configuracion.jsx'
 import FondoRevolvente from './pages/FondoRevolvente.jsx'
+import GastosOperativos from './pages/GastosOperativos.jsx'
 import Conciliacion from './pages/Conciliacion.jsx'
 import Agua from './pages/Agua.jsx'
 import Vending from './pages/Vending.jsx'
@@ -76,6 +77,7 @@ function AppLayout() {
           <Route path="/prospectos" element={<Prospectos />} />
           <Route path="/reportes" element={<Reportes />} />
           <Route path="/fondo-revolvente" element={<FondoRevolvente />} />
+          <Route path="/gastos-operativos" element={<GastosOperativos />} />
           <Route path="/conciliacion" element={<Conciliacion />} />
           <Route path="/agua" element={<Agua />} />
           <Route path="/vending" element={<Vending />} />

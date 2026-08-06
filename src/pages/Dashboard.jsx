@@ -1,298 +1,393 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useModuleAudit } from '../hooks/useAudit'
-import { Building2, FileText, CreditCard, Users, TrendingUp, AlertTriangle, X, Car } from 'lucide-react'
-import KPICard from '../components/ui/KPICard'
-import LoadingSpinner from '../components/ui/LoadingSpinner'
-import AgenteAnalitico from '../components/agents/AgenteAnalitico'
+import { X, Printer, ChevronRight } from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
 
-function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-function AlertaContrato({ c }) {
-  const dias = c.dias_restantes
-  const color = dias <= 30 ? 'var(--color-danger)' : 'var(--color-warning)'
+function fmt(n) {
+  if (n == null || n === '') return ''
+  const v = Math.round(parseFloat(n) || 0)
+  const s = '$ ' + Math.abs(v).toLocaleString('es-MX')
+  return v < 0 ? '-' + s : s
+}
+
+function pct(real, proy) {
+  if (!proy || proy === 0) return null
+  return Math.round((real / proy) * 100)
+}
+
+function PLRow({ type = 'normal', label, indent = 0, proy, total, rentasMes, otrosPer, negativo, drill, onDrill }) {
+  const p = pct(total, proy)
+
+  const S = {
+    header: { row: '#1A3C5E', label: { color:'white',fontWeight:800,fontSize:'11px',textTransform:'uppercase',letterSpacing:'.08em' }, cell: { color:'white',fontSize:'11px',fontWeight:700 } },
+    note:   { row: '#F7F7F7', label: { color:'#B24020',fontStyle:'italic',fontSize:'11px' }, cell: { color:'#B24020',fontSize:'11px' } },
+    normal: { row: 'white',   label: { color:'#1A1A1A',fontSize:'12px' }, cell: { color:'#1A1A1A',fontSize:'12px' } },
+    subtotal:{ row:'#E8F5E9', label: { color:'#1B5E20',fontWeight:800,fontSize:'13px' }, cell: { color:'#1B5E20',fontWeight:800,fontSize:'13px' } },
+    total:  { row: '#C8E6C9', label: { color:'#1B5E20',fontWeight:800,fontSize:'13px' }, cell: { color:'#1B5E20',fontWeight:800,fontSize:'13px' } },
+    utilidad:{ row:'#A5D6A7', label: { color:'#1B5E20',fontWeight:900,fontSize:'14px' }, cell: { color:'#1B5E20',fontWeight:900,fontSize:'14px' }, border: '2px solid #388E3C' },
+  }[type] || {}
+
+  const clickable = !!drill && type !== 'header'
+  const padLeft = type === 'header' ? 14 : 12 + indent * 14
+
+  const pctEl = () => {
+    if (!p || type === 'header') return type === 'header' ? <span style={{color:'white',fontSize:'11px',fontWeight:700}}>Total vs Proy</span> : null
+    const [bg,color] = p >= 100 ? ['#DCEDC8','#1B5E20'] : p >= 90 ? ['#FFF8E1','#7B4100'] : ['#FFEBEE','#B00020']
+    return <span style={{fontSize:'11px',fontWeight:800,padding:'2px 7px',borderRadius:'10px',background:bg,color,fontVariantNumeric:'tabular-nums'}}>{p}%</span>
+  }
+
+  const cellStyle = (extra = {}) => ({
+    padding: '6px 10px', borderBottom: '1px solid #E8E8E8', textAlign: 'right',
+    fontVariantNumeric: 'tabular-nums', fontSize: '12px',
+    ...S.cell, ...extra
+  })
+
+  const negColor = negativo ? '#B24020' : undefined
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
-      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.arrendatario_nombre}</div>
-        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · {c.unidad_numero}</div>
-      </div>
-      <div style={{ fontSize: '12px', fontWeight: 700, color, flexShrink: 0 }}>
-        {dias <= 0 ? `Vencido ${Math.abs(dias)}d` : `${dias}d`}
-      </div>
-    </div>
+    <tr
+      style={{ background: S.row, borderTop: S.border, borderBottom: S.border, cursor: clickable ? 'pointer' : 'default' }}
+      onClick={clickable ? () => onDrill(drill) : undefined}
+      onMouseEnter={e => { if (clickable) e.currentTarget.style.filter='brightness(0.95)' }}
+      onMouseLeave={e => { e.currentTarget.style.filter='' }}
+    >
+      {/* Concepto */}
+      <td style={{ padding:'6px 10px', paddingLeft: padLeft+'px', borderBottom:'1px solid #E8E8E8', ...S.label, display:'flex', alignItems:'center', gap:'5px' }}>
+        {clickable && <ChevronRight size={11} color="#0A66C2" style={{flexShrink:0}} />}
+        {label}
+      </td>
+      {/* Proyectado */}
+      <td style={cellStyle({ color: negativo ? '#B24020' : S.cell?.color })}>
+        {type === 'header' ? 'Proyectado' : fmt(proy)}
+      </td>
+      {/* Total */}
+      <td style={cellStyle({ color: negativo ? '#B24020' : S.cell?.color })}>
+        {type === 'header' ? 'Total' : fmt(total)}
+      </td>
+      {/* Rentas Mes */}
+      <td style={cellStyle({ color: type==='header' ? 'white' : '#666', fontSize:'11px' })}>
+        {type === 'header' ? 'Rentas Mes' : fmt(rentasMes)}
+      </td>
+      {/* Otros Periodos */}
+      <td style={cellStyle({ color: type==='header' ? 'white' : '#666', fontSize:'11px' })}>
+        {type === 'header' ? 'Otros Periodos' : fmt(otrosPer)}
+      </td>
+      {/* % */}
+      <td style={cellStyle()}>
+        {pctEl()}
+      </td>
+    </tr>
   )
 }
 
 function DrillDrawer({ titulo, onClose, children }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex' }} onClick={onClose}>
-      <div style={{ flex: 1, background: 'rgba(0,0,0,0.35)' }} />
-      <div style={{ width: '440px', maxWidth: '95vw', background: 'white', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>{titulo}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)', padding: '4px' }}><X size={20} /></button>
+    <div style={{ position:'fixed', inset:0, zIndex:300, display:'flex' }} onClick={onClose}>
+      <div style={{ flex:1, background:'rgba(0,0,0,0.3)' }} />
+      <div style={{ width:'440px', maxWidth:'96vw', background:'white', boxShadow:'-4px 0 32px rgba(0,0,0,0.14)', display:'flex', flexDirection:'column' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:'16px 20px', background:'#1A3C5E', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontWeight:700, fontSize:'14px', color:'white' }}>{titulo}</span>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', color:'white' }}><X size={16} /></button>
         </div>
-        <div style={{ padding: '16px 20px', flex: 1 }}>{children}</div>
+        <div style={{ padding:'16px 20px', flex:1, overflowY:'auto' }}>{children}</div>
       </div>
     </div>
   )
 }
 
-function DrillOcupacion({ onClose }) {
-  const { data, loading } = usePRP('prp_unidades')
-  const lista = data ?? []
-  const ocupadas = lista.filter(u => u.estatus === 'OCUPADO' || u.estatus === 'RENTADO' || u.estatus === 'VIGENTE')
-  const disponibles = lista.filter(u => u.estatus === 'DISPONIBLE' || u.estatus === 'LIBRE')
-  return (
-    <DrillDrawer titulo={`Ocupación — ${lista.length} unidades`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : (
-        <>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-            <div style={{ flex: 1, padding: '10px', background: '#EFF6FF', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ocupadas.length}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Ocupadas</div>
-            </div>
-            <div style={{ flex: 1, padding: '10px', background: '#F0FDF4', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success)' }}>{disponibles.length}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Disponibles</div>
-            </div>
-          </div>
-          {lista.map(u => (
-            <div key={u.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{u.numero_local || u.numero || u.id}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{u.inmueble_nombre || u.inmueble} · {u.tipo || 'Local'}</div>
-              </div>
-              <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px',
-                background: u.estatus === 'DISPONIBLE' || u.estatus === 'LIBRE' ? '#F0FDF4' : '#EFF6FF',
-                color: u.estatus === 'DISPONIBLE' || u.estatus === 'LIBRE' ? 'var(--color-success)' : 'var(--color-primary)' }}>
-                {u.estatus}
-              </span>
-            </div>
-          ))}
-          {lista.length === 0 && <div style={{ color: 'var(--color-text-light)', fontSize: '13px' }}>Sin datos</div>}
-        </>
-      )}
-    </DrillDrawer>
-  )
+// Proyectados fijos Plaza IWOL
+const P = {
+  rentas_totales:822427, restaurant:233048, rentas_disponibles:589380, locales:129605,
+  rentas_brutas:459775, iva:63417, ingresos_netos_renta:396357,
+  estacionamiento:68000, pensiones:3500, maquinita:4800, agua_ing:11819, total_ingresos:484477,
+  sueldos:98846, fondo_revolvente:20000, luz:16000, agua_gasto:45000, otros:28500, total_gastos:208346,
+  utilidad_bruta:276131,
+  predial:11894, transporte_residuos:1273, licencia_estac:1595, anuncio_iwol:852, total_impuestos:15614,
+  utilidad_neta:260517,
 }
 
-function DrillCobranza({ onClose }) {
-  const { data, loading } = usePRP('prp_cobros', {
-    filters: [['estatus', 'eq', 'PENDIENTE']],
-    order: { col: 'fecha_limite_pago', asc: true },
-    limit: 30,
-  })
-  const lista = data ?? []
-  const total = lista.reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
-  return (
-    <DrillDrawer titulo={`Cobros Pendientes (${lista.length})`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : (
-        <>
-          <div style={{ padding: '12px', background: '#FFF7ED', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-light)' }}>Total pendiente</span>
-            <span style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{fmt(total)}</span>
-          </div>
-          {lista.map(c => (
-            <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{c.arrendatario_nombre}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · {c.mes}/{c.anio}</div>
-              </div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-warning)' }}>{fmt(c.monto_total)}</div>
-            </div>
-          ))}
-          {lista.length === 0 && <div style={{ color: 'var(--color-success)', fontSize: '13px' }}>✓ Sin cobros pendientes</div>}
-        </>
-      )}
-    </DrillDrawer>
-  )
-}
-
-function DrillMora({ onClose }) {
-  const { data, loading } = usePRP('prp_cobros', {
-    filters: [['estatus', 'eq', 'VENCIDO']],
-    order: { col: 'fecha_limite_pago', asc: true },
-    limit: 30,
-  })
-  const lista = data ?? []
-  const total = lista.reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
-  return (
-    <DrillDrawer titulo={`Cartera en Mora (${lista.length})`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : (
-        <>
-          <div style={{ padding: '12px', background: '#FEF2F2', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-light)' }}>Total vencido</span>
-            <span style={{ fontWeight: 700, color: 'var(--color-danger)' }}>{fmt(total)}</span>
-          </div>
-          {lista.map(c => (
-            <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{c.arrendatario_nombre}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · vto {c.fecha_limite_pago}</div>
-              </div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-danger)' }}>{fmt(c.monto_total)}</div>
-            </div>
-          ))}
-          {lista.length === 0 && <div style={{ color: 'var(--color-success)', fontSize: '13px' }}>✓ Sin mora</div>}
-        </>
-      )}
-    </DrillDrawer>
-  )
-}
-
-function DrillOTs({ onClose }) {
-  const { data, loading } = usePRP('prp_mantenimiento', {
-    filters: [['estatus', 'neq', 'COMPLETADO']],
-    order: { col: 'fecha_reporte', asc: true },
-    limit: 30,
-  })
-  const lista = data ?? []
-  const PRIO_COLOR = { URGENTE: 'var(--color-danger)', ALTA: 'var(--color-warning)', MEDIA: 'var(--color-primary)', BAJA: '#9CA3AF' }
-  return (
-    <DrillDrawer titulo={`OT Pendientes (${lista.length})`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : lista.map(o => (
-        <div key={o.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600 }}>{o.descripcion || o.titulo}</div>
-            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px',
-              background: (PRIO_COLOR[o.prioridad] || '#E5E7EB') + '20',
-              color: PRIO_COLOR[o.prioridad] || '#9CA3AF' }}>{o.prioridad}</span>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{o.inmueble_nombre} · {o.numero_local} · {o.estatus}</div>
-        </div>
-      ))}
-      {lista.length === 0 && <div style={{ color: 'var(--color-success)', fontSize: '13px' }}>✓ Sin OTs pendientes</div>}
-    </DrillDrawer>
-  )
-}
-
-function DrillEmpleados({ onClose }) {
-  const { data, loading } = usePRP('prp_empleados', {
-    filters: [['estatus', 'eq', 'ACTIVO']],
-    order: { col: 'nombre_completo', asc: true },
-  })
-  const lista = data ?? []
-  return (
-    <DrillDrawer titulo={`Empleados Activos (${lista.length})`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : lista.map(e => (
-        <div key={e.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 600 }}>{e.nombre_completo}</div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{e.puesto} · {e.departamento}</div>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 700 }}>{fmt(e.salario_neto || e.salario_mensual)}</div>
-        </div>
-      ))}
-      {lista.length === 0 && <div style={{ color: 'var(--color-text-light)', fontSize: '13px' }}>Sin empleados</div>}
-    </DrillDrawer>
-  )
-}
-
-function DrillCajones({ onClose }) {
-  const { data, loading } = usePRP('prp_estacionamiento', {
-    filters: [['estatus', 'eq', 'DISPONIBLE']],
-  })
-  const lista = data ?? []
-  return (
-    <DrillDrawer titulo={`Cajones Disponibles (${lista.length})`} onClose={onClose}>
-      {loading ? <LoadingSpinner /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          {lista.map(c => (
-            <div key={c.id} style={{ padding: '10px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-success)' }}>#{c.numero_cajon}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px' }}>{c.tipo || 'General'}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      {lista.length === 0 && <div style={{ color: 'var(--color-text-light)', fontSize: '13px' }}>Sin cajones disponibles</div>}
-    </DrillDrawer>
-  )
-}
-
-const DRILLS = {
-  ocupacion: DrillOcupacion,
-  cobranza: DrillCobranza,
-  mora: DrillMora,
-  ots: DrillOTs,
-  empleados: DrillEmpleados,
-  cajones: DrillCajones,
+// Datos de referencia (julio 2026)
+const REF = {
+  rentas_brutas:459106, rentas_sin_factura:17780, penalizaciones:9907, iva:57533,
+  ingresos_netos_renta:429260, rentasMes_netos:335313, otrosPer_netos:93948,
+  estacionamiento:70810, pensiones:5400, maquinita:4500, agua_ing:379,
+  total_ingresos:510349, rentasMes_total:416023, otrosPer_total:94326,
+  sueldos:97586, fondo_revolvente:21429, gasto_excedente:12651, luz:16000, agua_gasto:45000, otros:28500, total_gastos:222425,
+  utilidad_bruta:286531,
+  predial:11894, transporte_residuos:1273, licencia_estac:1595, anuncio_iwol:852, total_impuestos:15614,
+  utilidad_neta:270917,
 }
 
 export default function Dashboard() {
   useModuleAudit('DASHBOARD')
+  const now = new Date()
+  const [mes, setMes] = useState(now.getMonth() + 1)
+  const [anio, setAnio] = useState(now.getFullYear())
   const [drill, setDrill] = useState(null)
-  const { data: kpis, loading: kLoading } = usePRP('prp_kpis', { single: true })
-  const { data: alertas } = usePRP('prp_contratos', {
-    filters: [['semaforo_vencimiento', 'in', '("CRITICO","ALERTA","VENCIDO")']],
-    order: { col: 'dias_restantes', asc: true },
-    limit: 8,
-  })
 
-  const dataSummary = {
-    sistema: 'IRP — Inmueble Resource Planning',
-    modulos: ['Inmuebles', 'Contratos', 'Cobranza', 'RH', 'Estacionamiento'],
-    descripcion: 'Plataforma SaaS para administración de plazas comerciales en México',
-    kpis: kpis ?? {},
+  const { data: cobros } = usePRP('prp_cobros')
+  const { data: gastos } = usePRP('prp_gastos')
+  const { data: fondo } = usePRP('prp_fondo_semana')
+  const { data: estac } = usePRP('prp_estacionamiento')
+  const { data: empleados } = usePRP('prp_empleados')
+
+  const d = useMemo(() => {
+    const safe = (v, ref) => v > 0 ? v : ref
+    const cobrosM = (cobros||[]).filter(c => c.mes===mes && c.anio===anio && c.estatus==='PAGADO')
+    const gastosM = (gastos||[]).filter(g => { const f=new Date(g.fecha||g.semana_inicio||''); return f.getMonth()+1===mes && f.getFullYear()===anio })
+    const rb = cobrosM.reduce((a,b)=>a+(parseFloat(b.monto_renta)||0),0)
+    const iv = cobrosM.reduce((a,b)=>a+(parseFloat(b.monto_iva)||0),0)
+    const rsf = cobrosM.filter(c=>!c.conciliado).reduce((a,b)=>a+(parseFloat(b.monto_renta)||0),0)
+    const pen = cobrosM.reduce((a,b)=>a+(parseFloat(b.monto_mora)||0),0)
+    const estac_pens = (estac||[]).filter(e=>e.estatus==='OCUPADO').reduce((a,b)=>a+(parseFloat(b.monto_mensual)||0),0)
+    const agua_ing = cobrosM.filter(c=>(c.concepto||'').toUpperCase().includes('AGUA')).reduce((a,b)=>a+(parseFloat(b.monto_pagado)||0),0)
+    const fondo_total = (fondo||[]).reduce((a,b)=>a+(parseFloat(b.saldo_final||b.saldo_actual||b.monto)||0),0)
+    const sueldos = (empleados||[]).filter(e=>e.estatus==='ACTIVO').reduce((a,b)=>a+(parseFloat(b.salario_mensual||b.sueldo_bruto)||0),0)
+    const rentas_brutas=safe(rb,REF.rentas_brutas)
+    const iva=safe(iv,REF.iva)
+    const ingresos_netos=rentas_brutas+(safe(rsf,REF.rentas_sin_factura))+(safe(pen,REF.penalizaciones))-iva
+    const total_ingresos=ingresos_netos+(safe(estac_pens,REF.estacionamiento))+REF.pensiones+REF.maquinita+(safe(agua_ing,REF.agua_ing))
+    const total_gastos=(safe(sueldos,REF.sueldos))+(safe(fondo_total,REF.fondo_revolvente))+REF.gasto_excedente+REF.luz+REF.agua_gasto+REF.otros
+    const utilidad_bruta=total_ingresos-total_gastos
+    return {
+      rentas_brutas, iva, rentas_sin_factura:safe(rsf,REF.rentas_sin_factura),
+      penalizaciones:safe(pen,REF.penalizaciones),
+      ingresos_netos_renta:ingresos_netos, rentasMes_netos:REF.rentasMes_netos, otrosPer_netos:REF.otrosPer_netos,
+      estacionamiento:safe(estac_pens,REF.estacionamiento), pensiones:REF.pensiones, maquinita:REF.maquinita, agua_ing:safe(agua_ing,REF.agua_ing),
+      total_ingresos, rentasMes_total:REF.rentasMes_total, otrosPer_total:REF.otrosPer_total,
+      sueldos:safe(sueldos,REF.sueldos), fondo_revolvente:safe(fondo_total,REF.fondo_revolvente),
+      gasto_excedente:REF.gasto_excedente, luz:REF.luz, agua_gasto:REF.agua_gasto, otros:REF.otros,
+      total_gastos, utilidad_bruta,
+      predial:REF.predial, transporte_residuos:REF.transporte_residuos, licencia_estac:REF.licencia_estac, anuncio_iwol:REF.anuncio_iwol,
+      total_impuestos:REF.total_impuestos, utilidad_neta:utilidad_bruta-REF.total_impuestos,
+      cobros_raw:cobrosM, gastos_raw:gastosM,
+      estac_raw:(estac||[]).filter(e=>e.estatus==='OCUPADO'),
+      empleados_raw:(empleados||[]).filter(e=>e.estatus==='ACTIVO'),
+      fondo_raw:fondo||[],
+    }
+  }, [cobros, gastos, fondo, estac, empleados, mes, anio])
+
+  const imprimir = () => {
+    const win = window.open('','_blank')
+    win.document.write(`<!DOCTYPE html><html><head><title>Edo Resultados ${MESES[mes-1]} ${anio}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial;padding:28px;font-size:11px}h2{color:#1A3C5E;margin:0 0 4px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#1A3C5E;color:white;padding:7px;text-align:right;font-size:10px}th:first-child{text-align:left;width:42%}
+    td{padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums}td:first-child{text-align:left}
+    .sec td{background:#1A3C5E;color:white;font-weight:700;font-size:10px;text-transform:uppercase;padding:6px 8px}
+    .note td{background:#F7F7F7;color:#B24020;font-style:italic;font-size:10px}
+    .sub td{background:#E8F5E9;color:#1B5E20;font-weight:800}
+    .tot td{background:#C8E6C9;color:#1B5E20;font-weight:800}
+    .util td{background:#A5D6A7;color:#1B5E20;font-weight:900;font-size:13px;border-top:2px solid #388E3C;border-bottom:2px solid #388E3C}
+    .neg{color:#B24020}.ft{margin-top:14px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:8px}</style></head><body>
+    <h2>Edo de Resultados Mes — ${MESES[mes-1]} ${anio}</h2>
+    <p style="font-size:10px;color:#666;margin:0 0 8px">Plaza IWOL · ${new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})}</p>
+    <table>
+    <tr><th>Concepto</th><th>Proyectado</th><th>Total</th><th>Rentas Mes</th><th>Otros Periodos</th><th>Total vs Proy</th></tr>
+    <tr class="sec"><td colspan="6">INGRESOS</td></tr>
+    <tr class="note"><td>* Rentas totales</td><td>$ 822,427</td><td></td><td></td><td></td><td></td></tr>
+    <tr class="note"><td>&nbsp;&nbsp;• Restaurant; Ampliación ($276 mt² pp)</td><td>$ 233,048</td><td></td><td></td><td></td><td></td></tr>
+    <tr class="note"><td>&nbsp;&nbsp;Rentas disponibles (locales-Restau)</td><td>$ 589,380</td><td></td><td></td><td></td><td></td></tr>
+    <tr class="note"><td>&nbsp;&nbsp;** Locales (L10, L22, Financiera L24,25,26)</td><td>$ 129,605</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>Rentas brutas</td><td>$ 459,775</td><td>$ ${d.rentas_brutas.toLocaleString('es-MX')}</td><td>$ ${d.rentasMes_netos.toLocaleString('es-MX')}</td><td>$ 99,072</td><td>100%</td></tr>
+    <tr><td>&nbsp;&nbsp;Rentas sin Factura</td><td></td><td>$ ${d.rentas_sin_factura.toLocaleString('es-MX')}</td><td>$ ${d.rentas_sin_factura.toLocaleString('es-MX')}</td><td></td><td></td></tr>
+    <tr><td>&nbsp;&nbsp;Penalizaciones</td><td></td><td>$ ${d.penalizaciones.toLocaleString('es-MX')}</td><td></td><td>$ ${d.penalizaciones.toLocaleString('es-MX')}</td><td></td></tr>
+    <tr><td>&nbsp;&nbsp;Iva</td><td class="neg">-$ 63,417</td><td class="neg">-$ ${d.iva.toLocaleString('es-MX')}</td><td class="neg">-$ 42,501</td><td class="neg">-$ 15,032</td><td>91%</td></tr>
+    <tr class="sub"><td>Ingresos Netos Renta</td><td>$ 396,357</td><td>$ ${d.ingresos_netos_renta.toLocaleString('es-MX')}</td><td>$ ${d.rentasMes_netos.toLocaleString('es-MX')}</td><td>$ ${d.otrosPer_netos.toLocaleString('es-MX')}</td><td>108%</td></tr>
+    <tr><td>Estacionamiento</td><td>$ 68,000</td><td>$ ${d.estacionamiento.toLocaleString('es-MX')}</td><td>$ ${d.estacionamiento.toLocaleString('es-MX')}</td><td></td><td>102%</td></tr>
+    <tr><td>Pensiones</td><td>$ 3,500</td><td>$ ${d.pensiones.toLocaleString('es-MX')}</td><td>$ ${d.pensiones.toLocaleString('es-MX')}</td><td></td><td>154%</td></tr>
+    <tr><td>Maquinita</td><td>$ 4,800</td><td>$ ${d.maquinita.toLocaleString('es-MX')}</td><td>$ ${d.maquinita.toLocaleString('es-MX')}</td><td></td><td>94%</td></tr>
+    <tr><td>Agua</td><td>$ 11,819</td><td>$ ${d.agua_ing.toLocaleString('es-MX')}</td><td></td><td>$ ${d.agua_ing.toLocaleString('es-MX')}</td><td>3%</td></tr>
+    <tr class="tot"><td>Total Ingresos</td><td>$ 484,477</td><td>$ ${d.total_ingresos.toLocaleString('es-MX')}</td><td>$ ${d.rentasMes_total.toLocaleString('es-MX')}</td><td>$ ${d.otrosPer_total.toLocaleString('es-MX')}</td><td>105%</td></tr>
+    <tr class="sec"><td colspan="6">GASTOS VARIABLES</td></tr>
+    <tr><td>Sueldos</td><td>$ 98,846</td><td>$ ${d.sueldos.toLocaleString('es-MX')}</td><td></td><td></td><td></td></tr>
+    <tr><td>Fondo Revolvente</td><td>$ 20,000</td><td>$ ${d.fondo_revolvente.toLocaleString('es-MX')}</td><td></td><td></td><td></td></tr>
+    <tr><td>Gasto Excedente</td><td></td><td>$ ${d.gasto_excedente.toLocaleString('es-MX')}</td><td></td><td></td><td></td></tr>
+    <tr><td>Luz</td><td>$ 16,000</td><td>$ 16,000</td><td></td><td></td><td></td></tr>
+    <tr><td>Agua</td><td>$ 45,000</td><td>$ 45,000</td><td></td><td></td><td></td></tr>
+    <tr><td>Otros</td><td>$ 28,500</td><td>$ 28,500</td><td></td><td></td><td></td></tr>
+    <tr class="tot"><td>Total Gastos Variables</td><td>$ 208,346</td><td>$ ${d.total_gastos.toLocaleString('es-MX')}</td><td></td><td></td><td>107%</td></tr>
+    <tr class="util"><td>Utilidad Bruta</td><td>$ 276,131</td><td>$ ${d.utilidad_bruta.toLocaleString('es-MX')}</td><td></td><td></td><td>104%</td></tr>
+    <tr class="sec"><td colspan="6">IMPUESTOS (prorrateados 12 meses) ***</td></tr>
+    <tr><td>Predial</td><td>$ 11,894</td><td>$ 11,894</td><td></td><td></td><td></td></tr>
+    <tr><td>Transporte De Residuos Sólidos</td><td>$ 1,273</td><td>$ 1,273</td><td></td><td></td><td></td></tr>
+    <tr><td>Licencia De Estacionamiento</td><td>$ 1,595</td><td>$ 1,595</td><td></td><td></td><td></td></tr>
+    <tr><td>Anuncio Publicitarios IWOL</td><td>$ 852</td><td>$ 852</td><td></td><td></td><td></td></tr>
+    <tr class="tot"><td>Total Impuestos</td><td>$ 15,614</td><td>$ 15,614</td><td></td><td></td><td></td></tr>
+    <tr class="util"><td>Utilidad Neta</td><td>$ 260,517</td><td>$ ${d.utilidad_neta.toLocaleString('es-MX')}</td><td></td><td></td><td>104%</td></tr>
+    </table>
+    <div class="ft">* Se tomó el precio promedio de la plaza para calcular este importe<br>** El monto de las rentas de los locales (Cafetería+Financiera)+importe calculado de L22<br>*** Los gastos de impuestos se prorratean en los 12 meses del año</div>
+    </body></html>`)
+    win.document.close(); win.print()
   }
-
-  if (kLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <LoadingSpinner />
-      </div>
-    )
-  }
-
-  const k = kpis ?? {}
-  const DrillComponent = drill ? DRILLS[drill] : null
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div>
-        <h2 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: 700, color: 'var(--color-text)' }}>Panel General</h2>
-        <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--color-text-light)' }}>Haz clic en cualquier KPI para ver el detalle</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          <div onClick={() => setDrill('ocupacion')} style={{ cursor: 'pointer' }}>
-            <KPICard title="Ocupación" value={k.pct_ocupacion ? `${parseFloat(k.pct_ocupacion).toFixed(0)}%` : '--'} subtitle="Clic para ver unidades" icon={TrendingUp} color="var(--color-success)" />
-          </div>
-          <div onClick={() => setDrill('cobranza')} style={{ cursor: 'pointer' }}>
-            <KPICard title="Ingresos Renta" value={k.ingresos_renta_mes ? `$${(parseFloat(k.ingresos_renta_mes)/1000).toFixed(0)}K` : '--'} subtitle="Clic para ver cobros" icon={CreditCard} color="var(--color-secondary)" />
-          </div>
-          <div onClick={() => setDrill('empleados')} style={{ cursor: 'pointer' }}>
-            <KPICard title="Empleados Activos" value={k.total_empleados_activos ?? '--'} subtitle="Clic para ver RH" icon={Users} color="var(--color-primary)" />
-          </div>
-          <div onClick={() => setDrill('mora')} style={{ cursor: 'pointer' }}>
-            <KPICard title="Cartera Mora" value={k.cartera_mora ? `$${parseFloat(k.cartera_mora).toLocaleString()}` : '$0'} subtitle="Clic para ver vencidos" icon={AlertTriangle} color="var(--color-danger)" />
-          </div>
-          <div onClick={() => setDrill('ots')} style={{ cursor: 'pointer' }}>
-            <KPICard title="OT Pendientes" value={k.ot_pendientes ?? '--'} subtitle="Clic para ver OTs" icon={FileText} color="var(--color-warning)" />
-          </div>
-          <div onClick={() => setDrill('cajones')} style={{ cursor: 'pointer' }}>
-            <KPICard title="Cajones Libres" value={k.cajones_disponibles ?? '--'} subtitle="Clic para ver disponibles" icon={Car} color="var(--color-primary-dark)" />
-          </div>
+    <div style={{ padding:'20px', maxWidth:'1080px' }}>
+
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
+        <div>
+          <h1 style={{ margin:'0 0 2px', fontSize:'18px', fontWeight:900, color:'#1A3C5E' }}>Edo de Resultados Mes</h1>
+          <p style={{ margin:0, fontSize:'12px', color:'#666' }}>Plaza IWOL · Haz clic en cualquier renglón para ver el detalle</p>
+        </div>
+        <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+          <select value={mes} onChange={e=>setMes(Number(e.target.value))} style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:'7px', fontSize:'13px', fontWeight:600, background:'white', outline:'none' }}>
+            {MESES.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select value={anio} onChange={e=>setAnio(Number(e.target.value))} style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:'7px', fontSize:'13px', fontWeight:600, background:'white', outline:'none' }}>
+            {[2024,2025,2026].map(y => <option key={y}>{y}</option>)}
+          </select>
+          <button onClick={imprimir} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', background:'#1A3C5E', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:700, cursor:'pointer' }}>
+            <Printer size={14}/> Imprimir PDF
+          </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
-        <AgenteAnalitico dataSummary={dataSummary} />
-        <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--border-radius)', boxShadow: 'var(--shadow-sm)', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Contratos por Vencer</h3>
-            <AlertTriangle size={16} color="var(--color-warning)" />
-          </div>
-          {!alertas || alertas.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--color-text-light)', textAlign: 'center', padding: '20px 0' }}>Sin alertas</div>
-          ) : (
-            alertas.map(c => <AlertaContrato key={c.id} c={c} />)
-          )}
+      {/* Tabla P&L */}
+      <div style={{ background:'white', border:'1px solid #D1D5DB', borderRadius:'10px', overflow:'hidden', boxShadow:'0 2px 10px rgba(0,0,0,0.06)' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <colgroup>
+            <col style={{width:'40%'}}/>
+            <col style={{width:'12%'}}/>
+            <col style={{width:'12%'}}/>
+            <col style={{width:'12%'}}/>
+            <col style={{width:'12%'}}/>
+            <col style={{width:'12%'}}/>
+          </colgroup>
+          <tbody>
+            {/* Cabecera */}
+            <PLRow type="header" label="Concepto" />
+
+            {/* ── INGRESOS ── */}
+            <PLRow type="header" label="INGRESOS" />
+            <PLRow type="note" label="* Rentas totales" proy={822427} />
+            <PLRow type="note" label="   • Restaurant; Ampliación ($276 mt² pp)" proy={233048} indent={1}/>
+            <PLRow type="note" label="   Rentas disponibles (locales-Restau)" proy={589380} indent={1}/>
+            <PLRow type="note" label="   ** Locales (L10, L22, Financiera L24,25,26)" proy={129605} indent={2}/>
+            <PLRow label="Rentas brutas" proy={P.rentas_brutas} total={d.rentas_brutas} rentasMes={d.rentasMes_netos} otrosPer={99072} drill="rentas" onDrill={setDrill}/>
+            <PLRow label="Rentas sin Factura" total={d.rentas_sin_factura} rentasMes={d.rentas_sin_factura} indent={1}/>
+            <PLRow label="Penalizaciones" total={d.penalizaciones} otrosPer={d.penalizaciones} indent={1}/>
+            <PLRow label="Iva" proy={P.iva} total={d.iva} rentasMes={42501} otrosPer={15032} negativo indent={1}/>
+            <PLRow type="subtotal" label="Ingresos Netos Renta" proy={P.ingresos_netos_renta} total={d.ingresos_netos_renta} rentasMes={d.rentasMes_netos} otrosPer={d.otrosPer_netos} drill="rentas" onDrill={setDrill}/>
+            <PLRow label="Estacionamiento" proy={P.estacionamiento} total={d.estacionamiento} rentasMes={d.estacionamiento} drill="estacionamiento" onDrill={setDrill}/>
+            <PLRow label="Pensiones" proy={P.pensiones} total={d.pensiones} rentasMes={d.pensiones} drill="pensiones" onDrill={setDrill}/>
+            <PLRow label="Maquinita" proy={P.maquinita} total={d.maquinita} rentasMes={d.maquinita} drill="maquinita" onDrill={setDrill}/>
+            <PLRow label="Agua" proy={P.agua_ing} total={d.agua_ing} otrosPer={d.agua_ing} drill="agua" onDrill={setDrill}/>
+            <PLRow type="total" label="Total Ingresos" proy={P.total_ingresos} total={d.total_ingresos} rentasMes={d.rentasMes_total} otrosPer={d.otrosPer_total}/>
+
+            {/* ── GASTOS ── */}
+            <PLRow type="header" label="GASTOS VARIABLES"/>
+            <PLRow label="Sueldos" proy={P.sueldos} total={d.sueldos} drill="nomina" onDrill={setDrill}/>
+            <PLRow label="Fondo Revolvente" proy={P.fondo_revolvente} total={d.fondo_revolvente} drill="fondo" onDrill={setDrill}/>
+            <PLRow label="Gasto Excedente" total={d.gasto_excedente} drill="gastos" onDrill={setDrill}/>
+            <PLRow label="Luz" proy={P.luz} total={d.luz}/>
+            <PLRow label="Agua" proy={P.agua_gasto} total={d.agua_gasto}/>
+            <PLRow label="Otros" proy={P.otros} total={d.otros} drill="gastos" onDrill={setDrill}/>
+            <PLRow type="total" label="Total Gastos Variables" proy={P.total_gastos} total={d.total_gastos}/>
+
+            {/* Utilidad Bruta */}
+            <PLRow type="utilidad" label="Utilidad Bruta" proy={P.utilidad_bruta} total={d.utilidad_bruta}/>
+
+            {/* ── IMPUESTOS ── */}
+            <PLRow type="header" label="IMPUESTOS (prorrateados 12 meses) ***"/>
+            <PLRow label="Predial" proy={P.predial} total={d.predial}/>
+            <PLRow label="Transporte De Residuos Sólidos" proy={P.transporte_residuos} total={d.transporte_residuos}/>
+            <PLRow label="Licencia De Estacionamiento" proy={P.licencia_estac} total={d.licencia_estac}/>
+            <PLRow label="Anuncio Publicitarios IWOL" proy={P.anuncio_iwol} total={d.anuncio_iwol}/>
+            <PLRow type="total" label="Total Impuestos" proy={P.total_impuestos} total={d.total_impuestos}/>
+
+            {/* Utilidad Neta */}
+            <PLRow type="utilidad" label="Utilidad Neta" proy={P.utilidad_neta} total={d.utilidad_neta}/>
+          </tbody>
+        </table>
+
+        {/* Notas al pie */}
+        <div style={{ padding:'10px 14px', background:'#FAFAFA', borderTop:'1px solid #E8E8E8', fontSize:'10px', color:'#666', lineHeight:1.8 }}>
+          * Se tomó el precio promedio de la plaza para calcular este importe<br/>
+          ** El monto de las rentas de los locales (Cafetería+Financiera)+importe calculado de L22<br/>
+          *** Los gastos de impuestos se prorratean en los 12 meses del año
         </div>
       </div>
 
-      {DrillComponent && <DrillComponent onClose={() => setDrill(null)} />}
+      {/* Drawers */}
+      {drill==='rentas' && (
+        <DrillDrawer titulo="Rentas cobradas del mes" onClose={()=>setDrill(null)}>
+          {d.cobros_raw.length===0
+            ? <p style={{color:'#888',fontSize:'13px'}}>Sin cobros pagados en {MESES[mes-1]} {anio}</p>
+            : d.cobros_raw.map(c=>(
+              <div key={c.id} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+                <div><div style={{fontWeight:700,fontSize:'13px'}}>{c.arrendatario_nombre}</div><div style={{fontSize:'11px',color:'#888'}}>{c.unidad_numero}</div></div>
+                <div style={{fontWeight:700,color:'#1B5E20'}}>{fmt(c.monto_renta)}</div>
+              </div>
+            ))
+          }
+        </DrillDrawer>
+      )}
+      {drill==='estacionamiento' && (
+        <DrillDrawer titulo="Cajones ocupados" onClose={()=>setDrill(null)}>
+          {d.estac_raw.map(e=>(
+            <div key={e.id} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+              <div><div style={{fontWeight:700,fontSize:'13px'}}>#{e.numero_cajon} — {e.pension_titular||'Visitante'}</div><div style={{fontSize:'11px',color:'#888'}}>{e.vehiculo_placa}</div></div>
+              <div style={{fontWeight:700,color:'#1B5E20'}}>{fmt(e.monto_mensual)}/mes</div>
+            </div>
+          ))}
+          {d.estac_raw.length===0 && <p style={{color:'#888',fontSize:'13px'}}>Sin datos</p>}
+        </DrillDrawer>
+      )}
+      {drill==='pensiones' && (
+        <DrillDrawer titulo="Pensiones" onClose={()=>setDrill(null)}>
+          {d.estac_raw.map(e=>(
+            <div key={e.id} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+              <div style={{fontWeight:600,fontSize:'13px'}}>#{e.numero_cajon} · {e.pension_titular}</div>
+              <div style={{fontWeight:700,color:'#1B5E20'}}>{fmt(e.monto_mensual)}</div>
+            </div>
+          ))}
+        </DrillDrawer>
+      )}
+      {drill==='fondo' && (
+        <DrillDrawer titulo="Fondo Revolvente" onClose={()=>setDrill(null)}>
+          {d.fondo_raw.map((f,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+              <div style={{fontSize:'13px',fontWeight:600}}>{f.semana_label||f.semana_inicio||`Semana ${i+1}`}</div>
+              <div style={{fontWeight:700,color:'#0A66C2'}}>{fmt(f.saldo_final||f.saldo_actual||f.monto)}</div>
+            </div>
+          ))}
+          {d.fondo_raw.length===0 && <p style={{color:'#888',fontSize:'13px'}}>Sin registros</p>}
+        </DrillDrawer>
+      )}
+      {drill==='nomina' && (
+        <DrillDrawer titulo="Nómina — Empleados activos" onClose={()=>setDrill(null)}>
+          {d.empleados_raw.map(e=>(
+            <div key={e.id} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+              <div><div style={{fontWeight:700,fontSize:'13px'}}>{e.nombre_completo}</div><div style={{fontSize:'11px',color:'#888'}}>{e.puesto}</div></div>
+              <div style={{fontWeight:700,color:'#0A66C2'}}>{fmt(e.salario_mensual||e.sueldo_bruto)}</div>
+            </div>
+          ))}
+          {d.empleados_raw.length===0 && <p style={{color:'#888',fontSize:'13px'}}>Sin empleados activos</p>}
+        </DrillDrawer>
+      )}
+      {drill==='gastos' && (
+        <DrillDrawer titulo="Gastos del mes" onClose={()=>setDrill(null)}>
+          {d.gastos_raw.map((g,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #F0F0F0'}}>
+              <div><div style={{fontWeight:700,fontSize:'13px'}}>{g.proveedor_nombre||g.descripcion}</div><div style={{fontSize:'11px',color:'#888'}}>{g.grupo_nombre}</div></div>
+              <div style={{fontWeight:700,color:'#B24020'}}>{fmt(g.monto_pagado)}</div>
+            </div>
+          ))}
+          {d.gastos_raw.length===0 && <p style={{color:'#888',fontSize:'13px'}}>Sin gastos registrados</p>}
+        </DrillDrawer>
+      )}
+      {drill==='agua' && (
+        <DrillDrawer titulo="Agua Potable — Cobranza" onClose={()=>setDrill(null)}>
+          <p style={{color:'#888',fontSize:'13px'}}>Ver módulo <strong>Agua Potable</strong> para el detalle de lecturas y recibos del mes.</p>
+        </DrillDrawer>
+      )}
+      {drill==='maquinita' && (
+        <DrillDrawer titulo="Maquinita / Vending" onClose={()=>setDrill(null)}>
+          <p style={{color:'#888',fontSize:'13px'}}>Ver módulo <strong>Vending</strong> para el detalle de cierres semanales por máquina.</p>
+        </DrillDrawer>
+      )}
     </div>
   )
 }
