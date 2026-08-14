@@ -51,8 +51,7 @@ function ContratoRow({ c, onClick }) {
         <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.tipo_contrato}</div>
       </td>
       <td style={{ padding: '13px 16px' }}>
-        <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.inmueble_nombre}</div>
-        <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>{c.unidad_numero}</div>
+        <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.unidad_numero}</div>
       </td>
       <td style={{ padding: '13px 16px' }}>
         <div style={{ fontSize: '13px', fontWeight: 500 }}>{c.arrendatario_nombre}</div>
@@ -700,6 +699,7 @@ export default function Contratos() {
     { col: 'renta_mensual', label: 'Renta ↑↓' },
     { col: 'dias_restantes', label: 'Días restantes' },
     { col: 'arrendatario_nombre', label: 'Arrendatario A-Z' },
+    { col: 'unidad_numero', label: 'Local A-Z' },
   ]
 
   const filtrados = lista

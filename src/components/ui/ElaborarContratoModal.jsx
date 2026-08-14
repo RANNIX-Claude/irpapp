@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react'
 import { FileText, Download, X, ChevronRight, ChevronLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import { logAudit } from '../../hooks/useAudit'
 
