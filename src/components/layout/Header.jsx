@@ -41,7 +41,12 @@ export default function Header() {
           <Building2 size={22} color="white" />
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>IRP</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>IRP</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'rgba(232,160,32,0.25)', color: '#E8A020', letterSpacing: '0.02em' }}>
+              {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'v0.03'}
+            </span>
+          </div>
           <div style={{ fontSize: '10px', opacity: 0.8, lineHeight: 1 }}>IWOL Resource Planning</div>
         </div>
       </div>
