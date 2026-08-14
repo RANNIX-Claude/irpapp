@@ -101,10 +101,10 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('fecha_inicio', ini)
       .order('fecha_inicio'),
 
-    // Gastos fondo: semana_inicio = Sábado
+    // Gastos fondo: por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
-      .select('fecha, proveedor_nombre, descripcion, grupo_nombre, monto_pagado, monto_comprobante, tiene_factura')
-      .eq('semana_inicio', ini)
+      .select('fecha, proveedor_nombre, descripcion, grupo_clave, grupo_nombre, monto_pagado, monto_comprobante, tiene_factura')
+      .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
 
     // Rentas efectivo: rango Sáb→Vie
