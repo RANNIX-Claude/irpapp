@@ -203,7 +203,7 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
     <div>
       <h1>CORTE SEMANAL OPERATIVO</h1>
       <div class="sub">Inmobiliaria Alcedines del Norte · Plaza IWOL, Metepec</div>
-      <div style="margin-top:4px; font-weight:700; color:#374151">${labelSemana(iniStr, finStr)}</div>
+      <div style="margin-top:4px; font-weight:700; color:#374151">${labelCorto(iniStr, finStr)}</div>
     </div>
     <div style="text-align:right">
       <div class="sub">Generado: ${new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric', hour:'2-digit',minute:'2-digit'})}</div>
