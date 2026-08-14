@@ -1,6 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Edit2, Save, AlertTriangle } from 'lucide-react'
+import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Edit2, Save, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -170,25 +170,37 @@ function CapturaModal({ semana, productos, onClose, onSaved }) {
   )
 }
 
-// ── Modal agregar producto ─────────────────────────────────────────────────
-function ProductoModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ nombre: '', precio_venta: '', precio_costo: '', categoria: 'snack', notas: '' })
+// ── Modal agregar/editar producto ─────────────────────────────────────────────────
+function ProductoModal({ producto = null, onClose, onSaved }) {
+  const [form, setForm] = useState(producto ? {
+    nombre: producto.nombre || '',
+    precio_venta: producto.precio_venta != null ? String(producto.precio_venta) : '',
+    precio_costo: producto.precio_costo != null ? String(producto.precio_costo) : '',
+    categoria: producto.categoria || 'snack',
+    notas: producto.notas || '',
+  } : { nombre: '', precio_venta: '', precio_costo: '', categoria: 'snack', notas: '' })
   const [guardando, setGuardando] = useState(false)
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
 
   const guardar = async () => {
     if (!form.nombre || !form.precio_venta) return toast.error('Nombre y precio de venta son obligatorios')
     setGuardando(true)
-    const { error } = await supabase.from('cat_productos_vending').insert({
+    const payload = {
       nombre: form.nombre.trim(),
       precio_venta: parseFloat(form.precio_venta),
       precio_costo: form.precio_costo ? parseFloat(form.precio_costo) : null,
       categoria: form.categoria,
       notas: form.notas || null,
-    })
+    }
+    let error
+    if (producto) {
+      ;({ error } = await supabase.from('cat_productos_vending').update(payload).eq('id', producto.id))
+    } else {
+      ;({ error } = await supabase.from('cat_productos_vending').insert(payload))
+    }
     setGuardando(false)
     if (error) return toast.error(error.message)
-    toast.success('Producto agregado')
+    toast.success(producto ? 'Producto actualizado' : 'Producto agregado')
     onSaved(); onClose()
   }
 
@@ -198,7 +210,7 @@ function ProductoModal({ onClose, onSaved }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: '24px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text)' }}>Nuevo Producto</h2>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text)' }}>{producto ? 'Editar Producto' : 'Nuevo Producto'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}><X size={18} /></button>
         </div>
 
@@ -224,7 +236,7 @@ function ProductoModal({ onClose, onSaved }) {
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button onClick={onClose} style={{ flex: 1, padding: '10px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--muted)' }}>Cancelar</button>
           <button onClick={guardar} disabled={guardando} style={{ flex: 2, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--accent)', color: 'white', cursor: guardando ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: guardando ? 0.7 : 1 }}>
-            {guardando ? 'Guardando…' : 'Agregar producto'}
+            {guardando ? 'Guardando…' : producto ? 'Guardar cambios' : 'Agregar producto'}
           </button>
         </div>
       </div>
@@ -307,6 +319,8 @@ export default function Vending() {
   const [loading, setLoading] = useState(true)
   const [showCaptura, setShowCaptura] = useState(false)
   const [showProducto, setShowProducto] = useState(false)
+  const [editProducto, setEditProducto] = useState(null)
+  const [confirmDelProd, setConfirmDelProd] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => { setSemana(semanaActual(semOffset)) }, [semOffset])
@@ -448,7 +462,7 @@ export default function Vending() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr>
-                {['Producto', 'Categoría', 'Precio Venta', 'Precio Costo', 'Margen', 'Estado', 'Notas'].map(h => (
+                {['Producto', 'Categoría', 'Precio Venta', 'Precio Costo', 'Margen', 'Estado', 'Notas', ''].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: ['Precio Venta', 'Precio Costo', 'Margen'].includes(h) ? 'right' : 'left', fontSize: '10px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '2px solid var(--border)', background: 'var(--accent-light)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -475,6 +489,10 @@ export default function Vending() {
                       </span>
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--muted)', fontSize: '11px', borderBottom: '1px solid var(--border)' }}>{p.notas || '—'}</td>
+                    <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => setEditProducto(p)} style={{ marginRight: '4px', padding: '5px 7px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Pencil size={13} /></button>
+                      <button onClick={() => setConfirmDelProd(p)} style={{ padding: '5px 7px', background: '#FEF2F2', color: '#B91C1C', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
+                    </td>
                   </tr>
                 )
               })}
@@ -494,9 +512,37 @@ export default function Vending() {
       )}
       {showProducto && (
         <ProductoModal
+          producto={null}
           onClose={() => setShowProducto(false)}
           onSaved={() => setRefreshKey(k => k + 1)}
         />
+      )}
+      {editProducto && (
+        <ProductoModal
+          producto={editProducto}
+          onClose={() => setEditProducto(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); setEditProducto(null) }}
+        />
+      )}
+      {confirmDelProd && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setConfirmDelProd(null)}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', maxWidth: '400px', width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '8px' }}>¿Eliminar producto?</div>
+            <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '20px' }}>
+              {confirmDelProd.nombre} · {confirmDelProd.categoria}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDelProd(null)} style={{ padding: '9px 18px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={async () => {
+                const { error } = await supabase.from('cat_productos_vending').delete().eq('id', confirmDelProd.id)
+                if (error) return toast.error(error.message)
+                toast.success('Producto eliminado')
+                setConfirmDelProd(null)
+                setRefreshKey(k => k + 1)
+              }} style={{ padding: '9px 18px', background: '#B91C1C', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

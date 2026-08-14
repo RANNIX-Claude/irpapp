@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar } from 'lucide-react'
+import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 import KPICard from '../components/ui/KPICard'
@@ -36,8 +37,23 @@ const BLANK = {
   nota: '',
 }
 
-function NuevoIngresoModal({ onClose, onSaved }) {
-  const [form, setForm] = useState(BLANK)
+function IngresoModal({ ingreso = null, onClose, onSaved }) {
+  const [form, setForm] = useState(ingreso ? {
+    fecha:            ingreso.fecha ? ingreso.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
+    id_contrato:      ingreso.id_contrato || '',
+    local_id:         ingreso.local_id || '',
+    locales_contrato: ingreso.locales_contrato || '',
+    es_principal:     ingreso.es_principal ?? true,
+    propietario:      ingreso.propietario || '',
+    tipo:             ingreso.tipo || 'RENTA',
+    mes:              ingreso.mes || new Date().getMonth() + 1,
+    anio:             ingreso.anio || new Date().getFullYear(),
+    factura:          ingreso.factura || '',
+    importe:          ingreso.importe != null ? String(ingreso.importe) : '',
+    origen:           ingreso.origen || 'TRANSFERENCIA BBVA',
+    concepto_origen:  ingreso.concepto_origen || '',
+    nota:             ingreso.nota || '',
+  } : BLANK)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
 
@@ -55,7 +71,7 @@ function NuevoIngresoModal({ onClose, onSaved }) {
     if (!form.tipo) { setErr('Selecciona el tipo'); return }
     if (!form.mes || !form.anio) { setErr('Mes y año son obligatorios'); return }
     setSaving(true); setErr(null)
-    const { error } = await supabase.from('ingresos').insert({
+    const payload = {
       fecha:            form.fecha || null,
       id_contrato:      form.id_contrato || form.local_id,
       local_id:         form.local_id,
@@ -70,7 +86,13 @@ function NuevoIngresoModal({ onClose, onSaved }) {
       origen:           form.origen || null,
       concepto_origen:  form.concepto_origen || null,
       nota:             form.nota || null,
-    })
+    }
+    let error
+    if (ingreso) {
+      ;({ error } = await supabase.from('ingresos').update(payload).eq('id', ingreso.id))
+    } else {
+      ;({ error } = await supabase.from('ingresos').insert(payload))
+    }
     setSaving(false)
     if (error) { setErr(error.message); return }
     onSaved()
@@ -93,7 +115,7 @@ function NuevoIngresoModal({ onClose, onSaved }) {
         onClick={e => e.stopPropagation()}>
 
         <div style={{ padding:'18px 22px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontWeight:700, fontSize:'15px' }}>Registrar Ingreso</div>
+          <div style={{ fontWeight:700, fontSize:'15px' }}>{ingreso ? 'Editar Ingreso' : 'Registrar Ingreso'}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
         </div>
 
@@ -207,7 +229,7 @@ function NuevoIngresoModal({ onClose, onSaved }) {
         <div style={{ padding:'14px 22px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'8px', justifyContent:'flex-end' }}>
           <button onClick={onClose} style={{ padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Cancelar</button>
           <button onClick={guardar} disabled={saving} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 20px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer', opacity:saving ? 0.6 : 1 }}>
-            <Save size={14} /> {saving ? 'Guardando...' : 'Registrar ingreso'}
+            <Save size={14} /> {saving ? 'Guardando...' : ingreso ? 'Guardar cambios' : 'Registrar ingreso'}
           </button>
         </div>
       </div>
@@ -220,7 +242,8 @@ export default function Ingresos() {
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1)
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
-  const [showNuevo, setShowNuevo] = useState(false)
+  const [modalData, setModalData] = useState(null)
+  const [confirmDel, setConfirmDel] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const { data, loading } = usePRP('prp_ingresos', { refreshKey })
@@ -243,6 +266,14 @@ export default function Ingresos() {
   const totalRenta = soloImportes.filter(r => r.tipo === 'RENTA').reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
   const totalSanciones = soloImportes.filter(r => r.tipo === 'SANCION').reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
 
+  const eliminar = async (r) => {
+    const { error } = await supabase.from('ingresos').delete().eq('id', r.id)
+    if (error) { toast.error(error.message); return }
+    toast.success('Ingreso eliminado')
+    setConfirmDel(null)
+    setRefreshKey(k => k+1)
+  }
+
   const ANIOS = [2025, 2026, 2027]
 
   return (
@@ -254,7 +285,7 @@ export default function Ingresos() {
             {MESES[filtroMes]} {filtroAnio} · {filtrados.filter(r => r.es_principal).length} contratos con pago
           </p>
         </div>
-        <button onClick={() => setShowNuevo(true)} style={{
+        <button onClick={() => setModalData('nuevo')} style={{
           display:'flex', alignItems:'center', gap:'8px',
           background:'var(--color-primary)', color:'white', border:'none',
           borderRadius:'8px', padding:'10px 20px', fontSize:'14px', fontWeight:600, cursor:'pointer',
@@ -315,6 +346,7 @@ export default function Ingresos() {
                       {['Fecha','Contrato','Local','Tipo','Propietario','Factura','Importe','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: h === 'Importe' ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
+                      <th style={{ padding:'10px 14px' }} />
                     </tr>
                   </thead>
                   <tbody>
@@ -337,6 +369,10 @@ export default function Ingresos() {
                           {r.es_principal ? fmt(r.importe) : '—'}
                         </td>
                         <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
+                          <button onClick={e => { e.stopPropagation(); setModalData(r) }} style={{ marginRight:'4px', padding:'5px 7px', background:'#F3F4F6', color:'#374151', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Pencil size={13} /></button>
+                          <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} style={{ padding:'5px 7px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Trash2 size={13} /></button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -344,7 +380,7 @@ export default function Ingresos() {
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
                       <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
-                      <td />
+                      <td /><td />
                     </tr>
                   </tfoot>
                 </table>
@@ -352,7 +388,27 @@ export default function Ingresos() {
             )}
       </div>
 
-      {showNuevo && <NuevoIngresoModal onClose={() => setShowNuevo(false)} onSaved={() => setRefreshKey(k => k+1)} />}
+      {modalData && (
+        <IngresoModal
+          ingreso={modalData === 'nuevo' ? null : modalData}
+          onClose={() => setModalData(null)}
+          onSaved={() => { setRefreshKey(k => k+1); setModalData(null) }}
+        />
+      )}
+      {confirmDel && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
+          <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'400px', width:'100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:700, fontSize:'16px', marginBottom:'8px' }}>¿Eliminar ingreso?</div>
+            <div style={{ fontSize:'13px', color:'var(--color-text-light)', marginBottom:'20px' }}>
+              {confirmDel.local_id} · {MESES[confirmDel.mes]} {confirmDel.anio} · {fmt(confirmDel.importe)}
+            </div>
+            <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+              <button onClick={() => setConfirmDel(null)} style={{ padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => eliminar(confirmDel)} style={{ padding:'9px 18px', background:'#B91C1C', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect } from 'react'
-import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, List } from 'lucide-react'
+import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, List, Pencil, Trash2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { usePRP } from '../hooks/usePRP'
@@ -40,13 +41,21 @@ function BarraFondo({ gastado, base }) {
 
 const PROVEEDORES_FRECUENTES = ['Dogo','Sam\'s Club','Home Depot','Office Depot','Oxxo','Amazon','Comex','Los Canarios','Waldo\'s','Walmart','Chedraui','Costco','Liverpool','Ferretería Moriyama']
 
-function NuevoGastoModal({ fondo, onClose, onSaved }) {
+function GastoModal({ gasto = null, fondo, onClose, onSaved }) {
   const hoy = new Date().toISOString().split('T')[0]
   // lunes de esta semana
   const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
   const lunes = d.toISOString().split('T')[0]
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(gasto ? {
+    fecha: gasto.fecha || hoy,
+    grupo_clave: gasto.grupo_clave || 'LIMPIEZA',
+    proveedor_nombre: gasto.proveedor_nombre || '',
+    descripcion: gasto.descripcion || '',
+    monto_pagado: gasto.monto_pagado != null ? String(gasto.monto_pagado) : '',
+    monto_comprobante: gasto.monto_comprobante != null ? String(gasto.monto_comprobante) : '',
+    tiene_factura: gasto.tiene_factura || false,
+  } : {
     fecha: hoy,
     grupo_clave: 'LIMPIEZA',
     proveedor_nombre: '',
@@ -66,7 +75,7 @@ function NuevoGastoModal({ fondo, onClose, onSaved }) {
     setSaving(true); setErr(null)
     try {
       const rubro = RUBROS.find(r => r.clave === form.grupo_clave) || RUBROS[0]
-      const { error } = await supabase.from('gastos_operativos').insert({
+      const payload = {
         fecha: form.fecha,
         semana_inicio: lunes,
         grupo_clave: rubro.clave,
@@ -77,7 +86,13 @@ function NuevoGastoModal({ fondo, onClose, onSaved }) {
         monto_comprobante: form.monto_comprobante ? parseFloat(form.monto_comprobante) : parseFloat(form.monto_pagado),
         tiene_factura: form.tiene_factura,
         fondo_id: fondo?.id,
-      })
+      }
+      let error
+      if (gasto) {
+        ;({ error } = await supabase.from('gastos_operativos').update(payload).eq('id', gasto.id))
+      } else {
+        ;({ error } = await supabase.from('gastos_operativos').insert(payload))
+      }
       if (error) throw error
       onSaved()
       onClose()
@@ -98,7 +113,7 @@ function NuevoGastoModal({ fondo, onClose, onSaved }) {
         </div>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>Nuevo Gasto</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>{gasto ? 'Editar Gasto' : 'Nuevo Gasto'}</h2>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-light)' }}>Semana {lunes}</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
@@ -166,7 +181,7 @@ function NuevoGastoModal({ fondo, onClose, onSaved }) {
             color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800,
             fontSize: '15px', cursor: saving ? 'default' : 'pointer',
           }}>
-            {saving ? 'Guardando...' : '+ Registrar Gasto'}
+            {saving ? 'Guardando...' : gasto ? 'Guardar cambios' : '+ Registrar Gasto'}
           </button>
         </form>
       </div>
@@ -174,7 +189,7 @@ function NuevoGastoModal({ fondo, onClose, onSaved }) {
   )
 }
 
-function GastoRow({ g }) {
+function GastoRow({ g, onEdit, onDelete }) {
   const diff = (parseFloat(g.monto_comprobante) || 0) - (parseFloat(g.monto_pagado) || 0)
   const rubro = RUBROS.find(r => r.clave === g.grupo_clave) || { emoji: '📦', label: g.grupo_nombre }
   return (
@@ -195,6 +210,10 @@ function GastoRow({ g }) {
         )}
         {g.tiene_factura && <div style={{ fontSize: '10px', color: 'var(--color-success)' }}>✓ Factura</div>}
       </div>
+      <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+        <button onClick={() => onEdit(g)} style={{ padding: '5px 7px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Pencil size={13} /></button>
+        <button onClick={() => onDelete(g)} style={{ padding: '5px 7px', background: '#FEF2F2', color: '#B91C1C', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
+      </div>
     </div>
   )
 }
@@ -202,6 +221,8 @@ function GastoRow({ g }) {
 export default function FondoRevolvente() {
   useModuleAudit('FONDO_REVOLVENTE')
   const [showModal, setShowModal] = useState(false)
+  const [modalData, setModalData] = useState(null)
+  const [confirmDel, setConfirmDel] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [vista, setVista] = useState('semana') // 'semana' | 'rubros'
 
@@ -225,6 +246,14 @@ export default function FondoRevolvente() {
     ...r,
     total: gastosSemana.filter(g => g.grupo_clave === r.clave).reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0),
   })).filter(r => r.total > 0).sort((a, b) => b.total - a.total)
+
+  const eliminar = async (g) => {
+    const { error } = await supabase.from('gastos_operativos').delete().eq('id', g.id)
+    if (error) { toast.error(error.message); return }
+    toast.success('Gasto eliminado')
+    setConfirmDel(null)
+    setRefreshKey(k => k + 1)
+  }
 
   if (fLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}><LoadingSpinner /></div>
 
@@ -282,7 +311,7 @@ export default function FondoRevolvente() {
           ? gastosSemana.length === 0
             ? <EmptyState title="Sin gastos esta semana" description="Toca '+Gasto' para registrar el primer gasto de la semana." />
             : <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '0 16px' }}>
-                {gastosSemana.map(g => <GastoRow key={g.id} g={g} />)}
+                {gastosSemana.map(g => <GastoRow key={g.id} g={g} onEdit={g => setModalData(g)} onDelete={g => setConfirmDel(g)} />)}
                 <div style={{ padding: '12px 0', display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
                   <span>Total semana</span>
                   <span style={{ color: 'var(--color-danger)' }}>{fmt(gastadoSemana)}</span>
@@ -307,11 +336,34 @@ export default function FondoRevolvente() {
       }
 
       {showModal && (
-        <NuevoGastoModal
+        <GastoModal
+          gasto={null}
           fondo={f}
           onClose={() => setShowModal(false)}
           onSaved={() => setRefreshKey(k => k + 1)}
         />
+      )}
+      {modalData && (
+        <GastoModal
+          gasto={modalData}
+          fondo={f}
+          onClose={() => setModalData(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); setModalData(null) }}
+        />
+      )}
+      {confirmDel && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setConfirmDel(null)}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', maxWidth: '400px', width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '8px' }}>¿Eliminar gasto?</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-light)', marginBottom: '20px' }}>
+              {confirmDel.descripcion} · {confirmDel.fecha} · {fmt(confirmDel.monto_pagado)}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDel(null)} style={{ padding: '9px 18px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => eliminar(confirmDel)} style={{ padding: '9px 18px', background: '#B91C1C', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
