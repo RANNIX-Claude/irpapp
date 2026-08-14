@@ -75,17 +75,19 @@ function GastoModal({ gasto = null, fondo, onClose, onSaved }) {
     setSaving(true); setErr(null)
     try {
       const rubro = RUBROS.find(r => r.clave === form.grupo_clave) || RUBROS[0]
+      const dt = new Date(form.fecha + 'T12:00:00')
+      const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+      const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
       const payload = {
         fecha: form.fecha,
-        semana_inicio: lunes,
-        grupo_clave: rubro.clave,
-        grupo_nombre: rubro.label,
-        proveedor_nombre: form.proveedor_nombre || null,
-        descripcion: form.descripcion,
-        monto_pagado: parseFloat(form.monto_pagado),
-        monto_comprobante: form.monto_comprobante ? parseFloat(form.monto_comprobante) : parseFloat(form.monto_pagado),
-        tiene_factura: form.tiene_factura,
-        fondo_id: fondo?.id,
+        proveedor: form.proveedor_nombre || null,
+        grupo_gasto: rubro.label,
+        descripcion: form.descripcion || null,
+        cantidad: parseFloat(form.monto_pagado),
+        anio: dt.getFullYear(),
+        mes: MESES[dt.getMonth()],
+        dia_semana: DIAS[dt.getDay()],
+        semana: `S${Math.ceil(dt.getDate() / 7)}`,
       }
       let error
       if (gasto) {

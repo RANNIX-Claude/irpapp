@@ -102,9 +102,9 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('fecha_inicio', ini)
       .order('fecha_inicio'),
 
-    // Gastos: GastosOperativos (proveedor/grupo_gasto/cantidad) + FondoRevolvente (proveedor_nombre/grupo_nombre/monto_pagado)
+    // Gastos operativos por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
-      .select('fecha, proveedor, proveedor_nombre, descripcion, grupo_gasto, grupo_clave, grupo_nombre, cantidad, monto_pagado, monto_comprobante, tiene_factura')
+      .select('fecha, proveedor, grupo_gasto, descripcion, cantidad')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
 
@@ -159,9 +159,9 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
   const rowsGastos = gastos.map(g =>
     `<tr>
       <td style="padding:3px 6px;font-size:11px">${g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
-      <td style="padding:3px 6px;font-size:11px">${g.proveedor_nombre || g.proveedor || '—'}</td>
-      <td style="padding:3px 6px;font-size:11px">${g.grupo_nombre || g.grupo_gasto || g.descripcion || '—'}</td>
-      <td style="padding:3px 6px;text-align:right;font-size:11px">${fmt(g.monto_pagado ?? g.cantidad)}</td>
+      <td style="padding:3px 6px;font-size:11px">${g.proveedor || '—'}</td>
+      <td style="padding:3px 6px;font-size:11px">${g.grupo_gasto || g.descripcion || '—'}</td>
+      <td style="padding:3px 6px;text-align:right;font-size:11px">${fmt(g.cantidad)}</td>
       <td style="padding:3px 6px;text-align:right;font-size:11px;color:#6B7280">${g.monto_comprobante ? fmt(g.monto_comprobante) : ''}</td>
       <td style="padding:3px 6px;font-size:11px">${g.tiene_factura ? '✓ Fact.' : ''}</td>
     </tr>`
@@ -348,7 +348,7 @@ export default function ResumenSemanal() {
   const totEstac      = (datos?.estac      ?? []).reduce((a, b) => a + (parseFloat(b.cantidad)     || 0), 0)
   const totVending    = (datos?.vending    ?? []).reduce((a, b) => a + (parseFloat(b.venta_pesos)  || 0), 0)
   const totRentas     = (datos?.rentasEf   ?? []).reduce((a, b) => a + (parseFloat(b.importe)      || 0), 0)
-  const totGastosFondo= (datos?.gastos     ?? []).reduce((a, b) => a + (parseFloat(b.monto_pagado ?? b.cantidad) || 0), 0)
+  const totGastosFondo= (datos?.gastos     ?? []).reduce((a, b) => a + (parseFloat(b.cantidad) || 0), 0)
 
   const vendingMaterial = (datos?.vending ?? []).filter(v => v.es_material).reduce((a, b) => a + (parseFloat(b.venta_pesos) || 0), 0)
   const residualVending = (datos?.vending ?? []).reduce((a, b) => a + (parseFloat(b.residual_pesos) || 0), 0)
@@ -568,9 +568,9 @@ export default function ResumenSemanal() {
                   ) : gastos.map((g, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
                       <td style={{ padding: '6px 8px', color: '#6B7280', whiteSpace: 'nowrap' }}>{g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
-                      <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.proveedor_nombre || g.proveedor || '—'}</td>
-                      <td style={{ padding: '6px 8px', color: '#374151', maxWidth: '120px' }}>{g.grupo_nombre || g.grupo_gasto || g.descripcion || '—'}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>{fmt(g.monto_pagado ?? g.cantidad)}</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.proveedor || '—'}</td>
+                      <td style={{ padding: '6px 8px', color: '#374151', maxWidth: '120px' }}>{g.grupo_gasto || g.descripcion || '—'}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>{fmt(g.cantidad)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.monto_comprobante ? fmt(g.monto_comprobante) : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                         {g.tiene_factura

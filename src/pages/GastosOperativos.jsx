@@ -146,22 +146,12 @@ function GastoModal({ onClose, onSaved, proveedoresDB = [], gasto = null }) {
     const dt = new Date(form.fecha + 'T12:00:00')
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
     const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-    // Calcular lunes de la semana para semana_inicio (compatible con FondoRevolvente)
-    const lunes = new Date(dt)
-    lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))
-    const semana_inicio = lunes.toISOString().split('T')[0]
     const payload = {
       fecha: form.fecha,
-      semana_inicio,
       proveedor: form.proveedor || null,
-      proveedor_nombre: form.proveedor || null,
       grupo_gasto: form.grupo_gasto,
-      grupo_nombre: form.grupo_gasto,
-      grupo_clave: form.grupo_gasto.toUpperCase().replace(/[^A-Z]/g, '_').slice(0, 20),
       descripcion: form.descripcion || null,
       cantidad: parseFloat(form.cantidad),
-      monto_pagado: parseFloat(form.cantidad),
-      tiene_factura: false,
       anio: dt.getFullYear(),
       mes: MESES[dt.getMonth()],
       dia_semana: DIAS[dt.getDay()],
