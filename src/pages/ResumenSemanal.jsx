@@ -1,6 +1,7 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef } from 'react'
-import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase } from '../lib/supabase'
 
@@ -308,8 +309,20 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
+function BtnIr({ to, label, navigate }) {
+  return (
+    <button
+      onClick={() => navigate(to)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '6px', color: 'white', fontSize: '11px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.02em' }}
+    >
+      <ExternalLink size={11} /> {label}
+    </button>
+  )
+}
+
 export default function ResumenSemanal() {
   useModuleAudit('RESUMEN_SEMANAL')
+  const navigate = useNavigate()
 
   // Tabla de semanas: [{ ini, fin, iniEstac, label }, ...]  (más reciente primero)
   const semanas = generarTablaSemanas()
@@ -417,7 +430,10 @@ export default function ResumenSemanal() {
               COLUMNA IZQUIERDA — INGRESOS EN EFECTIVO
           ══════════════════════════════════════════════ */}
           <div style={{ border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
-            <div style={S.panelTitle}>💵 Ingresos en Efectivo</div>
+            <div style={{ ...S.panelTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>💵 Ingresos en Efectivo</span>
+            <BtnIr to="/ingresos" label="Ir a Ingresos" navigate={navigate} />
+          </div>
 
             {/* ── PENSIONES ── */}
             {pensiones.length > 0 && (
@@ -439,9 +455,11 @@ export default function ResumenSemanal() {
             )}
 
             {/* ── ESTACIONAMIENTO DIARIO ── */}
-            <div style={S.sectionHeader}>
-              <Car size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-              Estacionamiento diario
+            <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span><Car size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Estacionamiento diario</span>
+              <button onClick={() => navigate('/estacionamiento')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
+                <ExternalLink size={10} /> Agregar
+              </button>
             </div>
             {estac.length === 0 ? (
               <div style={{ padding: '16px 12px', color: '#9CA3AF', fontSize: '12px', textAlign: 'center' }}>Sin registros esta semana</div>
@@ -461,9 +479,11 @@ export default function ResumenSemanal() {
             {/* ── VENDING MACHINE ── */}
             {vending.length > 0 && (
               <>
-                <div style={S.sectionHeader}>
-                  <ShoppingBag size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Vending Machine
+                <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span><ShoppingBag size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Vending Machine</span>
+                  <button onClick={() => navigate('/vending')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
+                    <ExternalLink size={10} /> Agregar
+                  </button>
                 </div>
                 {vending.map((v, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 100px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '8px' }}>
@@ -484,9 +504,11 @@ export default function ResumenSemanal() {
             {/* ── RENTAS EN EFECTIVO ── */}
             {rentasEf.length > 0 && (
               <>
-                <div style={S.sectionHeader}>
-                  <Home size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                  Rentas cobradas en efectivo
+                <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span><Home size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Rentas cobradas en efectivo</span>
+                  <button onClick={() => navigate('/ingresos')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
+                    <ExternalLink size={10} /> Agregar
+                  </button>
                 </div>
                 {rentasEf.map((r, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6' }}>
@@ -526,7 +548,10 @@ export default function ResumenSemanal() {
               COLUMNA DERECHA — GASTOS FONDO REVOLVENTE
           ══════════════════════════════════════════════ */}
           <div style={{ border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
-            <div style={S.panelTitle}>🧾 Gastos a Comprobar — Fondo Revolvente</div>
+            <div style={{ ...S.panelTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🧾 Gastos a Comprobar — Fondo Revolvente</span>
+              <BtnIr to="/fondo-revolvente" label="Agregar Gasto" navigate={navigate} />
+            </div>
 
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
