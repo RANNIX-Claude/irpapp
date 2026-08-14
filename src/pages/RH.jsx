@@ -1,325 +1,56 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
-import { Users, Search, Plus, AlertTriangle, CheckCircle, Clock, TrendingUp, UserCheck, Download, X } from 'lucide-react'
-import StatusBadge from '../components/ui/StatusBadge'
-import KPICard from '../components/ui/KPICard'
-import EmptyState from '../components/ui/EmptyState'
-import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Users, Search, Plus, AlertTriangle, CheckCircle, Clock, TrendingUp,
+  UserCheck, Download, X, ChevronRight, Briefcase, FileText,
+  UserPlus, Link, Calendar, Phone, Mail, ArrowRight, RefreshCw,
+  Upload, Filter, MoreVertical, ChevronDown, Edit2, Save,
+  DollarSign, Send, Eye, ChevronUp, Printer
+} from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
-function SemaforoContrato({ valor, fechaFin }) {
-  const COLORES = { VENCIDO: 'var(--color-danger)', CRITICO: 'var(--color-danger)', ALERTA: 'var(--color-warning)', OK: 'var(--color-success)', INDETERMINADO: 'var(--color-text-light)' }
-  const color = COLORES[valor] ?? 'var(--color-text-light)'
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-      <span style={{ fontSize: '11px', color, fontWeight: 600 }}>
-        {valor === 'INDETERMINADO' ? 'Indefinido' : fechaFin ?? valor}
-      </span>
-    </div>
-  )
-}
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmt$(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
-function Avatar({ nombre }) {
-  const initials = (nombre || 'NN').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-  const colors = ['#0A66C2', '#057642', '#E8A020', '#B24020', '#6B21A8', '#0F766E']
-  const idx = nombre ? nombre.charCodeAt(0) % colors.length : 0
+const AVATAR_COLORS = ['#0A66C2', '#057642', '#E8A020', '#B24020', '#6B21A8', '#0F766E', '#9D174D', '#92400E']
+function Avatar({ nombre, foto, size = 36 }) {
+  if (foto) return <img src={foto} alt={nombre} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+  const initials = (nombre || 'NN').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase()
+  const color = AVATAR_COLORS[(nombre || '').charCodeAt(0) % AVATAR_COLORS.length]
   return (
-    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: colors[idx] + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: colors[idx], flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.33 + 'px', fontWeight: 700, color, flexShrink: 0, border: `1.5px solid ${color}44` }}>
       {initials}
     </div>
   )
 }
 
-const TABS = ['Empleados', 'Asistencia', 'Reclutamiento']
-
-function TabEmpleados() {
-  const [search, setSearch] = useState('')
-  const [filtroArea, setFiltroArea] = useState('Todos')
-  const [selected, setSelected] = useState(null)
-  const { data, loading } = usePRP('prp_empleados', { order: { col: 'nombre_completo' } })
-
-  const lista = data ?? []
-  const areas = ['Todos', ...new Set(lista.map(e => e.area).filter(Boolean))]
-
-  const filtrados = lista.filter(e => {
-    const q = search.toLowerCase()
-    const match = !q || (e.nombre_completo || '').toLowerCase().includes(q) || (e.numero_empleado || '').toLowerCase().includes(q) || (e.puesto || '').toLowerCase().includes(q)
-    const area = filtroArea === 'Todos' || e.area === filtroArea
-    return match && area && e.estado_id === 'ACTIVO'
-  })
-
-  const activos = lista.filter(e => e.estado_id === 'ACTIVO').length
-  const nomina = lista.filter(e => e.estado_id === 'ACTIVO').reduce((a, b) => a + (parseFloat(b.salario_mensual) || 0), 0)
-  const alertasContrato = lista.filter(e => ['VENCIDO','CRITICO','ALERTA'].includes(e.semaforo_contrato)).length
-  const indeterminados = lista.filter(e => e.semaforo_contrato === 'INDETERMINADO').length
-
+function SemaforoContrato({ valor, fechaFin }) {
+  const MAP = { VENCIDO: ['var(--color-danger)', 'Vencido'], CRITICO: ['var(--color-danger)', 'Crítico'], ALERTA: ['var(--color-warning)', 'Alerta'], OK: ['var(--color-success)', ''], INDETERMINADO: ['#6B7280', 'Indefinido'] }
+  const [color, label] = MAP[valor] || ['#6B7280', valor]
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Activos" value={activos} icon={Users} color="var(--color-primary)" />
-        <KPICard title="Nómina Mensual" value={`$${(nomina/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-success)" />
-        <KPICard title="Alertas Contrato" value={alertasContrato} icon={AlertTriangle} color="var(--color-warning)" />
-        <KPICard title="Tiempo Indefinido" value={indeterminados} icon={UserCheck} color="var(--color-primary-dark)" />
-      </div>
-
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-light)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, # empleado o puesto..."
-            style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {areas.slice(0, 6).map(a => (
-            <button key={a} onClick={() => setFiltroArea(a)} style={{
-              padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: filtroArea === a ? 'var(--color-primary)' : '#E5E7EB',
-              background: filtroArea === a ? 'var(--color-primary)' : 'white',
-              color: filtroArea === a ? 'white' : 'var(--color-text-light)',
-            }}>{a}</button>
-          ))}
-        </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: '6px', background: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-light)' }}>
-          <Download size={13} /> Excel
-        </button>
-      </div>
-
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
-      ) : (
-        <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-          {filtrados.length === 0 ? (
-            <EmptyState title="Sin empleados" description="No hay empleados que coincidan con la búsqueda." />
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ background: '#F9FAFB' }}>
-                    {['Empleado', '# Emp', 'Puesto / Área', 'Salario Mensual', 'Tipo Contrato', 'Vencimiento', 'Estado'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: '12px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtrados.map(e => (
-                    <tr key={e.id} style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
-                      onMouseEnter={ev => ev.currentTarget.style.background = '#F9FAFB'}
-                      onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
-                      onClick={() => setSelected(e)}
-                    >
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Avatar nombre={e.nombre_completo} />
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: '13px' }}>{e.nombre_completo}</div>
-                            {e.nss && <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontFamily: 'monospace' }}>NSS: {e.nss}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>{e.numero_empleado}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500 }}>{e.puesto}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{e.area ?? '—'}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 700, fontSize: '14px' }}>${(parseFloat(e.salario_mensual) || 0).toLocaleString()}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>${(parseFloat(e.salario_diario) || 0).toFixed(2)}/día</div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: '12px', padding: '3px 8px', background: '#F3F4F6', borderRadius: '12px' }}>{e.tipo_contrato_nombre ?? e.tipo_contrato_id ?? '—'}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <SemaforoContrato valor={e.semaforo_contrato} fechaFin={e.contrato_fin} />
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <StatusBadge status={e.estado_id} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setSelected(null)}>
-          <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '85vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <Avatar nombre={selected.nombre_completo} />
-              <div style={{ flex: 1 }}>
-                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>{selected.nombre_completo}</h2>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>{selected.puesto} · {selected.numero_empleado}</div>
-              </div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ padding: '20px 24px', display: 'grid', gap: '10px' }}>
-              {[
-                ['RFC', selected.rfc], ['CURP', selected.curp], ['NSS', selected.nss],
-                ['Área', selected.area], ['Departamento', selected.departamento],
-                ['Fecha ingreso', selected.fecha_ingreso],
-                ['Salario mensual', `$${(parseFloat(selected.salario_mensual)||0).toLocaleString()}`],
-                ['Salario diario', `$${(parseFloat(selected.salario_diario)||0).toFixed(2)}`],
-                ['Email', selected.email], ['Celular', selected.celular],
-                ['Tipo contrato', selected.tipo_contrato_nombre ?? selected.tipo_contrato_id],
-                ['Vencimiento contrato', selected.contrato_fin ?? 'Tiempo indeterminado'],
-              ].filter(([,v]) => v).map(([label, val]) => (
-                <div key={label} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '8px', borderBottom: '1px solid #F3F4F6', paddingBottom: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-light)', fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontSize: '13px', fontFamily: ['RFC','CURP','NSS'].includes(label) ? 'monospace' : 'inherit' }}>{val}</span>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', flexWrap: 'wrap' }}>
-                {['Historial Salarial', 'Asistencias', 'Documentos', 'Incidencias', 'Renovar Contrato'].map(a => (
-                  <button key={a} style={{ padding: '7px 12px', background: '#F3F4F6', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-light)' }}>{a}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 11, color, fontWeight: 600 }}>
+        {valor === 'INDETERMINADO' ? 'Indefinido' : (fechaFin ?? label)}
+      </span>
     </div>
   )
 }
 
-function TabAsistencia() {
-  const hoy = new Date().toISOString().split('T')[0]
-  const [fecha, setFecha] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]
-  })
-  const { data, loading } = usePRP('prp_asistencia', {
-    filters: [['fecha', 'eq', fecha]],
-    order: { col: 'nombre_completo' },
-  })
+const TIPOS_DOC = ['INE', 'CURP', 'NSS', 'Comprobante domicilio', 'Foto', 'Contrato', 'Acta nacimiento', 'RFC', 'Carta no antecedentes']
+const TIPOS_CONTRATO = [
+  { id: 'TEMPORAL_3SEM', label: 'Temporal 3 semanas' },
+  { id: 'TEMPORAL_30D',  label: 'Temporal 30 días' },
+  { id: 'PRUEBA_90',     label: 'Prueba 90 días' },
+  { id: 'INDEFINIDO',    label: 'Tiempo indefinido' },
+]
+const ETAPAS_CANDIDATO = ['NUEVO', 'DOCUMENTOS', 'ENTREVISTA', 'OFERTA', 'ACEPTADO', 'RECHAZADO']
+const ETAPA_COLOR = { NUEVO: '#6B7280', DOCUMENTOS: '#E8A020', ENTREVISTA: '#0A66C2', OFERTA: '#8B5CF6', ACEPTADO: '#057642', RECHAZADO: '#B24020' }
+const MOTIVOS_RECHAZO = ['No cumple perfil', 'No pasó entrevista', 'Documentos incompletos', 'No se presentó', 'Salario no acordado', 'Ya no está disponible', 'Otro']
 
-  const lista = data ?? []
-  const presentes = lista.filter(a => a.estado === 'PRESENTE').length
-  const retardos = lista.filter(a => a.estado === 'RETARDO').length
-  const faltas = lista.filter(a => a.estado === 'FALTA').length
-
-  const COLOR_ESTADO = { PRESENTE: 'var(--color-success)', RETARDO: 'var(--color-warning)', FALTA: 'var(--color-danger)', VACACIONES: 'var(--color-primary)', INCAPACIDAD: '#6B7280' }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-        <label style={{ fontSize: '13px', fontWeight: 600 }}>Fecha:</label>
-        <input type="date" value={fecha} max={hoy} onChange={e => setFecha(e.target.value)}
-          style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px' }} />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '20px' }}>
-        <KPICard title="Presentes" value={presentes} icon={CheckCircle} color="var(--color-success)" />
-        <KPICard title="Retardos" value={retardos} icon={Clock} color="var(--color-warning)" />
-        <KPICard title="Faltas" value={faltas} icon={AlertTriangle} color="var(--color-danger)" />
-      </div>
-
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
-      ) : lista.length === 0 ? (
-        <EmptyState title="Sin registros" description={`No hay registros de asistencia para ${fecha}.`} />
-      ) : (
-        <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#F9FAFB' }}>
-                {['Empleado', '# Emp', 'Puesto', 'Entrada', 'Salida', 'Horas', 'Retardo', 'Estado'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: '12px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map(a => (
-                <tr key={a.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 500 }}>{a.nombre_completo}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--color-primary)' }}>{a.numero_empleado}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--color-text-light)' }}>{a.puesto}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '12px' }}>{a.hora_entrada ? String(a.hora_entrada).slice(0,5) : '—'}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '12px' }}>{a.hora_salida ? String(a.hora_salida).slice(0,5) : '—'}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{a.horas_trabajadas ? parseFloat(a.horas_trabajadas).toFixed(1) + 'h' : '—'}</td>
-                  <td style={{ padding: '12px 16px', color: a.minutos_retardo > 0 ? 'var(--color-warning)' : 'var(--color-text-light)', fontWeight: a.minutos_retardo > 0 ? 700 : 400 }}>
-                    {a.minutos_retardo > 0 ? `+${a.minutos_retardo} min` : '—'}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, background: (COLOR_ESTADO[a.estado] ?? '#999') + '22', color: COLOR_ESTADO[a.estado] ?? '#999' }}>
-                      {a.estado}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TabReclutamiento() {
-  const { data: vacantes, loading: vLoad } = usePRP('prp_vacantes', { order: { col: 'fecha_apertura', asc: false } })
-  const { data: candidatos, loading: cLoad } = usePRP('prp_candidatos', { order: { col: 'created_at', asc: false } })
-
-  const lista_v = vacantes ?? []
-  const lista_c = candidatos ?? []
-
-  if (vLoad || cLoad) return <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Vacantes Abiertas</h3>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-            <Plus size={13} /> Vacante
-          </button>
-        </div>
-        {lista_v.length === 0 ? (
-          <EmptyState title="Sin vacantes" description="No hay vacantes abiertas." />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {lista_v.map(v => (
-              <div key={v.id} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '14px' }}>
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{v.titulo}</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-light)', marginBottom: '8px' }}>{v.area} · {v.num_plazas} plaza{v.num_plazas > 1 ? 's' : ''}</div>
-                {(v.salario_min || v.salario_max) && (
-                  <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 600 }}>
-                    ${((v.salario_min||0)/1000).toFixed(0)}K – ${((v.salario_max||0)/1000).toFixed(0)}K/mes
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div style={{ marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Candidatos Recientes</h3>
-        </div>
-        {lista_c.length === 0 ? (
-          <EmptyState title="Sin candidatos" description="No hay candidatos registrados." />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {lista_c.slice(0, 8).map(c => (
-              <div key={c.id} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '14px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <Avatar nombre={c.nombre} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.vacante_puesto ?? 'Candidato general'}</div>
-                </div>
-                <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, background: '#F3F4F6', color: 'var(--color-text-light)', flexShrink: 0 }}>
-                  {c.etapa ?? 'NUEVO'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
+// ── Modal Nuevo Empleado ────────────────────────────────────────────────────
 function NuevoEmpleadoModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     nombre: '', apellido_pat: '', apellido_mat: '',
@@ -327,214 +58,1451 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
     fecha_nacimiento: '', fecha_ingreso: new Date().toISOString().split('T')[0],
     puesto: '', area: '', departamento: '',
     salario_diario: '', email: '', celular: '',
-    tipo_contrato: 'INDEFINIDO', fecha_fin_contrato: '',
+    tipo_contrato: 'TEMPORAL_3SEM', fecha_fin_contrato: '',
   })
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const semanas3 = () => {
+    const d = new Date(form.fecha_ingreso || Date.now())
+    d.setDate(d.getDate() + 21)
+    set('fecha_fin_contrato', d.toISOString().split('T')[0])
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.nombre || !form.apellido_pat || !form.salario_diario) {
-      setError('Nombre, apellido paterno y salario diario son obligatorios.')
-      return
-    }
-    setSaving(true); setError(null)
-    try {
-      const { data: res, error: err } = await supabase.rpc('crear_empleado', {
-        p_nombre: form.nombre,
-        p_apellido_pat: form.apellido_pat,
-        p_apellido_mat: form.apellido_mat || '',
-        p_sexo: form.sexo,
-        p_rfc: form.rfc || null,
-        p_curp: form.curp || null,
-        p_nss: form.nss || null,
-        p_fecha_nacimiento: form.fecha_nacimiento || null,
-        p_fecha_ingreso: form.fecha_ingreso,
-        p_puesto: form.puesto || null,
-        p_area: form.area || null,
-        p_departamento: form.departamento || null,
-        p_salario_diario: parseFloat(form.salario_diario),
-        p_email: form.email || null,
-        p_celular: form.celular || null,
-        p_tipo_contrato: form.tipo_contrato,
-        p_fecha_fin_contrato: form.fecha_fin_contrato || null,
-      })
-      if (err) throw err
-      setSuccess(`Empleado ${res.numero_empleado} registrado exitosamente.`)
-      setTimeout(() => { onCreated?.(); onClose() }, 1800)
-    } catch (err) {
-      setError(err.message || 'Error al registrar el empleado.')
-    } finally {
-      setSaving(false)
-    }
+    if (!form.nombre || !form.apellido_pat || !form.salario_diario) return toast.error('Nombre, apellido y salario son obligatorios')
+    setSaving(true)
+    const { data: res, error } = await supabase.rpc('crear_empleado', {
+      p_nombre: form.nombre, p_apellido_pat: form.apellido_pat,
+      p_apellido_mat: form.apellido_mat || '',
+      p_sexo: form.sexo, p_rfc: form.rfc || null, p_curp: form.curp || null,
+      p_nss: form.nss || null, p_fecha_nacimiento: form.fecha_nacimiento || null,
+      p_fecha_ingreso: form.fecha_ingreso, p_puesto: form.puesto || null,
+      p_area: form.area || null, p_departamento: form.departamento || null,
+      p_salario_diario: parseFloat(form.salario_diario) || null,
+      p_email: form.email || null, p_celular: form.celular || null,
+      p_tipo_contrato: form.tipo_contrato || null,
+      p_fecha_fin_contrato: form.fecha_fin_contrato || null,
+    })
+    setSaving(false)
+    if (error) return toast.error(error.message)
+    toast.success('Empleado registrado')
+    onCreated(); onClose()
   }
 
-  const inputStyle = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
-  const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-light)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }
-  const sectionStyle = { fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 0', borderBottom: '1px solid #E5E7EB', marginBottom: '4px', gridColumn: '1 / -1' }
+  const F = ({ label, children, span }) => (
+    <div style={span ? { gridColumn: '1 / -1' } : {}}>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>{label}</label>
+      {children}
+    </div>
+  )
+  const inp = (k, rest = {}) => (
+    <input value={form[k]} onChange={e => set(k, e.target.value)}
+      style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', ...rest.style }}
+      {...rest} />
+  )
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '680px', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 680, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)' }}>Nuevo Empleado</h2>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-light)' }}>Número de empleado generado automáticamente</p>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={20} /></button>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserPlus size={18} color="var(--color-primary)" /> Nuevo Empleado
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
         </div>
-
-        {success ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success)' }}>{success}</div>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <F label="Nombre(s)" ><input required value={form.nombre} onChange={e => set('nombre',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
+          <F label="Apellido Paterno"><input required value={form.apellido_pat} onChange={e => set('apellido_pat',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
+          <F label="Apellido Materno">{inp('apellido_mat')}</F>
+          <F label="Sexo">
+            <select value={form.sexo} onChange={e => set('sexo',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+              <option value="M">Masculino</option><option value="F">Femenino</option>
+            </select>
+          </F>
+          <F label="Fecha nacimiento">{inp('fecha_nacimiento', { type:'date' })}</F>
+          <F label="Fecha ingreso">{inp('fecha_ingreso', { type:'date' })}</F>
+          <F label="Puesto">{inp('puesto')}</F>
+          <F label="Área">{inp('area')}</F>
+          <F label="Departamento">{inp('departamento')}</F>
+          <F label="Salario diario ($)"><input required type="number" step="0.01" value={form.salario_diario} onChange={e => set('salario_diario',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
+          <F label="RFC">{inp('rfc', { placeholder:'AAA######XXX', style: { fontFamily:'monospace', textTransform:'uppercase' }})}</F>
+          <F label="CURP">{inp('curp', { placeholder:'AAAA######XXXXXXXXXX', style: { fontFamily:'monospace', textTransform:'uppercase' }})}</F>
+          <F label="NSS (IMSS)">{inp('nss', { placeholder:'Número de Seguridad Social' })}</F>
+          <F label="Email">{inp('email', { type:'email' })}</F>
+          <F label="Celular">{inp('celular')}</F>
+          <div style={{ gridColumn: '1 / -1', background: '#F0F7FF', borderRadius: 8, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, alignItems: 'end' }}>
+            <F label="Tipo de Contrato">
+              <select value={form.tipo_contrato} onChange={e => set('tipo_contrato',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+                {TIPOS_CONTRATO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </F>
+            <F label="Vencimiento contrato">{inp('fecha_fin_contrato', { type:'date' })}</F>
+            <button type="button" onClick={semanas3} style={{ padding:'8px 12px',border:'1.5px solid #0A66C2',borderRadius:7,fontSize:12,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+              +3 semanas
+            </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {error && <div style={{ gridColumn: '1 / -1', padding: '10px 14px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
-
-            <div style={sectionStyle}>Datos Personales</div>
-            <div>
-              <label style={labelStyle}>Nombre(s) *</label>
-              <input value={form.nombre} onChange={e => set('nombre', e.target.value)} style={inputStyle} placeholder="María" required />
-            </div>
-            <div>
-              <label style={labelStyle}>Apellido Paterno *</label>
-              <input value={form.apellido_pat} onChange={e => set('apellido_pat', e.target.value)} style={inputStyle} placeholder="García" required />
-            </div>
-            <div>
-              <label style={labelStyle}>Apellido Materno</label>
-              <input value={form.apellido_mat} onChange={e => set('apellido_mat', e.target.value)} style={inputStyle} placeholder="López" />
-            </div>
-            <div>
-              <label style={labelStyle}>Sexo</label>
-              <select value={form.sexo} onChange={e => set('sexo', e.target.value)} style={inputStyle}>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Fecha de Nacimiento</label>
-              <input type="date" value={form.fecha_nacimiento} onChange={e => set('fecha_nacimiento', e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} style={inputStyle} placeholder="nombre@empresa.mx" />
-            </div>
-
-            <div style={sectionStyle}>Identificaciones IMSS / SAT</div>
-            <div>
-              <label style={labelStyle}>RFC</label>
-              <input value={form.rfc} onChange={e => set('rfc', e.target.value.toUpperCase())} style={{ ...inputStyle, fontFamily: 'monospace' }} placeholder="GARL900101XXX" maxLength={13} />
-            </div>
-            <div>
-              <label style={labelStyle}>CURP</label>
-              <input value={form.curp} onChange={e => set('curp', e.target.value.toUpperCase())} style={{ ...inputStyle, fontFamily: 'monospace' }} placeholder="GARL900101HSLRXXX01" maxLength={18} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>NSS (Número de Seguridad Social)</label>
-              <input value={form.nss} onChange={e => set('nss', e.target.value)} style={{ ...inputStyle, fontFamily: 'monospace', maxWidth: '280px' }} placeholder="12345678901" maxLength={11} />
-            </div>
-
-            <div style={sectionStyle}>Puesto y Área</div>
-            <div>
-              <label style={labelStyle}>Fecha de Ingreso</label>
-              <input type="date" value={form.fecha_ingreso} onChange={e => set('fecha_ingreso', e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Celular</label>
-              <input value={form.celular} onChange={e => set('celular', e.target.value)} style={inputStyle} placeholder="667 123 4567" />
-            </div>
-            <div>
-              <label style={labelStyle}>Puesto</label>
-              <input value={form.puesto} onChange={e => set('puesto', e.target.value)} style={inputStyle} placeholder="Gerente de Operaciones" />
-            </div>
-            <div>
-              <label style={labelStyle}>Área</label>
-              <input value={form.area} onChange={e => set('area', e.target.value)} style={inputStyle} placeholder="Administración" />
-            </div>
-            <div>
-              <label style={labelStyle}>Departamento</label>
-              <input value={form.departamento} onChange={e => set('departamento', e.target.value)} style={inputStyle} placeholder="Recursos Humanos" />
-            </div>
-            <div>
-              <label style={labelStyle}>Salario Diario (MXN) *</label>
-              <input type="number" value={form.salario_diario} onChange={e => set('salario_diario', e.target.value)} style={inputStyle} placeholder="Ej. 500" min="0" step="0.01" required />
-              {form.salario_diario && <div style={{ fontSize: '11px', color: 'var(--color-success)', marginTop: '4px' }}>${(parseFloat(form.salario_diario) * 30).toLocaleString()} /mes estimado</div>}
-            </div>
-
-            <div style={sectionStyle}>Tipo de Contrato Laboral</div>
-            <div>
-              <label style={labelStyle}>Tipo de Contrato</label>
-              <select value={form.tipo_contrato} onChange={e => set('tipo_contrato', e.target.value)} style={inputStyle}>
-                <option value="INDEFINIDO">Tiempo Indefinido</option>
-                <option value="DETERMINADO">Tiempo Determinado</option>
-                <option value="HONORARIOS">Honorarios / Servicios Profesionales</option>
-                <option value="PRACTICAS">Prácticas Profesionales</option>
-              </select>
-            </div>
-            {form.tipo_contrato !== 'INDEFINIDO' && (
-              <div>
-                <label style={labelStyle}>Fecha Fin de Contrato</label>
-                <input type="date" value={form.fecha_fin_contrato} onChange={e => set('fecha_fin_contrato', e.target.value)} style={inputStyle} min={form.fecha_ingreso} />
-              </div>
-            )}
-
-            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', paddingTop: '8px', borderTop: '1px solid #E5E7EB' }}>
-              <button type="submit" disabled={saving} style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
-                {saving ? 'Registrando...' : 'Registrar Empleado'}
-              </button>
-              <button type="button" onClick={onClose} style={{ padding: '11px 20px', background: '#F3F4F6', color: 'var(--color-text)', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>Cancelar</button>
-            </div>
-          </form>
-        )}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, paddingTop: 4 }}>
+            <button type="button" onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600,fontSize:13 }}>Cancelar</button>
+            <button type="submit" disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'var(--color-primary)',color:'white',cursor:'pointer',fontWeight:700,fontSize:14,opacity:saving?.7:1 }}>
+              {saving ? 'Registrando…' : 'Registrar empleado'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
 }
 
-export default function RH() {
-  useModuleAudit('RH')
-  const [tab, setTab] = useState(0)
-  const [showNuevoEmpleado, setShowNuevoEmpleado] = useState(false)
+// ── Modal Renovar Contrato ──────────────────────────────────────────────────
+function RenovarContratoModal({ empleado, onClose, onSaved }) {
+  const hoy = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({ tipo_contrato: 'TEMPORAL_3SEM', fecha_inicio: hoy, fecha_fin: '', salario_diario: empleado.salario_diario || '' })
+  const [saving, setSaving] = useState(false)
+
+  const semanas3 = () => {
+    const d = new Date(form.fecha_inicio || Date.now())
+    d.setDate(d.getDate() + 21)
+    setForm(p => ({ ...p, fecha_fin: d.toISOString().split('T')[0] }))
+  }
+
+  const guardar = async () => {
+    if (!form.fecha_inicio || !form.tipo_contrato) return toast.error('Tipo y fecha inicio son obligatorios')
+    setSaving(true)
+    await supabase.from('rh_contratos').update({ activo: false }).eq('empleado_id', empleado.id).eq('activo', true)
+    const { error } = await supabase.from('rh_contratos').insert({
+      empleado_id: empleado.id,
+      tipo_contrato: form.tipo_contrato,
+      fecha_inicio: form.fecha_inicio,
+      fecha_fin: form.fecha_fin || null,
+      salario_diario: parseFloat(form.salario_diario) || null,
+      activo: true,
+    })
+    setSaving(false)
+    if (error) return toast.error(error.message)
+    toast.success('Contrato renovado')
+    onSaved(); onClose()
+  }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1280px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--color-text)', margin: '0 0 4px' }}>Recursos Humanos</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>Reclutamiento · Expediente · Asistencia · Nómina</p>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 12, width: 480, maxWidth: '95vw', padding: 24 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Renovar Contrato — {empleado.nombre_completo}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
         </div>
-        {tab === 0 && (
-          <button onClick={() => setShowNuevoEmpleado(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {[['Tipo de contrato', <select value={form.tipo_contrato} onChange={e => setForm(p => ({...p, tipo_contrato:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>{TIPOS_CONTRATO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select>],
+             ['Fecha inicio', <input type="date" value={form.fecha_inicio} onChange={e => setForm(p=>({...p,fecha_inicio:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />],
+             ['Vencimiento', <div style={{ display:'flex',gap:8 }}><input type="date" value={form.fecha_fin} onChange={e => setForm(p=>({...p,fecha_fin:e.target.value}))} style={{ flex:1,padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /><button onClick={semanas3} style={{ padding:'8px 10px',border:'1.5px solid #0A66C2',borderRadius:7,fontSize:12,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer',whiteSpace:'nowrap' }}>+3 sem</button></div>],
+             ['Salario diario ($)', <input type="number" step="0.01" value={form.salario_diario} onChange={e => setForm(p=>({...p,salario_diario:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />]
+          ].map(([lbl, ctrl]) => (
+            <div key={lbl}>
+              <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>{lbl}</label>
+              {ctrl}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'var(--color-primary)',color:'white',cursor:'pointer',fontWeight:700 }}>
+            {saving ? 'Guardando…' : 'Renovar contrato'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Detalle de empleado ─────────────────────────────────────────────────────
+function DetalleEmpleado({ emp, onClose, onRefresh }) {
+  const [subModal, setSubModal] = useState(null) // 'renovar'
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 12, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, background: 'white' }}>
+          <Avatar nombre={emp.nombre_completo} foto={emp.foto_url} size={44} />
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{emp.nombre_completo}</h2>
+            <div style={{ fontSize: 12, color: 'var(--color-text-light)' }}>{emp.puesto} · {emp.numero_empleado}</div>
+          </div>
+          <SemaforoContrato valor={emp.semaforo_contrato} fechaFin={emp.contrato_fin} />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 8 }}><X size={20} /></button>
+        </div>
+
+        <div style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+            {[
+              ['Departamento', emp.departamento ?? emp.area],
+              ['Fecha ingreso', emp.fecha_ingreso],
+              ['Antigüedad', emp.dias_antiguedad != null ? Math.floor(emp.dias_antiguedad / 365) + ' años, ' + (Math.floor(emp.dias_antiguedad / 30) % 12) + ' meses' : null],
+              ['Salario mensual', emp.salario_mensual ? fmt$(emp.salario_mensual) : null],
+              ['Salario diario', emp.salario_diario ? fmt$(emp.salario_diario) : null],
+              ['Email', emp.email], ['Celular', emp.celular],
+              ['RFC', emp.rfc], ['CURP', emp.curp], ['NSS', emp.nss],
+              ['Tipo contrato', emp.tipo_contrato_nombre],
+              ['Vencimiento contrato', emp.contrato_fin ?? 'Tiempo indeterminado'],
+            ].filter(([,v]) => v).map(([label, val]) => (
+              <div key={label} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 8, borderBottom: '1px solid #F3F4F6', paddingBottom: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--color-text-light)', fontWeight: 600 }}>{label}</span>
+                <span style={{ fontSize: 13, fontFamily: ['RFC','CURP','NSS'].includes(label) ? 'monospace' : 'inherit' }}>{val}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['Historial Salarial', null], ['Asistencias', null], ['Documentos', null], ['Incidencias', null]].map(([a]) => (
+              <button key={a} style={{ padding: '7px 12px', background: '#F3F4F6', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-light)' }}>{a}</button>
+            ))}
+            <button onClick={() => setSubModal('renovar')}
+              style={{ padding: '7px 12px', background: '#EFF6FF', border: '1.5px solid #0A66C2', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#0A66C2', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <RefreshCw size={13} /> Renovar Contrato
+            </button>
+          </div>
+        </div>
+      </div>
+      {subModal === 'renovar' && (
+        <RenovarContratoModal empleado={emp} onClose={() => setSubModal(null)} onSaved={() => { onRefresh(); setSubModal(null) }} />
+      )}
+    </div>
+  )
+}
+
+// ── Tab Empleados ───────────────────────────────────────────────────────────
+function TabEmpleados({ onNuevo }) {
+  const [search, setSearch] = useState('')
+  const [filtroArea, setFiltroArea] = useState('Todos')
+  const [selected, setSelected] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { data, loading } = usePRP('prp_empleados', { order: { col: 'apellido_pat' }, refreshKey })
+
+  const lista = data ?? []
+  const activos = lista.filter(e => e.estado_id === 'ACTIVO')
+  const areas = ['Todos', ...new Set(activos.map(e => e.area).filter(Boolean))]
+
+  const filtrados = activos.filter(e => {
+    const q = search.toLowerCase()
+    return (!q || [e.nombre_completo, e.numero_empleado, e.puesto].some(v => (v||'').toLowerCase().includes(q)))
+      && (filtroArea === 'Todos' || e.area === filtroArea)
+  })
+
+  const nomina = activos.reduce((s, e) => s + (parseFloat(e.salario_mensual) || 0), 0)
+  const alertas = activos.filter(e => ['VENCIDO','CRITICO','ALERTA'].includes(e.semaforo_contrato)).length
+  const indefinidos = activos.filter(e => e.semaforo_contrato === 'INDETERMINADO').length
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 22 }}>
+        {[[activos.length, 'Activos', '#0A66C2', Users], [fmt$(nomina), 'Nómina Mensual', '#057642', TrendingUp], [alertas, 'Alertas Contrato', '#F59E0B', AlertTriangle], [indefinidos, 'Tiempo Indefinido', '#1A3C5E', UserCheck]].map(([v, t, c, Icon]) => (
+          <div key={t} style={{ background: 'white', borderRadius: 10, border: '1px solid #E5E7EB', padding: '16px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</span>
+              <Icon size={16} color={c} />
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+          <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-light)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar empleado, # o puesto..."
+            style={{ width: '100%', padding: '9px 12px 9px 34px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {areas.slice(0, 7).map(a => (
+            <button key={a} onClick={() => setFiltroArea(a)}
+              style={{ padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid', borderColor: filtroArea===a ? '#0A66C2' : '#E5E7EB', background: filtroArea===a ? '#0A66C2' : 'white', color: filtroArea===a ? 'white' : 'var(--color-text-light)' }}>
+              {a}
+            </button>
+          ))}
+        </div>
+        <button onClick={onNuevo} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          <Plus size={14} /> Nuevo
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF' }}>Cargando…</div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: 10, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                  {['Empleado','# Emp','Puesto / Área','Salario Mensual','Tipo Contrato','Vencimiento','Estado'].map(h => (
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--color-text-light)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.5px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map(e => (
+                  <tr key={e.id} style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
+                    onMouseEnter={ev => ev.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
+                    onClick={() => setSelected(e)}>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Avatar nombre={e.nombre_completo} foto={e.foto_url} />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{e.nombre_completo}</div>
+                          {e.nss && <div style={{ fontSize: 11, color: 'var(--color-text-light)', fontFamily: 'monospace' }}>NSS: {e.nss}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#0A66C2' }}>{e.numero_empleado}</td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ fontWeight: 500 }}>{e.puesto}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{e.area ?? '—'}</div>
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{e.salario_mensual ? fmt$(e.salario_mensual) : '—'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{e.salario_diario ? fmt$(e.salario_diario) + '/día' : ''}</div>
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: 12, padding: '3px 8px', background: '#F3F4F6', borderRadius: 12 }}>{e.tipo_contrato_nombre ?? '—'}</span>
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <SemaforoContrato valor={e.semaforo_contrato} fechaFin={e.contrato_fin} />
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ padding: '3px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: e.estado_id==='ACTIVO' ? '#dcfce7' : '#fee2e2', color: e.estado_id==='ACTIVO' ? '#166534' : '#991b1b' }}>{e.estado_id}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {selected && (
+        <DetalleEmpleado emp={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k+1)} />
+      )}
+    </div>
+  )
+}
+
+// ── Modal nueva vacante ─────────────────────────────────────────────────────
+function NuevaVacanteModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ titulo: '', area: '', num_plazas: 1, descripcion: '', perfil_requerido: '', salario_min: '', salario_max: '', tipo_contrato: 'TEMPORAL_3SEM', fecha_cierre: '' })
+  const [saving, setSaving] = useState(false)
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const guardar = async () => {
+    if (!form.titulo) return toast.error('El título es obligatorio')
+    setSaving(true)
+    const { error } = await supabase.from('rh_vacantes').insert({
+      titulo: form.titulo, area: form.area || null, num_plazas: +form.num_plazas || 1,
+      descripcion: form.descripcion || null, perfil_requerido: form.perfil_requerido || null,
+      salario_min: form.salario_min ? +form.salario_min : null,
+      salario_max: form.salario_max ? +form.salario_max : null,
+      tipo_contrato: form.tipo_contrato, fecha_cierre: form.fecha_cierre || null, status: 'ABIERTA',
+    })
+    setSaving(false)
+    if (error) return toast.error(error.message)
+    toast.success('Vacante publicada')
+    onSaved(); onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 560, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Nueva Vacante</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {[['Puesto / Título', 'titulo', 'text', '1 / -1'], ['Área', 'area', 'text', null], ['# Plazas', 'num_plazas', 'number', null]].map(([l, k, t, span]) => (
+            <div key={k} style={span ? { gridColumn: span } : {}}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>{l}</label>
+              <input type={t} value={form[k]} onChange={set(k)} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Descripción del puesto</label>
+            <textarea value={form.descripcion} onChange={set('descripcion')} rows={3}
+              style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Perfil requerido</label>
+            <textarea value={form.perfil_requerido} onChange={set('perfil_requerido')} rows={2} placeholder="Experiencia, estudios, habilidades..."
+              style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          {[['Salario mínimo ($)', 'salario_min', 'number'], ['Salario máximo ($)', 'salario_max', 'number']].map(([l, k, t]) => (
+            <div key={k}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>{l}</label>
+              <input type={t} value={form[k]} onChange={set(k)} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Tipo contrato</label>
+            <select value={form.tipo_contrato} onChange={set('tipo_contrato')} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, background: 'white' }}>
+              {TIPOS_CONTRATO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Fecha cierre</label>
+            <input type="date" value={form.fecha_cierre} onChange={set('fecha_cierre')} style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+          <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'#0A66C2',color:'white',cursor:'pointer',fontWeight:700 }}>
+            {saving ? 'Guardando…' : 'Publicar vacante'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tarjeta candidato con pipeline ─────────────────────────────────────────
+function TarjetaCandidato({ c, vacantes, onRefresh }) {
+  const [expanded, setExpanded] = useState(false)
+  const [etapa, setEtapa] = useState(c.etapa)
+  const [showRechazo, setShowRechazo] = useState(false)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [fechaEntrevista, setFechaEntrevista] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const linkCandidato = `${window.location.origin}/candidato/${c.token_docs}`
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(linkCandidato)
+    toast.success('Link copiado al portapapeles')
+  }
+
+  const moverEtapa = async (nueva) => {
+    if (nueva === 'RECHAZADO') { setShowRechazo(true); return }
+    setSaving(true)
+    const upd = { etapa: nueva }
+    if (nueva === 'ACEPTADO') upd.fecha_respuesta = new Date().toISOString().split('T')[0]
+    if (nueva === 'ENTREVISTA' && fechaEntrevista) upd.fecha_entrevista = fechaEntrevista
+    await supabase.from('rh_candidatos').update(upd).eq('id', c.id)
+    setEtapa(nueva)
+    setSaving(false)
+    toast.success('Etapa actualizada')
+    onRefresh()
+  }
+
+  const rechazar = async () => {
+    if (!motivoRechazo) return toast.error('Indica el motivo')
+    setSaving(true)
+    await supabase.from('rh_candidatos').update({ etapa: 'RECHAZADO', motivo_rechazo: motivoRechazo, fecha_respuesta: new Date().toISOString().split('T')[0] }).eq('id', c.id)
+    setSaving(false)
+    setShowRechazo(false)
+    toast('Candidato rechazado')
+    onRefresh()
+  }
+
+  const color = ETAPA_COLOR[etapa] || '#6B7280'
+
+  return (
+    <div style={{ background: 'white', border: `1.5px solid ${color}44`, borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
+        <Avatar nombre={`${c.nombre} ${c.apellidos || ''}`} size={38} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{c.nombre} {c.apellidos}</div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{c.vacante_puesto || 'Candidato general'} · {c.fecha_aplicacion}</div>
+        </div>
+        <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: color + '18', color, flexShrink: 0 }}>{etapa}</span>
+        <ChevronDown size={16} style={{ color: '#9CA3AF', transform: expanded ? 'rotate(180deg)' : 'none', transition: '.2s' }} />
+      </div>
+
+      {expanded && (
+        <div style={{ borderTop: '1px solid #F3F4F6', padding: '14px', background: '#FAFAFA' }}>
+          {/* Datos de contacto */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+            {c.email && <a href={`mailto:${c.email}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#0A66C2',textDecoration:'none' }}><Mail size={13} />{c.email}</a>}
+            {c.telefono && <a href={`tel:${c.telefono}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#0A66C2',textDecoration:'none' }}><Phone size={13} />{c.telefono}</a>}
+          </div>
+
+          {/* Link para docs */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, background: '#EFF6FF', borderRadius: 8, padding: '8px 12px' }}>
+            <Link size={14} color="#0A66C2" />
+            <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{linkCandidato}</span>
+            <button onClick={copiarLink} style={{ padding:'4px 10px',border:'none',borderRadius:5,background:'#0A66C2',color:'white',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0 }}>Copiar</button>
+          </div>
+
+          {/* Pipeline de etapas */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            {ETAPAS_CANDIDATO.filter(e => e !== etapa).map(e => (
+              <button key={e} onClick={() => moverEtapa(e)} disabled={saving}
+                style={{ padding: '5px 10px', border: `1.5px solid ${ETAPA_COLOR[e]}44`, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: ETAPA_COLOR[e] + '12', color: ETAPA_COLOR[e] }}>
+                → {e}
+              </button>
+            ))}
+          </div>
+
+          {/* Fecha entrevista si aplica */}
+          {etapa === 'ENTREVISTA' && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <Calendar size={14} />
+              <input type="datetime-local" value={fechaEntrevista} onChange={e => setFechaEntrevista(e.target.value)}
+                style={{ padding: '5px 10px', border: '1.5px solid #E5E7EB', borderRadius: 6, fontSize: 12 }} />
+              <button onClick={() => moverEtapa('ENTREVISTA')} style={{ padding:'5px 10px',border:'none',borderRadius:6,background:'#0A66C2',color:'white',fontSize:11,fontWeight:700,cursor:'pointer' }}>Guardar fecha</button>
+            </div>
+          )}
+
+          {/* Motivo rechazo */}
+          {c.motivo_rechazo && (
+            <div style={{ fontSize: 12, color: '#B24020', background: '#FFF1F0', borderRadius: 6, padding: '6px 10px' }}>
+              Rechazado: {c.motivo_rechazo}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mini modal rechazo */}
+      {showRechazo && (
+        <div style={{ padding: '14px', borderTop: '1px solid #FEE2E2', background: '#FFF9F9' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: '#B24020' }}>Motivo de rechazo</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {MOTIVOS_RECHAZO.map(m => (
+              <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                <input type="radio" name={`rechazo-${c.id}`} value={m} onChange={e => setMotivoRechazo(e.target.value)} />
+                {m}
+              </label>
+            ))}
+            {motivoRechazo === 'Otro' && (
+              <input placeholder="Especifica el motivo..." value={motivoRechazo === 'Otro' ? '' : motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)}
+                style={{ padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 6, fontSize: 13 }} />
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button onClick={() => setShowRechazo(false)} style={{ flex:1,padding:8,border:'1.5px solid #E5E7EB',borderRadius:6,background:'white',cursor:'pointer',fontSize:12,fontWeight:600 }}>Cancelar</button>
+            <button onClick={rechazar} disabled={saving} style={{ flex:1,padding:8,border:'none',borderRadius:6,background:'#B24020',color:'white',cursor:'pointer',fontSize:12,fontWeight:700 }}>Confirmar rechazo</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Tab Reclutamiento ────────────────────────────────────────────────────────
+function TabReclutamiento() {
+  const [showNuevaVacante, setShowNuevaVacante] = useState(false)
+  const [showNuevoCandidato, setShowNuevoCandidato] = useState(false)
+  const [vacSeleccionada, setVacSeleccionada] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refresh = () => setRefreshKey(k => k+1)
+  const { data: vacantes, loading: vLoad } = usePRP('prp_vacantes', { order: { col: 'fecha_apertura', asc: false }, refreshKey })
+  const { data: candidatos, loading: cLoad } = usePRP('prp_candidatos', { order: { col: 'created_at', asc: false }, refreshKey })
+  const [formCand, setFormCand] = useState({ nombre: '', apellidos: '', email: '', telefono: '', vacante_id: '' })
+  const [savingCand, setSavingCand] = useState(false)
+
+  const lista_v = vacantes ?? []
+  const lista_c = candidatos ?? []
+
+  const agregarCandidato = async () => {
+    if (!formCand.nombre) return toast.error('El nombre es obligatorio')
+    setSavingCand(true)
+    const { error } = await supabase.from('rh_candidatos').insert({
+      nombre: formCand.nombre, apellidos: formCand.apellidos || null,
+      email: formCand.email || null, telefono: formCand.telefono || null,
+      vacante_id: formCand.vacante_id || null, etapa: 'NUEVO',
+    })
+    setSavingCand(false)
+    if (error) return toast.error(error.message)
+    toast.success('Candidato agregado — link generado')
+    setShowNuevoCandidato(false)
+    setFormCand({ nombre: '', apellidos: '', email: '', telefono: '', vacante_id: '' })
+    refresh()
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
+      {/* Columna vacantes */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Vacantes Abiertas <span style={{ color: '#0A66C2' }}>({lista_v.filter(v=>v.status==='ABIERTA').length})</span></h3>
+          <button onClick={() => setShowNuevaVacante(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <Plus size={12} /> Vacante
+          </button>
+        </div>
+
+        {lista_v.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF', fontSize: 13 }}>Sin vacantes abiertas</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {lista_v.map(v => (
+              <div key={v.id} onClick={() => setVacSeleccionada(vacSeleccionada?.id === v.id ? null : v)}
+                style={{ background: 'white', border: `1.5px solid ${vacSeleccionada?.id===v.id ? '#0A66C2' : '#E5E7EB'}`, borderRadius: 10, padding: 14, cursor: 'pointer', transition: '.15s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{v.titulo}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-light)', marginTop: 2 }}>{v.area || '—'} · {v.num_plazas} plaza{v.num_plazas > 1 ? 's' : ''}</div>
+                  </div>
+                  <span style={{ fontSize: 11, background: v.status==='ABIERTA'?'#dcfce7':'#F3F4F6', color: v.status==='ABIERTA'?'#166534':'#6B7280', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>{v.status}</span>
+                </div>
+                {(v.salario_min || v.salario_max) && (
+                  <div style={{ fontSize: 12, color: '#057642', fontWeight: 600, marginTop: 6 }}>
+                    {v.salario_min ? fmt$(v.salario_min) : ''} – {v.salario_max ? fmt$(v.salario_max) : ''}
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{TIPOS_CONTRATO.find(t=>t.id===v.tipo_contrato)?.label || v.tipo_contrato}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0A66C2' }}>{v.candidatos_activos || 0} candidatos</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Columna candidatos */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+            {vacSeleccionada ? `Candidatos — ${vacSeleccionada.titulo}` : 'Todos los candidatos'}
+            <span style={{ color: '#0A66C2', marginLeft: 6 }}>({lista_c.filter(c => !vacSeleccionada || c.vacante_id===vacSeleccionada.id).length})</span>
+          </h3>
+          <button onClick={() => setShowNuevoCandidato(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#057642', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <UserPlus size={12} /> Candidato
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {cLoad ? <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>Cargando…</div>
+          : lista_c.filter(c => !vacSeleccionada || c.vacante_id === vacSeleccionada.id).length === 0
+          ? <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF', fontSize: 13 }}>Sin candidatos registrados</div>
+          : lista_c.filter(c => !vacSeleccionada || c.vacante_id === vacSeleccionada.id).map(c => (
+            <TarjetaCandidato key={c.id} c={c} vacantes={lista_v} onRefresh={refresh} />
+          ))}
+        </div>
+      </div>
+
+      {/* Modales */}
+      {showNuevaVacante && <NuevaVacanteModal onClose={() => setShowNuevaVacante(false)} onSaved={refresh} />}
+
+      {showNuevoCandidato && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowNuevoCandidato(false)}>
+          <div style={{ background: 'white', borderRadius: 12, width: 440, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Nuevo Candidato</h3>
+              <button onClick={() => setShowNuevoCandidato(false)} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={18} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[['Nombre(s)','nombre','text','1/-1'],['Apellidos','apellidos','text','1/-1'],['Email','email','email',null],['Teléfono','telefono','text',null]].map(([l,k,t,span]) => (
+                <div key={k} style={span ? { gridColumn: span } : {}}>
+                  <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>{l}</label>
+                  <input type={t} value={formCand[k]} onChange={e => setFormCand(p=>({...p,[k]:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+                </div>
+              ))}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>Vacante</label>
+                <select value={formCand.vacante_id} onChange={e => setFormCand(p=>({...p,vacante_id:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+                  <option value="">Sin vacante específica</option>
+                  {lista_v.map(v => <option key={v.id} value={v.id}>{v.titulo}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ background: '#EFF6FF', borderRadius: 8, padding: 12, marginTop: 14, fontSize: 12, color: '#1D4ED8' }}>
+              Al guardar se generará automáticamente un link único para que el candidato suba sus documentos.
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button onClick={() => setShowNuevoCandidato(false)} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
+              <button onClick={agregarCandidato} disabled={savingCand} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'#057642',color:'white',cursor:'pointer',fontWeight:700 }}>
+                {savingCand ? 'Guardando…' : 'Agregar y generar link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Import asistencia de checador ──────────────────────────────────────────
+function ImportChecadorModal({ empleados, onClose, onImported }) {
+  const [csv, setCsv] = useState('')
+  const [preview, setPreview] = useState([])
+  const [importando, setImportando] = useState(false)
+  const fileRef = useRef()
+
+  const parsear = (texto) => {
+    const lineas = texto.trim().split('\n').filter(l => l.trim())
+    const rows = []
+    lineas.forEach(linea => {
+      const cols = linea.split(/[,\t;]/).map(c => c.trim().replace(/"/g, ''))
+      if (cols.length < 4) return
+      // Formato ZKTeco: No./Emp, Nombre, Fecha, Hora, Status(0=entrada,1=salida)
+      // Formato alternativo: EmpCode, Nombre, Fecha, HoraEntrada, HoraSalida
+      const [col0, col1, col2, col3, col4] = cols
+      const fechaRaw = col2
+      const horaRaw = col3
+
+      // Skip header
+      if (isNaN(parseInt(col0)) && !col0.toLowerCase().includes('e0')) return
+
+      const numero = col0.toString().trim()
+      const nombre = col1 || ''
+      const fecha = fechaRaw?.replace(/\//g,'-') || ''
+
+      // Determinar si es entrada o salida
+      const status = col4?.trim()
+      const esEntrada = !status || ['0','in','entrada','check in','i','e'].includes(status.toLowerCase())
+      const esSalida  = ['1','out','salida','check out','o','s'].includes((status||'').toLowerCase())
+
+      // Si hay columna hora salida separada (formato completo)
+      if (col4 && !['0','1','in','out'].includes((status||'').toLowerCase())) {
+        rows.push({ numero, nombre, fecha, hora_entrada: col3, hora_salida: col4, tipo: 'COMPLETO' })
+        return
+      }
+      rows.push({ numero, nombre, fecha, hora: horaRaw, esEntrada, tipo: 'PUNCH' })
+    })
+
+    // Consolidar PUNCH pairs → entrada/salida
+    const porEmpFecha = {}
+    rows.forEach(r => {
+      if (r.tipo === 'COMPLETO') {
+        porEmpFecha[`${r.numero}_${r.fecha}`] = r
+        return
+      }
+      const key = `${r.numero}_${r.fecha}`
+      if (!porEmpFecha[key]) porEmpFecha[key] = { numero: r.numero, nombre: r.nombre, fecha: r.fecha, hora_entrada: null, hora_salida: null }
+      if (r.esEntrada && !porEmpFecha[key].hora_entrada) porEmpFecha[key].hora_entrada = r.hora
+      if (!r.esEntrada) porEmpFecha[key].hora_salida = r.hora
+    })
+
+    return Object.values(porEmpFecha).map(r => {
+      const emp = empleados.find(e => e.numero_empleado === r.numero || (e.nombre_completo||'').toLowerCase().includes((r.nombre||'').toLowerCase().split(' ')[0]))
+      const minutos = (r.hora_entrada && r.hora_salida) ? (() => {
+        const [h1, m1] = r.hora_entrada.split(':').map(Number)
+        const [h2, m2] = r.hora_salida.split(':').map(Number)
+        return (h2 * 60 + m2) - (h1 * 60 + m1)
+      })() : null
+      const horaEntradaRef = [8, 0] // 08:00
+      const retardo = r.hora_entrada ? (() => {
+        const [h, m] = r.hora_entrada.split(':').map(Number)
+        const diff = (h * 60 + m) - (horaEntradaRef[0] * 60 + horaEntradaRef[1])
+        return diff > 5 ? diff : 0
+      })() : 0
+      return {
+        empleado_id: emp?.id || null,
+        numero_empleado_ext: r.numero,
+        empleado_nombre: r.nombre,
+        fecha: r.fecha,
+        hora_entrada: r.hora_entrada || null,
+        hora_salida: r.hora_salida || null,
+        minutos_trabajados: minutos,
+        minutos_retardo: retardo,
+        estado: !r.hora_entrada ? 'FALTA' : retardo > 10 ? 'RETARDO' : 'PRESENTE',
+        fuente: 'ZKTeco_CSV',
+        _nombre_match: emp?.nombre_completo,
+      }
+    })
+  }
+
+  const onFileChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const text = ev.target.result
+      setCsv(text)
+      setPreview(parsear(text))
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+
+  const onTextChange = (e) => {
+    setCsv(e.target.value)
+    setPreview(parsear(e.target.value))
+  }
+
+  const importar = async () => {
+    if (!preview.length) return
+    setImportando(true)
+    const rows = preview.map(({ _nombre_match, ...r }) => r)
+    const { error } = await supabase.from('rh_asistencia').upsert(rows.filter(r => r.fecha), { onConflict: 'empleado_id,fecha', ignoreDuplicates: false })
+    setImportando(false)
+    if (error) return toast.error(error.message)
+    toast.success(`${rows.length} registros importados`)
+    onImported()
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 720, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Importar desde Checador</h3>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--color-text-light)' }}>Compatible con ZKTeco, BioTime, y formato genérico CSV/TXT</p>
+          </div>
+          <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={18} /></button>
+        </div>
+
+        {/* Formato esperado */}
+        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12 }}>
+          <strong>Formatos aceptados:</strong><br />
+          <code style={{ fontSize:11, display:'block', marginTop:4, color:'#374151' }}>
+            No.,Nombre,Fecha,Hora,Status — (Status: 0=Entrada, 1=Salida)<br />
+            EmpCode,Nombre,Fecha,HoraEntrada,HoraSalida — (formato de 2 columnas horario)
+          </code>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+          <button onClick={() => fileRef.current.click()} style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #0A66C2',borderRadius:8,fontSize:13,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+            <Upload size={14} /> Abrir archivo
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,.txt,.dat" style={{ display:'none' }} onChange={onFileChange} />
+          <span style={{ fontSize:12,color:'#9CA3AF',alignSelf:'center' }}>o pega el contenido aquí:</span>
+        </div>
+
+        <textarea value={csv} onChange={onTextChange} rows={6} placeholder="Pega el contenido del reporte del checador..."
+          style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:12,fontFamily:'monospace',boxSizing:'border-box',marginBottom:14,resize:'vertical' }} />
+
+        {preview.length > 0 && (
+          <div>
+            <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Vista previa ({preview.length} registros)</h4>
+            <div style={{ overflowX: 'auto', maxHeight: 260, border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'auto' }}>
+              <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
+                <thead style={{ background:'#F9FAFB',position:'sticky',top:0 }}>
+                  <tr>{['# Ext','Empleado','Fecha','Entrada','Salida','Horas','Estado'].map(h => <th key={h} style={{ padding:'8px 10px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {preview.map((r, i) => (
+                    <tr key={i} style={{ borderTop:'1px solid #F3F4F6' }}>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace',color:'#0A66C2' }}>{r.numero_empleado_ext}</td>
+                      <td style={{ padding:'7px 10px' }}>{r._nombre_match || <span style={{ color:'#EF4444',fontSize:11 }}>Sin match: {r.empleado_nombre}</span>}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.fecha}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.hora_entrada || '—'}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.hora_salida || '—'}</td>
+                      <td style={{ padding:'7px 10px' }}>{r.minutos_trabajados ? (r.minutos_trabajados/60).toFixed(1)+'h' : '—'}</td>
+                      <td style={{ padding:'7px 10px' }}>
+                        <span style={{ padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:700, background: r.estado==='PRESENTE'?'#dcfce7':r.estado==='RETARDO'?'#fef3c7':'#fee2e2', color: r.estado==='PRESENTE'?'#166534':r.estado==='RETARDO'?'#92400e':'#991b1b' }}>{r.estado}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
+          <button onClick={importar} disabled={!preview.length || importando}
+            style={{ flex:2,padding:10,border:'none',borderRadius:8,background: preview.length?'#0A66C2':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
+            {importando ? 'Importando…' : `Importar ${preview.length} registros`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Asistencia ──────────────────────────────────────────────────────────
+function TabAsistencia() {
+  const hoy = new Date().toISOString().split('T')[0]
+  const [fecha, setFecha] = useState(() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })
+  const [showImport, setShowImport] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { data: asistencia, loading } = usePRP('prp_asistencia', { filters: [['fecha','eq',fecha]], order: { col: 'nombre_completo' }, refreshKey })
+  const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
+
+  const lista = asistencia ?? []
+  const presentes = lista.filter(a => a.estado === 'PRESENTE').length
+  const retardos  = lista.filter(a => a.estado === 'RETARDO').length
+  const faltas    = lista.filter(a => a.estado === 'FALTA').length
+  const totalHoras = lista.reduce((s, a) => s + (parseFloat(a.horas_trabajadas)||0), 0)
+
+  const COLORES_ESTADO = { PRESENTE: ['#dcfce7','#166534'], RETARDO: ['#fef3c7','#92400e'], FALTA: ['#fee2e2','#991b1b'], VACACIONES: ['#dbeafe','#1d4ed8'], INCAPACIDAD: ['#F3F4F6','#6B7280'] }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ fontSize: 13, fontWeight: 600 }}>Fecha:</label>
+          <input type="date" value={fecha} max={hoy} onChange={e => setFecha(e.target.value)}
+            style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
+        </div>
+        <button onClick={() => setShowImport(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #0A66C2', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#0A66C2', background: 'white', cursor: 'pointer' }}>
+          <Upload size={14} /> Importar desde Checador
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
+        {[[presentes,'Presentes','#057642',CheckCircle],[retardos,'Retardos','#F59E0B',Clock],[faltas,'Faltas','#B24020',AlertTriangle],[totalHoras.toFixed(1)+'h','Horas Totales','#0A66C2',TrendingUp]].map(([v,t,c,Icon]) => (
+          <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
+              <span style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase' }}>{t}</span>
+              <Icon size={15} color={c} />
+            </div>
+            <div style={{ fontSize:22,fontWeight:700,color:c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF' }}>Cargando…</div>
+      ) : lista.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF', background: 'white', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+          <Upload size={36} style={{ display:'block',margin:'0 auto 12px',opacity:.3 }} />
+          <p style={{ margin:0,fontWeight:600 }}>Sin registros para {fecha}</p>
+          <p style={{ margin:'6px 0 0',fontSize:12 }}>Importa el reporte del checador ZKTeco o registra manualmente</p>
+        </div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: 10, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
+                  {['Empleado','# Emp','Puesto','Entrada','Salida','Horas','Retardo','Estado'].map(h => (
+                    <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lista.map(a => {
+                  const [bg, fg] = COLORES_ESTADO[a.estado] || ['#F3F4F6','#6B7280']
+                  return (
+                    <tr key={a.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
+                      <td style={{ padding:'11px 14px',fontWeight:500 }}>{a.nombre_completo}</td>
+                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12,color:'#0A66C2' }}>{a.numero_empleado}</td>
+                      <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{a.puesto}</td>
+                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{a.hora_entrada ? String(a.hora_entrada).slice(0,5) : '—'}</td>
+                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{a.hora_salida ? String(a.hora_salida).slice(0,5) : '—'}</td>
+                      <td style={{ padding:'11px 14px',fontWeight:600 }}>{a.horas_trabajadas ? parseFloat(a.horas_trabajadas).toFixed(1)+'h' : '—'}</td>
+                      <td style={{ padding:'11px 14px',color:a.minutos_retardo>0?'#F59E0B':'var(--color-text-light)',fontWeight:a.minutos_retardo>0?700:400 }}>
+                        {a.minutos_retardo > 0 ? `+${a.minutos_retardo} min` : '—'}
+                      </td>
+                      <td style={{ padding:'11px 14px' }}>
+                        <span style={{ padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:700,background:bg,color:fg }}>{a.estado}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showImport && (
+        <ImportChecadorModal empleados={empleados ?? []} onClose={() => setShowImport(false)} onImported={() => { setRefreshKey(k=>k+1); setShowImport(false) }} />
+      )}
+    </div>
+  )
+}
+
+// ── Modal: Crear Período de Nómina ─────────────────────────────────────────
+function NuevoPeriodoModal({ onClose, onCreated }) {
+  const hoy = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({
+    periodicidad: 'QUINCENAL',
+    fecha_inicio: '',
+    fecha_fin: '',
+    fecha_pago: '',
+    tipo_nomina: 'O',
+    descripcion: '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Auto-calcular fecha_fin según periodicidad
+  useEffect(() => {
+    if (!form.fecha_inicio) return
+    const d = new Date(form.fecha_inicio + 'T12:00:00')
+    if (form.periodicidad === 'SEMANAL')    d.setDate(d.getDate() + 6)
+    if (form.periodicidad === 'QUINCENAL')  d.setDate(d.getDate() + 14)
+    if (form.periodicidad === 'MENSUAL')    { d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1) }
+    set('fecha_fin', d.toISOString().split('T')[0])
+    // Fecha pago: 3 días hábiles después del fin
+    const p = new Date(d); p.setDate(p.getDate() + 3)
+    set('fecha_pago', p.toISOString().split('T')[0])
+  }, [form.fecha_inicio, form.periodicidad])
+
+  const guardar = async () => {
+    if (!form.fecha_inicio || !form.fecha_fin || !form.fecha_pago) { toast.error('Completa todas las fechas'); return }
+    setSaving(true)
+    try {
+      const { data, error } = await supabase.rpc('crear_periodo_nomina', {
+        p_periodicidad: form.periodicidad,
+        p_fecha_inicio: form.fecha_inicio,
+        p_fecha_fin:    form.fecha_fin,
+        p_fecha_pago:   form.fecha_pago,
+        p_tipo_nomina:  form.tipo_nomina,
+        p_descripcion:  form.descripcion || null,
+      })
+      if (error) throw error
+      logAudit({ modulo: 'Nómina', accion: 'CREAR_PERIODO', descripcion: `Período ${form.periodicidad} ${form.fecha_inicio}` })
+      toast.success('Período creado')
+      onCreated(data)
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center' }}>
+      <div style={{ background:'white',borderRadius:14,padding:28,width:480,boxShadow:'0 20px 60px rgba(0,0,0,.2)' }}>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+          <h3 style={{ margin:0,fontSize:17,fontWeight:700 }}>Nuevo Período de Nómina</h3>
+          <button onClick={onClose} style={{ border:'none',background:'none',cursor:'pointer',padding:4 }}><X size={18} /></button>
+        </div>
+        <div style={{ display:'grid',gap:14 }}>
+          <div>
+            <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Periodicidad</label>
+            <select value={form.periodicidad} onChange={e => set('periodicidad', e.target.value)}
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14 }}>
+              <option value="SEMANAL">Semanal (7 días)</option>
+              <option value="QUINCENAL">Quincenal (15 días)</option>
+              <option value="MENSUAL">Mensual</option>
+            </select>
+          </div>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+            <div>
+              <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Fecha inicio</label>
+              <input type="date" value={form.fecha_inicio} onChange={e => set('fecha_inicio', e.target.value)}
+                style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Fecha fin</label>
+              <input type="date" value={form.fecha_fin} onChange={e => set('fecha_fin', e.target.value)}
+                style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,boxSizing:'border-box' }} />
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Fecha de pago</label>
+            <input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)}
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,boxSizing:'border-box' }} />
+          </div>
+          <div>
+            <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Tipo</label>
+            <select value={form.tipo_nomina} onChange={e => set('tipo_nomina', e.target.value)}
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14 }}>
+              <option value="O">Ordinaria</option>
+              <option value="E">Extraordinaria</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:12,fontWeight:600,color:'var(--color-text-light)',display:'block',marginBottom:5 }}>Descripción (opcional)</label>
+            <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)} placeholder="Ej: Primera quincena agosto 2026"
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,boxSizing:'border-box' }} />
+          </div>
+        </div>
+        <div style={{ display:'flex',gap:10,marginTop:22,justifyContent:'flex-end' }}>
+          <button onClick={onClose} style={{ padding:'9px 18px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,fontWeight:600,cursor:'pointer',background:'white' }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving}
+            style={{ padding:'9px 22px',background:'#0A66C2',color:'white',border:'none',borderRadius:8,fontSize:14,fontWeight:700,cursor:'pointer',opacity:saving?.6:1 }}>
+            {saving ? 'Creando…' : 'Crear período'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: Pre-nómina (detalle de empleados) ────────────────────────────────
+function PreNominaModal({ periodo, onClose, onRecalcular }) {
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { data: renglones, loading } = usePRP('prp_prenomina', {
+    filters: [['periodo_id', 'eq', periodo.id]],
+    order: { col: 'nombre_completo' },
+    refreshKey,
+  })
+  const [calculando, setCalculando] = useState(false)
+  const [autorizando, setAutorizando] = useState(false)
+  const [expandido, setExpandido] = useState(null)
+
+  const lista = renglones ?? []
+  const totalNeto = lista.reduce((s, r) => s + parseFloat(r.neto_pagar || 0), 0)
+  const totalPerc = lista.reduce((s, r) => s + parseFloat(r.salario_periodo || 0), 0)
+  const totalDed  = lista.reduce((s, r) => s + parseFloat(r.total_deducciones || 0), 0)
+
+  const recalcular = async () => {
+    setCalculando(true)
+    try {
+      const { data, error } = await supabase.rpc('calcular_nomina_periodo', { p_periodo_id: periodo.id })
+      if (error) throw error
+      const res = typeof data === 'string' ? JSON.parse(data) : data
+      toast.success(`✅ ${res.empleados} empleados calculados — Neto: $${parseFloat(res.total_neto).toLocaleString('es-MX')}`)
+      setRefreshKey(k => k + 1)
+      onRecalcular()
+    } catch (e) { toast.error('Error al calcular: ' + e.message) }
+    finally { setCalculando(false) }
+  }
+
+  const autorizar = async () => {
+    setAutorizando(true)
+    try {
+      const { error } = await supabase.rpc('autorizar_periodo_nomina', { p_periodo_id: periodo.id })
+      if (error) throw error
+      logAudit({ modulo: 'Nómina', accion: 'AUTORIZAR_PERIODO', descripcion: `Período ${periodo.folio} autorizado` })
+      toast.success('Nómina autorizada — lista para timbrar')
+      onRecalcular()
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setAutorizando(false) }
+  }
+
+  const exportarCSV = () => {
+    const headers = ['Empleado','RFC','NSS','Banco','CLABE','Días trabajados','Salario período','IMSS','ISR','Neto']
+    const rows = lista.map(r => [
+      r.nombre_completo, r.rfc || '', r.nss || '',
+      r.banco || '', r.cuenta_clabe || '',
+      r.dias_trabajados, r.salario_periodo,
+      r.imss_obrero, r.isr_a_retener, r.neto_pagar,
+    ])
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
+    a.download = `prenomina_${periodo.folio}.csv`; a.click()
+  }
+
+  const CHIP = { PENDIENTE: ['#F3F4F6','#374151'], TIMBRADO: ['#DCFCE7','#166534'], ERROR: ['#FEE2E2','#991B1B'] }
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.55)',zIndex:1000,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'24px 16px',overflowY:'auto' }}>
+      <div style={{ background:'white',borderRadius:14,width:'100%',maxWidth:900,boxShadow:'0 20px 60px rgba(0,0,0,.25)' }}>
+        {/* Header */}
+        <div style={{ padding:'20px 24px',borderBottom:'1px solid #E5E7EB',display:'flex',justifyContent:'space-between',alignItems:'center' }}>
+          <div>
+            <h3 style={{ margin:0,fontSize:17,fontWeight:700 }}>{periodo.folio}</h3>
+            <p style={{ margin:'3px 0 0',fontSize:12,color:'var(--color-text-light)' }}>
+              {periodo.fecha_inicio} → {periodo.fecha_fin} · Pago: {periodo.fecha_pago}
+            </p>
+          </div>
+          <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+            {periodo.estado === 'BORRADOR' && (
+              <button onClick={recalcular} disabled={calculando}
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #0A66C2',borderRadius:8,fontSize:13,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+                <RefreshCw size={13} className={calculando ? 'spin' : ''} /> {calculando ? 'Calculando…' : 'Calcular'}
+              </button>
+            )}
+            {periodo.estado === 'CALCULADA' && (
+              <button onClick={recalcular} disabled={calculando}
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #6B7280',borderRadius:8,fontSize:13,fontWeight:600,color:'#6B7280',background:'white',cursor:'pointer' }}>
+                <RefreshCw size={13} /> Recalcular
+              </button>
+            )}
+            {lista.length > 0 && (
+              <button onClick={exportarCSV}
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #057642',borderRadius:8,fontSize:13,fontWeight:600,color:'#057642',background:'white',cursor:'pointer' }}>
+                <Download size={13} /> CSV Finanzas
+              </button>
+            )}
+            {periodo.estado === 'CALCULADA' && lista.length > 0 && (
+              <button onClick={autorizar} disabled={autorizando}
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 16px',background:'#057642',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+                <CheckCircle size={14} /> {autorizando ? 'Autorizando…' : 'Autorizar Nómina'}
+              </button>
+            )}
+            <button onClick={onClose} style={{ border:'none',background:'none',cursor:'pointer',padding:4 }}><X size={18} /></button>
+          </div>
+        </div>
+
+        {/* Totales */}
+        {lista.length > 0 && (
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,borderBottom:'1px solid #E5E7EB' }}>
+            {[
+              ['Empleados',    lista.length,                  '#0A66C2'],
+              ['Percepciones', '$'+totalPerc.toLocaleString('es-MX',{minimumFractionDigits:2}), '#374151'],
+              ['Deducciones',  '$'+totalDed.toLocaleString('es-MX',{minimumFractionDigits:2}),  '#B24020'],
+              ['Neto a pagar', '$'+totalNeto.toLocaleString('es-MX',{minimumFractionDigits:2}), '#057642'],
+            ].map(([t,v,c]) => (
+              <div key={t} style={{ padding:'14px 20px',borderRight:'1px solid #E5E7EB' }}>
+                <div style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase',marginBottom:3 }}>{t}</div>
+                <div style={{ fontSize:18,fontWeight:800,color:c }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tabla */}
+        <div style={{ padding: '0 0 16px' }}>
+          {loading ? (
+            <div style={{ textAlign:'center',padding:48,color:'#9CA3AF' }}>Calculando…</div>
+          ) : lista.length === 0 ? (
+            <div style={{ textAlign:'center',padding:48,color:'#9CA3AF' }}>
+              <DollarSign size={36} style={{ display:'block',margin:'0 auto 12px',opacity:.3 }} />
+              <p style={{ margin:0,fontWeight:600 }}>Sin cálculo todavía</p>
+              <p style={{ margin:'6px 0 0',fontSize:12 }}>Haz clic en "Calcular" para generar la pre-nómina</p>
+            </div>
+          ) : (
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+                <thead>
+                  <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
+                    {['','Empleado','RFC','Días trab.','Percepción','IMSS','ISR','Subsidio','Neto','CFDI'].map(h => (
+                      <th key={h} style={{ padding:'10px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map(r => {
+                    const [chipBg, chipFg] = CHIP[r.estatus_cfdi] || CHIP.PENDIENTE
+                    const isOpen = expandido === r.id
+                    return [
+                      <tr key={r.id} style={{ borderBottom: isOpen ? 'none' : '1px solid #F3F4F6', cursor:'pointer' }} onClick={() => setExpandido(isOpen ? null : r.id)}>
+                        <td style={{ padding:'10px 8px 10px 14px', color:'#6B7280' }}>
+                          {isOpen ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
+                        </td>
+                        <td style={{ padding:'10px 14px',fontWeight:600 }}>{r.nombre_completo}</td>
+                        <td style={{ padding:'10px 14px',fontFamily:'monospace',fontSize:11,color:'#6B7280' }}>{r.rfc || '—'}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right' }}>{parseFloat(r.dias_trabajados||0).toFixed(1)}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#057642',fontWeight:600 }}>${parseFloat(r.salario_periodo||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#B24020' }}>${parseFloat(r.imss_obrero||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#B24020' }}>${parseFloat(r.isr_a_retener||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#0A66C2' }}>{parseFloat(r.subsidio_empleo||0) > 0 ? '$'+parseFloat(r.subsidio_empleo).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',fontWeight:800,fontSize:14 }}>${parseFloat(r.neto_pagar||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                        <td style={{ padding:'10px 14px' }}>
+                          <span style={{ padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:700,background:chipBg,color:chipFg }}>{r.estatus_cfdi}</span>
+                        </td>
+                      </tr>,
+                      isOpen && (
+                        <tr key={r.id+'_exp'} style={{ borderBottom:'1px solid #F3F4F6',background:'#F9FAFB' }}>
+                          <td colSpan={10} style={{ padding:'10px 48px 16px' }}>
+                            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:12 }}>
+                              <div>
+                                <span style={{ color:'var(--color-text-light)' }}>Días del período:</span> <strong>{r.dias_periodo}</strong><br/>
+                                <span style={{ color:'var(--color-text-light)' }}>Días trabajados:</span> <strong>{r.dias_trabajados}</strong><br/>
+                                <span style={{ color:'var(--color-text-light)' }}>Faltas:</span> <strong style={{ color: parseFloat(r.dias_falta)>0?'#B24020':'inherit' }}>{r.dias_falta}</strong><br/>
+                                <span style={{ color:'var(--color-text-light)' }}>Salario diario:</span> <strong>${parseFloat(r.salario_diario||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</strong>
+                              </div>
+                              <div>
+                                <span style={{ color:'var(--color-text-light)' }}>Base ISR mensual:</span> <strong>${parseFloat(r.isr_base_mensual||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</strong><br/>
+                                <span style={{ color:'var(--color-text-light)' }}>Banco:</span> <strong>{r.banco || '—'}</strong><br/>
+                                <span style={{ color:'var(--color-text-light)' }}>CLABE:</span> <strong style={{ fontFamily:'monospace' }}>{r.cuenta_clabe || '—'}</strong>
+                              </div>
+                            </div>
+                            {r.uuid_cfdi && (
+                              <div style={{ marginTop:8,padding:'6px 10px',background:'#DCFCE7',borderRadius:6,fontSize:11,fontFamily:'monospace',color:'#166534' }}>
+                                UUID: {r.uuid_cfdi}
+                              </div>
+                            )}
+                            {r.error_timbrado && (
+                              <div style={{ marginTop:8,padding:'6px 10px',background:'#FEE2E2',borderRadius:6,fontSize:11,color:'#991B1B' }}>
+                                Error: {r.error_timbrado}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    ]
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Nómina ──────────────────────────────────────────────────────────────
+function TabNomina() {
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [showNuevo, setShowNuevo] = useState(false)
+  const [periodoDetalle, setPeriodoDetalle] = useState(null)
+
+  const { data: periodos, loading } = usePRP('nomina_periodos', {
+    order: { col: 'created_at', asc: false },
+    refreshKey,
+  })
+
+  const lista = periodos ?? []
+
+  const ESTADO_CHIP = {
+    BORRADOR:   ['#F3F4F6','#374151'],
+    CALCULADA:  ['#FEF3C7','#92400E'],
+    AUTORIZADA: ['#DBEAFE','#1D4ED8'],
+    TIMBRADA:   ['#DCFCE7','#166534'],
+    CANCELADA:  ['#FEE2E2','#991B1B'],
+  }
+
+  const ESTADO_ICON = {
+    BORRADOR:   <FileText size={14} color="#6B7280" />,
+    CALCULADA:  <Eye size={14} color="#92400E" />,
+    AUTORIZADA: <CheckCircle size={14} color="#1D4ED8" />,
+    TIMBRADA:   <Send size={14} color="#166534" />,
+    CANCELADA:  <X size={14} color="#991B1B" />,
+  }
+
+  const totalPendiente = lista
+    .filter(p => p.estado === 'AUTORIZADA')
+    .reduce((s, p) => s + parseFloat(p.total_neto || 0), 0)
+
+  return (
+    <div>
+      {/* KPIs superiores */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:22 }}>
+        {[
+          [lista.length, 'Períodos totales', '#0A66C2', FileText],
+          [lista.filter(p=>p.estado==='BORRADOR').length, 'En borrador', '#6B7280', Clock],
+          [lista.filter(p=>p.estado==='AUTORIZADA').length, 'Por timbrar', '#E8A020', AlertTriangle],
+          ['$'+totalPendiente.toLocaleString('es-MX',{minimumFractionDigits:0}), 'Neto pendiente', '#057642', DollarSign],
+        ].map(([v,t,c,Icon]) => (
+          <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
+              <span style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase' }}>{t}</span>
+              <Icon size={15} color={c} />
+            </div>
+            <div style={{ fontSize:22,fontWeight:700,color:c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Barra de acciones */}
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+        <h3 style={{ margin:0,fontSize:15,fontWeight:700 }}>Períodos de nómina</h3>
+        <button onClick={() => setShowNuevo(true)}
+          style={{ display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:'#0A66C2',color:'white',border:'none',borderRadius:9,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+          <Plus size={14} /> Nuevo Período
+        </button>
+      </div>
+
+      {/* Lista de períodos */}
+      {loading ? (
+        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>Cargando…</div>
+      ) : lista.length === 0 ? (
+        <div style={{ textAlign:'center',padding:60,background:'white',borderRadius:10,border:'1px solid #E5E7EB' }}>
+          <DollarSign size={36} style={{ display:'block',margin:'0 auto 12px',opacity:.3 }} />
+          <p style={{ margin:0,fontWeight:600 }}>Sin períodos de nómina</p>
+          <p style={{ margin:'6px 0 0',fontSize:12,color:'var(--color-text-light)' }}>Crea el primer período para empezar</p>
+        </div>
+      ) : (
+        <div style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
+          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+            <thead>
+              <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
+                {['Folio','Tipo','Período','Fecha pago','Empleados','Percepciones','Deducciones','Neto','Estado',''].map(h => (
+                  <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map(p => {
+                const [chipBg, chipFg] = ESTADO_CHIP[p.estado] || ESTADO_CHIP.BORRADOR
+                return (
+                  <tr key={p.id} style={{ borderBottom:'1px solid #F3F4F6', cursor:'pointer' }}
+                    onClick={() => setPeriodoDetalle(p)}
+                    onMouseEnter={e => e.currentTarget.style.background='#F9FAFB'}
+                    onMouseLeave={e => e.currentTarget.style.background='white'}>
+                    <td style={{ padding:'12px 14px',fontWeight:700,fontFamily:'monospace',color:'#0A66C2' }}>{p.folio}</td>
+                    <td style={{ padding:'12px 14px',fontSize:12 }}>
+                      <span style={{ padding:'2px 8px',borderRadius:9,background:'#EFF6FF',color:'#1D4ED8',fontSize:11,fontWeight:600 }}>
+                        {p.periodicidad === 'QUINCENAL' ? 'Quincenal' : p.periodicidad === 'SEMANAL' ? 'Semanal' : 'Mensual'}
+                      </span>
+                    </td>
+                    <td style={{ padding:'12px 14px',fontSize:12,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>
+                      {p.fecha_inicio} → {p.fecha_fin}
+                    </td>
+                    <td style={{ padding:'12px 14px',fontWeight:600,whiteSpace:'nowrap' }}>{p.fecha_pago}</td>
+                    <td style={{ padding:'12px 14px',textAlign:'right',fontWeight:p.total_empleados>0?700:400,color:p.total_empleados>0?'#374151':'#9CA3AF' }}>
+                      {p.total_empleados || '—'}
+                    </td>
+                    <td style={{ padding:'12px 14px',textAlign:'right',color:'#057642',fontWeight:600 }}>
+                      {p.total_percepciones > 0 ? '$'+parseFloat(p.total_percepciones).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                    </td>
+                    <td style={{ padding:'12px 14px',textAlign:'right',color:'#B24020' }}>
+                      {p.total_deducciones > 0 ? '$'+parseFloat(p.total_deducciones).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                    </td>
+                    <td style={{ padding:'12px 14px',textAlign:'right',fontWeight:800 }}>
+                      {p.total_neto > 0 ? '$'+parseFloat(p.total_neto).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                    </td>
+                    <td style={{ padding:'12px 14px' }}>
+                      <div style={{ display:'flex',alignItems:'center',gap:5 }}>
+                        {ESTADO_ICON[p.estado]}
+                        <span style={{ padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:700,background:chipBg,color:chipFg }}>{p.estado}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding:'12px 14px' }}>
+                      <button onClick={e => { e.stopPropagation(); setPeriodoDetalle(p) }}
+                        style={{ display:'flex',alignItems:'center',gap:4,padding:'5px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:12,fontWeight:600,cursor:'pointer',background:'white',color:'#374151' }}>
+                        <Eye size={12} /> Ver
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Aviso timbrado pendiente */}
+      {lista.some(p => p.estado === 'AUTORIZADA') && (
+        <div style={{ marginTop:16,padding:'14px 18px',background:'#EFF6FF',borderRadius:9,border:'1px solid #BFDBFE',display:'flex',alignItems:'center',gap:10 }}>
+          <Send size={16} color="#1D4ED8" />
+          <div>
+            <span style={{ fontSize:13,fontWeight:700,color:'#1D4ED8' }}>Nómina lista para timbrar</span>
+            <span style={{ fontSize:12,color:'#3B82F6',marginLeft:8 }}>
+              Configura las credenciales FEL® en Netlify (FEL_USUARIO, FEL_PASSWORD, FEL_PFX_B64, FEL_PFX_PASS) para activar el timbrado automático.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showNuevo && (
+        <NuevoPeriodoModal
+          onClose={() => setShowNuevo(false)}
+          onCreated={() => { setShowNuevo(false); setRefreshKey(k => k+1) }}
+        />
+      )}
+
+      {periodoDetalle && (
+        <PreNominaModal
+          periodo={periodoDetalle}
+          onClose={() => setPeriodoDetalle(null)}
+          onRecalcular={() => setRefreshKey(k => k+1)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Página principal ────────────────────────────────────────────────────────
+export default function RH() {
+  useModuleAudit('RH')
+  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Nómina']
+  const [tab, setTab] = useState('Empleados')
+  const [showNuevo, setShowNuevo] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  return (
+    <div style={{ padding: 24, minHeight: '100vh' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Users size={28} color="#0A66C2" /> Recursos Humanos
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-light)' }}>Reclutamiento · Expediente · Asistencia · Nómina</p>
+        </div>
+        {tab === 'Empleados' && (
+          <button onClick={() => setShowNuevo(true)} style={{ display:'flex',alignItems:'center',gap:8,padding:'10px 18px',background:'#0A66C2',color:'white',border:'none',borderRadius:9,fontSize:14,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 8px rgba(10,102,194,.3)' }}>
             <Plus size={16} /> Nuevo Empleado
           </button>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '4px', background: '#F3F4F6', padding: '4px', borderRadius: '10px', width: 'fit-content', marginBottom: '24px' }}>
-        {TABS.map((t, i) => (
-          <button key={t} onClick={() => setTab(i)} style={{
-            padding: '8px 20px', borderRadius: '7px', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-            background: tab === i ? 'white' : 'transparent',
-            color: tab === i ? 'var(--color-primary)' : 'var(--color-text-light)',
-            boxShadow: tab === i ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-          }}>{t}</button>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #E5E7EB', marginBottom: 22 }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '9px 18px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, borderBottom: `2.5px solid ${tab===t ? '#0A66C2' : 'transparent'}`, color: tab===t ? '#0A66C2' : 'var(--color-text-light)', transition: '.15s' }}>
+            {t}
+          </button>
         ))}
       </div>
 
-      {tab === 0 && <TabEmpleados />}
-      {tab === 1 && <TabAsistencia />}
-      {tab === 2 && <TabReclutamiento />}
+      {tab === 'Empleados'     && <TabEmpleados onNuevo={() => setShowNuevo(true)} />}
+      {tab === 'Reclutamiento' && <TabReclutamiento />}
+      {tab === 'Asistencia'    && <TabAsistencia />}
+      {tab === 'Nómina'        && <TabNomina />}
 
-      {showNuevoEmpleado && (
-        <NuevoEmpleadoModal
-          onClose={() => setShowNuevoEmpleado(false)}
-          onCreated={() => {}}
-        />
+      {showNuevo && (
+        <NuevoEmpleadoModal onClose={() => setShowNuevo(false)} onCreated={() => setRefreshKey(k => k+1)} />
       )}
     </div>
   )

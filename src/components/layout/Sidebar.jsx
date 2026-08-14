@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
   Search, BarChart3, Settings, Wallet, RefreshCw,
-  Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt
+  Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -29,6 +29,7 @@ const NAV_SECTIONS = [
     label: 'GESTIÓN',
     items: [
       { label: 'Contratos', path: '/contratos', icon: FileText },
+      { label: 'Ingresos', path: '/ingresos', icon: TrendingUp },
       { label: 'Cobranza', path: '/cobranza', icon: CreditCard },
       { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
       { label: 'Prospectos', path: '/prospectos', icon: Search },
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
   {
     label: 'INMUEBLE',
     items: [
+      { label: 'Mapa de Locales', path: '/mapa-locales', icon: Map },
       { label: 'Inmuebles', path: '/inmuebles', icon: Building2 },
       { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
@@ -55,6 +57,8 @@ const NAV_SECTIONS = [
   {
     label: null,
     items: [
+      { label: 'Bitácora', path: '/bitacora', icon: ClipboardList },
+      { label: 'Utilerías', path: '/utilidades', icon: Database },
       { label: 'Configuración', path: '/config', icon: Settings },
     ]
   },

@@ -5,14 +5,12 @@ import { supabase } from '../lib/supabase'
 export async function logAudit({ modulo, accion, entidad, entidad_id, descripcion }) {
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('bitacora').insert({
-      modulo,
-      accion,
-      entidad: entidad || null,
-      entidad_id: entidad_id || null,
-      descripcion: descripcion || null,
-      usuario_id: user?.id || null,
-      usuario_email: user?.email || null,
+    await supabase.rpc('log_bitacora', {
+      p_modulo: modulo,
+      p_accion: accion,
+      p_entidad: entidad || null,
+      p_entidad_id: entidad_id || null,
+      p_descripcion: descripcion || null,
     })
   } catch (_) {
     // silencioso — nunca debe interrumpir el flujo del usuario

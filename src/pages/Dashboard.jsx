@@ -231,7 +231,15 @@ export default function Dashboard() {
           <h1 style={{ margin:'0 0 2px', fontSize:'18px', fontWeight:900, color:'#1A3C5E' }}>Edo de Resultados Mes</h1>
           <p style={{ margin:0, fontSize:'12px', color:'#666' }}>Plaza IWOL · Haz clic en cualquier renglón para ver el detalle</p>
         </div>
-        <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+        <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+          {[
+            { label:'Mes Actual', fn: () => { const n=new Date(); setMes(n.getMonth()+1); setAnio(n.getFullYear()) } },
+            { label:'Mes Pasado', fn: () => { const n=new Date(); const m=n.getMonth(); setMes(m===0?12:m); setAnio(m===0?n.getFullYear()-1:n.getFullYear()) } },
+          ].map(({label,fn}) => (
+            <button key={label} onClick={fn} style={{ padding:'6px 11px', border:'1.5px solid #D1D5DB', borderRadius:'20px', fontSize:'12px', fontWeight:600, background:'white', color:'#1A3C5E', cursor:'pointer', whiteSpace:'nowrap' }}>
+              {label}
+            </button>
+          ))}
           <select value={mes} onChange={e=>setMes(Number(e.target.value))} style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:'7px', fontSize:'13px', fontWeight:600, background:'white', outline:'none' }}>
             {MESES.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
           </select>

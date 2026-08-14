@@ -38,7 +38,9 @@ function BarraFondo({ gastado, base }) {
   )
 }
 
-function NuevoGastoModal({ fondo, grupos, onClose, onSaved }) {
+const PROVEEDORES_FRECUENTES = ['Dogo','Sam\'s Club','Home Depot','Office Depot','Oxxo','Amazon','Comex','Los Canarios','Waldo\'s','Walmart','Chedraui','Costco','Liverpool','Ferretería Moriyama']
+
+function NuevoGastoModal({ fondo, onClose, onSaved }) {
   const hoy = new Date().toISOString().split('T')[0]
   // lunes de esta semana
   const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
@@ -63,12 +65,12 @@ function NuevoGastoModal({ fondo, grupos, onClose, onSaved }) {
     if (!form.monto_pagado) { setErr('El monto pagado es obligatorio'); return }
     setSaving(true); setErr(null)
     try {
-      const grupo = grupos?.find(g => g.clave === form.grupo_clave)
-      if (!grupo) throw new Error('Grupo no encontrado')
+      const rubro = RUBROS.find(r => r.clave === form.grupo_clave) || RUBROS[0]
       const { error } = await supabase.from('gastos_operativos').insert({
         fecha: form.fecha,
         semana_inicio: lunes,
-        grupo_id: grupo.id,
+        grupo_clave: rubro.clave,
+        grupo_nombre: rubro.label,
         proveedor_nombre: form.proveedor_nombre || null,
         descripcion: form.descripcion,
         monto_pagado: parseFloat(form.monto_pagado),
@@ -128,7 +130,10 @@ function NuevoGastoModal({ fondo, grupos, onClose, onSaved }) {
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Proveedor / Lugar</label>
               <input value={form.proveedor_nombre} onChange={e => set('proveedor_nombre', e.target.value)}
-                placeholder="Ej. Home Depot, Amazon, Waldo's..." style={inp} />
+                placeholder="Escribe o elige proveedor..." style={inp} list="prov-fondo-list" autoComplete="off" />
+              <datalist id="prov-fondo-list">
+                {PROVEEDORES_FRECUENTES.map(p => <option key={p} value={p} />)}
+              </datalist>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Descripción *</label>
@@ -204,11 +209,6 @@ export default function FondoRevolvente() {
   const { data: gastos, loading: gLoading } = usePRP('prp_gastos', {
     order: { col: 'fecha', asc: false },
   })
-  const { data: grupos } = usePRP('cat_grupo_gasto', {
-    filters: [['activo', 'eq', true]],
-    order: { col: 'orden' },
-  })
-
   const f = fondo?.[0]
   const gastadoSemana = parseFloat(f?.gastado_semana) || 0
   const base = parseFloat(f?.monto_base) || 20000
@@ -309,7 +309,6 @@ export default function FondoRevolvente() {
       {showModal && (
         <NuevoGastoModal
           fondo={f}
-          grupos={grupos}
           onClose={() => setShowModal(false)}
           onSaved={() => setRefreshKey(k => k + 1)}
         />

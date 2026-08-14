@@ -56,7 +56,7 @@ export default function Login() {
             IRP
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>
-            Inmueble Resource Planning
+            IWOL Resource Planning
           </p>
         </div>
 

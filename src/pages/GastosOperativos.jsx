@@ -100,12 +100,17 @@ const CATALOGO_CONCEPTOS = [
   { concepto: 'Cubeta', grupo: 'Limpieza e higiene', proveedores: ['Dogo'] },
 ]
 
-function NuevoGastoModal({ onClose, onSaved }) {
+// Proveedores únicos del catálogo
+const PROVEEDORES_CAT = [...new Set(CATALOGO_CONCEPTOS.flatMap(c => c.proveedores))].sort()
+
+function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
   const today = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({ fecha: today, proveedor: '', grupo_gasto: GRUPOS[0], descripcion: '', cantidad: '' })
   const [guardando, setGuardando] = useState(false)
   const [sugerencias, setSugerencias] = useState([])
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+  // Lista combinada de proveedores para el datalist
+  const allProveedores = [...new Set([...PROVEEDORES_CAT, ...proveedoresDB])].sort()
 
   // Autosugerencia de concepto desde catálogo
   const onDescChange = e => {
@@ -148,8 +153,13 @@ function NuevoGastoModal({ onClose, onSaved }) {
       dia_semana: DIAS[dt.getDay()],
       semana: `S${Math.ceil(dt.getDate() / 7)}`,
     })
-    if (error) toast.error('Error: ' + error.message)
-    else { toast.success('Gasto registrado'); onSaved() }
+    if (error) {
+      console.error('[GastosOperativos] insert error:', error)
+      toast.error(error.message || 'Error al guardar. Verifica que tienes permisos de escritura.')
+    } else {
+      toast.success('Gasto registrado')
+      onSaved()
+    }
     setGuardando(false)
   }
 
@@ -207,9 +217,12 @@ function NuevoGastoModal({ onClose, onSaved }) {
         </div>
 
         <div style={{ marginBottom: '22px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>Proveedor</label>
-          <input value={form.proveedor} onChange={set('proveedor')} placeholder="Nombre del proveedor"
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-light)', display: 'block', marginBottom: '5px' }}>Proveedor / Lugar</label>
+          <input value={form.proveedor} onChange={set('proveedor')} placeholder="Escribe o elige proveedor..." list="prov-list"
             style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
+          <datalist id="prov-list">
+            {allProveedores.map(p => <option key={p} value={p} />)}
+          </datalist>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -231,6 +244,7 @@ export default function GastosOperativos() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState('Todos')
   const [expandMes, setExpandMes] = useState(null)
+  const [proveedoresDB, setProveedoresDB] = useState([])
 
   const cargar = async () => {
     setLoading(true)
@@ -241,6 +255,15 @@ export default function GastosOperativos() {
       .limit(500)
     setRegistros(data || [])
     setLoading(false)
+    // Cargar lista de proveedores únicos del historial
+    const { data: provs } = await supabase
+      .from('gastos_operativos')
+      .select('proveedor')
+      .not('proveedor', 'is', null)
+    if (provs) {
+      const uniq = [...new Set(provs.map(r => r.proveedor).filter(Boolean))].sort()
+      setProveedoresDB(uniq)
+    }
   }
 
   useEffect(() => { cargar() }, [])
@@ -372,7 +395,7 @@ export default function GastosOperativos() {
         </div>
       )}
 
-      {modal && <NuevoGastoModal onClose={() => setModal(false)} onSaved={() => { setModal(false); cargar() }} />}
+      {modal && <NuevoGastoModal onClose={() => setModal(false)} onSaved={() => { setModal(false); cargar() }} proveedoresDB={proveedoresDB} />}
     </div>
   )
 }

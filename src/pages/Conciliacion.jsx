@@ -1,4 +1,4 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
+﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useRef } from 'react'
 import { Upload, CheckCircle, AlertCircle, Clock, Search, RefreshCw, FileText, X, Zap, RotateCcw } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -43,15 +43,19 @@ function PalomearModal({ cobro, onClose, onSaved }) {
     e.preventDefault()
     setSaving(true); setErr(null)
     try {
-      const { error } = await supabase.from('cobros_programados').update({
-        estatus: 'PAGADO',
-        conciliado: true,
-        fecha_pago_real: form.fecha_pago_real,
-        monto_pagado: parseFloat(form.monto_pagado),
-        forma_pago: form.forma_pago,
-        numero_operacion_banco: form.numero_operacion_banco || null,
-      }).eq('id', cobro.id)
+      const { error } = await supabase.rpc('confirmar_cobro', {
+        p_cobro_id:          cobro.id,
+        p_fecha_pago_real:   form.fecha_pago_real,
+        p_monto_pagado:      parseFloat(form.monto_pagado),
+        p_forma_pago:        form.forma_pago,
+        p_numero_operacion:  form.numero_operacion_banco || null,
+      })
       if (error) throw error
+      logAudit({
+        modulo: 'Conciliacion', accion: 'PAGO_REGISTRADO',
+        entidad: 'cobros_programados', entidad_id: cobro.id,
+        descripcion: `${cobro.referencia_pago} · ${cobro.arrendatario_nombre} · $${form.monto_pagado} · ${form.forma_pago}`,
+      })
       onSaved(); onClose()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
   }
@@ -193,21 +197,37 @@ function ConciliarModal({ matches, onClose, onAplicar }) {
 
   const aplicar = async () => {
     setAplicando(true)
-    let ok = 0
-    for (const m of matches) {
-      const { error } = await supabase.from('cobros_programados').update({
-        estatus: 'PAGADO',
-        conciliado: true,
-        fecha_pago_real: m.banco.fecha,
-        monto_pagado: m.banco.monto,
-        forma_pago: 'TRANSFERENCIA',
-        numero_operacion_banco: m.banco.descripcion?.substring(0, 120) || null,
-      }).eq('id', m.cobro.id)
-      if (!error) ok++
+    try {
+      // Batch: guarda movimientos_banco + crea ingresos vinculados + recalcula cobros
+      const payload = matches.map(m => ({
+        cobro_id:    m.cobro.id,
+        fecha:       m.banco.fecha,
+        monto:       m.banco.monto,
+        descripcion: m.banco.descripcion?.substring(0, 120) || '',
+        referencia:  m.banco.descripcion?.substring(0, 80) || '',
+      }))
+      const { data: res, error } = await supabase.rpc('conciliar_banco_batch', {
+        p_matches: JSON.stringify(payload),
+      })
+      if (error) throw error
+      const resultado = typeof res === 'string' ? JSON.parse(res) : res
+      const ok   = resultado?.ok   ?? matches.length
+      const fail = resultado?.fail  ?? 0
+      logAudit({
+        modulo: 'Conciliacion', accion: 'AUTO_CONCILIADO',
+        descripcion: `Batch ${ok} cobros conciliados, ${fail} fallidos`,
+      })
+      if (fail > 0) {
+        toast.error(`${ok} conciliados, ${fail} con error. Verifica la bitácora.`)
+      } else {
+        toast.success(`✅ ${ok} de ${matches.length} cobros conciliados`)
+      }
+    } catch (e) {
+      toast.error('Error al aplicar: ' + e.message)
+    } finally {
+      setAplicando(false)
+      onAplicar()
     }
-    setAplicando(false)
-    toast.success(`${ok} de ${matches.length} cobros conciliados`)
-    onAplicar()
   }
 
   return (
@@ -237,7 +257,12 @@ function ConciliarModal({ matches, onClose, onAplicar }) {
                 <div style={{ fontWeight: 700 }}>{fmt(m.cobro.monto_total)}</div>
               </div>
               <div style={{ background: '#EFF6FF', borderRadius: '8px', padding: '10px 12px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '3px' }}>MOVIMIENTO BBVA</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '3px', display: 'flex', justifyContent: 'space-between' }}>
+                  MOVIMIENTO BBVA
+                  <span style={{ background: m.metodo === 'ref' ? '#D1FAE5' : '#FEF3C7', color: m.metodo === 'ref' ? '#065F46' : '#92400E', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>
+                    {m.metodo === 'ref' ? '🔗 referencia' : '💲 monto'}
+                  </span>
+                </div>
                 <div style={{ color: 'var(--color-text-light)' }}>{m.banco.fecha}</div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.banco.descripcion}</div>
                 <div style={{ fontWeight: 800, color: 'var(--color-success)', marginTop: '2px' }}>{fmt(m.banco.monto)}</div>
@@ -304,19 +329,49 @@ export default function Conciliacion() {
     e.target.value = ''
   }
 
-  // Cruzar CSV contra cartera: buscar CP-YYYY-MM-LXX en descripción del movimiento
+  // Cruzar CSV contra cartera:
+  // 1ª estrategia: referencia CP-YYYY-MM-LXX en descripción banco
+  // 2ª estrategia (fallback): importe exacto con tolerancia $1
   const calcularMatches = () => {
     const reRef = /CP-\d{4}-\d{2}-L\d+/i
     const pendientesList = (data ?? []).filter(c => c.estatus !== 'PAGADO')
     const matches = []
-    for (const mov of csvMovs) {
+    const usedCobros = new Set()  // evitar asignar el mismo cobro a dos movimientos
+    const usedMovs   = new Set()  // evitar usar el mismo movimiento dos veces
+
+    // Pasada 1: por referencia exacta en descripción
+    for (let i = 0; i < csvMovs.length; i++) {
+      const mov = csvMovs[i]
       if (mov.tipo !== 'ABONO') continue
-      const match = mov.descripcion?.match(reRef)
-      if (!match) continue
-      const ref = match[0].toUpperCase()
-      const cobro = pendientesList.find(c => c.referencia_pago?.toUpperCase() === ref)
-      if (cobro) matches.push({ cobro, banco: mov })
+      const m = mov.descripcion?.match(reRef)
+      if (!m) continue
+      const ref = m[0].toUpperCase()
+      const cobro = pendientesList.find(c =>
+        c.referencia_pago?.toUpperCase() === ref && !usedCobros.has(c.id)
+      )
+      if (cobro) {
+        matches.push({ cobro, banco: mov, metodo: 'ref' })
+        usedCobros.add(cobro.id)
+        usedMovs.add(i)
+      }
     }
+
+    // Pasada 2: por monto exacto (tolerancia $1) para movimientos no emparejados
+    for (let i = 0; i < csvMovs.length; i++) {
+      if (usedMovs.has(i)) continue
+      const mov = csvMovs[i]
+      if (mov.tipo !== 'ABONO') continue
+      const cobro = pendientesList.find(c =>
+        !usedCobros.has(c.id) &&
+        Math.abs(parseFloat(c.monto_total) - mov.monto) <= 1
+      )
+      if (cobro) {
+        matches.push({ cobro, banco: mov, metodo: 'monto' })
+        usedCobros.add(cobro.id)
+        usedMovs.add(i)
+      }
+    }
+
     return matches
   }
 
@@ -335,16 +390,13 @@ export default function Conciliacion() {
     if (!pagadosVisibles.length) { toast.error('No hay cobros PAGADOS en la vista actual'); return }
     setDesmarcando(true)
     const ids = pagadosVisibles.map(c => c.id)
-    const { error } = await supabase.from('cobros_programados').update({
-      estatus: 'PENDIENTE',
-      conciliado: false,
-      fecha_pago_real: null,
-      monto_pagado: null,
-      forma_pago: null,
-      numero_operacion_banco: null,
-    }).in('id', ids)
+    const { error } = await supabase.rpc('desmarcar_cobros', { p_cobro_ids: ids })
     setDesmarcando(false)
     if (error) { toast.error('Error: ' + error.message); return }
+    logAudit({
+      modulo: 'Conciliacion', accion: 'COBROS_DESMARCADOS',
+      descripcion: `${ids.length} cobros regresados a PENDIENTE`,
+    })
     toast.success(`${ids.length} cobros regresados a PENDIENTE`)
     setRefreshKey(k => k + 1)
   }

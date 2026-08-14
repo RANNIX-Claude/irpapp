@@ -1,11 +1,11 @@
-# CLAUDE.md — IRP (Inmueble Resource Planning)
+# CLAUDE.md — IRP (IWOL Resource Planning)
 ## RANNIX Consulting | v1.0 | 2026
 
 ---
 
 ## Identidad del Proyecto
 
-**IRP — Inmueble Resource Planning** es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
+**IRP — IWOL Resource Planning** es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
 
 Desarrollado por **Roberto Aguilar Cota / RANNIX Consulting**.
 

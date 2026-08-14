@@ -1,46 +1,399 @@
-/* IRP — Inmueble Resource Planning | RANNIX Consulting */
+/* IRP — IWOL Resource Planning | RANNIX Consulting */
+/* ─── Design tokens ──────────────────────────────────────────── */
 :root {
-  /* Colores principales — RANNIX Standard */
-  --color-primary:       #0A66C2;
-  --color-primary-dark:  #1A3C5E;
-  --color-primary-light: #E8EEF7;
-  --color-secondary:     #E8A020;
-  --color-success:       #057642;
-  --color-warning:       #F59E0B;
-  --color-danger:        #B24020;
+  /* ── Marca IwolPark ─────────────────────────────────────────── */
+  --bg:      #F5F5F7;
+  --white:   #FFFFFF;
+  --border:  #D2D2D7;
+  --accent:  #7B5EA7;   /* morado — marca IwolPark */
+  --accent2: #0A66C2;   /* azul — secundario */
+  --green:   #0D9457;
+  --red:     #D93025;
+  --gold:    #F5A623;
+  --text:    #1D1D1F;
+  --muted:   #6E6E73;
+  --card-sh: 0 2px 12px rgba(0,0,0,.08);
+
+  /* ── Alias backward-compat (componentes React existentes) ───── */
+  --color-primary:       var(--accent);
+  --color-primary-dark:  #5A4080;
+  --color-primary-light: #F2EEFA;
+  --color-secondary:     var(--gold);
+  --color-success:       var(--green);
+  --color-warning:       var(--gold);
+  --color-danger:        var(--red);
   --color-neutral:       #E0DFDC;
-  --color-text:          #000000E6;
-  --color-text-light:    #6B7280;
-  --color-background:    #F3F2EF;
-  --color-surface:       #FFFFFF;
+  --color-text:          var(--text);
+  --color-text-light:    var(--muted);
+  --color-background:    var(--bg);
+  --color-surface:       var(--white);
+  --shadow-sm:           0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:           0 4px 6px rgba(0,0,0,.07);
 
-  /* Tipografía */
-  --font-primary:  'Inter', 'Roboto', sans-serif;
-  --font-heading:  'Inter', 'Roboto', sans-serif;
+  /* ── Tipografía ─────────────────────────────────────────────── */
+  --font-primary: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Segoe UI', system-ui, -apple-system, sans-serif;
 
-  /* Geometría */
-  --border-radius: 6px;
-  --header-height: 64px;
+  /* ── Geometría ──────────────────────────────────────────────── */
+  --border-radius: 8px;
+  --header-height: 52px;
 
-  /* Header */
-  --header-bg:   #0A66C2;
+  /* ── Header / Sidebar ───────────────────────────────────────── */
+  --header-bg:   var(--accent);
   --header-text: #FFFFFF;
-
-  /* Footer */
-  --footer-bg:   #1A3C5E;
+  --footer-bg:   #5A4080;
   --footer-text: #FFFFFF;
-
-  /* Sombras */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
 }
 
-* { box-sizing: border-box; }
+/* ─── Reset base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  margin: 0;
   font-family: var(--font-primary);
-  background-color: var(--color-background);
-  color: var(--color-text);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
+
 h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); }
+
+/* ─── TOP-NAV (barra superior en páginas standalone) ─────────── */
+/* Usar clase .top-nav — NO selector nav genérico (rompe el sidebar) */
+.top-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.nav-title { font-size: 15px; font-weight: 800; color: var(--text); }
+.nav-badge {
+  font-size: 10px; font-weight: 700;
+  background: var(--accent); color: #fff;
+  border-radius: 4px; padding: 2px 8px;
+}
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.nav-clock { font-size: 12px; color: var(--muted); font-family: monospace; }
+.btn-refresh {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; padding: 7px 16px; font-size: 12px;
+  font-weight: 700; cursor: pointer;
+}
+
+/* ─── TABS ───────────────────────────────────────────────────── */
+.tabs {
+  background: #fff;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  padding: 0 24px;
+}
+.tab {
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all .15s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover  { color: var(--text); }
+.tab-section          { display: none; }
+.tab-section.active   { display: block; }
+
+/* ─── LAYOUT ─────────────────────────────────────────────────── */
+.container { max-width: 1400px; margin: 0 auto; padding: 18px 20px 60px; }
+
+/* ─── TOOLBAR ────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.toolbar select,
+.toolbar input {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: #fff;
+}
+
+/* ─── BOTONES ────────────────────────────────────────────────── */
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity .15s;
+}
+.btn:hover:not(:disabled) { opacity: .88; }
+.btn.outline   { background: #fff; color: var(--accent); border: 1.5px solid var(--accent); }
+.btn.secondary { background: var(--accent2); }
+.btn.green     { background: var(--green); }
+.btn.red       { background: var(--red); }
+.btn.gold      { background: var(--gold); }
+.btn.sm        { padding: 5px 12px; font-size: 11px; }
+.btn:disabled  { opacity: .4; cursor: not-allowed; }
+
+/* ─── CARD + TABLA ───────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  box-shadow: var(--card-sh);
+  margin-bottom: 16px;
+}
+.tabla-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+th {
+  background: #F8F5FF;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #F0EEF8;
+  vertical-align: middle;
+}
+tr.clickable:hover td { background: #FAFAFE; cursor: pointer; }
+
+/* ─── BADGES / CHIPS ─────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.b-on  { background: #E6F7EF; color: var(--green); }
+.b-off { background: #FEE2E2; color: var(--red); }
+.estado-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1.5px solid var(--border);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fff;
+  color: var(--muted);
+  user-select: none;
+  transition: all .15s;
+}
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip-quick {
+  font-size: 11px; font-weight: 700;
+  color: var(--accent2); cursor: pointer;
+  background: none; border: none; text-decoration: underline; padding: 0;
+}
+
+/* ─── FORMULARIOS ────────────────────────────────────────────── */
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--muted); }
+.field input,
+.field select,
+.field textarea {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  width: 100%;
+  transition: border-color .15s;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(123,94,167,.12);
+}
+.field textarea { resize: vertical; min-height: 56px; }
+
+.param-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.param-card h3 {
+  font-size: 12px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted); margin-bottom: 10px;
+}
+
+/* ─── MODAL ──────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--white);
+  border-radius: 14px;
+  max-width: 760px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.modal-box.wide { max-width: 1000px; }
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-radius: 14px 14px 0 0;
+  z-index: 2;
+}
+.modal-title { font-size: 16px; font-weight: 900; }
+.modal-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.modal-foot {
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ─── MÉTRICAS / KPIs ────────────────────────────────────────── */
+.metric-card { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+.metric-nums { display: flex; gap: 22px; flex-wrap: wrap; margin: 10px 0; }
+.metric-num  { text-align: center; }
+.metric-num b {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent);
+}
+.metric-num span {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.bars { display: flex; gap: 10px; align-items: flex-end; height: 70px; padding-top: 6px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.bar {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: var(--accent);
+  transition: height .4s ease;
+}
+.bar-label { font-size: 9px; color: var(--muted); font-weight: 700; text-align: center; }
+.bar-value  { font-size: 11px; font-weight: 800; }
+
+/* ─── TOAST ──────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #1D1D1F;
+  color: #fff;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  transform: translateY(60px);
+  opacity: 0;
+  transition: all .3s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ─── LOGIN (reutilizable para portal IwolPark) ──────────────── */
+#iwol-login-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1D1D1F;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#iwol-login-overlay.hidden { display: none; }
+
+.iwol-login-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 90%;
+  max-width: 340px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  text-align: center;
+}
+.iwol-login-box h2 { font-size: 18px; font-weight: 900; margin-bottom: 4px; }
+
+/* ─── SCROLLBAR personalizado (Chrome/Edge) ──────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ─── Utilidades de texto ────────────────────────────────────── */
+.text-accent  { color: var(--accent); }
+.text-muted   { color: var(--muted); }
+.text-green   { color: var(--green); }
+.text-red     { color: var(--red); }
+.text-gold    { color: var(--gold); }
+.fw-700       { font-weight: 700; }
+.fw-900       { font-weight: 900; }
+.font-mono    { font-family: 'Consolas', 'Courier New', monospace; }

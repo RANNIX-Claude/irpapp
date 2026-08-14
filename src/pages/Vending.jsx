@@ -1,9 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import {
-  ShoppingBag, Plus, ChevronLeft, ChevronRight, TrendingUp,
-  DollarSign, PackageCheck, X, Edit2, Save, AlertTriangle
-} from 'lucide-react'
+import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Edit2, Save, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -12,8 +9,7 @@ function fmtN(n) { return (parseFloat(n) || 0).toLocaleString('es-MX', { maximum
 
 const CATEGORIAS = { snack: 'Snack', bebida: 'Bebida', otro: 'Otro' }
 
-// ── Semana helpers ─────────────────────────────────────────────────────────
-function semanaDeJulio(offset = 0) {
+function semanaActual(offset = 0) {
   const hoy = new Date()
   const lunes = new Date(hoy)
   lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7) + offset * 7)
@@ -75,59 +71,68 @@ function CapturaModal({ semana, productos, onClose, onSaved }) {
     setGuardando(false)
     if (error) return toast.error(error.message)
     toast.success('Semana guardada')
-    onSaved()
-    onClose()
+    onSaved(); onClose()
+  }
+
+  const inputStyle = {
+    width: '72px', textAlign: 'center',
+    border: '1.5px solid var(--border)', borderRadius: '6px',
+    padding: '4px 6px', fontSize: '13px', fontFamily: 'inherit',
+    background: 'var(--white)', color: 'var(--text)',
+  }
+  const semInvColor = (s) => {
+    if (s === null) return 'var(--muted)'
+    if (s <= 1) return 'var(--red)'
+    if (s <= 2) return 'var(--gold)'
+    return 'var(--green)'
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-auto py-8">
-      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-5xl mx-4 shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '32px 16px' }} onClick={onClose}>
+      <div style={{ background: 'var(--white)', borderRadius: '14px', width: '100%', maxWidth: '920px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--border)', background: 'var(--accent)', borderRadius: '14px 14px 0 0' }}>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Captura Semanal — Vending</h2>
-            <p className="text-sm text-gray-500">{semana.label}</p>
+            <div style={{ fontWeight: 800, fontSize: '16px', color: 'white' }}>Captura Semanal — Vending</div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{semana.label}</div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><X size={18} /></button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="overflow-x-auto p-4">
-          <table className="w-full text-sm">
+        {/* Tabla */}
+        <div style={{ overflowX: 'auto', padding: '16px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="pb-2 pr-3 min-w-[140px]">Producto</th>
-                <th className="pb-2 px-2 text-center w-20">Compras</th>
-                <th className="pb-2 px-2 text-center w-22">Inventario</th>
-                <th className="pb-2 px-2 text-center w-20">V.Unid</th>
-                <th className="pb-2 px-2 text-center w-24">Venta $$</th>
-                <th className="pb-2 px-2 text-center w-24">Utilidad</th>
-                <th className="pb-2 px-2 text-center w-24">Sem.Inv.</th>
-                <th className="pb-2 px-2 w-24">Status</th>
+              <tr>
+                {['Producto', 'Compras', 'Inventario', 'V.Unid', 'Venta $$', 'Utilidad', 'Sem.Inv.', 'Status'].map(h => (
+                  <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Producto' ? 'left' : 'center', fontSize: '10px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '2px solid var(--border)', background: 'var(--accent-light)', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.producto_nombre}
-                  className={`border-t dark:border-gray-700 ${r.status === 'BAJA' ? 'opacity-50 bg-orange-50 dark:bg-orange-900/10' : ''}`}>
-                  <td className="py-1.5 pr-3 font-medium text-gray-800 dark:text-gray-200">{r.producto_nombre}</td>
-                  {['compras_unidades','inventario_unidades','ventas_unidades'].map(k => (
-                    <td key={k} className="px-2">
-                      <input type="number" value={r[k]} onChange={e => set(i, k, e.target.value)}
-                        className="w-16 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                <tr key={r.producto_nombre} style={{ background: r.status === 'BAJA' ? '#FFF3E0' : i % 2 === 0 ? 'white' : '#FAFAFA', opacity: r.status === 'BAJA' ? 0.65 : 1 }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{r.producto_nombre}</td>
+                  {['compras_unidades', 'inventario_unidades', 'ventas_unidades'].map(k => (
+                    <td key={k} style={{ padding: '6px 6px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+                      <input type="number" value={r[k]} onChange={e => set(i, k, e.target.value)} style={inputStyle} />
                     </td>
                   ))}
-                  {['ventas_monto','utilidad_semana'].map(k => (
-                    <td key={k} className="px-2">
-                      <input type="number" step="0.01" value={r[k]} onChange={e => set(i, k, e.target.value)}
-                        className="w-20 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                  {['ventas_monto', 'utilidad_semana'].map(k => (
+                    <td key={k} style={{ padding: '6px 6px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+                      <input type="number" step="0.01" value={r[k]} onChange={e => set(i, k, e.target.value)} style={{ ...inputStyle, width: '84px' }} />
                     </td>
                   ))}
-                  <td className="px-2">
+                  <td style={{ padding: '6px 6px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
                     <input type="number" step="0.01" value={r.semanas_inventario ?? ''} onChange={e => set(i, 'semanas_inventario', e.target.value)}
-                      className="w-16 text-center border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                      style={{ ...inputStyle, color: semInvColor(r.semanas_inventario ? +r.semanas_inventario : null), fontWeight: 700 }} />
                   </td>
-                  <td className="px-2">
+                  <td style={{ padding: '6px 6px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
                     <select value={r.status} onChange={e => set(i, 'status', e.target.value)}
-                      className="text-xs border rounded px-1 py-0.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                      style={{ border: '1.5px solid var(--border)', borderRadius: '6px', padding: '4px 6px', fontSize: '11px', fontWeight: 700, background: 'var(--white)', color: 'var(--text)' }}>
                       <option value="ACTIVO">ACTIVO</option>
                       <option value="BAJA">BAJA</option>
                       <option value="PAUSADO">PAUSADO</option>
@@ -137,27 +142,26 @@ function CapturaModal({ semana, productos, onClose, onSaved }) {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-gray-400 font-bold text-gray-700 dark:text-gray-300">
-                <td className="py-2 pr-3">TOTAL</td>
-                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.compras_unidades || 0), 0)}</td>
-                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.inventario_unidades || 0), 0)}</td>
-                <td className="px-2 text-center">{rows.reduce((s, r) => s + (+r.ventas_unidades || 0), 0)}</td>
-                <td className="px-2 text-center">{fmt(rows.reduce((s, r) => s + (+r.ventas_monto || 0), 0))}</td>
-                <td className="px-2 text-center">{fmt(rows.reduce((s, r) => s + (+r.utilidad_semana || 0), 0))}</td>
+              <tr style={{ background: 'var(--accent-light)', fontWeight: 800 }}>
+                <td style={{ padding: '10px', color: 'var(--accent-dark)', fontSize: '12px', fontWeight: 900 }}>TOTAL</td>
+                <td style={{ textAlign: 'center', padding: '10px', fontVariantNumeric: 'tabular-nums' }}>{rows.reduce((s, r) => s + (+r.compras_unidades || 0), 0)}</td>
+                <td style={{ textAlign: 'center', padding: '10px', fontVariantNumeric: 'tabular-nums' }}>{rows.reduce((s, r) => s + (+r.inventario_unidades || 0), 0)}</td>
+                <td style={{ textAlign: 'center', padding: '10px', fontVariantNumeric: 'tabular-nums' }}>{rows.reduce((s, r) => s + (+r.ventas_unidades || 0), 0)}</td>
+                <td style={{ textAlign: 'center', padding: '10px', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rows.reduce((s, r) => s + (+r.ventas_monto || 0), 0))}</td>
+                <td style={{ textAlign: 'center', padding: '10px', color: 'var(--green)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rows.reduce((s, r) => s + (+r.utilidad_semana || 0), 0))}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
           </table>
         </div>
 
-        <div className="flex justify-end gap-3 p-5 border-t dark:border-gray-700">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 22px', borderTop: '1px solid var(--border)' }}>
+          <button onClick={onClose} style={{ padding: '10px 20px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--muted)' }}>
             Cancelar
           </button>
-          <button onClick={guardar} disabled={guardando}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-semibold"
-            style={{ backgroundColor: '#0A66C2' }}>
-            <Save size={16} />
+          <button onClick={guardar} disabled={guardando} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', border: 'none', borderRadius: '8px', background: guardando ? 'var(--muted)' : 'var(--accent)', color: 'white', cursor: guardando ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700 }}>
+            <Save size={15} />
             {guardando ? 'Guardando…' : 'Guardar semana'}
           </button>
         </div>
@@ -188,39 +192,39 @@ function ProductoModal({ onClose, onSaved }) {
     onSaved(); onClose()
   }
 
+  const fieldInput = { width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: 'white', boxSizing: 'border-box' }
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-md mx-4 shadow-2xl p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Nuevo Producto</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"><X size={18} /></button>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: '24px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text)' }}>Nuevo Producto</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}><X size={18} /></button>
         </div>
-        <div className="space-y-4">
-          {[['nombre','Nombre del producto','text'],['precio_venta','Precio de venta (MXN)','number'],['precio_costo','Precio de costo (MXN)','number']].map(([k, label, type]) => (
-            <div key={k}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-              <input type={type} value={form[k]} onChange={set(k)} step={type==='number'?'0.01':undefined}
-                className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {[['nombre', 'Nombre del producto', 'text'], ['precio_venta', 'Precio de venta (MXN)', 'number'], ['precio_costo', 'Precio de costo (MXN)', 'number']].map(([k, label, type]) => (
+            <div key={k} className="field">
+              <label>{label}</label>
+              <input type={type} value={form[k]} onChange={set(k)} step={type === 'number' ? '0.01' : undefined} style={fieldInput} />
             </div>
           ))}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
-            <select value={form.categoria} onChange={set('categoria')}
-              className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
-              {Object.entries(CATEGORIAS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+          <div className="field">
+            <label>Categoría</label>
+            <select value={form.categoria} onChange={set('categoria')} style={fieldInput}>
+              {Object.entries(CATEGORIAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
-            <input type="text" value={form.notas} onChange={set('notas')}
-              className="w-full border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+          <div className="field">
+            <label>Notas</label>
+            <input type="text" value={form.notas} onChange={set('notas')} style={fieldInput} />
           </div>
         </div>
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg dark:border-gray-600 text-gray-600 dark:text-gray-400">Cancelar</button>
-          <button onClick={guardar} disabled={guardando}
-            className="px-5 py-2 rounded-lg text-white font-semibold" style={{ backgroundColor: '#0A66C2' }}>
-            {guardando ? 'Guardando…' : 'Agregar'}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--muted)' }}>Cancelar</button>
+          <button onClick={guardar} disabled={guardando} style={{ flex: 2, padding: '10px', border: 'none', borderRadius: '8px', background: 'var(--accent)', color: 'white', cursor: guardando ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: guardando ? 0.7 : 1 }}>
+            {guardando ? 'Guardando…' : 'Agregar producto'}
           </button>
         </div>
       </div>
@@ -230,63 +234,59 @@ function ProductoModal({ onClose, onSaved }) {
 
 // ── Tabla de inventario semanal ────────────────────────────────────────────
 function TablaInventario({ datos, total }) {
-  const semInvColor = (s) => {
-    if (s === null) return ''
-    if (s <= 1) return 'text-red-600 font-bold'
-    if (s <= 2) return 'text-yellow-600 font-semibold'
-    return 'text-green-700'
+  const semInvStyle = (s) => {
+    if (s === null) return { color: 'var(--muted)' }
+    if (s <= 1) return { color: 'var(--red)', fontWeight: 800 }
+    if (s <= 2) return { color: 'var(--gold)', fontWeight: 700 }
+    return { color: 'var(--green)', fontWeight: 600 }
+  }
+  const statusBadge = (s) => {
+    if (s === 'BAJA') return { background: '#FFF3E0', color: '#E65100' }
+    if (s === 'PAUSADO') return { background: '#FFF8E1', color: '#F59E0B' }
+    return { background: '#E8F5E9', color: '#1B5E20' }
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
         <thead>
-          <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b dark:border-gray-700">
-            <th className="pb-3 pr-3 min-w-[140px]">Producto</th>
-            <th className="pb-3 px-3 text-center">Compras</th>
-            <th className="pb-3 px-3 text-center">Inventario</th>
-            <th className="pb-3 px-3 text-center">V. Unid</th>
-            <th className="pb-3 px-3 text-right">Venta $$</th>
-            <th className="pb-3 px-3 text-right">Utilidad</th>
-            <th className="pb-3 px-3 text-center">Sem. Inv.</th>
-            <th className="pb-3 px-2 text-center">Status</th>
+          <tr>
+            {['Producto', 'Compras', 'Inventario', 'V. Unid', 'Venta $$', 'Utilidad', 'Sem. Inv.', 'Status'].map(h => (
+              <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Producto' ? 'left' : 'right', fontSize: '10px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '2px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {datos.map(r => (
-            <tr key={r.id || r.producto_nombre}
-              className={`border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors
-                ${r.status === 'BAJA' ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
-              <td className="py-2.5 pr-3 font-medium text-gray-800 dark:text-gray-200">{r.producto_nombre}</td>
-              <td className="py-2.5 px-3 text-center tabular-nums text-gray-600 dark:text-gray-400">
-                {r.compras_unidades > 0 ? r.compras_unidades : <span className="text-gray-300">—</span>}
+          {datos.map((r, i) => (
+            <tr key={r.id || r.producto_nombre} style={{ background: r.status === 'BAJA' ? '#FFF8F0' : i % 2 === 0 ? 'white' : '#FAFAFA', transition: 'background .1s' }}>
+              <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>{r.producto_nombre}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid var(--border)', color: r.compras_unidades > 0 ? 'var(--text)' : 'var(--border)' }}>
+                {r.compras_unidades > 0 ? r.compras_unidades : '—'}
               </td>
-              <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-gray-700 dark:text-gray-300">{r.inventario_unidades}</td>
-              <td className="py-2.5 px-3 text-center tabular-nums text-gray-600 dark:text-gray-400">{r.ventas_unidades}</td>
-              <td className="py-2.5 px-3 text-right tabular-nums text-gray-700 dark:text-gray-300">{fmt(r.ventas_monto)}</td>
-              <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-green-700">{fmt(r.utilidad_semana)}</td>
-              <td className={`py-2.5 px-3 text-center tabular-nums ${semInvColor(r.semanas_inventario)}`}>
-                {r.semanas_inventario != null ? fmtN(r.semanas_inventario) : <span className="text-gray-300">—</span>}
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, borderBottom: '1px solid var(--border)' }}>{r.inventario_unidades}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>{r.ventas_unidades}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid var(--border)' }}>{fmt(r.ventas_monto)}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: 'var(--green)', borderBottom: '1px solid var(--border)' }}>{fmt(r.utilidad_semana)}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid var(--border)', ...semInvStyle(r.semanas_inventario) }}>
+                {r.semanas_inventario != null ? fmtN(r.semanas_inventario) : '—'}
               </td>
-              <td className="py-2.5 px-2 text-center">
-                {r.status === 'BAJA'
-                  ? <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">Baja</span>
-                  : r.status === 'PAUSADO'
-                  ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Pausado</span>
-                  : <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Activo</span>}
+              <td style={{ padding: '10px 12px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', ...statusBadge(r.status) }}>
+                  {r.status}
+                </span>
               </td>
             </tr>
           ))}
         </tbody>
         {total && (
           <tfoot>
-            <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50">
-              <td className="py-3 pr-3">TOTAL</td>
-              <td className="px-3 text-center tabular-nums">{total.compras}</td>
-              <td className="px-3 text-center tabular-nums">{total.inventario}</td>
-              <td className="px-3 text-center tabular-nums">{total.ventas_u}</td>
-              <td className="px-3 text-right tabular-nums">{fmt(total.ventas_m)}</td>
-              <td className="px-3 text-right tabular-nums text-green-700">{fmt(total.utilidad)}</td>
+            <tr style={{ background: 'var(--accent-light)', fontWeight: 800, borderTop: '2px solid var(--border)' }}>
+              <td style={{ padding: '10px 12px', color: 'var(--accent-dark)', fontWeight: 900, fontSize: '12px' }}>TOTAL</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{total.compras}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{total.inventario}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--muted)' }}>{total.ventas_u}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--accent)' }}>{fmt(total.ventas_m)}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--green)' }}>{fmt(total.utilidad)}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
@@ -301,7 +301,7 @@ export default function Vending() {
   useModuleAudit('Vending')
   const [tab, setTab] = useState('semanal')
   const [semOffset, setSemOffset] = useState(0)
-  const [semana, setSemana] = useState(semanaDeJulio(0))
+  const [semana, setSemana] = useState(semanaActual(0))
   const [datos, setDatos] = useState([])
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -309,7 +309,7 @@ export default function Vending() {
   const [showProducto, setShowProducto] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  useEffect(() => { setSemana(semanaDeJulio(semOffset)) }, [semOffset])
+  useEffect(() => { setSemana(semanaActual(semOffset)) }, [semOffset])
 
   const loadProductos = useCallback(async () => {
     const { data } = await supabase.from('cat_productos_vending').select('*').order('nombre')
@@ -341,106 +341,99 @@ export default function Vending() {
   const bajas = datos.filter(r => r.status === 'BAJA').length
   const stocBajo = datos.filter(r => r.semanas_inventario !== null && r.semanas_inventario <= 1).length
 
+  const tabStyle = (k) => ({
+    padding: '12px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+    color: tab === k ? 'var(--accent)' : 'var(--muted)',
+    background: 'none', border: 'none', borderBottom: tab === k ? '2px solid var(--accent)' : '2px solid transparent',
+    marginBottom: '-1px', transition: 'color .15s',
+  })
+
   return (
-    <div className="p-6 space-y-6">
+    <div style={{ padding: '24px', maxWidth: '1100px' }}>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <ShoppingBag size={28} style={{ color: '#0A66C2' }} />
-            Vending Machine
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">Control de inventario y ventas</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowProducto(true)}
-            className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
-            <Plus size={16} /> Producto
-          </button>
-          <button onClick={() => setShowCaptura(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-semibold"
-            style={{ backgroundColor: '#0A66C2' }}>
-            <Edit2 size={16} /> Capturar semana
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h1 style={{ margin: '0 0 2px', fontSize: '20px', fontWeight: 900, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShoppingBag size={24} color="var(--accent)" />
+              Vending Machine
+            </h1>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>Control de inventario y ventas</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setShowProducto(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
+              <Plus size={15} /> Producto
+            </button>
+            <button onClick={() => setShowCaptura(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', border: 'none', borderRadius: '8px', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+              <Edit2 size={15} /> Capturar semana
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b dark:border-gray-700">
+      <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', marginBottom: '20px' }}>
         {[['semanal', 'Control Semanal'], ['catalogo', 'Catálogo']].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} style={tabStyle(k)}>{l}</button>
         ))}
       </div>
 
-      {/* Semanal tab */}
+      {/* ── Tab: Control Semanal ── */}
       {tab === 'semanal' && (
-        <div className="space-y-5">
-          {/* Navegador de semana */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSemOffset(o => o - 1)}
-              className="p-2 border rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+          {/* Navegador semana */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={() => setSemOffset(o => o - 1)} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               <ChevronLeft size={18} />
             </button>
-            <div className="flex-1 text-center">
-              <p className="font-semibold text-gray-800 dark:text-white">{semana.label}</p>
-              <p className="text-xs text-gray-500">{semana.ini} → {semana.fin}</p>
+            <div style={{ flex: 1, textAlign: 'center', background: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
+              <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>{semana.label}</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', fontFamily: 'monospace' }}>{semana.ini} → {semana.fin}</div>
             </div>
-            <button onClick={() => setSemOffset(o => o + 1)}
-              className="p-2 border rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800">
+            <button onClick={() => setSemOffset(o => o + 1)} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               <ChevronRight size={18} />
             </button>
           </div>
 
           {/* KPIs */}
           {total && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Ventas</p>
-                <p className="text-2xl font-bold tabular-nums" style={{ color: '#0A66C2' }}>{fmt(total.ventas_m)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{total.ventas_u} unidades</p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Utilidad</p>
-                <p className="text-2xl font-bold tabular-nums text-green-700">{fmt(total.utilidad)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {total.ventas_m > 0 ? ((total.utilidad / total.ventas_m) * 100).toFixed(1) + '% margen' : '—'}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border dark:border-gray-700">
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Inventario</p>
-                <p className="text-2xl font-bold tabular-nums text-gray-700 dark:text-gray-300">{total.inventario}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{total.compras} comprados</p>
-              </div>
-              <div className={`rounded-xl p-4 shadow-sm border ${stocBajo > 0 ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : 'bg-white dark:bg-gray-900 dark:border-gray-700'}`}>
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Alertas</p>
-                <p className={`text-2xl font-bold tabular-nums ${stocBajo > 0 ? 'text-red-600' : 'text-gray-400'}`}>{stocBajo}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Stock &lt;1 sem · {bajas} en baja</p>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+              {[
+                { label: 'Ventas', value: fmt(total.ventas_m), sub: total.ventas_u + ' unidades', color: 'var(--accent)' },
+                { label: 'Utilidad', value: fmt(total.utilidad), sub: total.ventas_m > 0 ? ((total.utilidad / total.ventas_m) * 100).toFixed(1) + '% margen' : '—', color: 'var(--green)' },
+                { label: 'Inventario', value: total.inventario, sub: total.compras + ' comprados', color: 'var(--text)' },
+                { label: 'Alertas', value: stocBajo, sub: 'Stock <1 sem · ' + bajas + ' en baja', color: stocBajo > 0 ? 'var(--red)' : 'var(--muted)' },
+              ].map(({ label, value, sub, color }) => (
+                <div key={label} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px', boxShadow: 'var(--card-sh)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: '4px' }}>{label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{sub}</div>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Alerta productos en baja */}
+          {/* Alerta stock bajo */}
           {stocBajo > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
-              <AlertTriangle size={16} />
-              {datos.filter(r => r.semanas_inventario !== null && r.semanas_inventario <= 1)
-                .map(r => r.producto_nombre).join(', ')} — stock para menos de 1 semana
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#FFF8E1', border: '1px solid #F59E0B', borderRadius: '8px', fontSize: '13px', color: '#7B4100' }}>
+              <AlertTriangle size={16} color="#F59E0B" />
+              <span><strong>Stock bajo:</strong> {datos.filter(r => r.semanas_inventario !== null && r.semanas_inventario <= 1).map(r => r.producto_nombre).join(', ')} — menos de 1 semana de inventario</span>
             </div>
           )}
 
-          {/* Tabla */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border dark:border-gray-700 p-5">
+          {/* Tabla principal */}
+          <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-sh)' }}>
             {loading ? (
-              <div className="text-center py-12 text-gray-400">Cargando…</div>
+              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)' }}>Cargando…</div>
             ) : datos.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <ShoppingBag size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="font-medium">Sin datos para esta semana</p>
-                <button onClick={() => setShowCaptura(true)}
-                  className="mt-3 text-sm text-blue-600 hover:underline">Capturar ahora →</button>
+              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)' }}>
+                <ShoppingBag size={40} color="var(--border)" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '8px' }}>Sin datos para esta semana</div>
+                <button onClick={() => setShowCaptura(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '13px', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}>
+                  Capturar ahora →
+                </button>
               </div>
             ) : (
               <TablaInventario datos={datos} total={total} />
@@ -449,43 +442,39 @@ export default function Vending() {
         </div>
       )}
 
-      {/* Catálogo tab */}
+      {/* ── Tab: Catálogo ── */}
       {tab === 'catalogo' && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
-          <table className="w-full text-sm">
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', boxShadow: 'var(--card-sh)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr className="border-b dark:border-gray-700 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="p-4 text-left">Producto</th>
-                <th className="p-4 text-center">Categoría</th>
-                <th className="p-4 text-right">Precio Venta</th>
-                <th className="p-4 text-right">Precio Costo</th>
-                <th className="p-4 text-right">Margen</th>
-                <th className="p-4 text-center">Estado</th>
-                <th className="p-4 text-left">Notas</th>
+              <tr>
+                {['Producto', 'Categoría', 'Precio Venta', 'Precio Costo', 'Margen', 'Estado', 'Notas'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: ['Precio Venta', 'Precio Costo', 'Margen'].includes(h) ? 'right' : 'left', fontSize: '10px', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '2px solid var(--border)', background: 'var(--accent-light)', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {productos.map(p => {
+              {productos.map((p, i) => {
                 const margen = p.precio_venta && p.precio_costo
                   ? ((p.precio_venta - p.precio_costo) / p.precio_venta * 100).toFixed(0)
                   : null
                 return (
-                  <tr key={p.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td className="p-4 font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
-                    <td className="p-4 text-center">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        {CATEGORIAS[p.categoria] || p.categoria}
+                  <tr key={p.id} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>{p.nombre}</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '3px 9px', borderRadius: '20px' }}>
+                        {p.categoria || '—'}
                       </span>
                     </td>
-                    <td className="p-4 text-right tabular-nums">{fmt(p.precio_venta)}</td>
-                    <td className="p-4 text-right tabular-nums text-gray-500">{p.precio_costo ? fmt(p.precio_costo) : '—'}</td>
-                    <td className="p-4 text-right tabular-nums font-semibold text-green-700">{margen ? margen + '%' : '—'}</td>
-                    <td className="p-4 text-center">
-                      {p.activo
-                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Activo</span>
-                        : <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Baja</span>}
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid var(--border)' }}>{fmt(p.precio_venta)}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>{p.precio_costo ? fmt(p.precio_costo) : '—'}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: 'var(--green)', borderBottom: '1px solid var(--border)' }}>{margen ? margen + '%' : '—'}</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', background: p.activo ? '#E8F5E9' : '#FFF3E0', color: p.activo ? '#1B5E20' : '#E65100' }}>
+                        {p.activo ? 'Activo' : 'Baja'}
+                      </span>
                     </td>
-                    <td className="p-4 text-gray-400 text-xs">{p.notas || '—'}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--muted)', fontSize: '11px', borderBottom: '1px solid var(--border)' }}>{p.notas || '—'}</td>
                   </tr>
                 )
               })}

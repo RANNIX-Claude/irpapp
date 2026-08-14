@@ -42,7 +42,7 @@ export default function Header() {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>IRP</div>
-          <div style={{ fontSize: '10px', opacity: 0.8, lineHeight: 1 }}>Inmueble Resource Planning</div>
+          <div style={{ fontSize: '10px', opacity: 0.8, lineHeight: 1 }}>IWOL Resource Planning</div>
         </div>
       </div>
 
