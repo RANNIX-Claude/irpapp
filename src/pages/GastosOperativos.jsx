@@ -1,6 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect } from 'react'
-import { Receipt, Plus, X, ChevronDown, Search, Filter } from 'lucide-react'
+import { Receipt, Plus, X, ChevronDown, Search, Filter, Pencil, Trash2 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -103,9 +103,13 @@ const CATALOGO_CONCEPTOS = [
 // Proveedores únicos del catálogo
 const PROVEEDORES_CAT = [...new Set(CATALOGO_CONCEPTOS.flatMap(c => c.proveedores))].sort()
 
-function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
+function GastoModal({ onClose, onSaved, proveedoresDB = [], gasto = null }) {
   const today = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({ fecha: today, proveedor: '', grupo_gasto: GRUPOS[0], descripcion: '', cantidad: '' })
+  const esEdicion = !!gasto
+  const [form, setForm] = useState(gasto
+    ? { fecha: gasto.fecha, proveedor: gasto.proveedor || '', grupo_gasto: gasto.grupo_gasto || GRUPOS[0], descripcion: gasto.descripcion || '', cantidad: String(gasto.cantidad || '') }
+    : { fecha: today, proveedor: '', grupo_gasto: GRUPOS[0], descripcion: '', cantidad: '' }
+  )
   const [guardando, setGuardando] = useState(false)
   const [sugerencias, setSugerencias] = useState([])
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
@@ -142,7 +146,7 @@ function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
     const dt = new Date(form.fecha + 'T12:00:00')
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
     const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-    const { error } = await supabase.from('gastos_operativos').insert({
+    const payload = {
       fecha: form.fecha,
       proveedor: form.proveedor || null,
       grupo_gasto: form.grupo_gasto,
@@ -152,12 +156,14 @@ function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
       mes: MESES[dt.getMonth()],
       dia_semana: DIAS[dt.getDay()],
       semana: `S${Math.ceil(dt.getDate() / 7)}`,
-    })
+    }
+    const { error } = esEdicion
+      ? await supabase.from('gastos_operativos').update(payload).eq('id', gasto.id)
+      : await supabase.from('gastos_operativos').insert(payload)
     if (error) {
-      console.error('[GastosOperativos] insert error:', error)
-      toast.error(error.message || 'Error al guardar. Verifica que tienes permisos de escritura.')
+      toast.error(error.message || 'Error al guardar')
     } else {
-      toast.success('Gasto registrado')
+      toast.success(esEdicion ? 'Gasto actualizado' : 'Gasto registrado')
       onSaved()
     }
     setGuardando(false)
@@ -168,7 +174,7 @@ function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
       <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '520px', maxWidth: '95vw' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Receipt size={18} color="var(--color-primary)" /> Nuevo gasto operativo
+            <Receipt size={18} color="var(--color-primary)" /> {esEdicion ? 'Editar gasto' : 'Nuevo gasto operativo'}
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={20} /></button>
         </div>
@@ -228,7 +234,7 @@ function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={onClose} style={{ flex: 1, padding: '11px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Cancelar</button>
           <button onClick={guardar} disabled={guardando} style={{ flex: 2, padding: '11px', border: 'none', borderRadius: '8px', background: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 700, opacity: guardando ? 0.7 : 1 }}>
-            {guardando ? 'Guardando...' : 'Guardar gasto'}
+            {guardando ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Guardar gasto'}
           </button>
         </div>
       </div>
@@ -238,13 +244,20 @@ function NuevoGastoModal({ onClose, onSaved, proveedoresDB = [] }) {
 
 export default function GastosOperativos() {
   useModuleAudit('GASTOS_OPERATIVOS')
-  const [modal, setModal] = useState(false)
+  const [modal, setModal] = useState(false)        // false | 'nuevo' | gasto{}
+  const [confirmDel, setConfirmDel] = useState(null) // gasto a borrar
   const [registros, setRegistros] = useState([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState('Todos')
   const [expandMes, setExpandMes] = useState(null)
   const [proveedoresDB, setProveedoresDB] = useState([])
+
+  const eliminar = async (gasto) => {
+    const { error } = await supabase.from('gastos_operativos').delete().eq('id', gasto.id)
+    if (error) toast.error(error.message)
+    else { toast.success('Gasto eliminado'); setConfirmDel(null); cargar() }
+  }
 
   const cargar = async () => {
     setLoading(true)
@@ -304,7 +317,7 @@ export default function GastosOperativos() {
             Registro histórico de todos los gastos de operación de la plaza
           </p>
         </div>
-        <button onClick={() => setModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
           <Plus size={15} /> Nuevo gasto
         </button>
       </div>
@@ -370,7 +383,7 @@ export default function GastosOperativos() {
                 {open && (
                   <div style={{ borderTop: '1px solid #F3F4F6' }}>
                     {grupo.registros.map(r => (
-                      <div key={r.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', padding: '10px 18px', borderBottom: '1px solid #F9FAFB', alignItems: 'center' }}>
+                      <div key={r.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: '12px', padding: '10px 18px', borderBottom: '1px solid #F9FAFB', alignItems: 'center' }}>
                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[r.grupo_gasto] || '#6B7280', flexShrink: 0 }} />
                         <div>
                           <div style={{ fontSize: '13px', fontWeight: 600 }}>{r.proveedor || r.descripcion || '—'}</div>
@@ -380,6 +393,16 @@ export default function GastosOperativos() {
                           </div>
                         </div>
                         <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-danger)' }}>{fmt(r.cantidad)}</div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button onClick={() => setModal(r)} title="Editar"
+                            style={{ background: '#F3F4F6', border: 'none', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center' }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setConfirmDel(r)} title="Eliminar"
+                            style={{ background: '#FEF2F2', border: 'none', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#B91C1C', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -395,7 +418,33 @@ export default function GastosOperativos() {
         </div>
       )}
 
-      {modal && <NuevoGastoModal onClose={() => setModal(false)} onSaved={() => { setModal(false); cargar() }} proveedoresDB={proveedoresDB} />}
+      {modal && (
+        <GastoModal
+          onClose={() => setModal(false)}
+          onSaved={() => { setModal(false); cargar() }}
+          proveedoresDB={proveedoresDB}
+          gasto={modal === 'nuevo' ? null : modal}
+        />
+      )}
+
+      {confirmDel && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '400px', maxWidth: '95vw', textAlign: 'center' }}>
+            <Trash2 size={36} color="#B91C1C" style={{ marginBottom: '12px' }} />
+            <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700 }}>¿Eliminar este gasto?</h3>
+            <p style={{ margin: '0 0 6px', fontSize: '14px', color: '#374151' }}>
+              <strong>{confirmDel.proveedor || confirmDel.descripcion || '—'}</strong>
+            </p>
+            <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#6B7280' }}>
+              {confirmDel.fecha} · {fmt(confirmDel.cantidad)}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, padding: '11px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Cancelar</button>
+              <button onClick={() => eliminar(confirmDel)} style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '8px', background: '#B91C1C', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
