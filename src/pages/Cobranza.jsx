@@ -1,6 +1,6 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
-import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, RefreshCw, X, ExternalLink } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, X, ExternalLink, Plus, CreditCard, Trash2, Upload, FileText, AlertCircle } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
@@ -13,9 +13,19 @@ const MES_NOMBRES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','O
 
 function fmt(n) { return '$' + (parseFloat(n)||0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
+const ESTATUS_COLOR = {
+  PAGADO:    'var(--color-success)',
+  PARCIAL:   '#7C3AED',
+  PENDIENTE: 'var(--color-warning)',
+  EN_MORA:   'var(--color-danger)',
+  CANCELADO: '#9CA3AF',
+}
+
 function CobroRow({ c, onSelect, onExpediente }) {
-  const vencida = !c.fecha_pago_real && new Date(c.fecha_limite_pago) < new Date()
-  const colorEstatus = c.estatus === 'PAGADO' ? 'var(--color-success)' : vencida ? 'var(--color-danger)' : 'var(--color-warning)'
+  const vencida = !c.fecha_pago_real && c.estatus !== 'PAGADO' && c.estatus !== 'PARCIAL' && new Date(c.fecha_limite_pago) < new Date()
+  const colorEstatus = vencida ? 'var(--color-danger)' : (ESTATUS_COLOR[c.estatus] || 'var(--color-warning)')
+  const pct = c.monto_total > 0 ? Math.min(100, ((parseFloat(c.monto_pagado) || 0) / parseFloat(c.monto_total)) * 100) : 0
+
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
@@ -31,14 +41,18 @@ function CobroRow({ c, onSelect, onExpediente }) {
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
           title="Ver expediente completo">
           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {c.arrendatario_nombre}
-            <ExternalLink size={11} />
+            {c.arrendatario_nombre}<ExternalLink size={11} />
           </div>
         </button>
         <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · {c.unidad_numero}</div>
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
         <div style={{ fontWeight: 700, fontSize: '14px' }}>{fmt(c.monto_total)}</div>
+        {c.estatus === 'PARCIAL' && (
+          <div style={{ fontSize: '11px', color: '#7C3AED', fontWeight: 600 }}>
+            {fmt(c.monto_pagado)} pagado
+          </div>
+        )}
         {c.monto_mora > 0 && <div style={{ fontSize: '11px', color: 'var(--color-danger)' }}>+{fmt(c.monto_mora)} mora</div>}
       </td>
       <td style={{ padding: '12px 16px' }}>
@@ -49,83 +63,352 @@ function CobroRow({ c, onSelect, onExpediente }) {
           ? <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 600 }}>{c.fecha_pago_real}</div>
           : <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>—</div>}
       </td>
-      <td style={{ padding: '12px 16px' }}>
-        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: colorEstatus + '20', color: colorEstatus }}>
+      <td style={{ padding: '12px 16px', minWidth: '120px' }}>
+        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: colorEstatus + '20', color: colorEstatus, marginBottom: '4px' }}>
           {c.estatus}
         </span>
+        {c.estatus === 'PARCIAL' && (
+          <div style={{ height: '4px', background: '#E5E7EB', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: '#7C3AED', borderRadius: '4px', transition: 'width 0.3s' }} />
+          </div>
+        )}
       </td>
     </tr>
   )
 }
 
-function PagoModal({ cobro, onClose, onSaved }) {
-  const [form, setForm] = useState({ fecha_pago: new Date().toISOString().split('T')[0], monto_pagado: cobro?.monto_total || '', forma_pago: 'TRANSFERENCIA', operacion: '' })
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState(null)
-  if (!cobro) return null
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+const TIPO_CONCEPTO_META = {
+  RENTA:      { label: 'Renta',    color: 'var(--color-primary)',  icon: CreditCard },
+  SANCION:    { label: 'Sanción',  color: 'var(--color-danger)',   icon: AlertCircle },
+  RECARGO:    { label: 'Recargo',  color: '#D97706',               icon: AlertTriangle },
+  CUOTA_MANT: { label: 'Mant.',   color: '#6B7280',               icon: DollarSign },
+  OTRO:       { label: 'Otro',     color: '#9CA3AF',               icon: DollarSign },
+}
 
-  const guardar = async (e) => {
-    e.preventDefault()
-    setSaving(true); setErr(null)
-    try {
-      const { error } = await supabase
-        .from('cobros_programados')
-        .update({
-          estatus: 'PAGADO',
-          fecha_pago_real: form.fecha_pago,
-          monto_pagado: parseFloat(form.monto_pagado),
-          forma_pago: form.forma_pago,
-          numero_operacion_banco: form.operacion,
-          conciliado: true,
-        })
-        .eq('id', cobro.id)
-        .select()
-      if (error) throw error
-      onSaved()
-      onClose()
-    } catch (e) { setErr(e.message) } finally { setSaving(false) }
-  }
-
-  const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
-  const lbl = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }
+// ── Badge tipo concepto ───────────────────────────────────────────────
+function TipoBadge({ tipo }) {
+  const meta = TIPO_CONCEPTO_META[tipo] || TIPO_CONCEPTO_META.OTRO
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '460px' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Registrar Pago</div>
-            <h2 style={{ margin: '2px 0 0', fontSize: '16px', fontWeight: 700 }}>{cobro.referencia_pago}</h2>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+    <span style={{ fontSize: '10px', fontWeight: 700, color: meta.color, background: meta.color + '18', padding: '2px 7px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+      {meta.label}
+    </span>
+  )
+}
+
+// ── Fila de ingreso en historial ─────────────────────────────────────
+function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura }) {
+  const pdfRef = useRef()
+  const xmlRef = useRef()
+  const meta = TIPO_CONCEPTO_META[p.tipo_concepto] || TIPO_CONCEPTO_META.OTRO
+
+  return (
+    <div style={{ padding: '12px 0', borderBottom: idx < total - 1 ? '1px solid #F3F4F6' : 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        {/* Icono */}
+        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: meta.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <meta.icon size={15} color={meta.color} />
         </div>
-        <form onSubmit={guardar} style={{ padding: '20px 24px', display: 'grid', gap: '14px' }}>
-          <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between' }}>
-            <div><div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Arrendatario</div><div style={{ fontSize: '13px', fontWeight: 600 }}>{cobro.arrendatario_nombre}</div></div>
-            <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Monto a cobrar</div><div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-primary)' }}>{fmt(cobro.monto_total)}</div></div>
-          </div>
-          {err && <div style={{ padding: '10px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '13px' }}>{err}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div><label style={lbl}>Fecha de pago</label><input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required /></div>
-            <div><label style={lbl}>Monto recibido</label><input type="number" value={form.monto_pagado} onChange={e => set('monto_pagado', e.target.value)} style={inp} step="0.01" required /></div>
-            <div><label style={lbl}>Forma de pago</label>
-              <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)} style={inp}>
-                {['TRANSFERENCIA','EFECTIVO','CHEQUE','DEPOSITO'].map(v => <option key={v}>{v}</option>)}
-              </select>
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: '14px', color: meta.color }}>{fmt(p.importe)}</span>
+              <TipoBadge tipo={p.tipo_concepto} />
+              {p.factura_numero && (
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#6B7280', background: '#F3F4F6', padding: '2px 7px', borderRadius: '10px', fontFamily: 'monospace' }}>
+                  Fact. {p.factura_serie || ''}{p.factura_numero}
+                </span>
+              )}
             </div>
-            <div><label style={lbl}>No. Operación / Ref.</label><input type="text" value={form.operacion} onChange={e => set('operacion', e.target.value)} placeholder="Ej. TRF20260801..." style={inp} /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{p.fecha}</span>
+              <button onClick={() => onEliminar(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D1D5DB', padding: '2px' }} title="Eliminar">
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px', paddingTop: '4px' }}>
-            <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px', background: saving ? '#9CA3AF' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
-              {saving ? 'Guardando...' : '✓ Confirmar Pago'}
-            </button>
-            <button type="button" onClick={onClose} style={{ padding: '10px 18px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px' }}>
+            {p.origen}{p.concepto_origen ? ` · ${p.concepto_origen}` : ''}
+            {p.nota && <span style={{ fontStyle: 'italic' }}> — {p.nota}</span>}
           </div>
-        </form>
+          {/* Documentos CFDI */}
+          <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+            {p.factura_pdf_url
+              ? <a href={p.factura_pdf_url} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, textDecoration: 'none', background: '#FEE2E2', padding: '3px 8px', borderRadius: '6px' }}>
+                  <FileText size={11} /> PDF
+                </a>
+              : <button onClick={() => pdfRef.current?.click()} disabled={subiendoFactura === p.id + '_pdf'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                  <Upload size={11} /> {subiendoFactura === p.id + '_pdf' ? 'Subiendo…' : 'PDF factura'}
+                </button>
+            }
+            {p.factura_xml_url
+              ? <a href={p.factura_xml_url} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, textDecoration: 'none', background: '#D1FAE5', padding: '3px 8px', borderRadius: '6px' }}>
+                  <FileText size={11} /> XML
+                </a>
+              : <button onClick={() => xmlRef.current?.click()} disabled={subiendoFactura === p.id + '_xml'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                  <Upload size={11} /> {subiendoFactura === p.id + '_xml' ? 'Subiendo…' : 'XML CFDI'}
+                </button>
+            }
+            <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'pdf', e.target.files?.[0])} />
+            <input ref={xmlRef} type="file" accept=".xml" style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'xml', e.target.files?.[0])} />
+          </div>
+        </div>
       </div>
     </div>
   )
 }
+
+// ── Modal de pagos: historial + agregar nuevo ─────────────────────────
+function PagosModal({ cobro, onClose, onSaved }) {
+  const [ingresos, setIngresos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [subiendoFactura, setSubiendoFactura] = useState(null) // 'id_pdf' | 'id_xml'
+
+  const FORM_INIT = {
+    tipo_concepto: 'RENTA',
+    fecha_pago: new Date().toISOString().split('T')[0],
+    monto: '',
+    forma_pago: 'TRANSFERENCIA',
+    referencia: '',
+    factura_numero: '',
+    factura_serie: '',
+    nota: '',
+  }
+  const [form, setForm] = useState(FORM_INIT)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Solo ingresos tipo RENTA reducen el pendiente del cobro
+  const totalRenta = ingresos.filter(p => p.tipo_concepto === 'RENTA' || !p.tipo_concepto).reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
+  const totalSanciones = ingresos.filter(p => p.tipo_concepto !== 'RENTA' && p.tipo_concepto).reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
+  const pendiente = Math.max(0, (parseFloat(cobro.monto_total) || 0) - totalRenta)
+  const pct = cobro.monto_total > 0 ? Math.min(100, (totalRenta / parseFloat(cobro.monto_total)) * 100) : 0
+
+  useEffect(() => { cargar() }, [cobro.id])
+
+  const cargar = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('ingresos')
+      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, nota, creado_por, created_at')
+      .eq('cobro_id', cobro.id)
+      .order('fecha', { ascending: false })
+    setIngresos(data ?? [])
+    setLoading(false)
+  }
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (!form.monto || parseFloat(form.monto) <= 0) { setErr('El monto debe ser mayor a 0'); return }
+    setSaving(true); setErr(null)
+    try {
+      if (form.tipo_concepto === 'RENTA') {
+        // Pago normal → reduce el cobro programado
+        const { error } = await supabase.rpc('registrar_pago_cobro', {
+          p_cobro_id:         cobro.id,
+          p_fecha:            form.fecha_pago,
+          p_monto:            parseFloat(form.monto),
+          p_forma_pago:       form.forma_pago,
+          p_referencia_banco: form.referencia || null,
+          p_nota:             form.nota || null,
+          p_tipo_concepto:    form.tipo_concepto,
+          p_factura_numero:   form.factura_numero || null,
+          p_factura_serie:    form.factura_serie  || null,
+        })
+        if (error) throw error
+      } else {
+        // Sanción / Recargo → crea cobro nuevo de tipo SANCION/RECARGO + ingreso
+        const { error } = await supabase.rpc('registrar_sancion', {
+          p_contrato_id:         cobro.referencia_pago,  // UUID del contrato
+          p_referencia_pago:     cobro.referencia_pago,
+          p_arrendatario_nombre: cobro.arrendatario_nombre,
+          p_mes:                 cobro.mes,
+          p_anio:                cobro.anio,
+          p_monto:               parseFloat(form.monto),
+          p_fecha:               form.fecha_pago,
+          p_forma_pago:          form.forma_pago,
+          p_referencia_banco:    form.referencia || null,
+          p_factura_numero:      form.factura_numero || null,
+          p_nota:                form.nota || null,
+        })
+        if (error) throw error
+      }
+      setShowForm(false)
+      setForm(FORM_INIT)
+      await cargar()
+      onSaved()
+    } catch (e) { setErr(e.message) } finally { setSaving(false) }
+  }
+
+  const eliminar = async (ingresoId) => {
+    if (!window.confirm('¿Eliminar este movimiento? El estatus del cobro se recalculará.')) return
+    const { error } = await supabase.from('ingresos').delete().eq('id', ingresoId)
+    if (error) { alert(error.message); return }
+    await cargar(); onSaved()
+  }
+
+  const subirFactura = async (ingresoId, tipo, file) => {
+    if (!file) return
+    const key = `${ingresoId}_${tipo}`
+    setSubiendoFactura(key)
+    const ext = tipo === 'pdf' ? 'pdf' : 'xml'
+    const path = `facturas-cfdi/${cobro.referencia_pago}/${ingresoId}/${tipo}.${ext}`
+    const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, file, { upsert: true })
+    if (upErr) { alert('Error al subir: ' + upErr.message); setSubiendoFactura(null); return }
+    const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+    const col = tipo === 'pdf' ? 'factura_pdf_url' : 'factura_xml_url'
+    await supabase.from('ingresos').update({ [col]: urlData.publicUrl }).eq('id', ingresoId)
+    setSubiendoFactura(null)
+    await cargar()
+  }
+
+  const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
+  const lbl = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }
+  const colorEst = ESTATUS_COLOR[cobro.estatus] || 'var(--color-warning)'
+  const esSancion = form.tipo_concepto !== 'RENTA'
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '560px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Movimientos del cobro</div>
+            <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'monospace', marginTop: '2px' }}>{cobro.referencia_pago}</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-light)', marginTop: '2px' }}>{cobro.arrendatario_nombre} · {MES_NOMBRES[cobro.mes]} {cobro.anio}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
+        </div>
+
+        {/* Barra de progreso renta */}
+        <div style={{ padding: '14px 22px', background: '#F9FAFB', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-light)', fontWeight: 600 }}>Renta programada</span>
+            <span style={{ fontSize: '14px', fontWeight: 800 }}>{fmt(cobro.monto_total)}</span>
+          </div>
+          <div style={{ height: '7px', background: '#E5E7EB', borderRadius: '8px', overflow: 'hidden', marginBottom: '5px' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', borderRadius: '8px', transition: 'width 0.4s' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', fontWeight: 700 }}>
+              Renta cobrada: {fmt(totalRenta)} ({pct.toFixed(0)}%)
+            </span>
+            {pendiente > 0
+              ? <span style={{ fontSize: '12px', color: 'var(--color-warning)', fontWeight: 700 }}>Pendiente: {fmt(pendiente)}</span>
+              : <span style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 700 }}>✓ Liquidado</span>
+            }
+          </div>
+          {totalSanciones > 0 && (
+            <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600 }}>
+              + Sanciones/Recargos cobrados: {fmt(totalSanciones)}
+            </div>
+          )}
+        </div>
+
+        {/* Historial */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px' }}>
+          {loading
+            ? <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-light)' }}>Cargando movimientos...</div>
+            : ingresos.length === 0
+              ? <div style={{ textAlign: 'center', padding: '28px', color: 'var(--color-text-light)', fontSize: '13px' }}>Sin movimientos registrados</div>
+              : ingresos.map((p, i) => (
+                  <IngresoRow
+                    key={p.id} p={p} idx={i} total={ingresos.length}
+                    onEliminar={eliminar}
+                    onSubirFactura={subirFactura}
+                    subiendoFactura={subiendoFactura}
+                  />
+                ))
+          }
+        </div>
+
+        {/* Formulario nuevo movimiento */}
+        {showForm && (
+          <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', background: esSancion ? '#FFF8F0' : '#F9FAFB' }}>
+            <form onSubmit={guardar}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: esSancion ? 'var(--color-danger)' : 'var(--color-primary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {esSancion ? '⚠ Registrar sanción / recargo' : '✓ Registrar pago de renta'}
+              </div>
+              {err && <div style={{ padding: '8px 12px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '10px' }}>{err}</div>}
+
+              {/* Tipo de concepto */}
+              <div style={{ marginBottom: '10px' }}>
+                <label style={lbl}>Tipo de concepto</label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[['RENTA','Renta'],['SANCION','Sanción'],['RECARGO','Recargo'],['CUOTA_MANT','Mantenimiento']].map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => set('tipo_concepto', v)} style={{
+                      padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${(TIPO_CONCEPTO_META[v]||{}).color || '#E5E7EB'}`,
+                      background: form.tipo_concepto === v ? (TIPO_CONCEPTO_META[v]?.color || '#E5E7EB') : 'white',
+                      color: form.tipo_concepto === v ? 'white' : (TIPO_CONCEPTO_META[v]?.color || '#6B7280'),
+                    }}>{l}</button>
+                  ))}
+                </div>
+                {esSancion && (
+                  <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--color-danger)', background: '#FEE2E2', padding: '6px 10px', borderRadius: '6px' }}>
+                    Se creará un cobro adicional de tipo {form.tipo_concepto} vinculado a este mes y arrendatario.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div><label style={lbl}>Fecha</label><input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required /></div>
+                <div><label style={lbl}>Monto *</label><input type="number" value={form.monto} onChange={e => set('monto', e.target.value)} placeholder={!esSancion && pendiente > 0 ? String(pendiente) : '0.00'} style={inp} step="0.01" required /></div>
+                <div>
+                  <label style={lbl}>Forma de pago</label>
+                  <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)} style={inp}>
+                    {['TRANSFERENCIA','DEPOSITO','EFECTIVO','CHEQUE'].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Ref. bancaria / No. Op.</label><input type="text" value={form.referencia} onChange={e => set('referencia', e.target.value)} placeholder="TRF20260801..." style={inp} /></div>
+              </div>
+
+              {/* Factura CFDI */}
+              <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '8px' }}>Factura CFDI (opcional)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px' }}>
+                  <div><label style={lbl}>Serie</label><input type="text" value={form.factura_serie} onChange={e => set('factura_serie', e.target.value)} placeholder="A" style={inp} /></div>
+                  <div><label style={lbl}>Número de folio</label><input type="text" value={form.factura_numero} onChange={e => set('factura_numero', e.target.value)} placeholder="2151" style={inp} /></div>
+                </div>
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--color-text-light)' }}>PDF y XML los puedes adjuntar después de guardar el movimiento.</p>
+              </div>
+
+              <div style={{ marginBottom: '10px' }}>
+                <label style={lbl}>Nota (opcional)</label>
+                <input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', background: saving ? '#9CA3AF' : esSancion ? 'var(--color-danger)' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
+                  {saving ? 'Guardando...' : esSancion ? '⚠ Registrar sanción' : '✓ Confirmar pago'}
+                </button>
+                <button type="button" onClick={() => { setShowForm(false); setErr(null); setForm(FORM_INIT) }} style={{ padding: '9px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Footer */}
+        {!showForm && (
+          <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: colorEst + '20', color: colorEst }}>{cobro.estatus}</span>
+            <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+              <Plus size={14} /> Agregar movimiento
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 export default function Cobranza() {
   useModuleAudit('COBRANZA')
@@ -239,8 +522,8 @@ export default function Cobranza() {
         }
       </div>
 
-      {selected && selected.estatus !== 'PAGADO' && (
-        <PagoModal cobro={selected} onClose={() => setSelected(null)} onSaved={() => setRefreshKey(k => k + 1)} />
+      {selected && (
+        <PagosModal cobro={selected} onClose={() => setSelected(null)} onSaved={() => setRefreshKey(k => k + 1)} />
       )}
       {expedienteData && (
         <ExpedienteModal

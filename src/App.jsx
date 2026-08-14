@@ -27,18 +27,24 @@ import Agua from './pages/Agua.jsx'
 import Vending from './pages/Vending.jsx'
 import EDR from './pages/EDR.jsx'
 import ResumenSemanal from './pages/ResumenSemanal.jsx'
+import Bitacora from './pages/Bitacora.jsx'
+import Utilidades from './pages/Utilidades.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
+import PortalArrendatario from './pages/PortalArrendatario.jsx'
+import MapaLocales from './pages/MapaLocales.jsx'
+import Ingresos from './pages/Ingresos.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
   const { user, loading, sidebarOpen } = useApp()
   const location = useLocation()
 
-  // Ruta pública — sin auth
+  // Rutas públicas — sin layout admin
   if (location.pathname.startsWith('/portal/')) {
     return (
       <Routes>
         <Route path="/portal/prospecto/:token" element={<PortalProspecto />} />
+        <Route path="/portal/arrendatario"      element={<PortalArrendatario />} />
       </Routes>
     )
   }
@@ -83,6 +89,10 @@ function AppLayout() {
           <Route path="/vending" element={<Vending />} />
           <Route path="/edr" element={<EDR />} />
           <Route path="/resumen-semanal" element={<ResumenSemanal />} />
+          <Route path="/bitacora" element={<Bitacora />} />
+          <Route path="/utilidades" element={<Utilidades />} />
+          <Route path="/mapa-locales" element={<MapaLocales />} />
+          <Route path="/ingresos" element={<Ingresos />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

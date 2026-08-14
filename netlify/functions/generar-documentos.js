@@ -448,7 +448,7 @@ exports.handler = async (event) => {
     const data = JSON.parse(event.body);
     const tipo = data.tipo || 'contrato'; // 'contrato' | 'pagares' | 'ambos'
 
-    if (tipo === 'contrato' || tipo === 'ambos') {
+    if (tipo === 'contrato') {
       const doc = generarContrato(data);
       const buf = await Packer.toBuffer(doc);
       return {

@@ -1,17 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import { FileText, Download, X, ChevronRight, ChevronLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import { logAudit } from '../../hooks/useAudit'
 
 const NETLIFY_FN = '/.netlify/functions/generar-documentos'
 
-// Descarga un DOCX desde base64
-function downloadBase64(b64, filename) {
-  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
-  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+// ── Descarga DOCX desde Blob (la función devuelve binario con isBase64Encoded)
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = filename; a.click()
   URL.revokeObjectURL(url)
+}
+
+// ── Para tipo='ambos' la función devuelve JSON con base64 strings
+function downloadBase64(b64, filename) {
+  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+  downloadBlob(blob, filename)
 }
 
 const STEPS = ['Arrendatario', 'Contrato', 'Fiador', 'Generar']
@@ -38,111 +43,15 @@ const CAMPOS_DOC = {
   ],
 }
 
-export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
-  const [step, setStep] = useState(0)
-  const [generando, setGenerando] = useState(null) // 'contrato' | 'pagares' | 'ambos'
-  const [docCheck, setDocCheck] = useState({})
-  const [error, setError] = useState('')
+// ── Context para pasar form/set a componentes de formulario ─────────────────
+const FormCtx = createContext(null)
 
-  // Estado del formulario
-  const [form, setForm] = useState({
-    // ─ Arrendatario ─
-    tipo_persona: 'FISICA',
-    arrendatario_nombre: prospecto?.nombre ? `${prospecto.nombre} ${prospecto.apellidos || ''}`.trim() : '',
-    arrendatario_rep: '',
-    arrendatario_domicilio: prospecto?.domicilio || '',
-    arrendatario_rfc: prospecto?.rfc || '',
-    arrendatario_telefono: prospecto?.telefono || '',
-    arrendatario_instrumento: '',
-    // ─ Contrato ─
-    numero_local: unidad?.numero_local || '',
-    domicilio_local: 'Avenida Gobernadores número 1622, Colonia La Providencia, Código Postal 52177, en Metepec, México',
-    fecha_inicio: '',
-    fecha_fin: '',
-    duracion_meses: 12,
-    renta_mensual: prospecto?.monto_ofertado || '',
-    dia_pago: '10',
-    interes_moratorio: 'diez',
-    meses_deposito: 1,
-    giro_actividad: prospecto?.giro_solicitado || '',
-    // ─ Fiador ─
-    fiador_nombre: prospecto?.fiador_nombre || '',
-    fiador_telefono: prospecto?.fiador_telefono || '',
-    fiador_domicilio: prospecto?.fiador_domicilio || '',
-    fiador_ine: '',
-    // ─ Pagarés ─
-    dia_vencimiento: 10,
-  })
+// ── Componentes de formulario FUERA del componente principal ─────────────────
+// Al estar fuera, React los reconoce como tipos estables y no los desmonta
+// en cada re-render (corrige bug de "solo permite 1 carácter").
 
-  // Auto-calcular fecha_fin cuando cambia fecha_inicio o duracion_meses
-  useEffect(() => {
-    if (!form.fecha_inicio) return
-    const d = new Date(form.fecha_inicio + 'T12:00:00')
-    d.setMonth(d.getMonth() + Number(form.duracion_meses))
-    const iso = d.toISOString().split('T')[0]
-    setForm(f => ({ ...f, fecha_fin: iso }))
-  }, [form.fecha_inicio, form.duracion_meses])
-
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
-  // Verificación de documentación
-  const camposDoc = CAMPOS_DOC[form.tipo_persona] || []
-  const docsRequeridos = camposDoc.filter(c => c.requerido)
-  const docsCompletos = docsRequeridos.every(c => docCheck[c.key])
-
-  async function generar(tipo) {
-    setError('')
-    setGenerando(tipo)
-    try {
-      const payload = {
-        ...form,
-        renta_mensual: Number(form.renta_mensual),
-        duracion_meses: Number(form.duracion_meses),
-        meses_deposito: Number(form.meses_deposito),
-        dia_vencimiento: Number(form.dia_vencimiento),
-        fecha_firma: form.fecha_inicio,
-        tipo,
-        beneficiario: 'INMOBILIARIA ALCEDINES DEL NORTE SA.DE.CV',
-      }
-
-      const res = await fetch(NETLIFY_FN, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(txt)
-      }
-
-      if (tipo === 'ambos') {
-        const { contrato, pagares } = await res.json()
-        downloadBase64(contrato, `Contrato_${form.arrendatario_nombre.replace(/\s+/g,'_')}.docx`)
-        downloadBase64(pagares,  `Pagares_${form.arrendatario_nombre.replace(/\s+/g,'_')}.docx`)
-      } else {
-        const b64 = await res.text()
-        const fname = tipo === 'contrato'
-          ? `Contrato_${form.arrendatario_nombre.replace(/\s+/g,'_')}.docx`
-          : `Pagares_${form.arrendatario_nombre.replace(/\s+/g,'_')}.docx`
-        downloadBase64(b64, fname)
-      }
-
-      logAudit({
-        modulo: 'CONTRATOS',
-        accion: tipo === 'pagares' ? 'GENERAR_PAGARES' : 'GENERAR_CONTRATO',
-        entidad: 'ARRENDATARIO',
-        descripcion: `${tipo.toUpperCase()} generado para ${form.arrendatario_nombre} — Local ${form.numero_local}`,
-      })
-    } catch (e) {
-      setError(e.message || 'Error generando documento')
-    } finally {
-      setGenerando(null)
-    }
-  }
-
-  // ── Render por step ───────────────────────────────────────────────────────
-  const Field = ({ label, children, required }) => (
+function Field({ label, required, children }) {
+  return (
     <div className="mb-4">
       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
         {label}{required && <span className="text-red-500 ml-1">*</span>}
@@ -150,67 +59,87 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
       {children}
     </div>
   )
-  const Input = ({ field, ...props }) => (
+}
+
+function FInput({ field, ...props }) {
+  const { form, set } = useContext(FormCtx)
+  return (
     <input
       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      value={form[field] || ''}
+      value={form[field] ?? ''}
       onChange={e => set(field, e.target.value)}
       {...props}
     />
   )
-  const Select = ({ field, options, ...props }) => (
+}
+
+function FSelect({ field, options, ...props }) {
+  const { form, set } = useContext(FormCtx)
+  return (
     <select
       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      value={form[field] || ''}
+      value={form[field] ?? ''}
       onChange={e => set(field, e.target.value)}
       {...props}
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   )
+}
 
-  const steps = [
-    // ── STEP 0: Arrendatario ──────────────────────────────────────────────
-    <div key="s0">
+function FTextarea({ field, rows = 2, ...props }) {
+  const { form, set } = useContext(FormCtx)
+  return (
+    <textarea
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+      rows={rows}
+      value={form[field] ?? ''}
+      onChange={e => set(field, e.target.value)}
+      {...props}
+    />
+  )
+}
+
+// ── Steps como componentes estables (fuera de ElaborarContratoModal) ─────────
+
+function StepArrendatario({ docCheck, setDocCheck }) {
+  const { form, set } = useContext(FormCtx)
+  const camposDoc = CAMPOS_DOC[form.tipo_persona] || []
+  const docsRequeridos = camposDoc.filter(c => c.requerido)
+  const docsCompletos = docsRequeridos.every(c => docCheck[c.key])
+  return (
+    <div>
       <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Datos del Arrendatario</h3>
       <Field label="Tipo de persona" required>
-        <Select field="tipo_persona" options={[
+        <FSelect field="tipo_persona" options={[
           { value: 'FISICA', label: 'Persona Física' },
           { value: 'MORAL', label: 'Persona Moral / Empresa' },
         ]} />
       </Field>
       <Field label={form.tipo_persona === 'MORAL' ? 'Razón Social' : 'Nombre Completo'} required>
-        <Input field="arrendatario_nombre" placeholder="Nombre completo o Razón social" />
+        <FInput field="arrendatario_nombre" placeholder="Nombre completo o Razón social" />
       </Field>
       {form.tipo_persona === 'MORAL' && (
         <>
           <Field label="Representante Legal" required>
-            <Input field="arrendatario_rep" placeholder="Nombre del representante legal" />
+            <FInput field="arrendatario_rep" placeholder="Nombre del representante legal" />
           </Field>
           <Field label="Instrumento Notarial (Acta constitutiva)">
-            <Input field="arrendatario_instrumento" placeholder="libro X, instrumento Y, fecha Z" />
+            <FInput field="arrendatario_instrumento" placeholder="libro X, instrumento Y, fecha Z" />
           </Field>
         </>
       )}
       <div className="grid grid-cols-2 gap-4">
         <Field label="RFC" required>
-          <Input field="arrendatario_rfc" placeholder="RFC con homoclave" />
+          <FInput field="arrendatario_rfc" placeholder="RFC con homoclave" />
         </Field>
         <Field label="Teléfono">
-          <Input field="arrendatario_telefono" placeholder="55 1234 5678" />
+          <FInput field="arrendatario_telefono" placeholder="55 1234 5678" />
         </Field>
       </div>
       <Field label="Domicilio" required>
-        <textarea
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows={2}
-          value={form.arrendatario_domicilio}
-          onChange={e => set('arrendatario_domicilio', e.target.value)}
-          placeholder="Calle, número, colonia, CP, ciudad"
-        />
+        <FTextarea field="arrendatario_domicilio" placeholder="Calle, número, colonia, CP, ciudad" />
       </Field>
-
-      {/* Checklist documentación */}
       <div className="mt-6">
         <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <span>Documentación recibida</span>
@@ -241,30 +170,29 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
           </p>
         )}
       </div>
-    </div>,
+    </div>
+  )
+}
 
-    // ── STEP 1: Condiciones del contrato ──────────────────────────────────
-    <div key="s1">
+function StepContrato() {
+  const { form, set } = useContext(FormCtx)
+  return (
+    <div>
       <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Condiciones del Contrato</h3>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Número de local" required>
-          <Input field="numero_local" placeholder="L-15 / 6 y 7" />
+          <FInput field="numero_local" placeholder="L-15 / 6 y 7" />
         </Field>
         <Field label="Duración (meses)" required>
-          <Select field="duracion_meses" options={[6,12,24,36].map(n => ({ value: n, label: `${n} meses` }))} />
+          <FSelect field="duracion_meses" options={[6,12,24,36].map(n => ({ value: n, label: `${n} meses` }))} />
         </Field>
       </div>
       <Field label="Domicilio del local">
-        <textarea
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows={2}
-          value={form.domicilio_local}
-          onChange={e => set('domicilio_local', e.target.value)}
-        />
+        <FTextarea field="domicilio_local" />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Fecha de inicio" required>
-          <Input field="fecha_inicio" type="date" />
+          <FInput field="fecha_inicio" type="date" />
         </Field>
         <Field label="Fecha de término (auto)">
           <input
@@ -276,57 +204,49 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Renta mensual ($)" required>
-          <Input field="renta_mensual" type="number" placeholder="38682" />
+          <FInput field="renta_mensual" type="number" placeholder="38682" />
         </Field>
         <Field label="Día de pago (del mes)" required>
-          <Input field="dia_pago" type="number" min="1" max="28" placeholder="10" />
+          <FInput field="dia_pago" type="number" min="1" max="28" placeholder="10" />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Interés moratorio">
-          <Select field="interes_moratorio" options={[
+          <FSelect field="interes_moratorio" options={[
             { value: 'cinco', label: '5% mensual' },
             { value: 'diez', label: '10% mensual' },
             { value: 'quince', label: '15% mensual' },
           ]} />
         </Field>
         <Field label="Depósito en garantía">
-          <Select field="meses_deposito" options={[1,2,3].map(n => ({ value: n, label: `${n} mes${n>1?'es':''}` }))} />
+          <FSelect field="meses_deposito" options={[1,2,3].map(n => ({ value: n, label: `${n} mes${n>1?'es':''}` }))} />
         </Field>
       </div>
       <Field label="Giro / destino del local" required>
-        <textarea
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows={2}
-          value={form.giro_actividad}
-          onChange={e => set('giro_actividad', e.target.value)}
-          placeholder="Venta y distribución de electrónicos, servicio de cafetería..."
-        />
+        <FTextarea field="giro_actividad" placeholder="Venta y distribución de electrónicos, servicio de cafetería..." />
       </Field>
-    </div>,
+    </div>
+  )
+}
 
-    // ── STEP 2: Fiador y pagarés ──────────────────────────────────────────
-    <div key="s2">
+function StepFiador() {
+  const { form } = useContext(FormCtx)
+  return (
+    <div>
       <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Fiador</h3>
       <Field label="Nombre completo del fiador" required>
-        <Input field="fiador_nombre" placeholder="Nombre del fiador solidario" />
+        <FInput field="fiador_nombre" placeholder="Nombre del fiador solidario" />
       </Field>
       <Field label="No. de INE / identificación oficial">
-        <Input field="fiador_ine" placeholder="Número de credencial para votar" />
+        <FInput field="fiador_ine" placeholder="Número de credencial para votar" />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Teléfono del fiador">
-          <Input field="fiador_telefono" placeholder="55 1234 5678" />
+          <FInput field="fiador_telefono" placeholder="55 1234 5678" />
         </Field>
       </div>
       <Field label="Domicilio del fiador">
-        <textarea
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows={2}
-          value={form.fiador_domicilio}
-          onChange={e => set('fiador_domicilio', e.target.value)}
-          placeholder="Calle, número, colonia, CP, municipio, estado"
-        />
+        <FTextarea field="fiador_domicilio" placeholder="Calle, número, colonia, CP, municipio, estado" />
       </Field>
 
       <h3 className="font-semibold text-gray-700 mt-6 mb-4 pb-2 border-b">Configuración de Pagarés</h3>
@@ -335,9 +255,8 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
         Cada pagaré vence el día <strong>{form.dia_vencimiento}</strong> del mes correspondiente, iniciando desde el mes siguiente a la firma.
       </div>
       <Field label="Día de vencimiento de cada pagaré (del mes)" required>
-        <Input field="dia_vencimiento" type="number" min="1" max="28" placeholder="6" />
+        <FInput field="dia_vencimiento" type="number" min="1" max="28" placeholder="6" />
       </Field>
-
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2 text-xs text-gray-600">
         <strong>Vista previa pagarés:</strong><br />
         {Array.from({ length: Math.min(3, Number(form.duracion_meses)) }, (_, i) => {
@@ -353,13 +272,15 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
         })}
         {Number(form.duracion_meses) > 3 && <span>... y {Number(form.duracion_meses) - 3} más</span>}
       </div>
-    </div>,
+    </div>
+  )
+}
 
-    // ── STEP 3: Generar ───────────────────────────────────────────────────
-    <div key="s3">
+function StepGenerar({ generando, error, onGenerar, docsCompletos }) {
+  const { form } = useContext(FormCtx)
+  return (
+    <div>
       <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Generar Documentos</h3>
-
-      {/* Resumen */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-sm space-y-1">
         <div className="font-semibold text-gray-700 mb-2">Resumen del contrato</div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -388,26 +309,24 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
           }
         </div>
       </div>
-
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm mb-4 flex items-start gap-2">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
-
       <div className="grid grid-cols-1 gap-3">
         <button
-          onClick={() => generar('ambos')}
+          onClick={() => onGenerar('ambos')}
           disabled={!!generando || !form.fecha_inicio || !form.renta_mensual}
           className="flex items-center justify-center gap-3 bg-[#0A66C2] hover:bg-[#1A3C5E] disabled:opacity-50 text-white rounded-xl py-3.5 px-6 font-semibold text-base transition"
         >
           <Download size={20} />
-          {generando === 'ambos' ? 'Generando...' : 'Elaborar Contrato + 12 Pagarés'}
+          {generando === 'ambos' ? 'Generando...' : `Elaborar Contrato + ${form.duracion_meses} Pagarés`}
         </button>
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => generar('contrato')}
+            onClick={() => onGenerar('contrato')}
             disabled={!!generando || !form.fecha_inicio || !form.renta_mensual}
             className="flex items-center justify-center gap-2 border-2 border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50 disabled:opacity-50 rounded-xl py-3 px-4 font-medium text-sm transition"
           >
@@ -415,7 +334,7 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
             {generando === 'contrato' ? 'Generando...' : 'Solo Contrato'}
           </button>
           <button
-            onClick={() => generar('pagares')}
+            onClick={() => onGenerar('pagares')}
             disabled={!!generando || !form.fecha_inicio || !form.renta_mensual}
             className="flex items-center justify-center gap-2 border-2 border-[#E8A020] text-[#E8A020] hover:bg-yellow-50 disabled:opacity-50 rounded-xl py-3 px-4 font-medium text-sm transition"
           >
@@ -427,71 +346,178 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
       <p className="text-xs text-center text-gray-400 mt-3">
         Los documentos se descargan como archivos Word (.docx) listos para imprimir y firmar.
       </p>
-    </div>,
-  ]
+    </div>
+  )
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
+  const [step, setStep] = useState(0)
+  const [generando, setGenerando] = useState(null)
+  const [docCheck, setDocCheck] = useState({})
+  const [error, setError] = useState('')
+
+  const [form, setForm] = useState({
+    tipo_persona: 'FISICA',
+    arrendatario_nombre: prospecto?.nombre ? `${prospecto.nombre} ${prospecto.apellidos || ''}`.trim() : '',
+    arrendatario_rep: '',
+    arrendatario_domicilio: prospecto?.domicilio || '',
+    arrendatario_rfc: prospecto?.rfc || '',
+    arrendatario_telefono: prospecto?.telefono || '',
+    arrendatario_instrumento: '',
+    numero_local: unidad?.numero_local || '',
+    domicilio_local: 'Avenida Gobernadores número 1622, Colonia La Providencia, Código Postal 52177, en Metepec, México',
+    fecha_inicio: '',
+    fecha_fin: '',
+    duracion_meses: 12,
+    renta_mensual: prospecto?.monto_ofertado || '',
+    dia_pago: '10',
+    interes_moratorio: 'diez',
+    meses_deposito: 1,
+    giro_actividad: prospecto?.giro_solicitado || '',
+    fiador_nombre: prospecto?.fiador_nombre || '',
+    fiador_telefono: prospecto?.fiador_telefono || '',
+    fiador_domicilio: prospecto?.fiador_domicilio || '',
+    fiador_ine: '',
+    dia_vencimiento: 10,
+  })
+
+  useEffect(() => {
+    if (!form.fecha_inicio) return
+    const d = new Date(form.fecha_inicio + 'T12:00:00')
+    d.setMonth(d.getMonth() + Number(form.duracion_meses))
+    const iso = d.toISOString().split('T')[0]
+    setForm(f => ({ ...f, fecha_fin: iso }))
+  }, [form.fecha_inicio, form.duracion_meses])
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const camposDoc = CAMPOS_DOC[form.tipo_persona] || []
+  const docsCompletos = camposDoc.filter(c => c.requerido).every(c => docCheck[c.key])
+
+  async function generar(tipo) {
+    setError('')
+    setGenerando(tipo)
+    try {
+      const payload = {
+        ...form,
+        renta_mensual:  Number(form.renta_mensual),
+        duracion_meses: Number(form.duracion_meses),
+        meses_deposito: Number(form.meses_deposito),
+        dia_vencimiento: Number(form.dia_vencimiento),
+        fecha_firma: form.fecha_inicio,
+        tipo,
+        beneficiario: 'INMOBILIARIA ALCEDINES DEL NORTE SA.DE.CV',
+      }
+
+      const res = await fetch(NETLIFY_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const txt = await res.text()
+        throw new Error(txt)
+      }
+
+      const nombre = form.arrendatario_nombre.replace(/\s+/g, '_')
+
+      if (tipo === 'ambos') {
+        // La función devuelve JSON con dos campos base64
+        const { contrato, pagares } = await res.json()
+        downloadBase64(contrato, `Contrato_${nombre}.docx`)
+        downloadBase64(pagares,  `Pagares_${nombre}.docx`)
+      } else {
+        // La función devuelve binario DOCX directamente (isBase64Encoded en Netlify
+        // lo decodifica antes de enviarlo al browser → usar blob())
+        const blob = await res.blob()
+        const fname = tipo === 'contrato'
+          ? `Contrato_${nombre}.docx`
+          : `Pagares_${nombre}.docx`
+        downloadBlob(blob, fname)
+      }
+
+      logAudit({
+        modulo: 'CONTRATOS',
+        accion: tipo === 'pagares' ? 'GENERAR_PAGARES' : 'GENERAR_CONTRATO',
+        entidad: 'ARRENDATARIO',
+        descripcion: `${tipo.toUpperCase()} generado para ${form.arrendatario_nombre} — Local ${form.numero_local}`,
+      })
+    } catch (e) {
+      setError(e.message || 'Error generando documento')
+    } finally {
+      setGenerando(null)
+    }
+  }
 
   const canNext = step === 0 ? true : step === 1 ? !!form.fecha_inicio && !!form.renta_mensual : true
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: '16px' }}>
-      <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,0.3)' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#1A3C5E', borderRadius: '14px 14px 0 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <FileText size={22} color="#E8A020" />
-            <div>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'white' }}>Elaborar Contrato</h2>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#93C5FD' }}>{form.arrendatario_nombre || 'Nuevo arrendatario'} · Local {form.numero_local || '—'}</p>
+    <FormCtx.Provider value={{ form, set }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: '16px' }}>
+        <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,0.3)' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#1A3C5E', borderRadius: '14px 14px 0 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <FileText size={22} color="#E8A020" />
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'white' }}>Elaborar Contrato</h2>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#93C5FD' }}>{form.arrendatario_nombre || 'Nuevo arrendatario'} · Local {form.numero_local || '—'}</p>
+              </div>
             </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#93C5FD', padding: '4px' }}>
-            <X size={22} />
-          </button>
-        </div>
-
-        {/* Steps indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: '1px solid #E5E7EB', background: '#F9FAFB', gap: '4px' }}>
-          {STEPS.map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
-              <button
-                onClick={() => i <= step && setStep(i)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: i <= step ? 'pointer' : 'default', fontSize: '12px', fontWeight: 600, color: i === step ? '#0A66C2' : i < step ? '#16a34a' : '#9CA3AF', padding: 0 }}
-              >
-                <span style={{ width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, background: i === step ? '#0A66C2' : i < step ? '#16a34a' : '#E5E7EB', color: i <= step ? 'white' : '#9CA3AF', flexShrink: 0 }}>
-                  {i < step ? '✓' : i + 1}
-                </span>
-                {s}
-              </button>
-              {i < STEPS.length - 1 && <div style={{ flex: 1, height: '2px', borderRadius: '1px', background: i < step ? '#16a34a' : '#E5E7EB' }} />}
-            </div>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          {steps[step]}
-        </div>
-
-        {/* Footer nav */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #E5E7EB', background: '#F9FAFB', borderRadius: '0 0 14px 14px' }}>
-          <button
-            onClick={() => step > 0 ? setStep(s => s - 1) : onClose()}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#6B7280', fontWeight: 500 }}
-          >
-            <ChevronLeft size={16} />
-            {step > 0 ? 'Anterior' : 'Cancelar'}
-          </button>
-          {step < STEPS.length - 1 && (
-            <button
-              onClick={() => setStep(s => s + 1)}
-              disabled={!canNext}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: canNext ? '#0A66C2' : '#9CA3AF', border: 'none', cursor: canNext ? 'pointer' : 'not-allowed', color: 'white', borderRadius: '8px', padding: '9px 20px', fontSize: '14px', fontWeight: 600 }}
-            >
-              Siguiente <ChevronRight size={16} />
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#93C5FD', padding: '4px' }}>
+              <X size={22} />
             </button>
-          )}
+          </div>
+
+          {/* Steps indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '10px 24px', borderBottom: '1px solid #E5E7EB', background: '#F9FAFB', gap: '4px' }}>
+            {STEPS.map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                <button
+                  onClick={() => i <= step && setStep(i)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: i <= step ? 'pointer' : 'default', fontSize: '12px', fontWeight: 600, color: i === step ? '#0A66C2' : i < step ? '#16a34a' : '#9CA3AF', padding: 0 }}
+                >
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, background: i === step ? '#0A66C2' : i < step ? '#16a34a' : '#E5E7EB', color: i <= step ? 'white' : '#9CA3AF', flexShrink: 0 }}>
+                    {i < step ? '✓' : i + 1}
+                  </span>
+                  {s}
+                </button>
+                {i < STEPS.length - 1 && <div style={{ flex: 1, height: '2px', borderRadius: '1px', background: i < step ? '#16a34a' : '#E5E7EB' }} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+            {step === 0 && <StepArrendatario docCheck={docCheck} setDocCheck={setDocCheck} />}
+            {step === 1 && <StepContrato />}
+            {step === 2 && <StepFiador />}
+            {step === 3 && <StepGenerar generando={generando} error={error} onGenerar={generar} docsCompletos={docsCompletos} />}
+          </div>
+
+          {/* Footer nav */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #E5E7EB', background: '#F9FAFB', borderRadius: '0 0 14px 14px' }}>
+            <button
+              onClick={() => step > 0 ? setStep(s => s - 1) : onClose()}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#6B7280', fontWeight: 500 }}
+            >
+              <ChevronLeft size={16} />
+              {step > 0 ? 'Anterior' : 'Cancelar'}
+            </button>
+            {step < STEPS.length - 1 && (
+              <button
+                onClick={() => setStep(s => s + 1)}
+                disabled={!canNext}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: canNext ? '#0A66C2' : '#9CA3AF', border: 'none', cursor: canNext ? 'pointer' : 'not-allowed', color: 'white', borderRadius: '8px', padding: '9px 20px', fontSize: '14px', fontWeight: 600 }}
+              >
+                Siguiente <ChevronRight size={16} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </FormCtx.Provider>
   )
 }

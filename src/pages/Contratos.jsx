@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
-  Send, Download, Eye, ChevronRight, Wand2
+  Send, Download, Eye, ChevronRight, Wand2, Pencil, Save
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -91,7 +91,64 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
   const [pdfUrl, setPdfUrl] = useState(c?.archivo_contrato_url || null)
   const [notaErr, setNotaErr] = useState(null)
   const [showElaborar, setShowElaborar] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState({})
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editErr, setEditErr] = useState(null)
   const pdfRef = useRef()
+
+  const startEdit = () => {
+    setEditForm({
+      renta_mensual:              c.renta_mensual ?? '',
+      deposito_garantia:          c.deposito_garantia ?? '',
+      dia_limite_pago:            c.dia_limite_pago ?? '',
+      penalizacion_mora_pct:      c.penalizacion_mora_pct ?? '',
+      cuenta_banco_pago:          c.cuenta_banco_pago ?? '',
+      clabe_interbancaria:        c.clabe_interbancaria ?? '',
+      fecha_inicio:               c.fecha_inicio ?? '',
+      fecha_fin:                  c.fecha_fin ?? '',
+      fecha_firma:                c.fecha_firma ?? '',
+      giro_autorizado:            c.giro_autorizado ?? '',
+      horario_inicio:             c.horario_inicio ?? '',
+      horario_fin:                c.horario_fin ?? '',
+      cancelacion_anticipada_meses: c.cancelacion_anticipada_meses ?? '',
+      fiador_nombre:              c.fiador_nombre ?? '',
+      fiador_rfc:                 c.fiador_rfc ?? '',
+      fiador_domicilio:           c.fiador_domicilio ?? '',
+    })
+    setEditErr(null)
+    setEditMode(true)
+  }
+
+  const guardarEdit = async () => {
+    setSavingEdit(true); setEditErr(null)
+    // Columnas reales de public.contratos (dia_pago y penalizacion_pct son los nombres en tabla)
+    const payload = {
+      renta_mensual:    editForm.renta_mensual    ? parseFloat(editForm.renta_mensual)    : null,
+      deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
+      dia_pago:         editForm.dia_limite_pago  ? parseInt(editForm.dia_limite_pago)   : null,
+      penalizacion_pct: editForm.penalizacion_mora_pct ? parseFloat(editForm.penalizacion_mora_pct) : null,
+      fecha_inicio:     editForm.fecha_inicio     || null,
+      fecha_fin:        editForm.fecha_fin        || null,
+    }
+    // Campos adicionales que existen en la tabla si los tiene el registro actual
+    if ('giro_autorizado' in c)              payload.giro_autorizado = editForm.giro_autorizado || null
+    if ('fecha_firma' in c)                  payload.fecha_firma = editForm.fecha_firma || null
+    if ('cuenta_banco_pago' in c)            payload.cuenta_banco_pago = editForm.cuenta_banco_pago || null
+    if ('clabe_interbancaria' in c)          payload.clabe_interbancaria = editForm.clabe_interbancaria || null
+    if ('horario_inicio' in c)               payload.horario_inicio = editForm.horario_inicio || null
+    if ('horario_fin' in c)                  payload.horario_fin = editForm.horario_fin || null
+    if ('cancelacion_anticipada_meses' in c) payload.cancelacion_anticipada_meses = editForm.cancelacion_anticipada_meses ? parseInt(editForm.cancelacion_anticipada_meses) : null
+    if ('fiador_nombre' in c)                payload.fiador_nombre = editForm.fiador_nombre || null
+    if ('fiador_rfc' in c)                   payload.fiador_rfc = editForm.fiador_rfc || null
+    if ('fiador_domicilio' in c)             payload.fiador_domicilio = editForm.fiador_domicilio || null
+
+    const { error } = await supabase.from('contratos').update(payload).eq('id', c.id)
+    setSavingEdit(false)
+    if (error) { setEditErr(error.message); return }
+    setEditMode(false)
+    onUpdated?.()
+  }
 
   useEffect(() => {
     if (!c) return
@@ -132,11 +189,11 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
     if (!file.name.match(/\.pdf$/i)) { alert('Solo se permiten archivos PDF'); return }
     setUploadingPDF(true)
     const path = `contratos/${c.id}/contrato_firmado.pdf`
-    const { error: upErr } = await supabase.storage.from('contratos-docs').upload(path, file, { upsert: true })
+    const { error: upErr } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
     if (upErr) { setUploadingPDF(false); alert('Error al subir: ' + upErr.message); return }
-    const { data: urlData } = supabase.storage.from('contratos-docs').getPublicUrl(path)
+    const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(path)
     const url = urlData.publicUrl
-    await supabase.from('contratos_arrendamiento').update({ archivo_contrato_url: url }).eq('id', c.id)
+    await supabase.from('contratos').update({ contrato_pdf_url: url }).eq('id', c.id)
     setPdfUrl(url)
     setUploadingPDF(false)
     onUpdated?.()
@@ -157,12 +214,12 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
     </button>
   )
 
-  const Campo = ({ label, val }) => val ? (
+  const Campo = ({ label, val }) => (
     <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '8px', padding: '9px 0', borderBottom: '1px solid #F9FAFB' }}>
       <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', paddingTop: '1px' }}>{label}</span>
-      <span style={{ fontSize: '13px' }}>{val}</span>
+      <span style={{ fontSize: '13px', color: val ? 'var(--color-text)' : '#D1D5DB', fontStyle: val ? 'normal' : 'italic' }}>{val || '—'}</span>
     </div>
-  ) : null
+  )
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
@@ -197,39 +254,156 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
           {/* ── TAB DATOS ── */}
           {tab === 'datos' && (
             <div>
-              <p style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-light)' }}>
-                {c.arrendatario_nombre} · {c.inmueble_nombre} – {c.unidad_numero} · {c.tipo_unidad} {c.m2_totales ? `(${c.m2_totales}m²)` : ''}
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Renta y pagos</div>
-                  <Campo label="Renta mensual"     val={fmt(c.renta_mensual)} />
-                  <Campo label="Depósito garantía" val={c.deposito_garantia > 0 ? fmt(c.deposito_garantia) : null} />
-                  <Campo label="Día límite pago"   val={c.dia_limite_pago ? `Día ${c.dia_limite_pago}` : null} />
-                  <Campo label="Mora"              val={c.penalizacion_mora_pct ? `${c.penalizacion_mora_pct}% mensual` : null} />
-                  <Campo label="Cuenta BBVA"       val={c.cuenta_banco_pago} />
-                  <Campo label="CLABE"             val={c.clabe_interbancaria} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Vigencia y condiciones</div>
-                  <Campo label="Tipo"             val={c.tipo_contrato} />
-                  <Campo label="Inicio"           val={c.fecha_inicio} />
-                  <Campo label="Vencimiento"      val={c.fecha_fin ?? 'Tiempo indeterminado'} />
-                  <Campo label="Fecha firma"      val={c.fecha_firma} />
-                  <Campo label="Giro autorizado"  val={c.giro_autorizado} />
-                  <Campo label="Horario"          val={c.horario_inicio ? `${c.horario_inicio} – ${c.horario_fin}` : null} />
-                  <Campo label="Cancelación antic." val={c.cancelacion_anticipada_meses ? `${c.cancelacion_anticipada_meses} meses` : null} />
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text-light)' }}>
+                  {c.arrendatario_nombre} · {c.inmueble_nombre} – {c.unidad_numero} · {c.tipo_unidad} {c.m2_totales ? `(${c.m2_totales}m²)` : ''}
+                </p>
+                {!editMode && (
+                  <button onClick={startEdit} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
+                    <Pencil size={13} /> Editar
+                  </button>
+                )}
               </div>
-              {(c.fiador_nombre || c.fiador_rfc) && (
-                <div style={{ marginTop: '16px', padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador</div>
-                  <Campo label="Nombre"    val={c.fiador_nombre} />
-                  <Campo label="RFC"       val={c.fiador_rfc} />
-                  <Campo label="Domicilio" val={c.fiador_domicilio} />
-                </div>
+
+              {/* ── MODO EDICIÓN ── */}
+              {editMode ? (() => {
+                const inp = (field, type = 'text', placeholder = '') => (
+                  <input type={type} value={editForm[field]} placeholder={placeholder}
+                    onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
+                    style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+                )
+                const Row = ({ label, children }) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F3F4F6' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
+                    {children}
+                  </div>
+                )
+                return (
+                  <div>
+                    {/* Local y arrendatario — solo lectura, no se editan */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', padding: '10px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 800, background: 'var(--color-primary)', color: 'white', padding: '3px 10px', borderRadius: '20px', whiteSpace: 'nowrap' }}>{c.unidad_numero}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>{c.arrendatario_nombre}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Local e inquilino no editables</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Renta y pagos</div>
+                        <Row label="Renta mensual">{inp('renta_mensual','number','0')}</Row>
+                        <Row label="Depósito garantía">{inp('deposito_garantia','number','0')}</Row>
+                        <Row label="Día límite pago">{inp('dia_limite_pago','number','10')}</Row>
+                        <Row label="Mora %">{inp('penalizacion_mora_pct','number','5')}</Row>
+                        <Row label="Cuenta BBVA">{inp('cuenta_banco_pago')}</Row>
+                        <Row label="CLABE">{inp('clabe_interbancaria')}</Row>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Vigencia y condiciones</div>
+                        <Row label="Inicio">{inp('fecha_inicio','date')}</Row>
+                        <Row label="Vencimiento">{inp('fecha_fin','date')}</Row>
+                        <Row label="Fecha firma">{inp('fecha_firma','date')}</Row>
+                        <Row label="Giro autorizado">{inp('giro_autorizado')}</Row>
+                        <Row label="Horario inicio">{inp('horario_inicio','time')}</Row>
+                        <Row label="Horario fin">{inp('horario_fin','time')}</Row>
+                        <Row label="Canc. anticip. (meses)">{inp('cancelacion_anticipada_meses','number','2')}</Row>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '16px', padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador</div>
+                      <Row label="Nombre">{inp('fiador_nombre')}</Row>
+                      <Row label="RFC">{inp('fiador_rfc')}</Row>
+                      <Row label="Domicilio">{inp('fiador_domicilio')}</Row>
+                    </div>
+                    {editErr && <p style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '8px' }}>{editErr}</p>}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                      <button onClick={guardarEdit} disabled={savingEdit}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: savingEdit ? 0.6 : 1 }}>
+                        <Save size={14} /> {savingEdit ? 'Guardando...' : 'Guardar cambios'}
+                      </button>
+                      <button onClick={() => setEditMode(false)} disabled={savingEdit}
+                        style={{ padding: '9px 16px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )
+              })() : (
+                <>
+                  {/* ── Arrendatario ── */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', paddingBottom: '6px', borderBottom: '2px solid #EEF2FF' }}>Arrendatario</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+                      <div>
+                        <Campo label="Nombre / Razón social" val={c.arrendatario_nombre} />
+                        <Campo label="RFC"                   val={c.arrendatario_rfc} />
+                        <Campo label="Tipo de persona"       val={c.tipo_persona} />
+                      </div>
+                      <div>
+                        <Campo label="Teléfono"              val={c.arrendatario_telefono} />
+                        <Campo label="Domicilio"             val={c.arrendatario_domicilio} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Local / Unidad ── */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', paddingBottom: '6px', borderBottom: '2px solid #EEF2FF' }}>Local / Unidad</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+                      <div>
+                        <Campo label="Número de local"   val={c.unidad_numero} />
+                        <Campo label="Inmueble / Plaza"  val={c.inmueble_nombre} />
+                        <Campo label="Tipo de unidad"    val={c.tipo_unidad} />
+                      </div>
+                      <div>
+                        <Campo label="Superficie"        val={c.m2_totales ? `${c.m2_totales} m²` : null} />
+                        <Campo label="Giro autorizado"   val={c.giro_autorizado} />
+                        <Campo label="Horario"           val={c.horario_inicio ? `${c.horario_inicio} – ${c.horario_fin ?? ''}` : null} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Renta y pagos + Vigencia ── */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px', marginBottom: '20px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', paddingBottom: '6px', borderBottom: '2px solid #EEF2FF' }}>Renta y pagos</div>
+                      <Campo label="Renta mensual"      val={fmt(c.renta_mensual)} />
+                      <Campo label="Cuota mantenimiento" val={c.cuota_mant > 0 ? fmt(c.cuota_mant) : null} />
+                      <Campo label="Depósito garantía"  val={c.deposito_garantia > 0 ? fmt(c.deposito_garantia) : null} />
+                      <Campo label="Día límite pago"    val={c.dia_limite_pago ? `Día ${c.dia_limite_pago}` : null} />
+                      <Campo label="Mora mensual"       val={c.penalizacion_mora_pct ? `${c.penalizacion_mora_pct}%` : null} />
+                      <Campo label="Cuenta BBVA"        val={c.cuenta_banco_pago} />
+                      <Campo label="CLABE interbancaria" val={c.clabe_interbancaria} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', paddingBottom: '6px', borderBottom: '2px solid #EEF2FF' }}>Vigencia</div>
+                      <Campo label="Tipo"               val={c.tipo_contrato} />
+                      <Campo label="Fecha firma"        val={c.fecha_firma} />
+                      <Campo label="Inicio"             val={c.fecha_inicio} />
+                      <Campo label="Vencimiento"        val={c.fecha_fin || 'Tiempo indeterminado'} />
+                      <Campo label="Días restantes"     val={c.dias_restantes != null ? `${c.dias_restantes} días` : null} />
+                      <Campo label="Cancelación antic." val={c.cancelacion_anticipada_meses ? `${c.cancelacion_anticipada_meses} meses previo aviso` : null} />
+                      <Campo label="Folio"              val={c.folio} />
+                    </div>
+                  </div>
+
+                  {/* ── Fiador ── */}
+                  <div style={{ padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador / Aval</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+                      <div>
+                        <Campo label="Nombre"    val={c.fiador_nombre} />
+                        <Campo label="RFC"       val={c.fiador_rfc} />
+                      </div>
+                      <div>
+                        <Campo label="Teléfono"  val={c.fiador_telefono} />
+                        <Campo label="Domicilio" val={c.fiador_domicilio} />
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
-              {/* Acciones */}
+
+              {/* Acciones (solo en modo lectura) */}
+              {!editMode && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E5E7EB' }}>
                 <button
                   onClick={() => setShowElaborar(true)}
@@ -245,6 +419,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
                   </button>
                 ))}
               </div>
+              )}
               {showElaborar && (
                 <ElaborarContratoModal
                   prospecto={{
@@ -510,23 +685,46 @@ export default function Contratos() {
   useModuleAudit('CONTRATOS')
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
+  const [filtroPDF, setFiltroPDF] = useState('Todos')
+  const [sortCol, setSortCol] = useState('fecha_inicio')
+  const [sortAsc, setSortAsc] = useState(false)
   const [selected, setSelected] = useState(null)
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false } })
+  const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false }, refreshKey })
 
   const lista = data ?? []
   const ESTADOS = ['Todos', 'VIGENTE', 'VENCIDO', 'EN_MORA', 'CANCELADO']
+  const SORTS = [
+    { col: 'fecha_inicio', label: 'Fecha inicio' },
+    { col: 'renta_mensual', label: 'Renta ↑↓' },
+    { col: 'dias_restantes', label: 'Días restantes' },
+    { col: 'arrendatario_nombre', label: 'Arrendatario A-Z' },
+  ]
 
-  const filtrados = lista.filter(c => {
-    const q = search.toLowerCase()
-    const matchQ = !q || (c.folio || '').toLowerCase().includes(q)
-      || (c.arrendatario_nombre || '').toLowerCase().includes(q)
-      || (c.inmueble_nombre || '').toLowerCase().includes(q)
-      || (c.unidad_numero || '').toLowerCase().includes(q)
-    const matchE = filtroEst === 'Todos' || c.estado_id === filtroEst
-    return matchQ && matchE
-  })
+  const filtrados = lista
+    .filter(c => {
+      const q = search.toLowerCase()
+      const matchQ = !q
+        || (c.folio || '').toLowerCase().includes(q)
+        || (c.arrendatario_nombre || '').toLowerCase().includes(q)
+        || (c.inmueble_nombre || '').toLowerCase().includes(q)
+        || (c.unidad_numero || '').toLowerCase().includes(q)
+        || (c.locales || '').toLowerCase().includes(q)
+        || (c.locales_referencia || '').toLowerCase().includes(q)
+      const matchE = filtroEst === 'Todos' || c.estado_id === filtroEst
+      const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
+      return matchQ && matchE && matchPDF
+    })
+    .sort((a, b) => {
+      const va = a[sortCol] ?? 0; const vb = b[sortCol] ?? 0
+      return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1)
+    })
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortAsc(a => !a)
+    else { setSortCol(col); setSortAsc(false) }
+  }
 
   const vigentes = lista.filter(c => c.estado_id === 'VIGENTE').length
   const vencidos = lista.filter(c => c.semaforo_vencimiento === 'VENCIDO').length
@@ -562,22 +760,47 @@ export default function Contratos() {
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por folio, arrendatario, unidad..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por folio, arrendatario, local (L09, L31-L32)..."
             style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {ESTADOS.map(e => (
             <button key={e} onClick={() => setFiltroEst(e)} style={{
-              padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+              padding: '7px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
               borderColor: filtroEst === e ? 'var(--color-primary)' : '#E5E7EB',
               background: filtroEst === e ? 'var(--color-primary)' : 'white',
               color: filtroEst === e ? 'white' : 'var(--color-text-light)',
             }}>{e}</button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: '6px', borderLeft: '1px solid #E5E7EB', paddingLeft: '10px' }}>
+          {[['Todos','Todos'],['CON_PDF','Con anexo'],['SIN_PDF','Sin anexo']].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFiltroPDF(val)} style={{
+              padding: '7px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+              borderColor: filtroPDF === val ? (val === 'SIN_PDF' ? 'var(--color-warning)' : 'var(--color-secondary)') : '#E5E7EB',
+              background: filtroPDF === val ? (val === 'SIN_PDF' ? 'var(--color-warning)' : 'var(--color-secondary)') : 'white',
+              color: filtroPDF === val ? 'white' : 'var(--color-text-light)',
+            }}><Paperclip size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{lbl}</button>
+          ))}
+        </div>
+      </div>
+      {/* Sort */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', alignItems: 'center' }}>
+        <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600 }}>ORDENAR:</span>
+        {SORTS.map(s => (
+          <button key={s.col} onClick={() => toggleSort(s.col)} style={{
+            padding: '5px 10px', borderRadius: '5px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: '1px solid',
+            borderColor: sortCol === s.col ? 'var(--color-primary)' : '#E5E7EB',
+            background: sortCol === s.col ? '#EEF2FF' : 'white',
+            color: sortCol === s.col ? 'var(--color-primary)' : 'var(--color-text-light)',
+          }}>
+            {s.label} {sortCol === s.col ? (sortAsc ? '▲' : '▼') : ''}
+          </button>
+        ))}
+        <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: '8px' }}>{filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Tabla */}
@@ -590,7 +813,7 @@ export default function Contratos() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F9FAFB' }}>
-                      {['Contrato','Inmueble','Arrendatario','Renta','Vigencia','Plazo','Estado',''].map(h => (
+                      {['Contrato','Local','Arrendatario','Renta','Vigencia','Plazo','Estado',''].map(h => (
                         <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
