@@ -756,15 +756,13 @@ export default function ResumenSemanal() {
                 <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones esta semana</div>
               )}
               {pensiones.map((p, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px', gap: '4px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
-                    <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre}</span>
-                    <span style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center' }}>#{p.num_recibo}</span>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                    <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre} <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span></span>
                     <span style={S.monto('#374151')}>{fmt(p.monto)}</span>
                   </div>
                 ))}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#0A66C2' }}>Total pensiones</span>
-                  <span />
                   <span style={S.monto('#0A66C2')}>{fmt(totPensiones)}</span>
                 </div>
               </>
@@ -780,15 +778,16 @@ export default function ResumenSemanal() {
             {estac.length === 0 ? (
               <div style={{ padding: '16px 12px', color: '#9CA3AF', fontSize: '12px', textAlign: 'center' }}>Sin registros esta semana</div>
             ) : estac.map((e, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 24px 100px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
-                <span style={S.lbl}>{labelFecha(e.fecha)}</span>
-                <CheckCircle size={13} color={parseFloat(e.cantidad) > 0 ? 'var(--color-success)' : '#E5E7EB'} />
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                <span style={{ ...S.lbl, display:'flex', alignItems:'center', gap:'6px' }}>
+                  <CheckCircle size={13} color={parseFloat(e.cantidad) > 0 ? 'var(--color-success)' : '#E5E7EB'} />
+                  {labelFecha(e.fecha)}
+                </span>
                 <span style={S.monto('#374151')}>{fmt(e.cantidad)}</span>
               </div>
             ))}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 100px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#0A66C2' }}>Total estacionamiento</span>
-              <span />
               <span style={S.monto('#0A66C2')}>{fmt(totEstac)}</span>
             </div>
 
@@ -802,14 +801,16 @@ export default function ResumenSemanal() {
                   </button>
                 </div>
                 {vending.map((v, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 100px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '8px' }}>
-                    <span style={S.lbl}>Vending Machine</span>
-                    {v.es_material && <span style={{ fontSize: '10px', fontWeight: 700, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: '8px' }}>Material</span>}
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                    <span style={{ ...S.lbl, display:'flex', alignItems:'center', gap:'6px' }}>
+                      Vending Machine
+                      {v.es_material && <span style={{ fontSize: '10px', fontWeight: 700, color: '#DC2626', background: '#FEE2E2', padding: '2px 6px', borderRadius: '8px' }}>Material</span>}
+                    </span>
                     <span style={S.monto(v.es_material ? '#DC2626' : '#374151')}>{fmt(v.venta_pesos)}</span>
                   </div>
                 ))}
                 {residualVending > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '5px 12px', borderBottom: '1px solid #F3F4F6' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '5px 12px', borderBottom: '1px solid #F3F4F6' }}>
                     <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Residual Vending Machine</span>
                     <span style={S.monto('#9CA3AF')}>{fmt(residualVending)}</span>
                   </div>
@@ -827,14 +828,14 @@ export default function ResumenSemanal() {
             {rentasEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin rentas esta semana</div>
               : rentasEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Renta')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                   <span style={S.monto('var(--color-success)')}>{fmt(r.importe)}</span>
                 </div>
               ))
             }
             {rentasEf.length > 0 && (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
                 <span style={{ fontSize:'12px', fontWeight:700, color:'var(--color-success)' }}>Total rentas</span>
                 <span style={S.monto('var(--color-success)')}>{fmt(totRentas)}</span>
               </div>
@@ -850,14 +851,14 @@ export default function ResumenSemanal() {
             {aguaEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin cobros de agua esta semana</div>
               : aguaEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Agua')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                   <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(r.importe)}</span>
                 </div>
               ))
             }
             {aguaEf.length > 0 && (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F0F9FF', borderBottom:'1px solid #BAE6FD' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F0F9FF', borderBottom:'1px solid #BAE6FD' }}>
                 <span style={{ fontSize:'12px', fontWeight:700, color:'#0284C7' }}>Total agua</span>
                 <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(totAgua)}</span>
               </div>
@@ -868,12 +869,12 @@ export default function ResumenSemanal() {
               <>
                 <div style={S.sectionHeader}>Otros ingresos en efectivo</div>
                 {otrosEf.map((r, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                     <span style={S.lbl}>{r.tipo} · {r.concepto_origen || r.propietario || '—'} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                     <span style={S.monto('#374151')}>{fmt(r.importe)}</span>
                   </div>
                 ))}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
                   <span style={{ fontSize:'12px', fontWeight:700, color:'#6B7280' }}>Total otros</span>
                   <span style={S.monto('#6B7280')}>{fmt(totOtros)}</span>
                 </div>
