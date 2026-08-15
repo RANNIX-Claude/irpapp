@@ -103,12 +103,11 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('semana_inicio', ini)
       .order('num_recibo'),
 
-    // Vending: fecha_inicio = Sábado
+    // Vending: semana cuyo fecha_inicio = Sábado seleccionado
     supabase.from('vending_semanas')
       .select('fecha_inicio, venta_pesos, residual_pesos, es_material, nota')
-      .eq('producto', 'CORTE_SEMANAL')
       .eq('fecha_inicio', ini)
-      .order('fecha_inicio'),
+      .limit(1),
 
     // Gastos operativos por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
