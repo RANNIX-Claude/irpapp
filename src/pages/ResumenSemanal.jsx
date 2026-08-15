@@ -1,7 +1,7 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X } from 'lucide-react'
+import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X, Pencil, Trash2 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -635,6 +635,8 @@ export default function ResumenSemanal() {
   const [datos, setDatos] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // 'estac' | 'gasto' | 'pension' | 'renta' | 'agua'
+  const [editRec, setEditRec] = useState(null)  // { tabla, row } — registro en edición
+  const [delRec, setDelRec]   = useState(null)  // { tabla, id, label } — registro a eliminar
 
   const semSel = semanas[selIdx]   // { ini, fin, iniEstac, label }
 
@@ -680,6 +682,20 @@ export default function ResumenSemanal() {
     monto: (color) => ({ fontWeight: 700, fontSize: '13px', color: color || '#374151', textAlign: 'right', fontFamily: 'monospace', whiteSpace: 'nowrap' }),
     lbl: { fontSize: '12px', color: '#374151' },
     lblSmall: { fontSize: '11px', color: '#6B7280', paddingLeft: '14px' },
+    acciones: { display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0 },
+    btnEdit:  { background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '2px 3px', borderRadius: '4px', display: 'flex', alignItems: 'center' },
+    btnDel:   { background: 'none', border: 'none', cursor: 'pointer', color: '#FCA5A5', padding: '2px 3px', borderRadius: '4px', display: 'flex', alignItems: 'center' },
+  }
+
+  // ── Eliminar registro ──
+  const eliminar = async () => {
+    if (!delRec) return
+    const { tabla, id } = delRec
+    const { error } = await supabase.from(tabla).delete().eq('id', id)
+    if (error) { toast.error('No se pudo eliminar'); return }
+    toast.success('Registro eliminado')
+    setDelRec(null)
+    recargar()
   }
 
   const estac     = datos?.estac     ?? []
@@ -756,8 +772,12 @@ export default function ResumenSemanal() {
                 <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones esta semana</div>
               )}
               {pensiones.map((p, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px' }}>
                     <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre} <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span></span>
+                    <span style={S.acciones}>
+                      <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_pensiones', row: p })}><Pencil size={12}/></button>
+                      <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_pensiones', id: p.id, label: `Pensión #${p.num_recibo} — ${p.arrendatario_nombre}` })}><Trash2 size={12}/></button>
+                    </span>
                     <span style={S.monto('#374151')}>{fmt(p.monto)}</span>
                   </div>
                 ))}
@@ -778,10 +798,14 @@ export default function ResumenSemanal() {
             {estac.length === 0 ? (
               <div style={{ padding: '16px 12px', color: '#9CA3AF', fontSize: '12px', textAlign: 'center' }}>Sin registros esta semana</div>
             ) : estac.map((e, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px' }}>
                 <span style={{ ...S.lbl, display:'flex', alignItems:'center', gap:'6px' }}>
                   <CheckCircle size={13} color={parseFloat(e.cantidad) > 0 ? 'var(--color-success)' : '#E5E7EB'} />
                   {labelFecha(e.fecha)}
+                </span>
+                <span style={S.acciones}>
+                  <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_diario', row: e })}><Pencil size={12}/></button>
+                  <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_diario', id: e.id, label: `Estacionamiento ${labelFecha(e.fecha)}` })}><Trash2 size={12}/></button>
                 </span>
                 <span style={S.monto('#374151')}>{fmt(e.cantidad)}</span>
               </div>
@@ -828,8 +852,12 @@ export default function ResumenSemanal() {
             {rentasEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin rentas esta semana</div>
               : rentasEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Renta')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
+                  <span style={S.acciones}>
+                    <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
+                    <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Renta ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                  </span>
                   <span style={S.monto('var(--color-success)')}>{fmt(r.importe)}</span>
                 </div>
               ))
@@ -851,8 +879,12 @@ export default function ResumenSemanal() {
             {aguaEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin cobros de agua esta semana</div>
               : aguaEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Agua')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
+                  <span style={S.acciones}>
+                    <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
+                    <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Agua ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                  </span>
                   <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(r.importe)}</span>
                 </div>
               ))
@@ -869,8 +901,12 @@ export default function ResumenSemanal() {
               <>
                 <div style={S.sectionHeader}>Otros ingresos en efectivo</div>
                 {otrosEf.map((r, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
                     <span style={S.lbl}>{r.tipo} · {r.concepto_origen || r.propietario || '—'} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
+                    <span style={S.acciones}>
+                      <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
+                      <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `${r.tipo} · ${r.concepto_origen||r.propietario||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                    </span>
                     <span style={S.monto('#374151')}>{fmt(r.importe)}</span>
                   </div>
                 ))}
@@ -1033,6 +1069,107 @@ export default function ResumenSemanal() {
             onSaved={() => { setModal(null); recargar() }} />
         </Modal>
       )}
+
+      {/* ── MODAL EDICIÓN ── */}
+      {editRec && (
+        <ModalEditar rec={editRec} semIni={semSel.ini} semFin={semSel.fin}
+          onClose={() => setEditRec(null)}
+          onSaved={() => { setEditRec(null); recargar() }} />
+      )}
+
+      {/* ── MODAL CONFIRMACIÓN ELIMINAR ── */}
+      {delRec && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+          <div style={{ background:'white', borderRadius:'14px', width:'360px', maxWidth:'95vw', padding:'24px', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize:'32px', textAlign:'center', marginBottom:'12px' }}>🗑️</div>
+            <h3 style={{ margin:'0 0 8px', fontSize:'15px', fontWeight:700, textAlign:'center', color:'#111827' }}>¿Eliminar registro?</h3>
+            <p style={{ margin:'0 0 20px', fontSize:'13px', color:'#6B7280', textAlign:'center' }}>{delRec.label}</p>
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setDelRec(null)} style={{ flex:1, padding:'11px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', color:'#374151' }}>
+                Cancelar
+              </button>
+              <button onClick={eliminar} style={{ flex:1, padding:'11px', background:'#DC2626', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:700, cursor:'pointer', color:'white' }}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Modal Editar registro genérico ────────────────────────────────────────────
+function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
+  const { tabla, row } = rec
+  const [form, setForm] = useState({ ...row })
+  const [saving, setSaving] = useState(false)
+  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+  const lbl = { fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }
+
+  const guardar = async () => {
+    setSaving(true)
+    let payload = {}
+    if (tabla === 'estacionamiento_diario') {
+      payload = { fecha: form.fecha, cantidad: parseFloat(form.cantidad), notas: form.notas || null }
+    } else if (tabla === 'estacionamiento_pensiones') {
+      payload = { monto: parseFloat(form.monto), nota: form.nota || null }
+    } else if (tabla === 'ingresos') {
+      payload = { importe: parseFloat(form.importe), nota: form.nota || null, fecha: form.fecha }
+    }
+    const { error } = await supabase.from(tabla).update(payload).eq('id', row.id)
+    if (error) { toast.error(error.message); setSaving(false); return }
+    toast.success('Registro actualizado')
+    onSaved()
+  }
+
+  const titulo = tabla === 'estacionamiento_diario' ? '✏️ Editar Estacionamiento'
+    : tabla === 'estacionamiento_pensiones' ? '✏️ Editar Pensión'
+    : '✏️ Editar Ingreso'
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+      <div style={{ background:'white', borderRadius:'14px', width:'400px', maxWidth:'95vw', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6' }}>
+          <h3 style={{ margin:0, fontSize:'15px', fontWeight:700, color:'#111827' }}>{titulo}</h3>
+          <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'5px', cursor:'pointer', color:'#6B7280', display:'flex' }}><X size={16}/></button>
+        </div>
+        <div style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'14px' }}>
+          {/* Fecha — para estac diario e ingresos */}
+          {(tabla === 'estacionamiento_diario' || tabla === 'ingresos') && (
+            <div>
+              <label style={lbl}>Fecha</label>
+              <input type="date" value={form.fecha} min={semIni} max={semFin}
+                onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+            </div>
+          )}
+          {/* Monto */}
+          <div>
+            <label style={lbl}>Monto ($)</label>
+            <input type="number" min="0" step="0.01" autoFocus
+              value={tabla === 'estacionamiento_diario' ? form.cantidad : tabla === 'estacionamiento_pensiones' ? form.monto : form.importe}
+              onChange={e => {
+                const k = tabla === 'estacionamiento_diario' ? 'cantidad' : tabla === 'estacionamiento_pensiones' ? 'monto' : 'importe'
+                setForm(p => ({ ...p, [k]: e.target.value }))
+              }}
+              style={{ ...inp, fontSize:'26px', fontWeight:800, textAlign:'right', color:'#0A66C2' }} />
+          </div>
+          {/* Nota */}
+          <div>
+            <label style={lbl}>Nota</label>
+            <input value={form.nota ?? form.notas ?? ''}
+              onChange={e => {
+                const k = tabla === 'estacionamiento_diario' ? 'notas' : 'nota'
+                setForm(p => ({ ...p, [k]: e.target.value }))
+              }}
+              placeholder="Opcional..." style={inp} />
+          </div>
+          <button onClick={guardar} disabled={saving}
+            style={{ padding:'13px', background:'#0A66C2', color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
