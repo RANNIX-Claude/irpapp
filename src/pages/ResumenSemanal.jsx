@@ -15,6 +15,12 @@ const MESES_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep',
 
 function isoDate(d) { return d.toISOString().split('T')[0] }
 
+// Fecha local como YYYY-MM-DD (evita cambio de día por diferencia UTC vs hora local)
+function hoyLocal() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 function labelFecha(iso) {
   if (!iso) return '—'
   const d = new Date(iso + 'T12:00:00')
@@ -47,12 +53,13 @@ function labelCorto(ini, fin) {
 function generarTablaSemanas() {
   const ORIGEN_INI = '2026-06-27'   // primer Sábado registrado
   const hoy = new Date()
-  // Sábado de la semana actual
+  // Sábado de la semana actual (usando fecha local, no UTC)
   const dow = hoy.getDay()                            // 0=Dom … 6=Sáb
   const diasHastaSab = dow === 6 ? 0 : dow + 1
   const sabHoy = new Date(hoy)
   sabHoy.setDate(sabHoy.getDate() - diasHastaSab)
-  const limiteIso = addDays(sabHoy.toISOString().split('T')[0], 4 * 7)
+  const sabHoyLocal = `${sabHoy.getFullYear()}-${String(sabHoy.getMonth()+1).padStart(2,'0')}-${String(sabHoy.getDate()).padStart(2,'0')}`
+  const limiteIso = addDays(sabHoyLocal, 4 * 7)
 
   const semanas = []
   let cur = ORIGEN_INI
@@ -328,7 +335,7 @@ export default function ResumenSemanal() {
   const semanas = generarTablaSemanas()
 
   // Índice por defecto: semana actual
-  const sabActual = sabadoDe(new Date().toISOString().split('T')[0])
+  const sabActual = sabadoDe(hoyLocal())
   const defaultIdx = semanas.findIndex(s => s.ini === sabActual)
   const [selIdx, setSelIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0)
   const [datos, setDatos] = useState(null)
