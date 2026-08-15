@@ -976,7 +976,7 @@ export default function ResumenSemanal() {
             </div>
 
             {/* Resumen KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '2px solid #E5E7EB' }}>
               {[
                 ['Estacionamiento', totEstac, '#0A66C2'],
                 ['Pensiones', totPensiones, '#0A66C2'],
@@ -985,9 +985,9 @@ export default function ResumenSemanal() {
                 ['Agua', totAgua, '#0284C7'],
                 ['Otros', totOtros, '#6B7280'],
               ].map(([label, val, color]) => (
-                <div key={label} style={{ background: 'white', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>{label}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color, fontFamily: 'monospace' }}>{fmt(val)}</div>
+                <div key={label} style={{ background: 'white', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color, fontFamily: 'monospace', textAlign: 'right' }}>{fmt(val)}</div>
                 </div>
               ))}
             </div>
