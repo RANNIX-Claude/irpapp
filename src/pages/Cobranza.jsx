@@ -208,37 +208,40 @@ function PagosModal({ cobro, onClose, onSaved }) {
     if (!form.monto || parseFloat(form.monto) <= 0) { setErr('El monto debe ser mayor a 0'); return }
     setSaving(true); setErr(null)
     try {
+      const monto = parseFloat(form.monto)
+
+      // 1. Insertar ingreso vinculado al cobro
+      const { error: errIng } = await supabase.from('ingresos').insert({
+        cobro_id:        cobro.id,
+        fecha:           form.fecha_pago,
+        importe:         monto,
+        tipo:            form.tipo_concepto === 'RENTA' ? 'RENTA' : 'SANCION',
+        tipo_concepto:   form.tipo_concepto,
+        origen:          form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA BBVA',
+        forma_pago:      form.forma_pago,
+        referencia_banco: form.referencia || null,
+        concepto_origen: `${form.tipo_concepto} ${cobro.mes}/${cobro.anio}`,
+        propietario:     cobro.arrendatario_nombre || null,
+        id_contrato:     cobro.referencia_pago || null,
+        factura_numero:  form.factura_numero || null,
+        factura_serie:   form.factura_serie  || null,
+        nota:            form.nota || null,
+      })
+      if (errIng) throw errIng
+
+      // 2. Recalcular estatus del cobro (solo pagos RENTA reducen el pendiente)
       if (form.tipo_concepto === 'RENTA') {
-        // Pago normal → reduce el cobro programado
-        const { error } = await supabase.rpc('registrar_pago_cobro', {
-          p_cobro_id:         cobro.id,
-          p_fecha:            form.fecha_pago,
-          p_monto:            parseFloat(form.monto),
-          p_forma_pago:       form.forma_pago,
-          p_referencia_banco: form.referencia || null,
-          p_nota:             form.nota || null,
-          p_tipo_concepto:    form.tipo_concepto,
-          p_factura_numero:   form.factura_numero || null,
-          p_factura_serie:    form.factura_serie  || null,
-        })
-        if (error) throw error
-      } else {
-        // Sanción / Recargo → crea cobro nuevo de tipo SANCION/RECARGO + ingreso
-        const { error } = await supabase.rpc('registrar_sancion', {
-          p_contrato_id:         cobro.referencia_pago,  // UUID del contrato
-          p_referencia_pago:     cobro.referencia_pago,
-          p_arrendatario_nombre: cobro.arrendatario_nombre,
-          p_mes:                 cobro.mes,
-          p_anio:                cobro.anio,
-          p_monto:               parseFloat(form.monto),
-          p_fecha:               form.fecha_pago,
-          p_forma_pago:          form.forma_pago,
-          p_referencia_banco:    form.referencia || null,
-          p_factura_numero:      form.factura_numero || null,
-          p_nota:                form.nota || null,
-        })
-        if (error) throw error
+        const nuevoPagado = totalRenta + monto
+        const nuevoEstatus = nuevoPagado >= parseFloat(cobro.monto_total)
+          ? 'PAGADO'
+          : nuevoPagado > 0 ? 'PARCIAL' : 'PENDIENTE'
+        await supabase.from('cobros').update({
+          monto_pagado: nuevoPagado,
+          estatus:      nuevoEstatus,
+          fecha_pago:   form.fecha_pago,
+        }).eq('id', cobro.id)
       }
+
       setShowForm(false)
       setForm(FORM_INIT)
       await cargar()
@@ -329,38 +332,33 @@ function PagosModal({ cobro, onClose, onSaved }) {
           }
         </div>
 
-        {/* Formulario nuevo movimiento */}
+        {/* Formulario nuevo movimiento — compacto */}
         {showForm && (
-          <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', background: esSancion ? '#FFF8F0' : '#F9FAFB' }}>
+          <div style={{ padding: '10px 18px 12px', borderTop: '1px solid #E5E7EB', background: esSancion ? '#FFF8F0' : '#F9FAFB' }}>
             <form onSubmit={guardar}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: esSancion ? 'var(--color-danger)' : 'var(--color-primary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {esSancion ? '⚠ Registrar sanción / recargo' : '✓ Registrar pago de renta'}
-              </div>
-              {err && <div style={{ padding: '8px 12px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '10px' }}>{err}</div>}
+              {err && <div style={{ padding: '6px 10px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '8px' }}>{err}</div>}
 
-              {/* Tipo de concepto */}
-              <div style={{ marginBottom: '10px' }}>
-                <label style={lbl}>Tipo de concepto</label>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[['RENTA','Renta'],['SANCION','Sanción'],['RECARGO','Recargo'],['CUOTA_MANT','Mantenimiento']].map(([v, l]) => (
-                    <button key={v} type="button" onClick={() => set('tipo_concepto', v)} style={{
-                      padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                      border: `1.5px solid ${(TIPO_CONCEPTO_META[v]||{}).color || '#E5E7EB'}`,
-                      background: form.tipo_concepto === v ? (TIPO_CONCEPTO_META[v]?.color || '#E5E7EB') : 'white',
-                      color: form.tipo_concepto === v ? 'white' : (TIPO_CONCEPTO_META[v]?.color || '#6B7280'),
-                    }}>{l}</button>
-                  ))}
-                </div>
-                {esSancion && (
-                  <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--color-danger)', background: '#FEE2E2', padding: '6px 10px', borderRadius: '6px' }}>
-                    Se creará un cobro adicional de tipo {form.tipo_concepto} vinculado a este mes y arrendatario.
-                  </div>
-                )}
+              {/* Fila 1: tipo */}
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginRight: '4px', whiteSpace:'nowrap' }}>Tipo:</span>
+                {[['RENTA','Renta'],['SANCION','Sanción'],['RECARGO','Recargo'],['CUOTA_MANT','Mant.']].map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => set('tipo_concepto', v)} style={{
+                    padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                    border: `1.5px solid ${(TIPO_CONCEPTO_META[v]||{}).color || '#E5E7EB'}`,
+                    background: form.tipo_concepto === v ? (TIPO_CONCEPTO_META[v]?.color || '#E5E7EB') : 'white',
+                    color: form.tipo_concepto === v ? 'white' : (TIPO_CONCEPTO_META[v]?.color || '#6B7280'),
+                  }}>{l}</button>
+                ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              {/* Fila 2: fecha + monto */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                 <div><label style={lbl}>Fecha</label><input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required /></div>
-                <div><label style={lbl}>Monto *</label><input type="number" value={form.monto} onChange={e => set('monto', e.target.value)} placeholder={!esSancion && pendiente > 0 ? String(pendiente) : '0.00'} style={inp} step="0.01" required /></div>
+                <div><label style={lbl}>Monto *</label><input type="number" value={form.monto} onChange={e => set('monto', e.target.value)} placeholder={!esSancion && pendiente > 0 ? String(pendiente) : '0.00'} style={{ ...inp, fontWeight: 700 }} step="0.01" required autoFocus /></div>
+              </div>
+
+              {/* Fila 3: forma + ref */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                 <div>
                   <label style={lbl}>Forma de pago</label>
                   <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)} style={inp}>
@@ -370,26 +368,18 @@ function PagosModal({ cobro, onClose, onSaved }) {
                 <div><label style={lbl}>Ref. bancaria / No. Op.</label><input type="text" value={form.referencia} onChange={e => set('referencia', e.target.value)} placeholder="TRF20260801..." style={inp} /></div>
               </div>
 
-              {/* Factura CFDI */}
-              <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '8px' }}>Factura CFDI (opcional)</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px' }}>
-                  <div><label style={lbl}>Serie</label><input type="text" value={form.factura_serie} onChange={e => set('factura_serie', e.target.value)} placeholder="A" style={inp} /></div>
-                  <div><label style={lbl}>Número de folio</label><input type="text" value={form.factura_numero} onChange={e => set('factura_numero', e.target.value)} placeholder="2151" style={inp} /></div>
-                </div>
-                <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--color-text-light)' }}>PDF y XML los puedes adjuntar después de guardar el movimiento.</p>
-              </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <label style={lbl}>Nota (opcional)</label>
-                <input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} />
+              {/* Fila 4: CFDI + Nota en una sola línea */}
+              <div style={{ display: 'grid', gridTemplateColumns: '60px 120px 1fr', gap: '8px', marginBottom: '10px' }}>
+                <div><label style={lbl}>Serie</label><input type="text" value={form.factura_serie} onChange={e => set('factura_serie', e.target.value)} placeholder="A" style={inp} /></div>
+                <div><label style={lbl}>Folio CFDI</label><input type="text" value={form.factura_numero} onChange={e => set('factura_numero', e.target.value)} placeholder="2151" style={inp} /></div>
+                <div><label style={lbl}>Nota</label><input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} /></div>
               </div>
 
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', background: saving ? '#9CA3AF' : esSancion ? 'var(--color-danger)' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
+                <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px', background: saving ? '#9CA3AF' : esSancion ? 'var(--color-danger)' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
                   {saving ? 'Guardando...' : esSancion ? '⚠ Registrar sanción' : '✓ Confirmar pago'}
                 </button>
-                <button type="button" onClick={() => { setShowForm(false); setErr(null); setForm(FORM_INIT) }} style={{ padding: '9px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+                <button type="button" onClick={() => { setShowForm(false); setErr(null); setForm(FORM_INIT) }} style={{ padding: '10px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
               </div>
             </form>
           </div>
