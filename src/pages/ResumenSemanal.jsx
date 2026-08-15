@@ -1,9 +1,10 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink } from 'lucide-react'
+import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n, dec = 2) {
@@ -130,6 +131,215 @@ async function cargarDatos(ini, fin, iniEstac) {
     gastos:    gastos    ?? [],
     rentasEf:  rentasEf  ?? [],
   }
+}
+
+// ── Grupos de gasto para el modal ─────────────────────────────────────────────
+const GRUPOS_GASTO = [
+  'Ferretería y materiales','Limpieza e higiene','Servicios externos',
+  'Papelería y oficina','Alimentación','Vending / Reabasto',
+  'Herramienta y equipo','Seguridad','Nómina / Personal','Otros',
+]
+
+const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+
+// ── Modal base ────────────────────────────────────────────────────────────────
+function Modal({ titulo, onClose, children }) {
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+      <div style={{ background:'white', borderRadius:'14px', width:'420px', maxWidth:'95vw', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6' }}>
+          <h3 style={{ margin:0, fontSize:'15px', fontWeight:700, color:'#111827' }}>{titulo}</h3>
+          <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'5px', cursor:'pointer', display:'flex', alignItems:'center', color:'#6B7280' }}><X size={16}/></button>
+        </div>
+        <div style={{ padding:'20px' }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: Estacionamiento Diario ─────────────────────────────────────────────
+function ModalEstac({ semIni, semFin, onClose, onSaved }) {
+  const hoy = hoyLocal()
+  const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
+  const [form, setForm] = useState({ fecha: fechaDefault, cantidad: '', notas: '' })
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    if (!form.cantidad) return toast.error('Ingresa el monto')
+    setSaving(true)
+    const dt = new Date(form.fecha + 'T12:00:00')
+    const payload = {
+      fecha: form.fecha, cantidad: parseFloat(form.cantidad), notas: form.notas || null,
+      anio: dt.getFullYear(), mes: MESES_ES[dt.getMonth()],
+      dia_semana: DIAS_SEMANA[dt.getDay()], semana: 'S' + Math.ceil(dt.getDate() / 7),
+    }
+    const { error } = await supabase.from('estacionamiento_diario').upsert(payload, { onConflict: 'fecha' })
+    if (error) toast.error(error.message)
+    else { toast.success('Estacionamiento guardado'); onSaved() }
+    setSaving(false)
+  }
+
+  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+  return (
+    <>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Fecha</label>
+        <input type="date" value={form.fecha} min={semIni} max={semFin}
+          onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+      </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Monto del día ($)</label>
+        <input type="number" min="0" step="50" value={form.cantidad} placeholder="0.00" autoFocus
+          onChange={e => setForm(p => ({ ...p, cantidad: e.target.value }))}
+          style={{ ...inp, fontSize:'28px', fontWeight:800, textAlign:'right', color:'var(--color-success)' }} />
+      </div>
+      <div style={{ marginBottom:'20px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Nota (opcional)</label>
+        <input value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: festivo, lluvia..." style={inp} />
+      </div>
+      <button onClick={guardar} disabled={saving}
+        style={{ width:'100%', padding:'13px', background:'var(--color-success)', color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Guardando...' : 'Guardar ingreso'}
+      </button>
+    </>
+  )
+}
+
+// ── Modal: Gasto Fondo Revolvente ─────────────────────────────────────────────
+function ModalGasto({ semIni, semFin, onClose, onSaved }) {
+  const hoy = hoyLocal()
+  const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
+  const [form, setForm] = useState({ fecha: fechaDefault, proveedor: '', grupo_gasto: '', descripcion: '', cantidad: '' })
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    if (!form.proveedor || !form.cantidad) return toast.error('Proveedor y monto son obligatorios')
+    setSaving(true)
+    const dt = new Date(form.fecha + 'T12:00:00')
+    const payload = {
+      fecha: form.fecha,
+      anio: dt.getFullYear(),
+      mes: MESES_ES[dt.getMonth()],
+      dia_semana: DIAS_SEMANA[dt.getDay()],
+      semana: 'S' + Math.ceil(dt.getDate() / 7),
+      semana_inicio: semIni,
+      proveedor: form.proveedor.toUpperCase(),
+      proveedor_nombre: form.proveedor,
+      grupo_gasto: form.grupo_gasto || 'Otros',
+      descripcion: form.descripcion || form.proveedor,
+      cantidad: parseFloat(form.cantidad),
+      monto_pagado: parseFloat(form.cantidad),
+      tiene_factura: false,
+    }
+    const { error } = await supabase.from('gastos_operativos').insert(payload)
+    if (error) toast.error(error.message)
+    else { toast.success('Gasto registrado'); onSaved() }
+    setSaving(false)
+  }
+
+  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+  return (
+    <>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Fecha</label>
+          <input type="date" value={form.fecha} min={semIni} max={semFin}
+            onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Monto ($)</label>
+          <input type="number" min="0" step="0.50" value={form.cantidad} placeholder="0.00" autoFocus
+            onChange={e => setForm(p => ({ ...p, cantidad: e.target.value }))}
+            style={{ ...inp, fontSize:'18px', fontWeight:800, textAlign:'right', color:'#DC2626' }} />
+        </div>
+      </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Proveedor</label>
+        <input value={form.proveedor} onChange={e => setForm(p => ({ ...p, proveedor: e.target.value }))} placeholder="Ej: Dogo, Office Depot..." style={inp} />
+      </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Categoría</label>
+        <select value={form.grupo_gasto} onChange={e => setForm(p => ({ ...p, grupo_gasto: e.target.value }))} style={inp}>
+          <option value="">— Seleccionar —</option>
+          {GRUPOS_GASTO.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <div style={{ marginBottom:'20px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Concepto / Descripción</label>
+        <input value={form.descripcion} onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))} placeholder="Ej: Papel higiénico, Cloro..." style={inp} />
+      </div>
+      <button onClick={guardar} disabled={saving}
+        style={{ width:'100%', padding:'13px', background:'#DC2626', color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Guardando...' : 'Registrar gasto'}
+      </button>
+    </>
+  )
+}
+
+// ── Modal: Pensión de Estacionamiento ─────────────────────────────────────────
+function ModalPension({ semIni, semFin, onClose, onSaved }) {
+  const hoy = hoyLocal()
+  const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
+  const [form, setForm] = useState({ fecha: fechaDefault, local_referencia: '', arrendatario_nombre: '', monto: '', num_recibo: '', nota: '' })
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    if (!form.monto) return toast.error('Ingresa el monto')
+    setSaving(true)
+    const { error } = await supabase.from('estacionamiento_pensiones').insert({
+      fecha: form.fecha, semana_inicio: semIni,
+      local_referencia: form.local_referencia || null,
+      arrendatario_nombre: form.arrendatario_nombre || null,
+      monto: parseFloat(form.monto),
+      num_recibo: form.num_recibo || null,
+      pagado: true,
+      nota: form.nota || null,
+    })
+    if (error) toast.error(error.message)
+    else { toast.success('Pensión registrada'); onSaved() }
+    setSaving(false)
+  }
+
+  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+  return (
+    <>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Fecha de cobro</label>
+          <input type="date" value={form.fecha} min={semIni} max={semFin}
+            onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Monto ($)</label>
+          <input type="number" min="0" step="50" value={form.monto} placeholder="0.00" autoFocus
+            onChange={e => setForm(p => ({ ...p, monto: e.target.value }))}
+            style={{ ...inp, fontSize:'18px', fontWeight:800, textAlign:'right', color:'var(--color-primary)' }} />
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>No. Local</label>
+          <input value={form.local_referencia} onChange={e => setForm(p => ({ ...p, local_referencia: e.target.value }))} placeholder="Ej: L17, L26-27" style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>No. Recibo</label>
+          <input value={form.num_recibo} onChange={e => setForm(p => ({ ...p, num_recibo: e.target.value }))} placeholder="001" style={inp} />
+        </div>
+      </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Nombre del pensionado</label>
+        <input value={form.arrendatario_nombre} onChange={e => setForm(p => ({ ...p, arrendatario_nombre: e.target.value }))} placeholder="Nombre completo" style={inp} />
+      </div>
+      <div style={{ marginBottom:'20px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Nota</label>
+        <input value={form.nota} onChange={e => setForm(p => ({ ...p, nota: e.target.value }))} placeholder="Observaciones..." style={inp} />
+      </div>
+      <button onClick={guardar} disabled={saving}
+        style={{ width:'100%', padding:'13px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Guardando...' : 'Registrar pensión'}
+      </button>
+    </>
+  )
 }
 
 // ── Componente fila de tabla ──────────────────────────────────────────────────
@@ -340,15 +550,18 @@ export default function ResumenSemanal() {
   const [selIdx, setSelIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0)
   const [datos, setDatos] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState(null) // 'estac' | 'gasto' | 'pension'
 
   const semSel = semanas[selIdx]   // { ini, fin, iniEstac, label }
 
-  useEffect(() => {
+  const recargar = () => {
     if (!semSel) return
     setLoading(true)
     cargarDatos(semSel.ini, semSel.fin, semSel.iniEstac)
       .then(d => { setDatos(d); setLoading(false) })
-  }, [semSel?.ini])
+  }
+
+  useEffect(() => { recargar() }, [semSel?.ini])
 
   // Calcular totales
   const totPensiones  = (datos?.pensiones  ?? []).reduce((a, b) => a + (parseFloat(b.monto)       || 0), 0)
@@ -443,10 +656,18 @@ export default function ResumenSemanal() {
           </div>
 
             {/* ── PENSIONES ── */}
-            {pensiones.length > 0 && (
+            {(pensiones.length > 0 || true) && (
               <>
-                <div style={S.sectionHeader}>Pensiones de estacionamiento</div>
-                {pensiones.map((p, i) => (
+                <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span>Pensiones de estacionamiento</span>
+                  <button onClick={() => setModal('pension')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-primary)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+                    <Plus size={10}/> Nueva
+                  </button>
+                </div>
+                {pensiones.length === 0 && (
+                <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones esta semana</div>
+              )}
+              {pensiones.map((p, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px', gap: '4px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center' }}>
                     <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre}</span>
                     <span style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center' }}>#{p.num_recibo}</span>
@@ -464,8 +685,8 @@ export default function ResumenSemanal() {
             {/* ── ESTACIONAMIENTO DIARIO ── */}
             <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span><Car size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Estacionamiento diario</span>
-              <button onClick={() => navigate('/estacionamiento')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-                <ExternalLink size={10} /> Agregar
+              <button onClick={() => setModal('estac')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-success)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
+                <Plus size={10} /> Agregar
               </button>
             </div>
             {estac.length === 0 ? (
@@ -557,7 +778,9 @@ export default function ResumenSemanal() {
           <div style={{ border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
             <div style={{ ...S.panelTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>🧾 Gastos a Comprobar — Fondo Revolvente</span>
-              <BtnIr to="/fondo-revolvente" label="Agregar Gasto" navigate={navigate} />
+              <button onClick={() => setModal('gasto')} style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'4px 10px', background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'6px', color:'white', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
+                <Plus size={12}/> Agregar Gasto
+              </button>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -636,6 +859,29 @@ export default function ResumenSemanal() {
           </div>
 
         </div>
+      )}
+
+      {/* ── MODALES DE CAPTURA RÁPIDA ── */}
+      {modal === 'estac' && (
+        <Modal titulo="➕ Ingreso Estacionamiento Diario" onClose={() => setModal(null)}>
+          <ModalEstac semIni={semSel.ini} semFin={semSel.fin}
+            onClose={() => setModal(null)}
+            onSaved={() => { setModal(null); recargar() }} />
+        </Modal>
+      )}
+      {modal === 'gasto' && (
+        <Modal titulo="🧾 Registrar Gasto — Fondo Revolvente" onClose={() => setModal(null)}>
+          <ModalGasto semIni={semSel.ini} semFin={semSel.fin}
+            onClose={() => setModal(null)}
+            onSaved={() => { setModal(null); recargar() }} />
+        </Modal>
+      )}
+      {modal === 'pension' && (
+        <Modal titulo="🚗 Nueva Pensión de Estacionamiento" onClose={() => setModal(null)}>
+          <ModalPension semIni={semSel.ini} semFin={semSel.fin}
+            onClose={() => setModal(null)}
+            onSaved={() => { setModal(null); recargar() }} />
+        </Modal>
       )}
     </div>
   )
