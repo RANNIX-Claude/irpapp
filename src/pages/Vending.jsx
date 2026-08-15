@@ -1,6 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Edit2, Save, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
+import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Edit2, Save, AlertTriangle, Pencil, Trash2, Home } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -9,17 +9,50 @@ function fmtN(n) { return (parseFloat(n) || 0).toLocaleString('es-MX', { maximum
 
 const CATEGORIAS = { snack: 'Snack', bebida: 'Bebida', otro: 'Otro' }
 
-function semanaActual(offset = 0) {
+// ── Misma tabla de semanas Sáb→Vie que ResumenSemanal ─────────────────────────
+const MESES_V = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const DIAS_V  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+
+function hoyLocalV() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function addDaysV(iso, n) {
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function sabadoDeV(iso) {
+  const d = new Date(iso + 'T12:00:00')
+  const dow = d.getDay()
+  d.setDate(d.getDate() - (dow === 6 ? 0 : dow + 1))
+  return d.toISOString().split('T')[0]
+}
+
+function labelSemanaV(ini, fin) {
+  const i = new Date(ini + 'T12:00:00')
+  const f = new Date(fin + 'T12:00:00')
+  return `Sáb ${i.getDate()}/${MESES_V[i.getMonth()]} — Vie ${f.getDate()}/${MESES_V[f.getMonth()]}/${f.getFullYear()}`
+}
+
+function generarSemanasV() {
+  const ORIGEN = '2026-06-27'
   const hoy = new Date()
-  const lunes = new Date(hoy)
-  lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7) + offset * 7)
-  const domingo = new Date(lunes)
-  domingo.setDate(lunes.getDate() + 6)
-  return {
-    ini: lunes.toISOString().split('T')[0],
-    fin: domingo.toISOString().split('T')[0],
-    label: `${lunes.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} – ${domingo.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+  const dow = hoy.getDay()
+  const sabHoy = new Date(hoy)
+  sabHoy.setDate(sabHoy.getDate() - (dow === 6 ? 0 : dow + 1))
+  const sabHoyLocal = `${sabHoy.getFullYear()}-${String(sabHoy.getMonth()+1).padStart(2,'0')}-${String(sabHoy.getDate()).padStart(2,'0')}`
+  const limite = addDaysV(sabHoyLocal, 4 * 7)
+  const semanas = []
+  let cur = ORIGEN
+  while (cur <= limite) {
+    const fin = addDaysV(cur, 6)
+    semanas.push({ ini: cur, fin, label: labelSemanaV(cur, fin) })
+    cur = addDaysV(cur, 7)
   }
+  semanas.reverse()
+  return semanas
 }
 
 // ── Modal captura semanal ──────────────────────────────────────────────────
@@ -312,8 +345,11 @@ function TablaInventario({ datos, total }) {
 export default function Vending() {
   useModuleAudit('Vending')
   const [tab, setTab] = useState('semanal')
-  const [semOffset, setSemOffset] = useState(0)
-  const [semana, setSemana] = useState(semanaActual(0))
+  const semanas = generarSemanasV()
+  const sabActual = sabadoDeV(hoyLocalV())
+  const defaultIdx = semanas.findIndex(s => s.ini === sabActual)
+  const [selIdx, setSelIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0)
+  const semana = semanas[selIdx] || semanas[0]
   const [datos, setDatos] = useState([])
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -322,8 +358,6 @@ export default function Vending() {
   const [editProducto, setEditProducto] = useState(null)
   const [confirmDelProd, setConfirmDelProd] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-
-  useEffect(() => { setSemana(semanaActual(semOffset)) }, [semOffset])
 
   const loadProductos = useCallback(async () => {
     const { data } = await supabase.from('cat_productos_vending').select('*').order('nombre')
@@ -376,6 +410,10 @@ export default function Vending() {
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>Control de inventario y ventas</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => { const i = semanas.findIndex(s => s.ini === sabActual); setSelIdx(i >= 0 ? i : 0) }}
+              style={{ padding: '9px 14px', border: '1.5px solid var(--accent)', borderRadius: '8px', background: semana.ini === sabActual ? 'var(--accent)' : 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: semana.ini === sabActual ? 'white' : 'var(--accent)' }}>
+              Hoy
+            </button>
             <button onClick={() => setShowProducto(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
               <Plus size={15} /> Producto
             </button>
@@ -397,16 +435,24 @@ export default function Vending() {
       {tab === 'semanal' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-          {/* Navegador semana */}
+          {/* Selector de semana — mismo combo que ResumenSemanal */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button onClick={() => setSemOffset(o => o - 1)} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => setSelIdx(i => Math.min(i + 1, semanas.length - 1))} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               <ChevronLeft size={18} />
             </button>
-            <div style={{ flex: 1, textAlign: 'center', background: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>{semana.label}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', fontFamily: 'monospace' }}>{semana.ini} → {semana.fin}</div>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <select value={selIdx} onChange={e => setSelIdx(Number(e.target.value))}
+                style={{ width: '100%', appearance: 'none', padding: '10px 40px 10px 14px', background: 'white', border: '1.5px solid var(--accent)', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text)', cursor: 'pointer' }}>
+                {semanas.map((s, i) => (
+                  <option key={s.ini} value={i}>{s.label}</option>
+                ))}
+              </select>
+              <ChevronRight size={16} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', pointerEvents: 'none', color: 'var(--accent)' }} />
+              {semana.ini === sabActual && (
+                <span style={{ position:'absolute', top:'-8px', right:'-8px', fontSize:'10px', fontWeight:700, color:'white', background:'var(--accent)', padding:'1px 6px', borderRadius:'10px' }}>HOY</span>
+              )}
             </div>
-            <button onClick={() => setSemOffset(o => o + 1)} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => setSelIdx(i => Math.max(i - 1, 0))} style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: '8px', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               <ChevronRight size={18} />
             </button>
           </div>
