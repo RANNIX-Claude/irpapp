@@ -56,13 +56,14 @@ function precioCostoPorUnidad(p) {
 // ── Corte semanal automático ───────────────────────────────────────────────
 async function checkAndRunCorte(productos, onCorteEjecutado) {
   const hoy = hoyLocal()
-  // Buscar semana ABIERTA ya vencida
+  // Solo semanas desde el origen del nuevo sistema, ya vencidas
   const { data: semanas } = await supabase
     .from('vending_semanas')
     .select('id, fecha_inicio, fecha_fin, estado')
     .eq('estado', 'ABIERTA')
+    .gte('fecha_inicio', '2026-06-27')
     .lte('fecha_fin', hoy)
-    .order('fecha_inicio', { ascending: false })
+    .order('fecha_inicio', { ascending: true })
 
   if (!semanas || semanas.length === 0) return
 
@@ -142,7 +143,6 @@ async function checkAndRunCorte(productos, onCorteEjecutado) {
       await supabase.from('vending_semana_producto').insert(inserts)
     }
 
-    toast.success(`Corte automático: semana ${sem.fecha_inicio} cerrada. Nueva semana ${nuevaIni} abierta.`)
   }
   if (onCorteEjecutado) onCorteEjecutado()
 }
