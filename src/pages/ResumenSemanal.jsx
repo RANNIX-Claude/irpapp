@@ -985,8 +985,8 @@ export default function ResumenSemanal() {
                 ['Agua', totAgua, '#0284C7'],
                 ['Otros', totOtros, '#6B7280'],
               ].map(([label, val, color]) => (
-                <div key={label} style={{ background: 'white', padding: '10px 14px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
+                <div key={label} style={{ background: 'white', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase' }}>{label}</div>
                   <div style={{ fontSize: '14px', fontWeight: 800, color, fontFamily: 'monospace' }}>{fmt(val)}</div>
                 </div>
               ))}
