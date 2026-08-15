@@ -241,6 +241,22 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         precio_compra_semana: form.tipo === 'COMPRA' ? precio : sp.precio_compra_semana,
       }).eq('id', sp.id)
 
+      // 4. Sincronizar venta_pesos en vending_semanas (lo lee ResumenSemanal)
+      const { data: totales } = await supabase
+        .from('vending_semana_producto')
+        .select('importe_ventas, importe_compras, qty_ventas, qty_compras')
+        .eq('semana_id', semanaId)
+      const totVentas  = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
+      const totCompras = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_compras)||0), 0)
+      const totUnidV   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
+      const totUnidC   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
+      await supabase.from('vending_semanas').update({
+        venta_pesos:    totVentas,
+        utilidad:       totVentas - totCompras,
+        venta_unidades: totUnidV,
+        compras:        totUnidC,
+      }).eq('id', semanaId)
+
       toast.success(`${form.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} registrada`)
       onSaved(); onClose()
     } catch (e) { toast.error(e.message) } finally { setSaving(false) }
@@ -563,9 +579,23 @@ export default function Vending() {
   const ejecutarCorte = async () => {
     if (!semanaDb || semanaDb.estado === 'CERRADA') return
     setCortando(true)
-    await supabase.from('vending_semanas')
-      .update({ estado: 'CERRADA', fecha_corte: new Date().toISOString() })
-      .eq('id', semanaDb.id)
+    // Calcular totales finales desde el detalle
+    const { data: totales } = await supabase
+      .from('vending_semana_producto')
+      .select('importe_ventas, importe_compras, qty_ventas, qty_compras')
+      .eq('semana_id', semanaDb.id)
+    const totVentas  = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
+    const totCompras = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_compras)||0), 0)
+    const totUnidV   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
+    const totUnidC   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
+    await supabase.from('vending_semanas').update({
+      estado:         'CERRADA',
+      fecha_corte:    new Date().toISOString(),
+      venta_pesos:    totVentas,
+      utilidad:       totVentas - totCompras,
+      venta_unidades: totUnidV,
+      compras:        totUnidC,
+    }).eq('id', semanaDb.id)
     toast.success('Semana cerrada. Cambia a la siguiente para ver el inventario heredado.')
     setRefreshKey(k => k + 1)
     setCortando(false)
