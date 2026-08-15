@@ -1,6 +1,6 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef } from 'react'
-import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, X, ExternalLink, Plus, CreditCard, Trash2, Upload, FileText, AlertCircle } from 'lucide-react'
+import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, X, ExternalLink, Plus, CreditCard, Trash2, Upload, FileText, AlertCircle, BarChart2, Printer } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
@@ -400,6 +400,204 @@ function PagosModal({ cobro, onClose, onSaved }) {
 }
 
 
+// ── Reporte de Cobranza ───────────────────────────────────────────────────────
+function ReporteCobranza({ lista, mesFiltro, anioFiltro }) {
+  const [ingresosData, setIngresosData] = useState([])
+
+  useEffect(() => {
+    supabase.from('ingresos')
+      .select('importe, tipo, tipo_concepto, origen, fecha')
+      .not('cobro_id', 'is', null)
+      .then(({ data }) => setIngresosData(data || []))
+  }, [])
+
+  // Filtrar por mes/año si hay filtro activo
+  const base = mesFiltro === 0
+    ? lista
+    : lista.filter(c => c.mes === mesFiltro && c.anio === anioFiltro)
+
+  // ── KPIs por estatus ──
+  const grupos = {
+    PAGADO:    base.filter(c => c.estatus === 'PAGADO'),
+    PARCIAL:   base.filter(c => c.estatus === 'PARCIAL'),
+    PENDIENTE: base.filter(c => c.estatus === 'PENDIENTE'),
+    EN_MORA:   base.filter(c => c.estatus === 'EN_MORA'),
+  }
+  const sum = arr => arr.reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
+  const sumPagado = arr => arr.reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
+
+  // ── Ingresos por tipo (de tabla ingresos) ──
+  const ingRentas    = ingresosData.filter(r => r.tipo_concepto === 'RENTA' || r.tipo === 'RENTA')
+  const ingSanciones = ingresosData.filter(r => ['SANCION','RECARGO','CUOTA_MANT'].includes(r.tipo_concepto) || r.tipo === 'SANCION')
+  const sumIng = arr => arr.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
+
+  const KPIS_EST = [
+    { label: 'Pagado', key: 'PAGADO',    color: 'var(--color-success)', icon: '✅' },
+    { label: 'Parcial', key: 'PARCIAL',   color: '#7C3AED',              icon: '🔵' },
+    { label: 'Pendiente', key: 'PENDIENTE', color: 'var(--color-warning)', icon: '⏳' },
+    { label: 'En Mora', key: 'EN_MORA',   color: 'var(--color-danger)',   icon: '🔴' },
+  ]
+
+  // ── Tabla completa ──
+  const sorted = [...base].sort((a, b) => {
+    const ord = { EN_MORA: 0, PENDIENTE: 1, PARCIAL: 2, PAGADO: 3 }
+    return (ord[a.estatus] ?? 9) - (ord[b.estatus] ?? 9)
+  })
+
+  const handlePrint = () => {
+    const mesLabel = mesFiltro === 0 ? 'Todos los meses' : `${MES_NOMBRES[mesFiltro]} ${anioFiltro}`
+    const filas = sorted.map(c => `
+      <tr style="border-bottom:1px solid #F3F4F6;background:${c.estatus==='EN_MORA'?'#FFF1F0':c.estatus==='PAGADO'?'#F0FDF4':'white'}">
+        <td style="padding:5px 8px;font-size:11px;font-family:monospace;color:#0A66C2">${c.referencia_pago||''}</td>
+        <td style="padding:5px 8px;font-size:12px">${c.unidad_numero||'—'}</td>
+        <td style="padding:5px 8px;font-size:12px">${c.arrendatario_nombre||'—'}</td>
+        <td style="padding:5px 8px;font-size:11px;text-align:right">${fmt(c.monto_total)}</td>
+        <td style="padding:5px 8px;font-size:11px;text-align:right;color:${c.monto_pagado>0?'#057642':'#9CA3AF'}">${fmt(c.monto_pagado)}</td>
+        <td style="padding:5px 8px;font-size:11px;text-align:right;color:${c.monto_total-c.monto_pagado>0?'#B24020':'#9CA3AF'}">${fmt(Math.max(0,c.monto_total-(parseFloat(c.monto_pagado)||0)))}</td>
+        <td style="padding:5px 8px;font-size:11px">${c.fecha_limite_pago||''}</td>
+        <td style="padding:5px 8px">
+          <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${ESTATUS_COLOR[c.estatus]||'#F59E0B'}20;color:${ESTATUS_COLOR[c.estatus]||'#F59E0B'}">${c.estatus}</span>
+        </td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Cobranza</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;padding:20px}
+    h1{font-size:16px;color:#0A66C2;font-weight:800}
+    .hdr{display:flex;justify-content:space-between;border-bottom:3px solid #0A66C2;padding-bottom:10px;margin-bottom:16px}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .kpi{border:1px solid #E5E7EB;border-radius:6px;padding:10px 12px}
+    .kpi .val{font-size:18px;font-weight:800;margin-top:2px}.kpi .lbl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase}
+    table{width:100%;border-collapse:collapse}th{background:#F3F4F6;padding:6px 8px;text-align:left;font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;border-bottom:2px solid #E5E7EB}
+    @media print{@page{size:landscape;margin:8mm}}</style></head><body>
+    <div class="hdr"><div><h1>REPORTE DE COBRANZA — PLAZA IWOL</h1>
+    <div style="font-size:12px;color:#6B7280;margin-top:2px">Periodo: ${mesLabel} · Generado: ${new Date().toLocaleDateString('es-MX')}</div></div>
+    <div style="text-align:right;font-size:11px;color:#6B7280">IRP by RANNIX Consulting</div></div>
+    <div class="kpis">
+      ${KPIS_EST.map(k => `<div class="kpi"><div class="lbl">${k.icon} ${k.label}</div>
+      <div class="val" style="color:${k.color}">${grupos[k.key].length} cobros</div>
+      <div style="font-size:11px;color:#6B7280">Total: ${fmt(sum(grupos[k.key]))}</div>
+      ${k.key!=='PENDIENTE'&&k.key!=='EN_MORA'?`<div style="font-size:11px;color:${k.color}">Cobrado: ${fmt(sumPagado(grupos[k.key]))}</div>`:''}</div>`).join('')}
+    </div>
+    <div style="margin-bottom:10px;display:flex;gap:20px;font-size:12px">
+      <span>📥 Ingresos Rentas: <strong>${fmt(sumIng(ingRentas))}</strong> (${ingRentas.length} movs.)</span>
+      <span>⚡ Sanciones/Recargos: <strong>${fmt(sumIng(ingSanciones))}</strong> (${ingSanciones.length} movs.)</span>
+    </div>
+    <table><thead><tr><th>Referencia</th><th>Local</th><th>Arrendatario</th><th style="text-align:right">Renta</th><th style="text-align:right">Pagado</th><th style="text-align:right">Pendiente</th><th>Vencimiento</th><th>Estatus</th></tr></thead>
+    <tbody>${filas}</tbody></table>
+    <div style="margin-top:12px;border-top:1px solid #E5E7EB;padding-top:8px;display:flex;justify-content:space-between;font-size:10px;color:#9CA3AF">
+      <span>Total programado: ${fmt(sum(base))} · Total cobrado: ${fmt(sumPagado(base))}</span>
+      <span>Firma: ________________________</span>
+    </div></body></html>`
+    const w = window.open('', '_blank', 'width=1100,height=700')
+    w.document.write(html); w.document.close()
+    setTimeout(() => w.print(), 400)
+  }
+
+  const EST_ORDEN = ['EN_MORA','PENDIENTE','PARCIAL','PAGADO']
+
+  return (
+    <div>
+      {/* Botón imprimir */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+        <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#1A3C5E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+          <Printer size={14} /> Imprimir / PDF
+        </button>
+      </div>
+
+      {/* ── KPIs por estatus ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        {KPIS_EST.map(k => (
+          <div key={k.key} style={{ background: 'white', border: `2px solid ${k.color}30`, borderRadius: '12px', padding: '14px 16px', borderLeft: `4px solid ${k.color}` }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', color: '#9CA3AF', marginBottom: '6px' }}>{k.icon} {k.label}</div>
+            <div style={{ fontSize: '26px', fontWeight: 900, color: k.color, fontFamily: 'monospace' }}>{grupos[k.key].length}</div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginTop: '4px' }}>Programado: {fmt(sum(grupos[k.key]))}</div>
+            {(k.key === 'PAGADO' || k.key === 'PARCIAL') && (
+              <div style={{ fontSize: '11px', color: k.color, fontWeight: 600 }}>Cobrado: {fmt(sumPagado(grupos[k.key]))}</div>
+            )}
+            {(k.key === 'EN_MORA' || k.key === 'PENDIENTE') && (
+              <div style={{ fontSize: '11px', color: k.color, fontWeight: 600 }}>Por cobrar: {fmt(sum(grupos[k.key]) - sumPagado(grupos[k.key]))}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desglose de ingresos recibidos ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#9CA3AF', marginBottom: '8px' }}>📥 Ingresos por Rentas</div>
+          <div style={{ fontSize: '28px', fontWeight: 900, color: 'var(--color-success)', fontFamily: 'monospace' }}>{fmt(sumIng(ingRentas))}</div>
+          <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>{ingRentas.length} movimientos registrados</div>
+        </div>
+        <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#9CA3AF', marginBottom: '8px' }}>⚡ Sanciones / Recargos / Mantenimiento</div>
+          <div style={{ fontSize: '28px', fontWeight: 900, color: 'var(--color-danger)', fontFamily: 'monospace' }}>{fmt(sumIng(ingSanciones))}</div>
+          <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>{ingSanciones.length} cargos adicionales</div>
+        </div>
+      </div>
+
+      {/* ── Tabla completa ── */}
+      <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', background: '#1A3C5E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 800, fontSize: '12px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Detalle de Cobros — {base.length} registros
+          </span>
+          <span style={{ fontSize: '13px', color: '#E8A020', fontWeight: 900, fontFamily: 'monospace' }}>
+            Programado: {fmt(sum(base))} · Cobrado: {fmt(sumPagado(base))}
+          </span>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ background: '#F9FAFB' }}>
+                {['Referencia','Local','Arrendatario','Renta','Pagado','Pendiente','Vencimiento','Estatus'].map((h, i) => (
+                  <th key={h} style={{ padding: '9px 12px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', borderBottom: '2px solid #E5E7EB', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((c, i) => {
+                const pendiente = Math.max(0, (parseFloat(c.monto_total) || 0) - (parseFloat(c.monto_pagado) || 0))
+                const color = ESTATUS_COLOR[c.estatus] || 'var(--color-warning)'
+                const bgRow = c.estatus === 'EN_MORA' ? '#FFF8F8' : c.estatus === 'PAGADO' ? '#F0FDF4' : i%2===0?'white':'#FAFAFA'
+                return (
+                  <tr key={c.id} style={{ borderBottom: '1px solid #F3F4F6', background: bgRow }}>
+                    <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>{c.referencia_pago}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: '#374151' }}>{c.unidad_numero || '—'}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ fontWeight: 600, fontSize: '12px' }}>{c.arrendatario_nombre}</div>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF' }}>{MES_NOMBRES[c.mes]} {c.anio}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmt(c.monto_total)}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: parseFloat(c.monto_pagado) > 0 ? 'var(--color-success)' : '#9CA3AF', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {parseFloat(c.monto_pagado) > 0 ? fmt(c.monto_pagado) : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: pendiente > 0 ? 'var(--color-danger)' : '#9CA3AF', fontWeight: pendiente > 0 ? 700 : 400, whiteSpace: 'nowrap' }}>
+                      {pendiente > 0 ? fmt(pendiente) : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', fontSize: '11px', color: '#6B7280', whiteSpace: 'nowrap' }}>{c.fecha_limite_pago || '—'}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, background: color + '20', color }}>{c.estatus}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: '#F3F4F6', borderTop: '2px solid #E5E7EB', fontWeight: 800 }}>
+                <td colSpan={3} style={{ padding: '10px 12px', fontSize: '12px', color: '#374151' }}>TOTAL</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 900 }}>{fmt(sum(base))}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--color-success)', fontWeight: 900 }}>{fmt(sumPagado(base))}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--color-danger)', fontWeight: 900 }}>{fmt(sum(base) - sumPagado(base))}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Cobranza() {
   useModuleAudit('COBRANZA')
   const [search, setSearch] = useState('')
@@ -409,6 +607,7 @@ export default function Cobranza() {
   const [selected, setSelected] = useState(null)
   const [expedienteData, setExpedienteData] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [tab, setTab] = useState('cobros')
 
   const abrirExpediente = (c) => {
     setExpedienteData({
@@ -450,9 +649,21 @@ export default function Cobranza() {
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Cobranza y Conciliación</h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cobros programados</p>
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-          <Download size={15} /> Exportar CSV
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+            {[{ key: 'cobros', label: 'Cobros' }, { key: 'reporte', label: '📊 Reporte' }].map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)} style={{
+                padding: '6px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
+                background: tab === t.key ? 'white' : 'transparent',
+                color: tab === t.key ? 'var(--color-primary)' : '#6B7280',
+                boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              }}>{t.label}</button>
+            ))}
+          </div>
+          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            <Download size={15} /> Exportar CSV
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '24px' }}>
@@ -463,7 +674,11 @@ export default function Cobranza() {
         <KPICard title="Por Cobrar" value={`$${(totalPendiente/1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {tab === 'reporte' && (
+        <ReporteCobranza lista={lista} mesFiltro={mesFiltro} anioFiltro={anioFiltro} />
+      )}
+
+      {tab === 'cobros' && <><div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar arrendatario, referencia, unidad..."
@@ -511,6 +726,8 @@ export default function Cobranza() {
             </div>
         }
       </div>
+
+      </>}
 
       {selected && (
         <PagosModal cobro={selected} onClose={() => setSelected(null)} onSaved={() => setRefreshKey(k => k + 1)} />
