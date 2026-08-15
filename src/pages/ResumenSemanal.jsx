@@ -116,20 +116,24 @@ async function cargarDatos(ini, fin, iniEstac) {
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
 
-    // Rentas efectivo: rango Sáb→Vie
+    // Ingresos efectivo (RENTA + AGUA + SANCION + OTRO): rango Sáb→Vie
     supabase.from('ingresos')
-      .select('fecha, importe, origen, concepto_origen, nota, propietario, id_contrato')
+      .select('fecha, importe, tipo, origen, concepto_origen, nota, propietario, id_contrato')
       .eq('origen', 'EFECTIVO')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
   ])
+
+  const ingresosEf = rentasEf ?? []
 
   return {
     estac:     estac     ?? [],
     pensiones: pensiones ?? [],
     vending:   vending   ?? [],
     gastos:    gastos    ?? [],
-    rentasEf:  rentasEf  ?? [],
+    rentasEf:  ingresosEf.filter(r => r.tipo === 'RENTA'),
+    aguaEf:    ingresosEf.filter(r => r.tipo === 'AGUA'),
+    otrosEf:   ingresosEf.filter(r => !['RENTA','AGUA'].includes(r.tipo)),
   }
 }
 
@@ -276,6 +280,80 @@ function ModalGasto({ semIni, semFin, onClose, onSaved }) {
   )
 }
 
+// ── Modal: Ingreso Efectivo (Renta o Agua) ────────────────────────────────────
+const MESES_INGRESO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+function ModalIngreso({ tipo, semIni, semFin, onClose, onSaved }) {
+  const hoy = hoyLocal()
+  const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
+  const [form, setForm] = useState({
+    fecha: fechaDefault, importe: '', propietario: '',
+    id_contrato: '', concepto_origen: '', nota: '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    if (!form.importe) return toast.error('Ingresa el importe')
+    setSaving(true)
+    const { error } = await supabase.from('ingresos').insert({
+      fecha: form.fecha,
+      tipo,
+      origen: 'EFECTIVO',
+      importe: parseFloat(form.importe),
+      propietario: form.propietario || null,
+      id_contrato: form.id_contrato || null,
+      concepto_origen: form.concepto_origen || `${tipo} ${MESES_INGRESO[new Date(form.fecha+'T12:00:00').getMonth()]}${new Date(form.fecha+'T12:00:00').getFullYear().toString().slice(2)}`,
+      nota: form.nota || null,
+    })
+    if (error) toast.error(error.message)
+    else { toast.success(`${tipo} registrada`); onSaved() }
+    setSaving(false)
+  }
+
+  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+  const color = tipo === 'RENTA' ? 'var(--color-success)' : '#0284C7'
+  return (
+    <>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Fecha de pago</label>
+          <input type="date" value={form.fecha} min={semIni} max={semFin}
+            onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Importe ($)</label>
+          <input type="number" min="0" step="0.01" value={form.importe} placeholder="0.00" autoFocus
+            onChange={e => setForm(p => ({ ...p, importe: e.target.value }))}
+            style={{ ...inp, fontSize:'22px', fontWeight:800, textAlign:'right', color }} />
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Propietario / Razón Social</label>
+          <input value={form.propietario} onChange={e => setForm(p => ({ ...p, propietario: e.target.value }))} placeholder="Nombre..." style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>ID Contrato / Local</label>
+          <input value={form.id_contrato} onChange={e => setForm(p => ({ ...p, id_contrato: e.target.value }))} placeholder="Ej: L04" style={inp} />
+        </div>
+      </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Concepto (opcional)</label>
+        <input value={form.concepto_origen} onChange={e => setForm(p => ({ ...p, concepto_origen: e.target.value }))}
+          placeholder={tipo === 'RENTA' ? 'Ej: RENTA AGO26' : 'Ej: AGUA AGO26'} style={inp} />
+      </div>
+      <div style={{ marginBottom:'20px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Nota</label>
+        <input value={form.nota} onChange={e => setForm(p => ({ ...p, nota: e.target.value }))} placeholder="Observaciones..." style={inp} />
+      </div>
+      <button onClick={guardar} disabled={saving}
+        style={{ width:'100%', padding:'13px', background: color, color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Guardando...' : `Registrar ${tipo.charAt(0)+tipo.slice(1).toLowerCase()}`}
+      </button>
+    </>
+  )
+}
+
 // ── Modal: Pensión de Estacionamiento ─────────────────────────────────────────
 function ModalPension({ semIni, semFin, onClose, onSaved }) {
   const hoy = hoyLocal()
@@ -358,8 +436,8 @@ function FilaTabla({ label, monto, sub, bold, highlight, indent }) {
 }
 
 // ── Generador HTML para imprimir ──────────────────────────────────────────────
-function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentasEf, totales }) {
-  const { totPensiones, totEstac, totVending, totRentas, totalEfectivo, totGastosFondo, diferencia, residualVending } = totales
+function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentasEf, aguaEf, otrosEf, totales }) {
+  const { totPensiones, totEstac, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending } = totales
 
   const rowsEstac = estac.map(e =>
     `<tr><td style="padding:3px 6px;font-size:12px">${labelFecha(e.fecha)}</td><td></td><td style="text-align:right;padding:3px 6px">${fmt(e.cantidad)}</td><td style="color:#16a34a;text-align:center;font-size:11px">${e.cantidad > 0 ? '✓' : ''}</td></tr>`
@@ -370,7 +448,10 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
   ).join('')
 
   const rowsRentas = rentasEf.map(r =>
-    `<tr><td style="padding:3px 6px;font-size:12px">${r.propietario ? `${r.propietario} ${r.id_contrato}` : (r.concepto_origen || 'Renta')}</td><td></td><td style="text-align:right;padding:3px 6px">${fmt(r.importe)}</td><td></td></tr>`
+    `<tr><td style="padding:3px 6px;font-size:12px">${r.propietario ? `${r.propietario} ${r.id_contrato||''}` : (r.concepto_origen || 'Renta')}</td><td style="font-size:11px;color:#6B7280">${r.fecha}</td><td style="text-align:right;padding:3px 6px">${fmt(r.importe)}</td><td></td></tr>`
+  ).join('')
+  const rowsAgua = (aguaEf||[]).map(r =>
+    `<tr><td style="padding:3px 6px;font-size:12px">${r.propietario ? `${r.propietario} ${r.id_contrato||''}` : (r.concepto_origen || 'Agua')}</td><td style="font-size:11px;color:#6B7280">${r.fecha}</td><td style="text-align:right;padding:3px 6px;color:#0284C7">${fmt(r.importe)}</td><td></td></tr>`
   ).join('')
 
   const rowsGastos = gastos.map(g =>
@@ -454,10 +535,14 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
           ` : ''}
 
           <!-- RENTAS EN EFECTIVO -->
-          ${rentasEf.length > 0 ? `
           <tr class="section-row"><td colspan="4">Rentas cobradas en efectivo</td></tr>
-          ${rowsRentas}
-          ` : ''}
+          ${rowsRentas || '<tr><td colspan="4" style="padding:4px 8px;color:#9CA3AF;font-size:11px">Sin registros</td></tr>'}
+          ${rentasEf.length > 0 ? `<tr><td colspan="2" style="padding:3px 8px;font-weight:700;font-size:11px">Total rentas</td><td></td><td style="text-align:right;font-weight:800;padding:3px 8px">${fmt(totRentas)}</td></tr>` : ''}
+
+          <!-- AGUA -->
+          <tr class="section-row"><td colspan="4">💧 Agua cobrada en efectivo</td></tr>
+          ${rowsAgua || '<tr><td colspan="4" style="padding:4px 8px;color:#9CA3AF;font-size:11px">Sin registros</td></tr>'}
+          ${(aguaEf||[]).length > 0 ? `<tr><td colspan="2" style="padding:3px 8px;font-weight:700;font-size:11px">Total agua</td><td></td><td style="text-align:right;font-weight:800;padding:3px 8px;color:#0284C7">${fmt(totAgua)}</td></tr>` : ''}
         </tbody>
       </table>
 
@@ -550,7 +635,7 @@ export default function ResumenSemanal() {
   const [selIdx, setSelIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0)
   const [datos, setDatos] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // 'estac' | 'gasto' | 'pension'
+  const [modal, setModal] = useState(null) // 'estac' | 'gasto' | 'pension' | 'renta' | 'agua'
 
   const semSel = semanas[selIdx]   // { ini, fin, iniEstac, label }
 
@@ -564,22 +649,24 @@ export default function ResumenSemanal() {
   useEffect(() => { recargar() }, [semSel?.ini])
 
   // Calcular totales
-  const totPensiones  = (datos?.pensiones  ?? []).reduce((a, b) => a + (parseFloat(b.monto)       || 0), 0)
-  const totEstac      = (datos?.estac      ?? []).reduce((a, b) => a + (parseFloat(b.cantidad)     || 0), 0)
-  const totVending    = (datos?.vending    ?? []).reduce((a, b) => a + (parseFloat(b.venta_pesos)  || 0), 0)
-  const totRentas     = (datos?.rentasEf   ?? []).reduce((a, b) => a + (parseFloat(b.importe)      || 0), 0)
-  const totGastosFondo= (datos?.gastos     ?? []).reduce((a, b) => a + (parseFloat(b.cantidad) || 0), 0)
+  const totPensiones  = (datos?.pensiones  ?? []).reduce((a, b) => a + (parseFloat(b.monto)      || 0), 0)
+  const totEstac      = (datos?.estac      ?? []).reduce((a, b) => a + (parseFloat(b.cantidad)    || 0), 0)
+  const totVending    = (datos?.vending    ?? []).reduce((a, b) => a + (parseFloat(b.venta_pesos) || 0), 0)
+  const totRentas     = (datos?.rentasEf   ?? []).reduce((a, b) => a + (parseFloat(b.importe)     || 0), 0)
+  const totAgua       = (datos?.aguaEf     ?? []).reduce((a, b) => a + (parseFloat(b.importe)     || 0), 0)
+  const totOtros      = (datos?.otrosEf    ?? []).reduce((a, b) => a + (parseFloat(b.importe)     || 0), 0)
+  const totGastosFondo= (datos?.gastos     ?? []).reduce((a, b) => a + (parseFloat(b.cantidad)    || 0), 0)
 
   const vendingMaterial = (datos?.vending ?? []).filter(v => v.es_material).reduce((a, b) => a + (parseFloat(b.venta_pesos) || 0), 0)
   const residualVending = (datos?.vending ?? []).reduce((a, b) => a + (parseFloat(b.residual_pesos) || 0), 0)
 
-  const totalEfectivo = totPensiones + totEstac + totVending + totRentas
+  const totalEfectivo = totPensiones + totEstac + totVending + totRentas + totAgua + totOtros
   const diferencia    = totalEfectivo - totGastosFondo
 
-  const totales = { totPensiones, totEstac, totVending, totRentas, totalEfectivo, totGastosFondo, diferencia, residualVending }
+  const totales = { totPensiones, totEstac, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending }
 
   const handlePrint = () => {
-    const html = generarHTML({ iniStr: semSel.ini, finStr: semSel.fin, ...datos, totales })
+    const html = generarHTML({ iniStr: semSel.ini, finStr: semSel.fin, ...datos, aguaEf, otrosEf, totales })
     const w = window.open('', '_blank', 'width=1100,height=750')
     w.document.write(html)
     w.document.close()
@@ -596,11 +683,13 @@ export default function ResumenSemanal() {
     lblSmall: { fontSize: '11px', color: '#6B7280', paddingLeft: '14px' },
   }
 
-  const estac = datos?.estac ?? []
+  const estac     = datos?.estac     ?? []
   const pensiones = datos?.pensiones ?? []
-  const vending = datos?.vending ?? []
-  const gastos = datos?.gastos ?? []
-  const rentasEf = datos?.rentasEf ?? []
+  const vending   = datos?.vending   ?? []
+  const gastos    = datos?.gastos    ?? []
+  const rentasEf  = datos?.rentasEf  ?? []
+  const aguaEf    = datos?.aguaEf    ?? []
+  const otrosEf   = datos?.otrosEf   ?? []
 
   const esEstaSemana = semSel?.ini === sabActual
 
@@ -730,20 +819,65 @@ export default function ResumenSemanal() {
             )}
 
             {/* ── RENTAS EN EFECTIVO ── */}
-            {rentasEf.length > 0 && (
-              <>
-                <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span><Home size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Rentas cobradas en efectivo</span>
-                  <button onClick={() => navigate('/ingresos')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-                    <ExternalLink size={10} /> Agregar
-                  </button>
+            <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span><Home size={12} style={{ marginRight:'6px', verticalAlign:'middle' }}/>Rentas cobradas en efectivo</span>
+              <button onClick={() => setModal('renta')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-success)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+                <Plus size={10}/> Nueva
+              </button>
+            </div>
+            {rentasEf.length === 0
+              ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin rentas esta semana</div>
+              : rentasEf.map((r, i) => (
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Renta')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
+                  <span style={S.monto('var(--color-success)')}>{fmt(r.importe)}</span>
                 </div>
-                {rentasEf.map((r, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6' }}>
-                    <span style={S.lbl}>{r.propietario ? `${r.propietario} ${r.id_contrato}` : (r.concepto_origen || 'Renta')} · {r.fecha}</span>
+              ))
+            }
+            {rentasEf.length > 0 && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
+                <span style={{ fontSize:'12px', fontWeight:700, color:'var(--color-success)' }}>Total rentas</span>
+                <span style={S.monto('var(--color-success)')}>{fmt(totRentas)}</span>
+              </div>
+            )}
+
+            {/* ── AGUA EN EFECTIVO ── */}
+            <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span>💧 Agua cobrada en efectivo</span>
+              <button onClick={() => setModal('agua')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'#0284C7', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+                <Plus size={10}/> Nueva
+              </button>
+            </div>
+            {aguaEf.length === 0
+              ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin cobros de agua esta semana</div>
+              : aguaEf.map((r, i) => (
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Agua')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
+                  <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(r.importe)}</span>
+                </div>
+              ))
+            }
+            {aguaEf.length > 0 && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F0F9FF', borderBottom:'1px solid #BAE6FD' }}>
+                <span style={{ fontSize:'12px', fontWeight:700, color:'#0284C7' }}>Total agua</span>
+                <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(totAgua)}</span>
+              </div>
+            )}
+
+            {/* ── OTROS INGRESOS EFECTIVO ── */}
+            {otrosEf.length > 0 && (
+              <>
+                <div style={S.sectionHeader}>Otros ingresos en efectivo</div>
+                {otrosEf.map((r, i) => (
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                    <span style={S.lbl}>{r.tipo} · {r.concepto_origen || r.propietario || '—'} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                     <span style={S.monto('#374151')}>{fmt(r.importe)}</span>
                   </div>
                 ))}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 100px', padding:'6px 12px', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
+                  <span style={{ fontSize:'12px', fontWeight:700, color:'#6B7280' }}>Total otros</span>
+                  <span style={S.monto('#6B7280')}>{fmt(totOtros)}</span>
+                </div>
               </>
             )}
 
@@ -843,16 +977,18 @@ export default function ResumenSemanal() {
             </div>
 
             {/* Resumen KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '1px solid #E5E7EB' }}>
               {[
                 ['Estacionamiento', totEstac, '#0A66C2'],
                 ['Pensiones', totPensiones, '#0A66C2'],
                 ['Vending', totVending, '#0A66C2'],
-                ['Rentas efectivo', totRentas, '#0A66C2'],
+                ['Rentas', totRentas, 'var(--color-success)'],
+                ['Agua', totAgua, '#0284C7'],
+                ['Otros', totOtros, '#6B7280'],
               ].map(([label, val, color]) => (
                 <div key={label} style={{ background: 'white', padding: '10px 14px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color, fontFamily: 'monospace' }}>{fmt(val)}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color, fontFamily: 'monospace' }}>{fmt(val)}</div>
                 </div>
               ))}
             </div>
@@ -879,6 +1015,20 @@ export default function ResumenSemanal() {
       {modal === 'pension' && (
         <Modal titulo="🚗 Nueva Pensión de Estacionamiento" onClose={() => setModal(null)}>
           <ModalPension semIni={semSel.ini} semFin={semSel.fin}
+            onClose={() => setModal(null)}
+            onSaved={() => { setModal(null); recargar() }} />
+        </Modal>
+      )}
+      {modal === 'renta' && (
+        <Modal titulo="🏠 Registrar Renta en Efectivo" onClose={() => setModal(null)}>
+          <ModalIngreso tipo="RENTA" semIni={semSel.ini} semFin={semSel.fin}
+            onClose={() => setModal(null)}
+            onSaved={() => { setModal(null); recargar() }} />
+        </Modal>
+      )}
+      {modal === 'agua' && (
+        <Modal titulo="💧 Registrar Cobro de Agua en Efectivo" onClose={() => setModal(null)}>
+          <ModalIngreso tipo="AGUA" semIni={semSel.ini} semFin={semSel.fin}
             onClose={() => setModal(null)}
             onSaved={() => { setModal(null); recargar() }} />
         </Modal>
