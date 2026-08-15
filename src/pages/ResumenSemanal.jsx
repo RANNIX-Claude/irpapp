@@ -93,13 +93,13 @@ async function cargarDatos(ini, fin, iniEstac) {
   ] = await Promise.all([
     // Estacionamiento: desde Vie anterior (iniEstac) hasta el Vie del corte
     supabase.from('estacionamiento_diario')
-      .select('fecha, cantidad, dia_semana, notas')
+      .select('id, fecha, cantidad, dia_semana, notas')
       .gte('fecha', iniEstac).lte('fecha', fin)
       .order('fecha'),
 
     // Pensiones: semana_inicio = Sábado
     supabase.from('estacionamiento_pensiones')
-      .select('local_referencia, arrendatario_nombre, monto, num_recibo, fecha, pagado, nota')
+      .select('id, local_referencia, arrendatario_nombre, monto, num_recibo, fecha, pagado, nota')
       .eq('semana_inicio', ini)
       .order('num_recibo'),
 
@@ -117,7 +117,7 @@ async function cargarDatos(ini, fin, iniEstac) {
 
     // Ingresos efectivo (RENTA + AGUA + SANCION + OTRO): rango Sáb→Vie
     supabase.from('ingresos')
-      .select('fecha, importe, tipo, origen, concepto_origen, nota, propietario, id_contrato')
+      .select('id, fecha, importe, tipo, origen, concepto_origen, nota, propietario, id_contrato')
       .eq('origen', 'EFECTIVO')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
@@ -1113,7 +1113,7 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
     if (tabla === 'estacionamiento_diario') {
       payload = { fecha: form.fecha, cantidad: parseFloat(form.cantidad), notas: form.notas || null }
     } else if (tabla === 'estacionamiento_pensiones') {
-      payload = { monto: parseFloat(form.monto), nota: form.nota || null }
+      payload = { monto: parseFloat(form.monto), nota: form.nota || null, local_referencia: form.local_referencia || null, arrendatario_nombre: form.arrendatario_nombre || null }
     } else if (tabla === 'ingresos') {
       payload = { importe: parseFloat(form.importe), nota: form.nota || null, fecha: form.fecha }
     }
@@ -1142,6 +1142,19 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
               <input type="date" value={form.fecha} min={semIni} max={semFin}
                 onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
             </div>
+          )}
+          {/* Campos pensión: local y arrendatario */}
+          {tabla === 'estacionamiento_pensiones' && (
+            <>
+              <div>
+                <label style={lbl}>Local / Referencia</label>
+                <input value={form.local_referencia || ''} onChange={e => setForm(p => ({ ...p, local_referencia: e.target.value }))} style={inp} placeholder="Ej: L-12" />
+              </div>
+              <div>
+                <label style={lbl}>Nombre Arrendatario</label>
+                <input value={form.arrendatario_nombre || ''} onChange={e => setForm(p => ({ ...p, arrendatario_nombre: e.target.value }))} style={inp} placeholder="Nombre completo" />
+              </div>
+            </>
           )}
           {/* Monto */}
           <div>
