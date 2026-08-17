@@ -763,17 +763,17 @@ export default function Vending() {
               <span style={{ fontSize:'13px', fontWeight:700, color: semanaDb.estado==='CERRADA'?'#057642':'#92400E' }}>
                 {semanaDb.estado === 'CERRADA' ? '✅ Semana cerrada' : '🔓 Semana abierta — capturando movimientos'}
               </span>
-              {semanaDb.estado === 'ABIERTA' && (
-                <div style={{ display:'flex', gap:'8px' }}>
-                  <button onClick={() => setModal('ajuste')}
-                    style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
-                    📦 Ajustar Inventario Inicial
-                  </button>
+              <div style={{ display:'flex', gap:'8px' }}>
+                <button onClick={() => setModal('ajuste')}
+                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
+                  📦 Ajustar Inicial
+                </button>
+                {semanaDb.estado === 'ABIERTA' && (
                   <button onClick={ejecutarCorte} disabled={cortando} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'none', borderRadius:'8px', background:'#1A3C5E', color:'white', cursor: cortando?'not-allowed':'pointer', fontSize:'12px', fontWeight:700 }}>
                     <Scissors size={13} /> {cortando ? 'Cerrando…' : 'Hacer Corte'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
