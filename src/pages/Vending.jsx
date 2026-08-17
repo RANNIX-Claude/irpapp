@@ -557,6 +557,8 @@ export default function Vending() {
   const [confirmDel, setConfirmDel]   = useState(null)
   const [refreshKey, setRefreshKey]   = useState(0)
   const [cortando, setCortando]       = useState(false)
+  const [stockActual, setStockActual] = useState({})   // producto_id → { qty_final, qty_ventas }
+  const [listaCompras, setListaCompras] = useState(null) // post-corte
 
   const semana = semanas[selIdx] || semanas[0]
 
@@ -676,10 +678,39 @@ export default function Vending() {
       venta_unidades: totUnidV,
       compras:        totUnidC,
     }).eq('id', semanaDb.id)
-    toast.success('Semana cerrada. Cambia a la siguiente para ver el inventario heredado.')
+    toast.success('Semana cerrada. Revisa la lista de compras sugerida.')
+    // Construir lista de compras post-corte
+    const lista = (totales || []).map(r => {
+      const p = r.vending_productos
+      const stock = parseFloat(r.qty_final) || 0
+      const ventas = parseFloat(r.qty_ventas) || 0
+      const semanas = ventas > 0 ? +(stock / ventas).toFixed(2) : null
+      return { producto: p?.producto || '?', stock, ventas, semanas, unidades_caja: p?.unidades_caja || null }
+    }).sort((a, b) => {
+      if (a.semanas === null) return 1
+      if (b.semanas === null) return -1
+      return a.semanas - b.semanas
+    })
+    setListaCompras(lista)
     setRefreshKey(k => k + 1)
     setCortando(false)
   }
+
+  // ── Stock actual por producto (tab Productos) ──
+  useEffect(() => {
+    if (tab !== 'productos') return
+    const cargar = async () => {
+      const { data: sem } = await supabase.from('vending_semanas')
+        .select('id').order('fecha_inicio', { ascending: false }).limit(1)
+      if (!sem?.length) return
+      const { data: det } = await supabase.from('vending_semana_producto')
+        .select('producto_id, qty_final, qty_ventas').eq('semana_id', sem[0].id)
+      const map = {}
+      ;(det || []).forEach(r => { map[r.producto_id] = r })
+      setStockActual(map)
+    }
+    cargar()
+  }, [tab, refreshKey])
 
   // ── Abrir modal de movimiento ──
   const abrirMov = async (prod = null) => {
@@ -837,7 +868,7 @@ export default function Vending() {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Producto','Inicial','Compras','Ventas','Final','$Ventas','U/pza','Utilidad',''].map((h,i) => (
+                      {['Producto','Inicial','Compras','Ventas','Final','% Inv','Semanas','$Ventas','U/pza','Utilidad',''].map((h,i) => (
                         <th key={h+i} style={{ padding:'9px 12px', textAlign: i===0?'left':'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -857,6 +888,27 @@ export default function Vending() {
                               {fmtN(v)}
                             </td>
                           ))}
+                          {/* % Inventario */}
+                          <td style={{ padding:'8px 12px', textAlign:'right' }}>
+                            {(() => {
+                              if (!prod?.unidades_caja) return '—'
+                              const pct = Math.round((parseFloat(d.qty_final)||0) / parseInt(prod.unidades_caja) * 100)
+                              const color = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
+                              const txt   = pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
+                              return <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background:color, color:txt }}>{pct}%</span>
+                            })()}
+                          </td>
+                          {/* Semanas de cobertura */}
+                          <td style={{ padding:'8px 12px', textAlign:'right' }}>
+                            {(() => {
+                              const stock  = parseFloat(d.qty_final) || 0
+                              const ventas = parseFloat(d.qty_ventas) || 0
+                              if (ventas === 0) return <span style={{ color:'#9CA3AF', fontSize:'12px' }}>∞</span>
+                              const sem = +(stock / ventas).toFixed(1)
+                              const color = sem < 1 ? '#B91C1C' : sem < 2 ? '#92400E' : '#057642'
+                              return <span style={{ fontWeight:800, fontVariantNumeric:'tabular-nums', color }}>{sem}</span>
+                            })()}
+                          </td>
                           <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
                           <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF', fontSize:'12px' }}>
                             {(() => {
@@ -965,7 +1017,7 @@ export default function Vending() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
               <thead>
                 <tr style={{ background:'#F9FAFB' }}>
-                  {['Producto','Proveedor','Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen','Activo',''].map(h => (
+                  {['Producto','Stock','Semanas','Proveedor','Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen','Activo',''].map(h => (
                     <th key={h} style={{ padding:'9px 12px', textAlign: ['Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -978,6 +1030,18 @@ export default function Vending() {
                   return (
                     <tr key={p.id} style={{ background: !p.activo ? '#FFF8F8' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'10px 12px', fontWeight:700, color: p.activo?'#374151':'#9CA3AF' }}>{p.producto}</td>
+                      <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: (stockActual[p.id]?.qty_final||0)<=0 ? 'var(--color-danger)' : '#374151' }}>
+                        {stockActual[p.id] != null ? fmtN(stockActual[p.id].qty_final) : '—'}
+                      </td>
+                      <td style={{ padding:'8px 12px', textAlign:'right' }}>
+                        {(() => {
+                          const s = stockActual[p.id]
+                          if (!s || !s.qty_ventas || parseFloat(s.qty_ventas)===0) return <span style={{ color:'#9CA3AF', fontSize:'12px' }}>—</span>
+                          const sem = +(parseFloat(s.qty_final) / parseFloat(s.qty_ventas)).toFixed(1)
+                          const color = sem < 1 ? '#B91C1C' : sem < 2 ? '#92400E' : '#057642'
+                          return <span style={{ fontWeight:800, color }}>{sem} sem</span>
+                        })()}
+                      </td>
                       <td style={{ padding:'10px 12px', color:'#6B7280', fontSize:'12px' }}>{p.proveedor || '—'}</td>
                       <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{p.costo_caja ? fmt(p.costo_caja) : '—'}</td>
                       <td style={{ padding:'10px 12px', textAlign:'right' }}>{p.unidades_caja || '—'}</td>
@@ -1036,6 +1100,9 @@ export default function Vending() {
           onSaved={() => { setModal(null); setRefreshKey(k => k+1) }}
         />
       )}
+      {listaCompras && (
+        <ModalListaCompras lista={listaCompras} onClose={() => setListaCompras(null)} />
+      )}
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
           <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'380px', width:'100%' }} onClick={e => e.stopPropagation()}>
@@ -1054,6 +1121,68 @@ export default function Vending() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Modal: Lista de compras sugerida ──────────────────────────────────────────
+function ModalListaCompras({ lista, onClose }) {
+  const semColor = sem => sem === null ? '#9CA3AF' : sem < 1 ? '#B91C1C' : sem < 2 ? '#D97706' : '#057642'
+  const semBg    = sem => sem === null ? '#F9FAFB' : sem < 1 ? '#FEE2E2' : sem < 2 ? '#FEF3C7' : '#F0FDF4'
+  const urgente  = lista.filter(r => r.semanas !== null && r.semanas < 2)
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={onClose}>
+      <div style={{ background:'white', borderRadius:'16px', width:'100%', maxWidth:'560px', maxHeight:'85vh', display:'flex', flexDirection:'column', overflow:'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid #F3F4F6', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:'15px', color:'#111827' }}>🛒 Lista de Compras Sugerida</div>
+            <div style={{ fontSize:'12px', color:'#6B7280', marginTop:'2px' }}>
+              {urgente.length > 0 ? `${urgente.length} producto${urgente.length>1?'s':''} requieren surtido urgente` : 'Inventario en buen nivel'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'6px', cursor:'pointer', color:'#6B7280' }}>✕</button>
+        </div>
+        <div style={{ overflowY:'auto', flex:1 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+            <thead>
+              <tr style={{ background:'#F9FAFB', position:'sticky', top:0 }}>
+                {['Producto','Stock','Vtas/sem','Semanas','¿Comprar?'].map(h => (
+                  <th key={h} style={{ padding:'8px 16px', textAlign: h==='Producto'?'left':'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((r, i) => {
+                const sem = r.semanas
+                const cajas = r.unidades_caja && r.ventas > 0
+                  ? Math.max(1, Math.ceil((r.ventas * 2 - r.stock) / r.unidades_caja))
+                  : null
+                return (
+                  <tr key={i} style={{ borderBottom:'1px solid #F3F4F6', background: i%2===0?'white':'#FAFAFA' }}>
+                    <td style={{ padding:'10px 16px', fontWeight:600, color:'#374151' }}>{r.producto}</td>
+                    <td style={{ padding:'10px 16px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color: r.stock<=0?'#B91C1C':'#374151' }}>{r.stock}</td>
+                    <td style={{ padding:'10px 16px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{r.ventas || '—'}</td>
+                    <td style={{ padding:'8px 16px', textAlign:'right' }}>
+                      <span style={{ padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:800, background: semBg(sem), color: semColor(sem) }}>
+                        {sem !== null ? `${sem} sem` : '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding:'8px 16px', textAlign:'right', fontWeight:700 }}>
+                      {sem !== null && sem < 2
+                        ? <span style={{ color:'#B91C1C' }}>Sí{cajas ? ` — ${cajas} caja${cajas>1?'s':''}` : ''}</span>
+                        : <span style={{ color:'#9CA3AF', fontWeight:400 }}>No urgente</span>
+                      }
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding:'16px 24px', borderTop:'1px solid #F3F4F6', display:'flex', justifyContent:'flex-end' }}>
+          <button onClick={onClose} style={{ padding:'10px 24px', background:'#1A3C5E', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:700, cursor:'pointer' }}>Cerrar</button>
+        </div>
+      </div>
     </div>
   )
 }
