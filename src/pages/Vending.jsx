@@ -360,6 +360,74 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
   )
 }
 
+// ── Modal: Ajuste de Inventario Inicial ──────────────────────────────────────
+function ModalAjusteInicial({ semanaId, detalle, onClose, onSaved }) {
+  const [vals, setVals] = useState(() => {
+    const m = {}
+    detalle.forEach(d => { m[d.id] = String(parseFloat(d.qty_inicial) || 0) })
+    return m
+  })
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    setSaving(true)
+    for (const d of detalle) {
+      await supabase.from('vending_semana_producto')
+        .update({ qty_inicial: parseFloat(vals[d.id]) || 0 })
+        .eq('id', d.id)
+    }
+    toast.success('Inventario inicial actualizado')
+    setSaving(false)
+    onSaved()
+  }
+
+  const inp = { width:'80px', padding:'6px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px', fontSize:'14px', fontWeight:700, textAlign:'right', boxSizing:'border-box' }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+      <div style={{ background:'white', borderRadius:'14px', width:'460px', maxWidth:'95vw', maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6', flexShrink:0 }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:'15px', color:'#111827' }}>📦 Ajustar Inventario Inicial</div>
+            <div style={{ fontSize:'12px', color:'#6B7280', marginTop:'2px' }}>Unidades físicas existentes al inicio de la semana</div>
+          </div>
+          <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'6px', cursor:'pointer', display:'flex', color:'#6B7280' }}><X size={16}/></button>
+        </div>
+        <div style={{ overflowY:'auto', flex:1 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+            <thead>
+              <tr style={{ background:'#F9FAFB', position:'sticky', top:0 }}>
+                <th style={{ padding:'8px 16px', textAlign:'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Producto</th>
+                <th style={{ padding:'8px 16px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Actual</th>
+                <th style={{ padding:'8px 16px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Nuevo inicial</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detalle.map((d, i) => (
+                <tr key={d.id} style={{ background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <td style={{ padding:'10px 16px', fontWeight:600, color:'#374151' }}>{d.vending_productos?.producto || '—'}</td>
+                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{parseFloat(d.qty_inicial)||0}</td>
+                  <td style={{ padding:'8px 16px', textAlign:'right' }}>
+                    <input type="number" min="0" step="1" value={vals[d.id]}
+                      onChange={e => setVals(v => ({ ...v, [d.id]: e.target.value }))}
+                      style={inp} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding:'16px 20px', borderTop:'1px solid #F3F4F6', display:'flex', gap:'10px', flexShrink:0 }}>
+          <button onClick={onClose} style={{ flex:1, padding:'12px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', color:'#374151' }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving} style={{ flex:2, padding:'12px', background:'#0A66C2', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:800, cursor:'pointer', opacity: saving?0.7:1 }}>
+            {saving ? 'Guardando…' : 'Guardar inventario inicial'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Modal: Editar producto del catálogo ────────────────────────────────────
 function ModalProducto({ producto, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -696,9 +764,15 @@ export default function Vending() {
                 {semanaDb.estado === 'CERRADA' ? '✅ Semana cerrada' : '🔓 Semana abierta — capturando movimientos'}
               </span>
               {semanaDb.estado === 'ABIERTA' && (
-                <button onClick={ejecutarCorte} disabled={cortando} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'none', borderRadius:'8px', background:'#1A3C5E', color:'white', cursor: cortando?'not-allowed':'pointer', fontSize:'12px', fontWeight:700 }}>
-                  <Scissors size={13} /> {cortando ? 'Cerrando…' : 'Hacer Corte'}
-                </button>
+                <div style={{ display:'flex', gap:'8px' }}>
+                  <button onClick={() => setModal('ajuste')}
+                    style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
+                    📦 Ajustar Inventario Inicial
+                  </button>
+                  <button onClick={ejecutarCorte} disabled={cortando} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'none', borderRadius:'8px', background:'#1A3C5E', color:'white', cursor: cortando?'not-allowed':'pointer', fontSize:'12px', fontWeight:700 }}>
+                    <Scissors size={13} /> {cortando ? 'Cerrando…' : 'Hacer Corte'}
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -921,6 +995,14 @@ export default function Vending() {
           producto={modal === 'editProd' ? editProd : null}
           onClose={() => { setModal(null); setEditProd(null) }}
           onSaved={() => setRefreshKey(k => k+1)}
+        />
+      )}
+      {modal === 'ajuste' && semanaDb && (
+        <ModalAjusteInicial
+          semanaId={semanaDb.id}
+          detalle={detalle}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); setRefreshKey(k => k+1) }}
         />
       )}
       {confirmDel && (
