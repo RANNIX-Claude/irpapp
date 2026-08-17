@@ -559,6 +559,7 @@ export default function Vending() {
   const [cortando, setCortando]       = useState(false)
   const [stockActual, setStockActual] = useState({})   // producto_id → { qty_final, qty_ventas }
   const [listaCompras, setListaCompras] = useState(null) // post-corte
+  const [vistaCorta, setVistaCorta]   = useState(false)
 
   const semana = semanas[selIdx] || semanas[0]
 
@@ -848,6 +849,23 @@ export default function Vending() {
             </div>
           )}
 
+          {/* Toggle vista */}
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'8px', gap:'6px' }}>
+            {['Vista Corta','Vista Extendida'].map(v => {
+              const isCorta = v === 'Vista Corta'
+              const active  = vistaCorta === isCorta
+              return (
+                <button key={v} onClick={() => setVistaCorta(isCorta)}
+                  style={{ padding:'5px 14px', fontSize:'12px', fontWeight:700, borderRadius:'6px', border:'1.5px solid', cursor:'pointer',
+                    borderColor: active ? '#0A66C2' : '#E5E7EB',
+                    background:  active ? '#EFF6FF' : 'white',
+                    color:       active ? '#0A66C2' : '#9CA3AF' }}>
+                  {v}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Tabla inventario */}
           <div style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'10px', overflow:'hidden' }}>
             {loading ? (
@@ -863,7 +881,74 @@ export default function Vending() {
               </div>
             ) : detalle.length === 0 ? (
               <div style={{ textAlign:'center', padding:'40px', color:'#9CA3AF' }}>Sin detalle de productos para esta semana.</div>
+            ) : vistaCorta ? (
+              /* ── VISTA CORTA ── */
+              <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+                  <thead>
+                    <tr style={{ background:'#F9FAFB' }}>
+                      {['Producto','Inventario','Vtas/sem','Venta $$','Utilidad','% Inv','Semanas',''].map((h,i) => (
+                        <th key={h+i} style={{ padding:'9px 14px', textAlign: i===0?'left':'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalle.map((d, i) => {
+                      const prod    = d.vending_productos
+                      const stock   = parseFloat(d.qty_final) || 0
+                      const ventas  = parseFloat(d.qty_ventas) || 0
+                      const sinStock = stock <= 0
+                      const pct     = prod?.unidades_caja ? Math.round(stock / parseInt(prod.unidades_caja) * 100) : null
+                      const sem     = ventas > 0 ? +(stock / ventas).toFixed(1) : null
+                      const costoU  = prod?.costo_caja && prod?.unidades_caja ? parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja) : null
+                      const util    = costoU && prod?.precio_venta ? (parseFloat(prod.precio_venta) - costoU) * ventas : null
+                      const pctColor = !pct ? '#9CA3AF' : pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
+                      const pctBg   = !pct ? '#F9FAFB'  : pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
+                      const semColor = sem === null ? '#9CA3AF' : sem < 1 ? '#B91C1C' : sem < 2 ? '#D97706' : '#057642'
+                      return (
+                        <tr key={d.id} style={{ background: sinStock?'#FFF8F8':i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                          <td style={{ padding:'11px 14px', fontWeight:700, color: sinStock?'var(--color-danger)':'#374151' }}>
+                            {prod?.producto || '—'}
+                            {sinStock && <span style={{ marginLeft:'6px', fontSize:'10px', color:'var(--color-danger)', fontWeight:800 }}>SIN STOCK</span>}
+                          </td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(ventas)}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color:'var(--color-success)' }}>{util !== null ? fmt(util) : '—'}</td>
+                          <td style={{ padding:'9px 14px', textAlign:'right' }}>
+                            {pct !== null
+                              ? <span style={{ padding:'3px 9px', borderRadius:'10px', fontSize:'12px', fontWeight:800, background:pctBg, color:pctColor }}>{pct}%</span>
+                              : '—'}
+                          </td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color:semColor }}>
+                            {sem !== null ? sem : ventas===0 ? <span style={{ color:'#9CA3AF' }}>∞</span> : '—'}
+                          </td>
+                          <td style={{ padding:'8px 10px', textAlign:'center' }}>
+                            {semanaDb?.estado === 'ABIERTA' && (
+                              <button onClick={() => abrirMov(prod ? { ...prod, id: d.producto_id } : null)}
+                                style={{ padding:'4px 10px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
+                                + Mov
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB' }}>
+                      <td style={{ padding:'10px 14px', fontSize:'12px' }}>TOTAL</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(totUnidVentas)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             ) : (
+              /* ── VISTA EXTENDIDA ── */
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                   <thead>
@@ -888,17 +973,15 @@ export default function Vending() {
                               {fmtN(v)}
                             </td>
                           ))}
-                          {/* % Inventario */}
                           <td style={{ padding:'8px 12px', textAlign:'right' }}>
                             {(() => {
                               if (!prod?.unidades_caja) return '—'
                               const pct = Math.round((parseFloat(d.qty_final)||0) / parseInt(prod.unidades_caja) * 100)
-                              const color = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
-                              const txt   = pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
-                              return <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background:color, color:txt }}>{pct}%</span>
+                              const bg  = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
+                              const txt = pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
+                              return <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background:bg, color:txt }}>{pct}%</span>
                             })()}
                           </td>
-                          {/* Semanas de cobertura */}
                           <td style={{ padding:'8px 12px', textAlign:'right' }}>
                             {(() => {
                               const stock  = parseFloat(d.qty_final) || 0
@@ -921,8 +1004,7 @@ export default function Vending() {
                             {(() => {
                               if (!prod?.precio_venta || !prod?.costo_caja || !prod?.unidades_caja) return '—'
                               const cu = parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja)
-                              const u  = (parseFloat(prod.precio_venta) - cu) * (parseFloat(d.qty_ventas) || 0)
-                              return fmt(u)
+                              return fmt((parseFloat(prod.precio_venta) - cu) * (parseFloat(d.qty_ventas) || 0))
                             })()}
                           </td>
                           <td style={{ padding:'8px 10px', textAlign:'center' }}>
@@ -941,9 +1023,8 @@ export default function Vending() {
                     <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB' }}>
                       <td style={{ padding:'10px 12px', fontSize:'12px' }}>TOTAL</td>
                       <td colSpan={3} />
-                      <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>
-                        {fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}
-                      </td>
+                      <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
+                      <td colSpan={2} />
                       <td style={{ padding:'10px 12px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
                       <td />
                       <td style={{ padding:'10px 12px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
