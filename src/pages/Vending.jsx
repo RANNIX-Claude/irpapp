@@ -948,70 +948,88 @@ export default function Vending() {
                 </table>
               </div>
             ) : (
-              /* ── VISTA EXTENDIDA ── */
+              /* ── VISTA EXTENDIDA — layout igual al Excel ── */
               <div style={{ overflowX:'auto' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Producto','Inicial','Compras','Ventas','Final','% Inv','Semanas','$Ventas','U/pza','Utilidad',''].map((h,i) => (
-                        <th key={h+i} style={{ padding:'9px 12px', textAlign: i===0?'left':'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
-                      ))}
+                      {/* Grupo catálogo */}
+                      <th style={{ padding:'8px 10px', textAlign:'left',  fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Producto</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Costo</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Un/Caja</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>PP</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>PSV</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Venta</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>U/Pza</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap', borderRight:'2px solid #CBD5E1' }}>Utilidad</th>
+                      {/* Grupo semana */}
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inventario</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Vta Uds</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Venta $$</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#057642', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Util sem</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>% Inv</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Semanas</th>
+                      <th style={{ padding:'8px 6px',  borderBottom:'2px solid #E5E7EB' }} />
                     </tr>
                   </thead>
                   <tbody>
                     {detalle.map((d, i) => {
                       const sinStock = parseFloat(d.qty_final) <= 0
-                      const prod = d.vending_productos
+                      const prod  = d.vending_productos
+                      const stock = parseFloat(d.qty_final) || 0
+                      const vtas  = parseFloat(d.qty_ventas) || 0
+                      const costoU = prod?.costo_caja && prod?.unidades_caja ? parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja) : null
+                      const utilU  = costoU && prod?.precio_venta ? parseFloat(prod.precio_venta) - costoU : null
+                      const ventaMax = prod?.precio_venta && prod?.unidades_caja ? parseFloat(prod.precio_venta) * parseInt(prod.unidades_caja) : null
+                      const utilCaja = utilU && prod?.unidades_caja ? utilU * parseInt(prod.unidades_caja) : null
+                      const utilSem  = utilU ? utilU * vtas : null
+                      const pct = prod?.unidades_caja && stock > 0 ? Math.round(stock / parseInt(prod.unidades_caja) * 100) : 0
+                      const sem = vtas > 0 ? +(stock / vtas).toFixed(2) : null
+                      const pctBg  = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
+                      const pctTxt = pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
+                      const semClr = sem === null ? '#9CA3AF' : sem < 1 ? '#B91C1C' : sem < 2 ? '#D97706' : '#057642'
+                      const tdN = { padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums' }
                       return (
-                        <tr key={d.id} style={{ background: sinStock ? '#FFF8F8' : i%2===0 ? 'white' : '#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
-                          <td style={{ padding:'10px 12px', fontWeight:600, color: sinStock?'var(--color-danger)':'#374151', whiteSpace:'nowrap' }}>
+                        <tr key={d.id} style={{ background: sinStock?'#FFF8F8':i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                          <td style={{ padding:'9px 10px', fontWeight:700, color: sinStock?'var(--color-danger)':'#374151', whiteSpace:'nowrap' }}>
                             {prod?.producto || '—'}
-                            {sinStock && <span style={{ marginLeft:'6px', fontSize:'10px', color:'var(--color-danger)', fontWeight:800 }}>SIN STOCK</span>}
+                            {sinStock && <span style={{ marginLeft:'6px', fontSize:'10px', color:'var(--color-danger)', fontWeight:800 }}>✕</span>}
                           </td>
-                          {[d.qty_inicial, d.qty_compras, d.qty_ventas, d.qty_final].map((v, j) => (
-                            <td key={j} style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight: j===3?800:400, color: j===3&&parseFloat(v)<=0?'var(--color-danger)':j===3?'#374151':'#6B7280' }}>
-                              {fmtN(v)}
-                            </td>
-                          ))}
-                          <td style={{ padding:'8px 12px', textAlign:'right' }}>
-                            {(() => {
-                              if (!prod?.unidades_caja) return '—'
-                              const pct = Math.round((parseFloat(d.qty_final)||0) / parseInt(prod.unidades_caja) * 100)
-                              const bg  = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
-                              const txt = pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
-                              return <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background:bg, color:txt }}>{pct}%</span>
-                            })()}
+                          {/* Costo/caja */}
+                          <td style={{ ...tdN, color:'#6B7280' }}>{prod?.costo_caja ? fmt(prod.costo_caja) : '—'}</td>
+                          {/* Un/Caja */}
+                          <td style={{ ...tdN, color:'#6B7280' }}>{prod?.unidades_caja || '—'}</td>
+                          {/* PP */}
+                          <td style={{ ...tdN, color:'#6B7280' }}>{costoU ? fmt(costoU) : '—'}</td>
+                          {/* PSV */}
+                          <td style={{ ...tdN, fontWeight:700, color:'#374151' }}>{prod?.precio_venta ? fmt(prod.precio_venta) : '—'}</td>
+                          {/* Venta máx */}
+                          <td style={{ ...tdN, color:'#9CA3AF' }}>{ventaMax ? fmt(ventaMax) : '—'}</td>
+                          {/* U/Pza */}
+                          <td style={{ ...tdN, color:'#057642' }}>{utilU ? fmt(utilU) : '—'}</td>
+                          {/* Utilidad/caja */}
+                          <td style={{ ...tdN, fontWeight:700, color:'#057642', borderRight:'2px solid #CBD5E1' }}>{utilCaja ? fmt(utilCaja) : '—'}</td>
+                          {/* Inventario (qty_final) */}
+                          <td style={{ ...tdN, fontWeight:800, color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
+                          {/* Vta Uds */}
+                          <td style={{ ...tdN, color:'#6B7280' }}>{fmtN(vtas)}</td>
+                          {/* Venta $$ */}
+                          <td style={{ ...tdN, color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
+                          {/* Utilidad semana */}
+                          <td style={{ ...tdN, fontWeight:700, color:'var(--color-success)' }}>{utilSem !== null ? fmt(utilSem) : '—'}</td>
+                          {/* % Inv */}
+                          <td style={{ padding:'7px 8px', textAlign:'right' }}>
+                            <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:800, background:pctBg, color:pctTxt }}>{pct}%</span>
                           </td>
-                          <td style={{ padding:'8px 12px', textAlign:'right' }}>
-                            {(() => {
-                              const stock  = parseFloat(d.qty_final) || 0
-                              const ventas = parseFloat(d.qty_ventas) || 0
-                              if (ventas === 0) return <span style={{ color:'#9CA3AF', fontSize:'12px' }}>∞</span>
-                              const sem = +(stock / ventas).toFixed(1)
-                              const color = sem < 1 ? '#B91C1C' : sem < 2 ? '#92400E' : '#057642'
-                              return <span style={{ fontWeight:800, fontVariantNumeric:'tabular-nums', color }}>{sem}</span>
-                            })()}
+                          {/* Semanas */}
+                          <td style={{ ...tdN, fontWeight:800, color:semClr }}>
+                            {sem !== null ? sem : vtas===0 ? <span style={{ color:'#9CA3AF' }}>∞</span> : '—'}
                           </td>
-                          <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
-                          <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF', fontSize:'12px' }}>
-                            {(() => {
-                              if (!prod?.precio_venta || !prod?.costo_caja || !prod?.unidades_caja) return '—'
-                              const cu = parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja)
-                              return fmt(parseFloat(prod.precio_venta) - cu)
-                            })()}
-                          </td>
-                          <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color:'var(--color-success)' }}>
-                            {(() => {
-                              if (!prod?.precio_venta || !prod?.costo_caja || !prod?.unidades_caja) return '—'
-                              const cu = parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja)
-                              return fmt((parseFloat(prod.precio_venta) - cu) * (parseFloat(d.qty_ventas) || 0))
-                            })()}
-                          </td>
-                          <td style={{ padding:'8px 10px', textAlign:'center' }}>
+                          <td style={{ padding:'7px 6px', textAlign:'center' }}>
                             {semanaDb?.estado === 'ABIERTA' && (
                               <button onClick={() => abrirMov(prod ? { ...prod, id: d.producto_id } : null)}
-                                style={{ padding:'4px 10px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
-                                + Mov
+                                style={{ padding:'3px 8px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+                                +Mov
                               </button>
                             )}
                           </td>
@@ -1020,15 +1038,14 @@ export default function Vending() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB' }}>
-                      <td style={{ padding:'10px 12px', fontSize:'12px' }}>TOTAL</td>
+                    <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB', fontSize:'12px' }}>
+                      <td style={{ padding:'9px 10px' }}>TOTAL</td>
+                      <td colSpan={7} style={{ borderRight:'2px solid #CBD5E1' }} />
+                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(totUnidVentas)}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
                       <td colSpan={3} />
-                      <td style={{ padding:'10px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
-                      <td colSpan={2} />
-                      <td style={{ padding:'10px 12px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
-                      <td />
-                      <td style={{ padding:'10px 12px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
-                      <td />
                     </tr>
                   </tfoot>
                 </table>
