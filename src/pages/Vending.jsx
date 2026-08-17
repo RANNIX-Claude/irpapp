@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 // ── Formatters ─────────────────────────────────────────────────────────────
-function fmt(n)  { return '$' + (parseFloat(n)||0).toLocaleString('es-MX',{minimumFractionDigits:0}) }
+function fmt(n)  { return '$' + (parseFloat(n)||0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:1}) }
 function fmtN(n) { return (parseFloat(n)||0).toLocaleString('es-MX',{maximumFractionDigits:2}) }
 
 // ── Semanas Sáb→Vie (igual que ResumenSemanal) ─────────────────────────────
