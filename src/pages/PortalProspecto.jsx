@@ -143,7 +143,22 @@ function FormPersona({ persona: p, docs, onActualizado }) {
   const rol = ROL[p.tipo] || ROL.INQUILINO
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
+  const [errores, setErrores] = useState({})
+
+  const validar = () => {
+    const e = {}
+    if (!form.nombre_completo?.trim()) e.nombre_completo = 'Requerido'
+    if (!form.email?.includes('@'))    e.email = 'Correo inválido'
+    if (form.curp && !/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(form.curp))
+      e.curp = 'CURP inválido (18 caracteres)'
+    if (form.rfc && !/^[A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3}$/.test(form.rfc))
+      e.rfc = 'RFC inválido (12-13 caracteres)'
+    setErrores(e)
+    return Object.keys(e).length === 0
+  }
+
   const guardar = async () => {
+    if (!validar()) return
     setGuardando(true)
     try {
       const { error } = await supabase.from('prospecto_personas').update({ ...form, updated_at: new Date().toISOString() }).eq('id', p.id)
@@ -200,8 +215,9 @@ function FormPersona({ persona: p, docs, onActualizado }) {
           {CAMPOS_GENERALES.map(c => (
             <div key={c.k} style={{ gridColumn: c.full ? '1/-1' : 'auto' }}>
               <label style={lbl}>{c.l}{c.req && <span style={{ color:'#B24020' }}> *</span>}</label>
-              <input type={c.t} value={form[c.k] || ''} style={inp}
-                onChange={e => set(c.k, c.up ? e.target.value.toUpperCase() : e.target.value)} />
+              <input type={c.t} value={form[c.k] || ''} style={{ ...inp, borderColor: errores[c.k] ? '#B24020' : '#E5E7EB' }}
+                onChange={e => { set(c.k, c.up ? e.target.value.toUpperCase() : e.target.value); setErrores(prev => ({ ...prev, [c.k]: null })) }} />
+              {errores[c.k] && <div style={{ fontSize:11, color:'#B24020', marginTop:3 }}>⚠ {errores[c.k]}</div>}
             </div>
           ))}
         </div>

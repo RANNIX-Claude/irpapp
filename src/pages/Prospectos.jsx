@@ -381,12 +381,23 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
 
         {/* Footer — acciones de etapa */}
         <div style={{ borderTop:'1px solid #E5E7EB', padding:'16px 24px', display:'flex', gap:8, justifyContent:'space-between' }}>
-          <button
-            onClick={() => avanzarEtapa('RECHAZADO')}
-            style={{ ...btnSecundario, color:'#B24020', borderColor:'#FECACA' }}>
-            Rechazar
-          </button>
-          {siguiente && (
+          {prospecto.etapa === 'RECHAZADO' ? (
+            <button
+              onClick={() => avanzarEtapa('CONTACTO')}
+              style={{ ...btnSecundario, color:'#0A66C2', borderColor:'#BFDBFE' }}>
+              ↺ Reactivar prospecto
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                const motivo = prompt('Motivo del rechazo (requerido):')
+                if (motivo) avanzarEtapa('RECHAZADO')
+              }}
+              style={{ ...btnSecundario, color:'#B24020', borderColor:'#FECACA' }}>
+              Rechazar
+            </button>
+          )}
+          {siguiente && prospecto.etapa !== 'RECHAZADO' && (
             <button onClick={() => avanzarEtapa(siguiente.id)} style={btnPrimario}>
               Avanzar a {siguiente.label} →
             </button>
