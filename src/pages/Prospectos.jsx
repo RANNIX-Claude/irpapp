@@ -144,7 +144,7 @@ function ModalNuevoProspecto({ onClose, onSaved }) {
 }
 
 // ─── Panel de detalle del prospecto ──────────────────────────────────────────
-function PanelDetalle({ prospecto, onClose, onRefresh }) {
+function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   const [personas, setPersonas] = useState([])
   const [docs, setDocs] = useState([])
   const [tab, setTab] = useState('personas')
@@ -184,8 +184,6 @@ function PanelDetalle({ prospecto, onClose, onRefresh }) {
     cargar()
   }
 
-  const [modalLink, setModalLink] = useState(null) // { url, persona }
-
   const enviarMagicLink = async (persona) => {
     setEnviandoLink(persona.id)
     try {
@@ -195,7 +193,7 @@ function PanelDetalle({ prospecto, onClose, onRefresh }) {
       }).select().single()
       if (error) throw error
       const url = `${import.meta.env.VITE_APP_URL}/portal/prospecto/${link.token}`
-      setModalLink({ url, persona })
+      onMagicLink({ url, persona })
     } catch (err) {
       alert('Error: ' + err.message)
     } finally {
@@ -582,6 +580,7 @@ export default function Prospectos() {
   const [seleccionado, setSeleccionado] = useState(null)
   const [modalNuevo, setModalNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [modalLink, setModalLink]   = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -698,6 +697,7 @@ export default function Prospectos() {
           prospecto={prospectos.find(p => p.id === seleccionado.id) || seleccionado}
           onClose={() => setSeleccionado(null)}
           onRefresh={refresh}
+          onMagicLink={setModalLink}
         />
       )}
       {modalLink && (
