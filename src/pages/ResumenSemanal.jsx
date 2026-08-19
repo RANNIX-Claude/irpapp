@@ -111,7 +111,7 @@ async function cargarDatos(ini, fin, iniEstac) {
 
     // Gastos operativos por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
-      .select('fecha, proveedor, grupo_gasto, descripcion, cantidad')
+      .select('id, fecha, proveedor, grupo_gasto, descripcion, cantidad, ticket_total')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
 
@@ -702,6 +702,17 @@ export default function ResumenSemanal() {
   const pensiones = datos?.pensiones ?? []
   const vending   = datos?.vending   ?? []
   const gastos    = datos?.gastos    ?? []
+
+  // ── Drill-down detalle de ticket ──
+  const [ticketDetalle, setTicketDetalle] = useState(null) // { gasto, lineas }
+  const [loadingDetalle, setLoadingDetalle] = useState(false)
+  const abrirDetalle = async (g) => {
+    setLoadingDetalle(true)
+    setTicketDetalle({ gasto: g, lineas: [] })
+    const { data } = await supabase.from('gasto_detalle').select('*').eq('gasto_id', g.id).order('created_at')
+    setTicketDetalle({ gasto: g, lineas: data || [] })
+    setLoadingDetalle(false)
+  }
   const rentasEf  = datos?.rentasEf  ?? []
   const aguaEf    = datos?.aguaEf    ?? []
   const otrosEf   = datos?.otrosEf   ?? []
@@ -970,7 +981,11 @@ export default function ResumenSemanal() {
                       <td style={{ padding: '6px 8px', color: '#6B7280', whiteSpace: 'nowrap' }}>{g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
                       <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.proveedor || '—'}</td>
                       <td style={{ padding: '6px 8px', color: '#374151', maxWidth: '120px' }}>{g.grupo_gasto || g.descripcion || '—'}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>{fmt(g.cantidad)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
+                        <button onClick={() => abrirDetalle(g)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: '#0A66C2', fontFamily: 'monospace', fontSize: 13, textDecoration: 'underline dotted', padding: 0 }}>
+                          {fmt(g.cantidad)}
+                        </button>
+                      </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.monto_comprobante ? fmt(g.monto_comprobante) : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                         {g.tiene_factura
@@ -1184,5 +1199,84 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
         </div>
       </div>
     </div>
+
+    {/* ── Modal detalle ticket ────────────────────────────────── */}
+    {ticketDetalle && (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+        onClick={() => setTicketDetalle(null)}>
+        <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:540, maxHeight:'85vh', overflow:'auto' }}
+          onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:16, color:'#1A3C5E' }}>
+                {ticketDetalle.gasto.proveedor || 'Ticket sin proveedor'}
+              </div>
+              <div style={{ fontSize:12, color:'#6B7280', marginTop:2 }}>
+                {ticketDetalle.gasto.fecha} · {ticketDetalle.gasto.grupo_gasto || ticketDetalle.gasto.descripcion}
+              </div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ fontWeight:900, fontSize:20, color:'#B24020' }}>{fmt(ticketDetalle.gasto.cantidad)}</div>
+              <button onClick={() => setTicketDetalle(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={20}/></button>
+            </div>
+          </div>
+
+          {/* Detalle */}
+          <div style={{ padding:'16px 20px' }}>
+            {loadingDetalle ? (
+              <div style={{ textAlign:'center', padding:24, color:'#9CA3AF' }}>Cargando artículos…</div>
+            ) : ticketDetalle.lineas.length === 0 ? (
+              <div style={{ textAlign:'center', padding:24, color:'#9CA3AF', fontSize:13 }}>
+                Este ticket no tiene detalle de artículos registrado.
+              </div>
+            ) : (
+              <>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                  <thead>
+                    <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }}>
+                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cód.</th>
+                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Artículo</th>
+                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cat.</th>
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cant.</th>
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>P/U</th>
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ticketDetalle.lineas.map((l, i) => (
+                      <tr key={l.id || i} style={{ borderBottom:'1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                        <td style={{ padding:'7px 10px', color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{l.codigo_proveedor || '—'}</td>
+                        <td style={{ padding:'7px 10px', color:'#374151', fontWeight:500 }}>{l.descripcion}</td>
+                        <td style={{ padding:'7px 10px' }}>
+                          {l.categoria && (
+                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:99,
+                              background: l.categoria==='VENDING' ? '#FCE7F3' : l.categoria==='MANTENIMIENTO' ? '#FEE2E2' : '#DBEAFE',
+                              color:      l.categoria==='VENDING' ? '#BE185D' : l.categoria==='MANTENIMIENTO' ? '#B24020' : '#1D4ED8' }}>
+                              {l.categoria}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{l.cantidad}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151', fontFamily:'monospace' }}>{fmt(l.precio_unit)}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', fontWeight:700, color:'#1A3C5E', fontFamily:'monospace' }}>{fmt(l.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
+                      <td colSpan={5} style={{ padding:'9px 10px', fontWeight:700, textAlign:'right', fontSize:13 }}>Total artículos:</td>
+                      <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:900, fontSize:15, color:'#1A3C5E', fontFamily:'monospace' }}>
+                        {fmt(ticketDetalle.lineas.reduce((a,l) => a + (parseFloat(l.subtotal)||0), 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
   )
 }
