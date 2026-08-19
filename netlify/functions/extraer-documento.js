@@ -167,8 +167,15 @@ export const handler = async (event) => {
       // Obtener imagen: base64 directo o URL de Supabase Storage
       let b64, resolvedMediaType
       if (image_base64) {
-        b64 = image_base64
-        resolvedMediaType = media_type || 'image/jpeg'
+        // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
+        const match64 = image_base64.match(/^data:([^;]+);base64,(.+)$/)
+        if (match64) {
+          resolvedMediaType = match64[1]
+          b64 = match64[2]
+        } else {
+          b64 = image_base64
+          resolvedMediaType = media_type || 'image/jpeg'
+        }
       } else {
         const imgResp = await fetch(url)
         if (!imgResp.ok) throw new Error(`No se pudo obtener el documento: ${imgResp.status}`)
