@@ -24,12 +24,13 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
   const fileRef = useRef()
 
   const [form, setForm] = useState({
-    fecha:        gasto?.fecha || today,
-    proveedor_id: gasto?.proveedor_id || '',
-    proveedor_txt: gasto?.proveedor_txt || gasto?.proveedor || '',
-    grupo_gasto:  gasto?.grupo_gasto || GRUPOS[0],
-    descripcion:  gasto?.descripcion || '',
-    ticket_total: gasto?.ticket_total || gasto?.cantidad || '',
+    fecha:           gasto?.fecha || today,
+    proveedor_id:    gasto?.proveedor_id || '',
+    proveedor_txt:   gasto?.proveedor_txt || gasto?.proveedor || '',
+    grupo_gasto:     gasto?.grupo_gasto || GRUPOS[0],
+    descripcion:     gasto?.descripcion || '',
+    ticket_total:    gasto?.ticket_total || gasto?.cantidad || '',
+    categoria_ticket: '',   // VENDING | OPERACION | MANTENIMIENTO | '' (mixto)
   })
   const [lineas, setLineas]       = useState([])
   const [proveedores, setProveedores] = useState([])
@@ -58,7 +59,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
       .then(({ data }) => setLineas(data?.map(d => ({ ...d, _key: d.id })) || []))
   }, [gasto?.id])
 
-  const addLinea = () => setLineas(l => [...l, { _key: Date.now(), producto_id: '', descripcion: '', categoria: '', cantidad: 1, precio_unit: '', codigo_proveedor: '' }])
+  const addLinea = () => setLineas(l => [...l, { _key: Date.now(), producto_id: '', descripcion: '', categoria: form.categoria_ticket || '', cantidad: 1, precio_unit: '', codigo_proveedor: '' }])
   const updLinea = (key, field, val) => setLineas(l => l.map(r => r._key === key ? { ...r, [field]: val } : r))
   const delLinea = (key) => setLineas(l => l.filter(r => r._key !== key))
 
@@ -95,7 +96,8 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
           descripcion: l.descripcion || '',
           cantidad:    l.cantidad ?? 1,
           precio_unit: l.precio_unit ?? '',
-          producto_id: '', categoria: '',
+          producto_id: '',
+          categoria:   form.categoria_ticket || '',  // hereda categoría del ticket
         })))
       }
       setOcr({ loading: false, error: null })
@@ -284,6 +286,26 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
                 <select value={form.grupo_gasto} onChange={e => set('grupo_gasto', e.target.value)} style={inp}>
                   {GRUPOS.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
+              </div>
+              {/* Categoría del ticket — aplica a TODAS las líneas */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={lbl}>Categoría del ticket <span style={{ color: '#0A66C2' }}>(se aplica a todas las líneas)</span></label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[['', 'Mixto'], ['VENDING', '🥤 Vending'], ['OPERACION', '🏢 Operación'], ['MANTENIMIENTO', '🔧 Mantenimiento']].map(([v, lb]) => {
+                    const active = form.categoria_ticket === v
+                    const color = v === 'VENDING' ? '#EC4899' : v === 'OPERACION' ? '#0A66C2' : v === 'MANTENIMIENTO' ? '#B24020' : '#6B7280'
+                    return (
+                      <button key={v} type="button"
+                        onClick={() => {
+                          set('categoria_ticket', v)
+                          if (v) setLineas(l => l.map(r => ({ ...r, categoria: v })))
+                        }}
+                        style={{ padding: '6px 14px', borderRadius: 20, border: `2px solid ${color}`, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? color : 'white', color: active ? 'white' : color }}>
+                        {lb}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={lbl}>Descripción / Concepto general</label>
