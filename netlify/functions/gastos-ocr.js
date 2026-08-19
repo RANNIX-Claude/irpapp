@@ -32,17 +32,25 @@ export const handler = async (event) => {
 {
   "proveedor": "nombre del establecimiento",
   "fecha": "YYYY-MM-DD o null si no se ve",
-  "total": número con centavos (ej: 245.50),
+  "total": número con centavos (ej: 3387.00),
   "lineas": [
-    { "descripcion": "nombre del producto", "cantidad": número, "precio_unit": número }
+    {
+      "codigo_proveedor": "código numérico del producto o null",
+      "descripcion": "nombre del producto",
+      "cantidad": número,
+      "precio_unit": número
+    }
   ]
 }
 
-Reglas:
+Reglas especiales para tickets de Sam's Club y similares:
+- Cada línea comienza con un código numérico (ej: 332944, 980025248) seguido del nombre del producto — extrae ese código en "codigo_proveedor"
+- Si la línea tiene "2 X $270.07" significa cantidad=2 y precio_unit=270.07
+- El total es el campo TOTAL del ticket (después de descuentos), NO el subtotal
 - Si un campo no es legible, usa null
-- El total debe ser el monto final del ticket (incluyendo IVA si aplica)
 - cantidad por defecto es 1 si no se especifica
-- precio_unit es el precio por unidad (no el subtotal)
+- precio_unit es el precio por unidad (no el subtotal de la línea)
+- Ignora líneas de descuento, IVA, IEPS, subtotal — solo productos
 - Responde SOLO el JSON, sin markdown ni explicaciones`,
             },
           ],

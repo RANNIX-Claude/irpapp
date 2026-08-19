@@ -58,7 +58,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
       .then(({ data }) => setLineas(data?.map(d => ({ ...d, _key: d.id })) || []))
   }, [gasto?.id])
 
-  const addLinea = () => setLineas(l => [...l, { _key: Date.now(), producto_id: '', descripcion: '', categoria: '', cantidad: 1, precio_unit: '' }])
+  const addLinea = () => setLineas(l => [...l, { _key: Date.now(), producto_id: '', descripcion: '', categoria: '', cantidad: 1, precio_unit: '', codigo_proveedor: '' }])
   const updLinea = (key, field, val) => setLineas(l => l.map(r => r._key === key ? { ...r, [field]: val } : r))
   const delLinea = (key) => setLineas(l => l.filter(r => r._key !== key))
 
@@ -91,6 +91,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
       if (data.lineas?.length) {
         setLineas(data.lineas.map((l, i) => ({
           _key: Date.now() + i,
+          codigo_proveedor: l.codigo_proveedor || '',
           descripcion: l.descripcion || '',
           cantidad:    l.cantidad ?? 1,
           precio_unit: l.precio_unit ?? '',
@@ -134,6 +135,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
           gasto_id: gastoId, producto_id: l.producto_id || null,
           descripcion: l.descripcion, categoria: l.categoria || null,
           cantidad: parseFloat(l.cantidad) || 1, precio_unit: parseFloat(l.precio_unit),
+          codigo_proveedor: l.codigo_proveedor || null,
         }))
         if (lineasPayload.length) await supabase.from('gasto_detalle').insert(lineasPayload)
       }
@@ -152,16 +154,27 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
 
         if (semana) {
           for (const linea of lineasVending) {
-            // 2. Buscar producto vending por nombre (ILIKE)
-            const { data: prods } = await supabase
-              .from('vending_productos')
-              .select('id, nombre, precio_compra_default')
-              .ilike('nombre', `%${linea.descripcion.trim()}%`)
-              .eq('activo', true)
-              .limit(1)
-
-            const vprod = prods?.[0]
-            if (!vprod) continue // no hay match, se omite
+            // 2. Doble match: código proveedor primero → fallback nombre ILIKE
+            let vprod = null
+            if (linea.codigo_proveedor) {
+              const { data: porCodigo } = await supabase
+                .from('vending_productos')
+                .select('id, nombre, precio_compra_default')
+                .eq('codigo_proveedor', linea.codigo_proveedor)
+                .eq('activo', true)
+                .limit(1)
+              vprod = porCodigo?.[0] || null
+            }
+            if (!vprod) {
+              const { data: porNombre } = await supabase
+                .from('vending_productos')
+                .select('id, nombre, precio_compra_default')
+                .ilike('nombre', `%${linea.descripcion.trim()}%`)
+                .eq('activo', true)
+                .limit(1)
+              vprod = porNombre?.[0] || null
+            }
+            if (!vprod) continue // sin match, se omite silenciosamente
 
             const cant   = parseFloat(linea.cantidad) || 1
             const precio = parseFloat(linea.precio_unit) || vprod.precio_compra_default || 0
@@ -320,15 +333,17 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
             {lineas.length === 0
               ? <div style={{ textAlign: 'center', padding: '14px 0', fontSize: 13, color: '#6B7280' }}>Sin detalle — usa + o la IA para agregar productos</div>
               : <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
-                    {['Producto', 'Categoría', 'Cant.', 'Precio unit.', ''].map(h => (
+                  <div style={{ display: 'grid', gridTemplateColumns: '80px 2fr 1fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
+                    {['Cód. Sam\'s', 'Producto', 'Categoría', 'Cant.', 'Precio unit.', ''].map(h => (
                       <div key={h} style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</div>
                     ))}
                   </div>
                   {lineas.map(l => {
                     const sub = parseFloat(l.cantidad || 1) * parseFloat(l.precio_unit || 0)
                     return (
-                      <div key={l._key} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                      <div key={l._key} style={{ display: 'grid', gridTemplateColumns: '80px 2fr 1fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                        <input value={l.codigo_proveedor || ''} onChange={e => updLinea(l._key, 'codigo_proveedor', e.target.value)}
+                          placeholder="Código" style={{ ...inp, padding: '6px 6px', fontFamily: 'monospace', fontSize: 11 }} />
                         <input value={l.descripcion} onChange={e => updLinea(l._key, 'descripcion', e.target.value)}
                           placeholder="Producto o servicio" list={`prod-${l._key}`} style={{ ...inp, padding: '6px 9px' }} />
                         <datalist id={`prod-${l._key}`}>{productos.map(p => <option key={p.id} value={p.nombre} />)}</datalist>
