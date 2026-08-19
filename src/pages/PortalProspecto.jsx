@@ -167,6 +167,7 @@ function FormPersona({ persona: p, docs, onActualizado }) {
       const d = json.datos
       const upd = {}
       if (d.nombre_completo) upd.nombre_completo = d.nombre_completo
+      if (d.fecha_nacimiento) upd.fecha_nacimiento = d.fecha_nacimiento
       if (d.curp)            upd.curp = d.curp.toUpperCase()
       if (d.rfc)             upd.rfc  = d.rfc.toUpperCase()
       // Dirección INE → campo calle (calle + no_ext)
