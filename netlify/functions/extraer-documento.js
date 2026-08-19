@@ -11,18 +11,21 @@ const HEADERS = {
 const PROMPTS = {
   INE_FRENTE: `Extrae del frente de esta INE (Credencial para Votar) los siguientes datos en JSON exacto:
 {
-  "nombre_completo": "...",
-  "curp": "...",
-  "fecha_nacimiento": "YYYY-MM-DD o null",
-  "sexo": "H o M o null",
-  "domicilio_ine": "...",
-  "colonia_ine": "...",
-  "municipio_ine": "...",
-  "estado_ine": "...",
-  "cp_ine": "...",
-  "clave_elector": "...",
-  "vigencia": "año de vigencia o null"
+  "nombre_completo": "apellido paterno apellido materno nombre(s) — exactamente como aparece",
+  "curp": "18 caracteres en mayúsculas",
+  "fecha_nacimiento": "YYYY-MM-DD",
+  "sexo": "H o M",
+  "calle": "nombre de la calle sin número — solo el nombre",
+  "no_ext": "número exterior (ej: 1234, 45-A)",
+  "no_int": "número interior o departamento o null",
+  "colonia_ine": "colonia tal como aparece",
+  "municipio_ine": "municipio o alcaldía",
+  "estado_ine": "entidad federativa",
+  "cp_ine": "código postal de 5 dígitos",
+  "clave_elector": "18 caracteres alfanuméricos en mayúsculas",
+  "vigencia": "año de vigencia (4 dígitos) o null"
 }
+La dirección completa en la INE está en una sola línea como 'CALLE NUMERO COL COLONIA' — separa CALLE de NÚMERO.
 Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el JSON, sin texto adicional.`,
 
   INE_REVERSO: `Extrae del reverso de esta INE los siguientes datos en JSON exacto:

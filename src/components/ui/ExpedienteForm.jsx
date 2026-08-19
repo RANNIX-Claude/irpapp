@@ -272,42 +272,53 @@ const EMPTY_FIA = {
 const mapOCR = (datos) => {
   const m = {}
   const v = (k) => datos[k] || null
+
+  // ── Identidad ──
   if (v('nombre_completo'))  m.nombre = v('nombre_completo')
-  if (v('curp'))             m.curp   = v('curp')
-  if (v('rfc'))              m.rfc    = v('rfc')
-  if (v('clave_elector'))    m.clave_elector   = v('clave_elector')
+  if (v('curp'))             m.curp   = (v('curp') || '').toUpperCase()
+  if (v('rfc'))              m.rfc    = (v('rfc')  || '').toUpperCase()
+  if (v('clave_elector'))    m.clave_elector    = (v('clave_elector') || '').toUpperCase()
   if (v('fecha_nacimiento')) m.fecha_nacimiento = v('fecha_nacimiento')
   if (v('sexo'))             m.sexo   = v('sexo')
-  if (v('celular'))          m.celular  = v('celular')
-  if (v('tel_casa'))         m.tel_casa = v('tel_casa')
-  if (v('correo'))           m.correo   = v('correo')
+
+  // ── Contacto ──
+  if (v('celular'))          m.celular      = v('celular')
+  if (v('tel_casa'))         m.tel_casa     = v('tel_casa')
+  if (v('correo'))           m.correo       = v('correo')
   if (v('estado_civil'))     m.estado_civil = v('estado_civil')
+
+  // ── Económicos ──
   if (v('empresa') || v('empresa_patron')) m.empresa = v('empresa') || v('empresa_patron')
   if (v('puesto'))           m.puesto = v('puesto')
   if (v('ingreso_mensual') || v('ingreso_mensual_neto'))
     m.ingreso_mensual = String(v('ingreso_mensual') || v('ingreso_mensual_neto') || '')
   if (v('antiguedad'))       m.antiguedad = v('antiguedad')
-  // Domicilio INE
-  const tieneDir = v('domicilio_ine') || v('calle') || v('colonia_ine') || v('colonia')
+
+  // ── Domicilio INE (frente de credencial) ──
+  // El prompt nuevo devuelve calle y no_ext separados.
+  // domicilio_ine es fallback si el modelo devuelve la dirección completa en una sola cadena.
+  const tieneDir = v('calle') || v('colonia_ine') || v('domicilio_ine')
   if (tieneDir) {
-    m.ine_calle     = v('calle') || ''
-    m.ine_no_ext    = v('no_ext') || ''
-    m.ine_no_int    = v('no_int') || ''
-    m.ine_colonia   = v('colonia_ine') || v('colonia') || ''
+    m.ine_calle     = v('calle') || v('domicilio_ine') || ''
+    m.ine_no_ext    = v('no_ext')  || ''
+    m.ine_no_int    = v('no_int')  || ''
+    m.ine_colonia   = v('colonia_ine')   || v('colonia')   || ''
     m.ine_municipio = v('municipio_ine') || v('municipio') || ''
-    m.ine_estado    = v('estado_ine') || v('estado') || ''
-    m.ine_cp        = v('cp_ine') || v('cp') || ''
-    m.dom_ine_igual = false
+    m.ine_estado    = v('estado_ine')    || v('estado')    || ''
+    m.ine_cp        = v('cp_ine')        || v('cp')        || ''
+    m.dom_ine_igual = false  // mostrar sección domicilio INE
   }
-  // Comprobante domicilio → domicilio actual
+
+  // ── Comprobante de domicilio → domicilio actual ──
   if (v('nombre_titular')) {
-    m.dom_calle     = v('calle') || ''
-    m.dom_no_ext    = v('no_ext') || ''
-    m.dom_colonia   = v('colonia') || ''
+    m.dom_calle     = v('calle')     || ''
+    m.dom_no_ext    = v('no_ext')    || ''
+    m.dom_colonia   = v('colonia')   || ''
     m.dom_municipio = v('municipio') || ''
-    m.dom_estado    = v('estado') || ''
-    m.dom_cp        = v('cp') || ''
+    m.dom_estado    = v('estado')    || ''
+    m.dom_cp        = v('cp')        || ''
   }
+
   return m
 }
 
