@@ -1,10 +1,10 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
   Search, BarChart3, Settings, Wallet, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
-  UserPlus, ArrowRightLeft,
+  UserPlus, ArrowRightLeft, RotateCcw,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -16,21 +16,22 @@ const NAV_SECTIONS = [
     ]
   },
   {
-    // Flujo de contratación: Prospecto → Contrato
-    label: 'CONTRATACIÓN',
+    // Prospecto → Contrato → Renovación
+    label: 'LOCALES',
     items: [
-      { label: 'Prospectos', path: '/prospectos', icon: UserPlus },
-      { label: 'Contratos', path: '/contratos', icon: FileText },
+      { label: 'Prospectos',   path: '/prospectos',                        icon: UserPlus  },
+      { label: 'Contratos',    path: '/contratos',                         icon: FileText  },
+      { label: 'Renovaciones', path: '/contratos?filtro=POR_VENCER',       icon: RotateCcw },
     ]
   },
   {
     // Gestión diaria de cartera activa
     label: 'CARTERA',
     items: [
-      { label: 'Cobranza', path: '/cobranza', icon: CreditCard },
-      { label: 'Conciliación', path: '/conciliacion', icon: ArrowRightLeft },
-      { label: 'Ingresos', path: '/ingresos', icon: TrendingUp },
-      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
+      { label: 'Cobranza',      path: '/cobranza',      icon: CreditCard    },
+      { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft },
+      { label: 'Ingresos',      path: '/ingresos',      icon: TrendingUp    },
+      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users         },
     ]
   },
   {
@@ -74,6 +75,7 @@ const NAV_SECTIONS = [
 
 export default function Sidebar() {
   const { sidebarOpen } = useApp()
+  const location = useLocation()
 
   return (
     <aside style={{
@@ -102,21 +104,27 @@ export default function Sidebar() {
             {section.label && !sidebarOpen && si > 0 && (
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '6px 8px' }} />
             )}
-            {section.items.map(({ label, path, icon: Icon }) => (
-              <NavLink key={path} to={path} end={path === '/'} style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '9px 16px', textDecoration: 'none',
-                color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
-                background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-                borderLeft: isActive ? '3px solid #E8A020' : '3px solid transparent',
-                fontSize: '13px', fontWeight: isActive ? 600 : 400,
-                whiteSpace: 'nowrap', transition: 'all 0.15s',
-                borderRadius: '0 6px 6px 0', margin: '1px 8px 1px 0',
-              })}>
-                <Icon size={17} style={{ flexShrink: 0, marginLeft: '1px' }} />
-                {sidebarOpen && <span>{label}</span>}
-              </NavLink>
-            ))}
+            {section.items.map(({ label, path, icon: Icon }) => {
+              const [basePath, qs] = path.split('?')
+              const isActive = qs
+                ? location.pathname === basePath && location.search.includes(qs.split('=')[1])
+                : location.pathname === basePath && !location.search
+              return (
+                <NavLink key={path} to={path} end style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '9px 16px', textDecoration: 'none',
+                  color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
+                  background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  borderLeft: isActive ? '3px solid #E8A020' : '3px solid transparent',
+                  fontSize: '13px', fontWeight: isActive ? 600 : 400,
+                  whiteSpace: 'nowrap', transition: 'all 0.15s',
+                  borderRadius: '0 6px 6px 0', margin: '1px 8px 1px 0',
+                }}>
+                  <Icon size={17} style={{ flexShrink: 0, marginLeft: '1px' }} />
+                  {sidebarOpen && <span>{label}</span>}
+                </NavLink>
+              )
+            })}
           </div>
         ))}
       </nav>

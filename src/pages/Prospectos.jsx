@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const ETAPAS = [
@@ -188,13 +188,13 @@ const MAPA_CAMPOS = {
 }
 
 function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
-  const navigate = useNavigate()
   const [personas, setPersonas] = useState([])
   const [docs, setDocs] = useState([])
   const [tab, setTab] = useState('personas')
   const [modalPersona, setModalPersona] = useState(false)
   const [enviandoLink, setEnviandoLink] = useState(null)
   const [modalDespacho, setModalDespacho] = useState(false)
+  const [modalContrato, setModalContrato] = useState(false)
   const [extrayendo, setExtrayendo] = useState(null)    // doc.id
   const [extractResult, setExtractResult] = useState(null) // { personaId, datos, docId }
 
@@ -489,18 +489,10 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
               </span>
             )}
           </div>
-          {/* CTA especial cuando el candidato es APROBADO → conecte con Contratos */}
+          {/* CTA especial cuando el candidato es APROBADO → abre modal inline */}
           {prospecto.etapa === 'APROBADO' && (
             <button
-              onClick={async () => {
-                await avanzarEtapa('CONTRATO')
-                const params = new URLSearchParams({
-                  prospecto_id: prospecto.id,
-                  nombre: prospecto.nombre_negocio || '',
-                  renta: prospecto.renta_propuesta || '',
-                })
-                navigate(`/contratos?${params.toString()}`)
-              }}
+              onClick={() => setModalContrato(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '10px 20px', background: '#057642', color: 'white',
@@ -536,6 +528,17 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
           personas={personas}
           onAplicar={handleAplicarDatos}
           onClose={() => setExtractResult(null)}
+        />
+      )}
+      {modalContrato && (
+        <NuevoContratoModal
+          fromProspecto={{ nombre: prospecto.nombre_negocio || '', renta: prospecto.renta_propuesta || '' }}
+          onClose={() => setModalContrato(false)}
+          onCreated={async () => {
+            await avanzarEtapa('CONTRATO')
+            setModalContrato(false)
+            onRefresh()
+          }}
         />
       )}
     </div>

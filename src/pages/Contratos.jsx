@@ -1,6 +1,7 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import NuevoContratoModalShared from '../components/ui/NuevoContratoModal'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
@@ -781,139 +782,12 @@ function ModalCancelar({ contrato: c, onClose, onDone }) {
   )
 }
 
-// ─── Modal Nuevo Contrato ────────────────────────────────────────────────────
+// NuevoContratoModal is the shared component imported above
 
 function NuevoContratoModal({ onClose, onCreated, fromProspecto = null }) {
-  const { data: arrendatarios } = usePRP('prp_arrendatarios', { order: { col: 'nombre_razon_social' } })
-  const { data: unidades } = usePRP('prp_unidades', { filters: [['estado_id', 'eq', 'DISPONIBLE']], order: { col: 'numero_local' } })
-
-  const [form, setForm] = useState({
-    arrendatario_id: '', unidad_id: '', tipo_contrato: 'ANUAL',
-    fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_fin: '', renta_mensual: fromProspecto?.renta || '', cuota_mant: '0', deposito_garantia: '',
-  })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!form.arrendatario_id || !form.unidad_id || !form.renta_mensual) {
-      setError('Completa los campos obligatorios.'); return
-    }
-    setSaving(true); setError(null)
-    try {
-      const { data: res, error: err } = await supabase.rpc('crear_contrato', {
-        p_arrendatario_id: form.arrendatario_id,
-        p_unidad_id: form.unidad_id,
-        p_tipo_contrato: form.tipo_contrato,
-        p_fecha_inicio: form.fecha_inicio,
-        p_fecha_fin: form.fecha_fin || null,
-        p_renta_mensual: parseFloat(form.renta_mensual),
-        p_cuota_mant: parseFloat(form.cuota_mant) || 0,
-        p_deposito_garantia: parseFloat(form.deposito_garantia) || parseFloat(form.renta_mensual) * 2,
-      })
-      if (err) throw err
-      setSuccess(`Contrato creado exitosamente.`)
-      setTimeout(() => { onCreated?.(); onClose() }, 1800)
-    } catch (err) {
-      setError(err.message)
-    } finally { setSaving(false) }
-  }
-
-  const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
-  const lbl = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', marginBottom: '5px', textTransform: 'uppercase' }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-      onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflow: 'auto' }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)' }}>Nuevo Contrato</h2>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-text-light)' }}>Folio generado automáticamente</p>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
-        </div>
-        {fromProspecto && (
-          <div style={{ margin: '0 24px 0', padding: '10px 14px', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '8px', marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '18px' }}>📋</span>
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Desde prospecto aprobado</div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#065F46' }}>{fromProspecto.nombre || 'Sin nombre'}</div>
-            </div>
-            {fromProspecto.renta && (
-              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>RENTA PROPUESTA</div>
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#065F46' }}>${Number(fromProspecto.renta).toLocaleString('es-MX')}</div>
-              </div>
-            )}
-          </div>
-        )}
-        {success ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success)' }}>{success}</div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'grid', gap: '16px' }}>
-            {error && <div style={{ padding: '10px 14px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={lbl}>Arrendatario *</label>
-                <select value={form.arrendatario_id} onChange={e => set('arrendatario_id', e.target.value)} style={inp} required>
-                  <option value="">— Seleccionar —</option>
-                  {(arrendatarios ?? []).map(a => <option key={a.id} value={a.id}>{a.nombre_razon_social} ({a.rfc})</option>)}
-                </select>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={lbl}>Unidad disponible *</label>
-                <select value={form.unidad_id} onChange={e => set('unidad_id', e.target.value)} style={inp} required>
-                  <option value="">— Seleccionar —</option>
-                  {(unidades ?? []).map(u => <option key={u.id} value={u.id}>{u.inmueble_nombre} — {u.numero_local} ({u.tipo_unidad}, {u.m2_totales}m²)</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Tipo de contrato</label>
-                <select value={form.tipo_contrato} onChange={e => set('tipo_contrato', e.target.value)} style={inp}>
-                  {[['ANUAL','Anual'],['SEMESTRAL','Semestral'],['MENSUAL','Mensual'],['EVENTUAL','Eventual']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Renta mensual *</label>
-                <input type="number" value={form.renta_mensual} onChange={e => set('renta_mensual', e.target.value)} placeholder="0.00" style={inp} required min="1" step="0.01" />
-              </div>
-              <div>
-                <label style={lbl}>Cuota mantenimiento</label>
-                <input type="number" value={form.cuota_mant} onChange={e => set('cuota_mant', e.target.value)} placeholder="0" style={inp} min="0" step="0.01" />
-              </div>
-              <div>
-                <label style={lbl}>Depósito en garantía</label>
-                <input type="number" value={form.deposito_garantia} onChange={e => set('deposito_garantia', e.target.value)} placeholder={form.renta_mensual ? String(parseFloat(form.renta_mensual) * 2) : '0'} style={inp} min="0" step="0.01" />
-              </div>
-              <div>
-                <label style={lbl}>Fecha inicio *</label>
-                <input type="date" value={form.fecha_inicio} onChange={e => set('fecha_inicio', e.target.value)} style={inp} required />
-              </div>
-              <div>
-                <label style={lbl}>Fecha fin</label>
-                <input type="date" value={form.fecha_fin} onChange={e => set('fecha_fin', e.target.value)} style={inp} min={form.fecha_inicio} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', paddingTop: '8px', borderTop: '1px solid #E5E7EB' }}>
-              <button type="submit" disabled={saving} style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
-                {saving ? 'Creando...' : 'Crear Contrato'}
-              </button>
-              <button type="button" onClick={onClose} style={{ padding: '11px 20px', background: '#F3F4F6', color: 'var(--color-text)', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>Cancelar</button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  )
+  return <NuevoContratoModalShared onClose={onClose} onCreated={onCreated} fromProspecto={fromProspecto} />
 }
+
 
 // ─── Página principal ────────────────────────────────────────────────────────
 
@@ -928,17 +802,10 @@ export default function Contratos() {
   const [selected, setSelected] = useState(null)
   const [showNuevo, setShowNuevo] = useState(false)
 
-  // Prospecto conecte: si viene de /contratos?prospecto_id=... abrir modal pre-llenado
-  const fromProspecto = searchParams.get('prospecto_id')
-    ? {
-        id: searchParams.get('prospecto_id'),
-        nombre: searchParams.get('nombre') || '',
-        renta: searchParams.get('renta') || '',
-      }
-    : null
-
+  // ?filtro=POR_VENCER viene del link "Renovaciones" del sidebar
   useEffect(() => {
-    if (fromProspecto) setShowNuevo(true)
+    const f = searchParams.get('filtro')
+    if (f) setFiltroEst(f)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [refreshKey, setRefreshKey] = useState(0)
   const [diasAnticip, setDiasAnticip] = useState(60)
@@ -1148,9 +1015,8 @@ export default function Contratos() {
       />
       {showNuevo && (
         <NuevoContratoModal
-          fromProspecto={fromProspecto}
-          onClose={() => { setShowNuevo(false); if (fromProspecto) setSearchParams({}) }}
-          onCreated={() => { setRefreshKey(k => k + 1); setSearchParams({}) }}
+          onClose={() => setShowNuevo(false)}
+          onCreated={() => { setRefreshKey(k => k + 1); setShowNuevo(false) }}
         />
       )}
     </div>
