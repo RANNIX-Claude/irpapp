@@ -1045,6 +1045,96 @@ function ModalCompartirLink({ link, onClose }) {
   )
 }
 
+// ─── Modal: Editar Prospecto (etapa + notas) ─────────────────────────────────
+function ModalEditarProspecto({ prospecto, onClose, onSaved }) {
+  const [etapa, setEtapa]   = useState(prospecto._cancelar ? 'CANCELADO' : prospecto.etapa)
+  const [notas, setNotas]   = useState(prospecto.notas || '')
+  const [renta, setRenta]   = useState(prospecto.renta_propuesta || '')
+  const [loading, setLoading] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(!!prospecto._cancelar)
+
+  const guardar = async () => {
+    if (etapa === 'CANCELADO' && !confirmCancel) {
+      setConfirmCancel(true)
+      return
+    }
+    setLoading(true)
+    try {
+      const prev = prospecto.etapa
+      await supabase.from('prospectos').update({
+        etapa,
+        notas,
+        renta_propuesta: renta || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', prospecto.id)
+      if (prev !== etapa) {
+        await supabase.from('prospecto_historial').insert({
+          prospecto_id: prospecto.id,
+          etapa_anterior: prev,
+          etapa_nueva: etapa,
+          nota: `Cambio manual desde edición`,
+        })
+      }
+      onSaved()
+      onClose()
+    } catch (err) {
+      alert('Error: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#0006', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:460, padding:28, boxShadow:'0 20px 60px #0003' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:11, color:'#0A66C2', fontWeight:700, textTransform:'uppercase' }}>Editar Prospecto</div>
+            <h3 style={{ margin:'2px 0 0', fontSize:16, fontWeight:800 }}>{prospecto.nombre_negocio || 'Sin nombre'}</h3>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9CA3AF' }}>×</button>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div>
+            <label style={labelStyle}>Etapa</label>
+            <select value={etapa} onChange={e => { setEtapa(e.target.value); setConfirmCancel(false) }}
+              style={{ ...inputStyle, fontWeight:600 }}>
+              {ETAPAS.map(e => (
+                <option key={e.id} value={e.id}>{e.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Renta propuesta ($)</label>
+            <input type="number" value={renta} onChange={e => setRenta(e.target.value)}
+              style={inputStyle} placeholder="0.00" />
+          </div>
+          <div>
+            <label style={labelStyle}>Notas</label>
+            <textarea value={notas} onChange={e => setNotas(e.target.value)}
+              style={{ ...inputStyle, height:80, resize:'vertical' }} placeholder="Observaciones..." />
+          </div>
+
+          {confirmCancel && (
+            <div style={{ background:'#FEE2E2', border:'1px solid #FECACA', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#991B1B', fontWeight:600 }}>
+              ⚠ ¿Confirmas cancelar este prospecto? No aparecerá en la lista activa. Puedes recuperarlo cambiando la etapa.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:20 }}>
+          <button onClick={onClose} style={btnSecundario}>Cancelar</button>
+          <button onClick={guardar} disabled={loading}
+            style={{ ...btnPrimario, background: confirmCancel ? '#B24020' : '#0A66C2' }}>
+            {loading ? 'Guardando...' : confirmCancel ? '⚠ Confirmar cancelación' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Prospectos() {
   const [prospectos, setProspectos] = useState([])
   const [loading, setLoading]       = useState(true)
@@ -1054,6 +1144,8 @@ export default function Prospectos() {
   const [modalNuevo, setModalNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [modalLink, setModalLink]   = useState(null)
+  const [modalEditar, setModalEditar] = useState(null)
+  const [mostrarInactivos, setMostrarInactivos] = useState(false)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -1070,7 +1162,8 @@ export default function Prospectos() {
   const filtrados = prospectos.filter(p => {
     const matchEtapa = filtroEtapa === 'ALL' || p.etapa === filtroEtapa
     const matchBusq  = !busqueda || p.nombre_negocio?.toLowerCase().includes(busqueda.toLowerCase())
-    return matchEtapa && matchBusq
+    const matchActivo = mostrarInactivos || !ETAPAS_INACTIVAS.includes(p.etapa)
+    return matchEtapa && matchBusq && matchActivo
   })
 
   // KPIs
@@ -1106,13 +1199,18 @@ export default function Prospectos() {
         ))}
       </div>
 
-      {/* Buscador */}
-      <div style={{ marginBottom:16 }}>
+      {/* Buscador + toggle inactivos */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16, flexWrap:'wrap' }}>
         <input
           value={busqueda} onChange={e => setBusqueda(e.target.value)}
           placeholder="🔍 Buscar por nombre / giro..."
           style={{ ...inputStyle, maxWidth:340 }}
         />
+        <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'#6B7280', fontWeight:600, userSelect:'none' }}>
+          <input type="checkbox" checked={mostrarInactivos} onChange={e => setMostrarInactivos(e.target.checked)}
+            style={{ accentColor:'#6B7280' }} />
+          Mostrar cancelados / contratados
+        </label>
       </div>
 
       {/* Tabla */}
@@ -1129,7 +1227,7 @@ export default function Prospectos() {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#F8FAFC' }}>
-                {['Folio','Negocio / Local','Renta propuesta','Etapa','Fecha contacto',''].map(h => (
+                {['Folio','Negocio / Local','Renta propuesta','Etapa','Fecha contacto','Acciones'].map(h => (
                   <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'#374151', borderBottom:'1px solid #E5E7EB' }}>{h}</th>
                 ))}
               </tr>
@@ -1150,9 +1248,17 @@ export default function Prospectos() {
                   <td style={{ padding:'10px 14px', color:'#6B7280' }}>
                     {new Date(p.fecha_contacto).toLocaleDateString('es-MX')}
                   </td>
-                  <td style={{ padding:'10px 14px' }}>
-                    <button onClick={() => setSeleccionado(p)}
-                      style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2' }}>Ver →</button>
+                  <td style={{ padding:'8px 14px' }}>
+                    <div style={{ display:'flex', gap:4 }}>
+                      <button onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
+                        style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2' }}>Ver</button>
+                      <button onClick={e => { e.stopPropagation(); setModalEditar(p) }}
+                        style={{ ...btnMini, background:'#F3F4F6', color:'#374151' }}>Editar</button>
+                      {!ETAPAS_INACTIVAS.includes(p.etapa) && (
+                        <button onClick={e => { e.stopPropagation(); setModalEditar({ ...p, _cancelar: true }) }}
+                          style={{ ...btnMini, background:'#FEE2E2', color:'#B24020' }}>Cancelar</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1175,6 +1281,13 @@ export default function Prospectos() {
       )}
       {modalLink && (
         <ModalCompartirLink link={modalLink} onClose={() => setModalLink(null)} />
+      )}
+      {modalEditar && (
+        <ModalEditarProspecto
+          prospecto={modalEditar}
+          onClose={() => setModalEditar(null)}
+          onSaved={refresh}
+        />
       )}
     </div>
   )
