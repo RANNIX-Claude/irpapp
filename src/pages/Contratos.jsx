@@ -1,5 +1,6 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
@@ -782,14 +783,14 @@ function ModalCancelar({ contrato: c, onClose, onDone }) {
 
 // ─── Modal Nuevo Contrato ────────────────────────────────────────────────────
 
-function NuevoContratoModal({ onClose, onCreated }) {
+function NuevoContratoModal({ onClose, onCreated, fromProspecto = null }) {
   const { data: arrendatarios } = usePRP('prp_arrendatarios', { order: { col: 'nombre_razon_social' } })
   const { data: unidades } = usePRP('prp_unidades', { filters: [['estado_id', 'eq', 'DISPONIBLE']], order: { col: 'numero_local' } })
 
   const [form, setForm] = useState({
     arrendatario_id: '', unidad_id: '', tipo_contrato: 'ANUAL',
     fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_fin: '', renta_mensual: '', cuota_mant: '0', deposito_garantia: '',
+    fecha_fin: '', renta_mensual: fromProspecto?.renta || '', cuota_mant: '0', deposito_garantia: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -836,6 +837,21 @@ function NuevoContratoModal({ onClose, onCreated }) {
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
         </div>
+        {fromProspecto && (
+          <div style={{ margin: '0 24px 0', padding: '10px 14px', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '8px', marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px' }}>📋</span>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Desde prospecto aprobado</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#065F46' }}>{fromProspecto.nombre || 'Sin nombre'}</div>
+            </div>
+            {fromProspecto.renta && (
+              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700 }}>RENTA PROPUESTA</div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#065F46' }}>${Number(fromProspecto.renta).toLocaleString('es-MX')}</div>
+              </div>
+            )}
+          </div>
+        )}
         {success ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
@@ -903,6 +919,7 @@ function NuevoContratoModal({ onClose, onCreated }) {
 
 export default function Contratos() {
   useModuleAudit('CONTRATOS')
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
   const [filtroPDF, setFiltroPDF] = useState('Todos')
@@ -910,6 +927,19 @@ export default function Contratos() {
   const [sortAsc, setSortAsc] = useState(false)
   const [selected, setSelected] = useState(null)
   const [showNuevo, setShowNuevo] = useState(false)
+
+  // Prospecto conecte: si viene de /contratos?prospecto_id=... abrir modal pre-llenado
+  const fromProspecto = searchParams.get('prospecto_id')
+    ? {
+        id: searchParams.get('prospecto_id'),
+        nombre: searchParams.get('nombre') || '',
+        renta: searchParams.get('renta') || '',
+      }
+    : null
+
+  useEffect(() => {
+    if (fromProspecto) setShowNuevo(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [refreshKey, setRefreshKey] = useState(0)
   const [diasAnticip, setDiasAnticip] = useState(60)
   const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false }, refreshKey })
@@ -920,44 +950,62 @@ export default function Contratos() {
   }, [])
 
   const lista = data ?? []
-  const ESTADOS = ['Todos', 'VIGENTE', 'EN_RENOVACION', 'VENCIDO', 'RESCISION', 'CANCELADO']
+
+  // Conteos para KPIs y filtros
+  const cntVigentes    = lista.filter(c => c.estado_id === 'VIGENTE' && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento)).length
+  const cntPorVencer   = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
+  const cntVencidos    = lista.filter(c => c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO').length
+  const cntRenovacion  = lista.filter(c => c.estado_id === 'EN_RENOVACION').length
+  const cntRescision   = lista.filter(c => c.estado_id === 'RESCISION').length
+  const cntCancelados  = lista.filter(c => c.estado_id === 'CANCELADO').length
+  const rentaTotal     = lista.filter(c => c.estado_id === 'VIGENTE').reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
+  const conPDF         = lista.filter(c => c.archivo_contrato_url).length
+
+  const FILTROS = [
+    { id: 'Todos',         label: 'Todos',          cnt: lista.length,    color: '#6B7280' },
+    { id: 'VIGENTE',       label: 'Vigentes',        cnt: cntVigentes,     color: 'var(--color-success)' },
+    { id: 'POR_VENCER',    label: 'Por vencer',      cnt: cntPorVencer,    color: 'var(--color-warning)' },
+    { id: 'VENCIDO',       label: 'Vencidos',        cnt: cntVencidos,     color: 'var(--color-danger)' },
+    { id: 'EN_RENOVACION', label: 'En renovación',   cnt: cntRenovacion,   color: '#7C3AED' },
+    { id: 'RESCISION',     label: 'Rescisión',       cnt: cntRescision,    color: '#9CA3AF' },
+    { id: 'CANCELADO',     label: 'Cancelados',      cnt: cntCancelados,   color: '#9CA3AF' },
+  ].filter(f => f.id === 'Todos' || f.id === 'VIGENTE' || f.id === 'POR_VENCER' || f.id === 'VENCIDO' || f.cnt > 0)
+
   const SORTS = [
-    { col: 'fecha_inicio', label: 'Fecha inicio' },
-    { col: 'renta_mensual', label: 'Renta ↑↓' },
-    { col: 'dias_restantes', label: 'Días restantes' },
+    { col: 'dias_restantes',    label: 'Urgencia' },
+    { col: 'unidad_numero',     label: 'Local A-Z' },
     { col: 'arrendatario_nombre', label: 'Arrendatario A-Z' },
-    { col: 'unidad_numero', label: 'Local A-Z' },
+    { col: 'renta_mensual',     label: 'Renta' },
+    { col: 'fecha_inicio',      label: 'Fecha inicio' },
   ]
 
   const filtrados = lista
     .filter(c => {
-      const q = search.toLowerCase()
+      const q = search.toLowerCase().trim()
       const matchQ = !q
         || (c.folio || '').toLowerCase().includes(q)
         || (c.arrendatario_nombre || '').toLowerCase().includes(q)
         || (c.inmueble_nombre || '').toLowerCase().includes(q)
         || (c.unidad_numero || '').toLowerCase().includes(q)
-        || (c.locales || '').toLowerCase().includes(q)
         || (c.locales_referencia || '').toLowerCase().includes(q)
-      const matchE = filtroEst === 'Todos' || c.estado_id === filtroEst
+        || (c.locales_display || '').toLowerCase().includes(q)
+      const matchE = filtroEst === 'Todos'
+        || (filtroEst === 'POR_VENCER' && ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento))
+        || (filtroEst === 'VENCIDO'    && (c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO'))
+        || (filtroEst === 'VIGENTE'    && c.estado_id === 'VIGENTE'  && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento))
+        || (!['POR_VENCER','VENCIDO','VIGENTE'].includes(filtroEst) && c.estado_id === filtroEst)
       const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
       return matchQ && matchE && matchPDF
     })
     .sort((a, b) => {
-      const va = a[sortCol] ?? 0; const vb = b[sortCol] ?? 0
+      const va = a[sortCol] ?? (sortCol === 'dias_restantes' ? 99999 : ''); const vb = b[sortCol] ?? (sortCol === 'dias_restantes' ? 99999 : '')
       return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1)
     })
 
   const toggleSort = (col) => {
     if (sortCol === col) setSortAsc(a => !a)
-    else { setSortCol(col); setSortAsc(false) }
+    else { setSortCol(col); setSortAsc(true) }
   }
-
-  const vigentes = lista.filter(c => c.estado_id === 'VIGENTE').length
-  const vencidos = lista.filter(c => c.semaforo_vencimiento === 'VENCIDO').length
-  const porVencer = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
-  const rentaTotal = lista.filter(c => ['VIGENTE','INDEFINIDO'].includes(c.semaforo_vencimiento)).reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
-  const conPDF = lista.filter(c => c.archivo_contrato_url).length
 
   return (
     <div style={{ padding: '24px', maxWidth: '1300px' }}>
@@ -977,33 +1025,72 @@ export default function Contratos() {
         </button>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Vigentes"         value={vigentes}               icon={CheckCircle}  color="var(--color-success)" />
-        <KPICard title="Vencidos"         value={vencidos}               icon={AlertTriangle} color="var(--color-danger)" />
-        <KPICard title="Por vencer (60d)" value={porVencer}              icon={Clock}         color="var(--color-warning)" />
-        <KPICard title="Renta total/mes"  value={`$${(rentaTotal/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-primary)" />
-        <KPICard title="Con PDF adjunto"  value={`${conPDF}/${lista.length}`} icon={Paperclip} color="var(--color-secondary)" />
+      {/* KPIs — clickeables para filtrar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '20px' }}>
+        {[
+          { title: 'Vigentes',        value: cntVigentes,  icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
+          { title: 'Vencidos',        value: cntVencidos,  icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
+          { title: 'Por vencer',      value: cntPorVencer, icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
+          { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: 'var(--color-primary)', filtro: null },
+          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,      icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
+        ].map(k => (
+          <div key={k.title} onClick={() => k.filtro && setFiltroEst(f => f === k.filtro ? 'Todos' : k.filtro)}
+            style={{
+              background: 'white', borderRadius: '10px', border: `2px solid ${filtroEst === k.filtro ? k.color : '#E5E7EB'}`,
+              padding: '16px', cursor: k.filtro ? 'pointer' : 'default',
+              boxShadow: filtroEst === k.filtro ? `0 0 0 3px ${k.color}22` : 'none',
+              transition: 'all 0.15s',
+            }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.title}</span>
+              <k.icon size={16} color={k.color} />
+            </div>
+            <div style={{ fontSize: '26px', fontWeight: 800, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
+            {k.filtro && <div style={{ fontSize: '10px', color: filtroEst === k.filtro ? k.color : '#9CA3AF', marginTop: '4px', fontWeight: 600 }}>
+              {filtroEst === k.filtro ? '● Filtro activo' : 'Clic para filtrar'}
+            </div>}
+          </div>
+        ))}
       </div>
 
-      {/* Filtros */}
+      {/* Filtros de estado */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {FILTROS.map(f => {
+          const activo = filtroEst === f.id
+          return (
+            <button key={f.id} onClick={() => setFiltroEst(f.id)} style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 13px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+              border: `2px solid ${activo ? f.color : '#E5E7EB'}`,
+              background: activo ? f.color : 'white',
+              color: activo ? 'white' : '#374151',
+              transition: 'all 0.15s',
+            }}>
+              {f.label}
+              {f.id !== 'Todos' && (
+                <span style={{
+                  background: activo ? 'rgba(255,255,255,0.3)' : f.color + '22',
+                  color: activo ? 'white' : f.color,
+                  borderRadius: '10px', padding: '1px 7px', fontSize: '11px', fontWeight: 800,
+                }}>{f.cnt}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Barra de búsqueda + filtro PDF */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por folio, arrendatario, local (L09, L31-L32)..."
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Nombre, local (L09, L24), folio..."
             style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '16px', lineHeight: 1 }}>×</button>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {ESTADOS.map(e => (
-            <button key={e} onClick={() => setFiltroEst(e)} style={{
-              padding: '7px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: filtroEst === e ? 'var(--color-primary)' : '#E5E7EB',
-              background: filtroEst === e ? 'var(--color-primary)' : 'white',
-              color: filtroEst === e ? 'white' : 'var(--color-text-light)',
-            }}>{e}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: '6px', borderLeft: '1px solid #E5E7EB', paddingLeft: '10px' }}>
+        <div style={{ display: 'flex', gap: '6px' }}>
           {[['Todos','Todos'],['CON_PDF','Con anexo'],['SIN_PDF','Sin anexo']].map(([val, lbl]) => (
             <button key={val} onClick={() => setFiltroPDF(val)} style={{
               padding: '7px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
@@ -1060,7 +1147,11 @@ export default function Contratos() {
         diasAnticip={diasAnticip}
       />
       {showNuevo && (
-        <NuevoContratoModal onClose={() => setShowNuevo(false)} onCreated={() => setRefreshKey(k => k + 1)} />
+        <NuevoContratoModal
+          fromProspecto={fromProspecto}
+          onClose={() => { setShowNuevo(false); if (fromProspecto) setSearchParams({}) }}
+          onCreated={() => { setRefreshKey(k => k + 1); setSearchParams({}) }}
+        />
       )}
     </div>
   )

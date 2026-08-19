@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
@@ -187,6 +188,7 @@ const MAPA_CAMPOS = {
 }
 
 function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
+  const navigate = useNavigate()
   const [personas, setPersonas] = useState([])
   const [docs, setDocs] = useState([])
   const [tab, setTab] = useState('personas')
@@ -487,7 +489,28 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
               </span>
             )}
           </div>
-          {siguiente && prospecto.etapa !== 'RECHAZADO' && (
+          {/* CTA especial cuando el candidato es APROBADO → conecte con Contratos */}
+          {prospecto.etapa === 'APROBADO' && (
+            <button
+              onClick={async () => {
+                await avanzarEtapa('CONTRATO')
+                const params = new URLSearchParams({
+                  prospecto_id: prospecto.id,
+                  nombre: prospecto.nombre_negocio || '',
+                  renta: prospecto.renta_propuesta || '',
+                })
+                navigate(`/contratos?${params.toString()}`)
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', background: '#057642', color: 'white',
+                border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14,
+                cursor: 'pointer', boxShadow: '0 2px 8px rgba(5,118,66,0.3)',
+              }}>
+              📋 Crear Contrato →
+            </button>
+          )}
+          {siguiente && prospecto.etapa !== 'RECHAZADO' && prospecto.etapa !== 'APROBADO' && (
             <button onClick={() => avanzarEtapa(siguiente.id)} style={btnPrimario}>
               Avanzar a {siguiente.label} →
             </button>

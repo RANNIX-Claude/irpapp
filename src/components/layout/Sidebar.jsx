@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
   Search, BarChart3, Settings, Wallet, RefreshCw,
-  Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map
+  Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
+  UserPlus, ArrowRightLeft,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -15,6 +16,24 @@ const NAV_SECTIONS = [
     ]
   },
   {
+    // Flujo de contratación: Prospecto → Contrato
+    label: 'CONTRATACIÓN',
+    items: [
+      { label: 'Prospectos', path: '/prospectos', icon: UserPlus },
+      { label: 'Contratos', path: '/contratos', icon: FileText },
+    ]
+  },
+  {
+    // Gestión diaria de cartera activa
+    label: 'CARTERA',
+    items: [
+      { label: 'Cobranza', path: '/cobranza', icon: CreditCard },
+      { label: 'Conciliación', path: '/conciliacion', icon: ArrowRightLeft },
+      { label: 'Ingresos', path: '/ingresos', icon: TrendingUp },
+      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
+    ]
+  },
+  {
     label: 'OPERACIÓN',
     items: [
       { label: 'Resumen Semanal', path: '/resumen-semanal', icon: CalendarRange },
@@ -23,17 +42,6 @@ const NAV_SECTIONS = [
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
       { label: 'Fondo Revolvente', path: '/fondo-revolvente', icon: Wallet },
       { label: 'Agua Potable', path: '/agua', icon: Droplets },
-    ]
-  },
-  {
-    label: 'GESTIÓN',
-    items: [
-      { label: 'Contratos', path: '/contratos', icon: FileText },
-      { label: 'Ingresos', path: '/ingresos', icon: TrendingUp },
-      { label: 'Cobranza', path: '/cobranza', icon: CreditCard },
-      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
-      { label: 'Prospectos', path: '/prospectos', icon: Search },
-      { label: 'Conciliación', path: '/conciliacion', icon: RefreshCw },
     ]
   },
   {
