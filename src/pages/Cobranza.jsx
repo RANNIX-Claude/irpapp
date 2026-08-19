@@ -167,11 +167,16 @@ function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura
 }
 
 // ── Modal de pagos: historial + agregar nuevo ─────────────────────────
+const OCR_FN = '/.netlify/functions/extraer-documento'
+
 function PagosModal({ cobro, onClose, onSaved }) {
   const [ingresos, setIngresos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [subiendoFactura, setSubiendoFactura] = useState(null) // 'id_pdf' | 'id_xml'
+  const [subiendoFactura, setSubiendoFactura] = useState(null)
+  const [leyendoOCR, setLeyendoOCR] = useState(false)
+  const [ocrMsg, setOcrMsg] = useState(null)
+  const compFileRef = useRef()
 
   const FORM_INIT = {
     tipo_concepto: 'RENTA',
@@ -187,6 +192,47 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // OCR de comprobante bancario → prellena el formulario
+  const leerComprobante = async (file) => {
+    if (!file) return
+    setLeyendoOCR(true); setOcrMsg(null)
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload  = () => res(r.result.split(',')[1])
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+      const resp = await fetch(OCR_FN, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ image_base64: b64, media_type: file.type, tipo_doc: 'COMPROBANTE_PAGO' }),
+      })
+      const j = await resp.json()
+      if (!resp.ok || !j.datos) throw new Error(j.error || 'Sin datos extraídos')
+      const d = j.datos
+      // Mapear forma_pago a los valores del select
+      const formaMap = {
+        transferencia: 'TRANSFERENCIA', spei: 'TRANSFERENCIA', deposito: 'DEPOSITO',
+        'depósito': 'DEPOSITO', efectivo: 'EFECTIVO', cheque: 'CHEQUE',
+      }
+      const formaRaw = (d.forma_pago || '').toLowerCase()
+      const formaOK = formaMap[formaRaw] || 'TRANSFERENCIA'
+      setForm(f => ({
+        ...f,
+        fecha_pago:  d.fecha_pago || d.fecha || f.fecha_pago,
+        monto:       d.monto ? String(d.monto) : f.monto,
+        referencia:  d.referencia || d.folio || d.numero_operacion || f.referencia,
+        forma_pago:  formaOK,
+        nota:        [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.nota,
+      }))
+      setShowForm(true)
+      setOcrMsg({ ok: true, txt: `✓ Datos leídos — revisa y confirma` })
+    } catch (e) {
+      setOcrMsg({ ok: false, txt: `No se pudo leer: ${e.message}` })
+    } finally { setLeyendoOCR(false) }
+  }
 
   // Solo ingresos tipo RENTA reducen el pendiente del cobro
   const totalRenta = ingresos.filter(p => p.tipo_concepto === 'RENTA' || !p.tipo_concepto).reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
@@ -395,11 +441,39 @@ function PagosModal({ cobro, onClose, onSaved }) {
 
         {/* Footer */}
         {!showForm && (
-          <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: colorEst + '20', color: colorEst }}>{cobro.estatus}</span>
-            <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
-              <Plus size={14} /> Agregar movimiento
-            </button>
+          <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB' }}>
+            {/* Mensaje OCR */}
+            {ocrMsg && (
+              <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: ocrMsg.ok ? '#057642' : '#B24020', background: ocrMsg.ok ? '#D1FAE5' : '#FEE2E2' }}>
+                {ocrMsg.txt}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: colorEst + '20', color: colorEst }}>{cobro.estatus}</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* Botón OCR comprobante */}
+                <button
+                  disabled={leyendoOCR}
+                  onClick={() => compFileRef.current?.click()}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: leyendoOCR ? '#9CA3AF' : '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: leyendoOCR ? 'default' : 'pointer' }}
+                  title="Sube foto del comprobante bancario para leer datos con IA"
+                >
+                  {leyendoOCR ? '⏳ Leyendo…' : '📷 Leer comprobante'}
+                </button>
+                <button onClick={() => { setShowForm(true); setOcrMsg(null) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  <Plus size={14} /> Agregar manual
+                </button>
+              </div>
+            </div>
+            {/* Input oculto — capture=environment activa cámara en móvil */}
+            <input
+              ref={compFileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) leerComprobante(f); e.target.value = '' }}
+            />
           </div>
         )}
       </div>
