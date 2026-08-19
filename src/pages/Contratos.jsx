@@ -18,12 +18,14 @@ import { supabase } from '../lib/supabase'
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
 const SEMAFORO = {
-  VIGENTE:    { color: 'var(--color-success)',  label: 'Vigente' },
-  INDEFINIDO: { color: 'var(--color-primary)',  label: 'Indefinido' },
-  ALERTA:     { color: 'var(--color-warning)',  label: 'Por vencer' },
-  CRITICO:    { color: 'var(--color-danger)',   label: 'Crítico' },
-  VENCIDO:    { color: 'var(--color-danger)',   label: 'Vencido' },
-  CANCELADO:  { color: '#9CA3AF',               label: 'Cancelado' },
+  VIGENTE:       { color: 'var(--color-success)',  label: 'Vigente' },
+  INDEFINIDO:    { color: 'var(--color-primary)',  label: 'Indefinido' },
+  ALERTA:        { color: 'var(--color-warning)',  label: 'Por vencer' },
+  CRITICO:       { color: 'var(--color-danger)',   label: 'Crítico' },
+  VENCIDO:       { color: 'var(--color-danger)',   label: 'Vencido' },
+  CANCELADO:     { color: '#9CA3AF',               label: 'Cancelado' },
+  RESCISION:     { color: '#9CA3AF',               label: 'Rescisión' },
+  EN_RENOVACION: { color: '#7C3AED',               label: 'En renovación' },
 }
 
 function diasLabel(dias, semaforo) {
@@ -80,7 +82,7 @@ function ContratoRow({ c, onClick }) {
 
 // ─── Modal de detalle con tabs ───────────────────────────────────────────────
 
-function DetalleModal({ contrato: c, onClose, onUpdated }) {
+function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60 }) {
   const [tab, setTab] = useState('datos')
   const [notas, setNotas] = useState([])
   const [notasLoading, setNotasLoading] = useState(false)
@@ -90,11 +92,16 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
   const [pdfUrl, setPdfUrl] = useState(c?.archivo_contrato_url || null)
   const [notaErr, setNotaErr] = useState(null)
   const [showElaborar, setShowElaborar] = useState(false)
+  const [showRenovar, setShowRenovar] = useState(false)
+  const [showCancelar, setShowCancelar] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErr, setEditErr] = useState(null)
   const pdfRef = useRef()
+
+  const puedeRenovar = c && ['VIGENTE', 'ALERTA', 'CRITICO'].includes(c.semaforo_vencimiento) && (c.dias_restantes == null || c.dias_restantes <= diasAnticip)
+  const puedeCancelar = c && !['CANCELADO', 'RESCISION'].includes(c.estatus)
 
   const startEdit = () => {
     setEditForm({
@@ -409,15 +416,35 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
                   style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 18px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
                   <Wand2 size={15} /> Elaborar Contrato
                 </button>
-                {[
-                  ['Renovar contrato', 'var(--color-success)'],
-                  ['Cancelar', 'var(--color-danger)'],
-                ].map(([label, bg]) => (
-                  <button key={label} style={{ padding: '8px 14px', background: bg, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                    {label}
+                <button
+                  onClick={() => setShowRenovar(true)}
+                  disabled={!puedeRenovar}
+                  title={puedeRenovar ? 'Renovar contrato' : `Disponible cuando falten ≤${diasAnticip} días para vencer`}
+                  style={{ padding: '8px 14px', background: puedeRenovar ? 'var(--color-success)' : '#E5E7EB', color: puedeRenovar ? 'white' : '#9CA3AF', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: puedeRenovar ? 'pointer' : 'not-allowed' }}>
+                  Renovar contrato
+                </button>
+                {puedeCancelar && (
+                  <button
+                    onClick={() => setShowCancelar(true)}
+                    style={{ padding: '8px 14px', background: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                    Cancelar
                   </button>
-                ))}
+                )}
               </div>
+              )}
+              {showRenovar && (
+                <ModalRenovacion
+                  contrato={c}
+                  onClose={() => setShowRenovar(false)}
+                  onDone={() => { setShowRenovar(false); onUpdated?.(); onClose() }}
+                />
+              )}
+              {showCancelar && (
+                <ModalCancelar
+                  contrato={c}
+                  onClose={() => setShowCancelar(false)}
+                  onDone={() => { setShowCancelar(false); onUpdated?.(); onClose() }}
+                />
               )}
               {showElaborar && (
                 <ElaborarContratoModal
@@ -559,6 +586,200 @@ function DetalleModal({ contrato: c, onClose, onUpdated }) {
   )
 }
 
+// ─── Modal Renovación ────────────────────────────────────────────────────────
+
+function ModalRenovacion({ contrato: c, onClose, onDone }) {
+  const hoy = new Date()
+  const defaultInicio = new Date(c.fecha_fin ? new Date(c.fecha_fin).getTime() + 86400000 : hoy)
+  const defaultFin = new Date(defaultInicio); defaultFin.setFullYear(defaultFin.getFullYear() + 1); defaultFin.setDate(defaultFin.getDate() - 1)
+  const toISO = d => d.toISOString().split('T')[0]
+
+  const [form, setForm] = useState({
+    fecha_inicio:     toISO(defaultInicio),
+    fecha_fin:        toISO(defaultFin),
+    renta_mensual:    c.renta_mensual ?? '',
+    deposito_garantia: c.deposito_garantia ?? '',
+    dia_pago:         c.dia_pago ?? 5,
+    penalizacion_pct: c.penalizacion_pct ?? 5,
+    incremento_anual_pct: c.incremento_anual_pct ?? 0,
+    fiador_nombre:    c.fiador_nombre ?? '',
+    fiador_rfc:       c.fiador_rfc ?? '',
+    fiador_domicilio: c.fiador_domicilio ?? '',
+    notas:            '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = async () => {
+    if (!form.fecha_inicio || !form.renta_mensual) { setError('Fecha inicio y renta son obligatorios.'); return }
+    setSaving(true); setError(null)
+    try {
+      // 1. Crear nuevo contrato
+      const newFolio = (c.folio || 'C').replace(/(-R\d+)?$/, '') + '-R' + new Date().getFullYear().toString().slice(-2)
+      const { data: nuevo, error: e1 } = await supabase.from('contratos').insert({
+        numero_contrato:      newFolio,
+        arrendatario_id:      c.arrendatario_id,
+        fecha_inicio:         form.fecha_inicio,
+        fecha_fin:            form.fecha_fin || null,
+        renta_mensual:        parseFloat(form.renta_mensual),
+        renta_sin_iva:        parseFloat(form.renta_mensual) / 1.16,
+        deposito_garantia:    parseFloat(form.deposito_garantia) || 0,
+        dia_pago:             parseInt(form.dia_pago) || 5,
+        penalizacion_pct:     parseFloat(form.penalizacion_pct) || 5,
+        incremento_anual_pct: parseFloat(form.incremento_anual_pct) || 0,
+        estatus:              'VIGENTE',
+        contrato_origen_id:   c.id,
+        locales_referencia:   c.locales_referencia,
+        locales_display:      c.locales_display,
+        num_locales:          c.num_locales,
+        notas:                form.notas || null,
+      }).select('id').single()
+      if (e1) throw e1
+
+      // 2. Copiar contratos_locales al nuevo contrato
+      const { data: locales } = await supabase.from('contratos_locales').select('local_id,renta_asignada,es_principal,notas').eq('contrato_id', c.id)
+      if (locales?.length) {
+        await supabase.from('contratos_locales').insert(locales.map(l => ({ ...l, contrato_id: nuevo.id })))
+      }
+
+      // 3. Marcar contrato original como EN_RENOVACION
+      const { error: e2 } = await supabase.from('contratos').update({ estatus: 'EN_RENOVACION' }).eq('id', c.id)
+      if (e2) throw e2
+
+      onDone?.()
+      onClose()
+    } catch (err) {
+      setError(err.message)
+    } finally { setSaving(false) }
+  }
+
+  const inp = { width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: '7px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
+  const Row = ({ label, children }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F3F4F6' }}>
+      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
+      {children}
+    </div>
+  )
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '11px', color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase' }}>Renovación de contrato</div>
+            <h2 style={{ margin: '2px 0 0', fontSize: '18px', fontWeight: 800, color: 'var(--color-primary)' }}>{c.folio} → {c.arrendatario_nombre}</h2>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'grid', gap: '20px' }}>
+          {/* Contrato origen — info */}
+          <div style={{ padding: '12px 16px', background: '#F5F3FF', borderRadius: '10px', border: '1px solid #DDD6FE', fontSize: '12px', color: '#5B21B6' }}>
+            <strong>Contrato actual:</strong> {c.fecha_inicio} → {c.fecha_fin || '—'} · Renta {fmt(c.renta_mensual)} · Local {c.unidad_numero}
+            <br/>El contrato original pasará a estado <strong>EN RENOVACIÓN</strong> y se creará uno nuevo como VIGENTE.
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Vigencia nuevo contrato</div>
+              <Row label="Inicio"><input type="date" value={form.fecha_inicio} onChange={e => set('fecha_inicio', e.target.value)} style={inp} /></Row>
+              <Row label="Vencimiento"><input type="date" value={form.fecha_fin} onChange={e => set('fecha_fin', e.target.value)} style={inp} /></Row>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Renta y condiciones</div>
+              <Row label="Renta mensual"><input type="number" value={form.renta_mensual} onChange={e => set('renta_mensual', e.target.value)} style={inp} /></Row>
+              <Row label="Depósito"><input type="number" value={form.deposito_garantia} onChange={e => set('deposito_garantia', e.target.value)} style={inp} /></Row>
+              <Row label="Día pago"><input type="number" value={form.dia_pago} onChange={e => set('dia_pago', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <Row label="Mora %"><input type="number" value={form.penalizacion_pct} onChange={e => set('penalizacion_pct', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <Row label="Incremento %"><input type="number" value={form.incremento_anual_pct} onChange={e => set('incremento_anual_pct', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+            </div>
+          </div>
+
+          <div style={{ padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
+            <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador / Aval</div>
+            <Row label="Nombre"><input type="text" value={form.fiador_nombre} onChange={e => set('fiador_nombre', e.target.value)} style={inp} /></Row>
+            <Row label="RFC"><input type="text" value={form.fiador_rfc} onChange={e => set('fiador_rfc', e.target.value)} style={{ ...inp, textTransform: 'uppercase' }} /></Row>
+            <Row label="Domicilio"><input type="text" value={form.fiador_domicilio} onChange={e => set('fiador_domicilio', e.target.value)} style={inp} /></Row>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '6px' }}>Notas de renovación</div>
+            <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2} placeholder="Observaciones, acuerdos especiales..."
+              style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          </div>
+        </div>
+
+        {error && <div style={{ margin: '0 24px', padding: '10px 14px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
+
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '10px' }}>
+          <button onClick={handleSubmit} disabled={saving} style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
+            {saving ? 'Creando renovación...' : 'Confirmar renovación'}
+          </button>
+          <button onClick={onClose} style={{ padding: '11px 20px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal Cancelar ──────────────────────────────────────────────────────────
+
+function ModalCancelar({ contrato: c, onClose, onDone }) {
+  const [motivo, setMotivo] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleCancelar = async () => {
+    if (!motivo.trim()) { setError('El motivo de cancelación es requerido.'); return }
+    setSaving(true); setError(null)
+    const { error: err } = await supabase.from('contratos').update({
+      estatus: 'CANCELADO',
+      notas: `[CANCELADO ${new Date().toLocaleDateString('es-MX')}] ${motivo.trim()}${c.notas ? '\n' + c.notas : ''}`,
+    }).eq('id', c.id)
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    onDone?.()
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '100%', maxWidth: '480px' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--color-danger)', fontWeight: 700, textTransform: 'uppercase' }}>Cancelar contrato</div>
+            <h2 style={{ margin: '2px 0 0', fontSize: '18px', fontWeight: 800, color: 'var(--color-primary)' }}>{c.folio}</h2>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
+        </div>
+        <div style={{ padding: '20px 24px', display: 'grid', gap: '16px' }}>
+          <div style={{ padding: '12px 16px', background: '#FEF2F2', borderRadius: '10px', border: '1px solid #FECACA', fontSize: '12px', color: '#991B1B' }}>
+            Esta acción marcará el contrato de <strong>{c.arrendatario_nombre}</strong> como CANCELADO. No se puede deshacer desde el sistema.
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '6px' }}>Motivo de cancelación *</label>
+            <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={4} placeholder="Describe el motivo de la cancelación..."
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }} />
+          </div>
+          {error && <div style={{ padding: '10px 14px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={handleCancelar} disabled={saving} style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
+              {saving ? 'Cancelando...' : 'Confirmar cancelación'}
+            </button>
+            <button onClick={onClose} style={{ padding: '11px 20px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>Volver</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Modal Nuevo Contrato ────────────────────────────────────────────────────
 
 function NuevoContratoModal({ onClose, onCreated }) {
@@ -690,10 +911,16 @@ export default function Contratos() {
   const [selected, setSelected] = useState(null)
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [diasAnticip, setDiasAnticip] = useState(60)
   const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false }, refreshKey })
 
+  useEffect(() => {
+    supabase.from('cat_parametros').select('valor').eq('clave', 'dias_anticip_renovacion').single()
+      .then(({ data }) => { if (data?.valor) setDiasAnticip(parseInt(data.valor)) })
+  }, [])
+
   const lista = data ?? []
-  const ESTADOS = ['Todos', 'VIGENTE', 'VENCIDO', 'EN_MORA', 'CANCELADO']
+  const ESTADOS = ['Todos', 'VIGENTE', 'EN_RENOVACION', 'VENCIDO', 'RESCISION', 'CANCELADO']
   const SORTS = [
     { col: 'fecha_inicio', label: 'Fecha inicio' },
     { col: 'renta_mensual', label: 'Renta ↑↓' },
@@ -829,7 +1056,8 @@ export default function Contratos() {
       <DetalleModal
         contrato={selected}
         onClose={() => setSelected(null)}
-        onUpdated={() => setRefreshKey(k => k + 1)}
+        onUpdated={() => { setRefreshKey(k => k + 1); setSelected(null) }}
+        diasAnticip={diasAnticip}
       />
       {showNuevo && (
         <NuevoContratoModal onClose={() => setShowNuevo(false)} onCreated={() => setRefreshKey(k => k + 1)} />
