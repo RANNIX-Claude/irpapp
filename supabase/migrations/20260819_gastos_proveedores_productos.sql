@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS public.gasto_detalle (
 );
 
 -- ── 5. VISTA GASTOS ENRIQUECIDA ───────────────────────────
-CREATE OR REPLACE VIEW public.prp_gastos AS
+DROP VIEW IF EXISTS public.prp_gastos;
+CREATE VIEW public.prp_gastos AS
 SELECT
   g.id, g.fecha, g.semana, g.anio, g.mes, g.dia_semana,
   g.grupo_gasto, g.descripcion,
@@ -62,7 +63,7 @@ SELECT
   p.categoria                              AS proveedor_cat,
   (SELECT COALESCE(SUM(d.subtotal), 0) FROM public.gasto_detalle d WHERE d.gasto_id = g.id) AS suma_detalle,
   (SELECT COUNT(*)                         FROM public.gasto_detalle d WHERE d.gasto_id = g.id) AS num_lineas,
-  created_at
+  g.created_at
 FROM public.gastos_operativos g
 LEFT JOIN public.cat_proveedores p ON p.id = g.proveedor_id
 ORDER BY g.fecha DESC, g.created_at DESC;
@@ -72,9 +73,12 @@ ALTER TABLE public.cat_proveedores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cat_productos   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gasto_detalle   ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "auth_all" ON public.cat_proveedores FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "auth_all" ON public.cat_productos   FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "auth_all" ON public.gasto_detalle   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "auth_all" ON public.cat_proveedores;
+CREATE POLICY "auth_all" ON public.cat_proveedores FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "auth_all" ON public.cat_productos;
+CREATE POLICY "auth_all" ON public.cat_productos   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "auth_all" ON public.gasto_detalle;
+CREATE POLICY "auth_all" ON public.gasto_detalle   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ── 7. SEED — Proveedores frecuentes ─────────────────────
 INSERT INTO public.cat_proveedores (clave, nombre, categoria) VALUES
