@@ -618,29 +618,27 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
     if (!form.fecha_inicio || !form.renta_mensual) { setError('Fecha inicio y renta son obligatorios.'); return }
     setSaving(true); setError(null)
     try {
-      // 1. Crear nuevo contrato en prp.contratos_arrendamiento
       const newFolio = (c.folio || 'CA').replace(/(-R\d+)?$/, '') + '-R' + new Date().getFullYear().toString().slice(-2)
-      const { error: e1 } = await supabase.schema('prp').from('contratos_arrendamiento').insert({
-        folio:            newFolio,
-        arrendatario_id:  c.arrendatario_id,
-        unidad_id:        c.unidad_id,
-        tipo_contrato:    c.tipo_contrato,
-        fecha_inicio:     form.fecha_inicio,
-        fecha_fin:        form.fecha_fin || null,
-        renta_mensual:    parseFloat(form.renta_mensual),
-        cuota_mant:       parseFloat(form.cuota_mant) || 0,
-        deposito_garantia: parseFloat(form.deposito_garantia) || 0,
-        dia_cobro:        parseInt(form.dia_cobro) || 1,
-        penalizacion_mora: parseFloat(form.penalizacion_mora) || 5,
-        incremento_anual: parseFloat(form.incremento_anual) || 0,
-        estado_id:        'VIGENTE',
-        notas:            form.notas || null,
+      const { error: e1 } = await supabase.rpc('renovar_contrato', {
+        p_contrato_id:       c.id,
+        p_folio:             newFolio,
+        p_arrendatario_id:   c.arrendatario_id,
+        p_unidad_id:         c.unidad_id,
+        p_tipo_contrato:     c.tipo_contrato,
+        p_fecha_inicio:      form.fecha_inicio,
+        p_fecha_fin:         form.fecha_fin || null,
+        p_renta_mensual:     parseFloat(form.renta_mensual),
+        p_cuota_mant:        parseFloat(form.cuota_mant) || 0,
+        p_deposito_garantia: parseFloat(form.deposito_garantia) || 0,
+        p_dia_cobro:         parseInt(form.dia_cobro) || 1,
+        p_penalizacion_mora: parseFloat(form.penalizacion_mora) || 5,
+        p_incremento_anual:  parseFloat(form.incremento_anual) || 0,
+        p_fiador_nombre:     form.fiador_nombre || null,
+        p_fiador_rfc:        form.fiador_rfc || null,
+        p_fiador_domicilio:  form.fiador_domicilio || null,
+        p_notas:             form.notas || null,
       })
       if (e1) throw e1
-
-      // 2. Marcar contrato original como RENOVADO
-      const { error: e2 } = await supabase.schema('prp').from('contratos_arrendamiento').update({ estado_id: 'RENOVADO' }).eq('id', c.id)
-      if (e2) throw e2
 
       onDone?.()
       onClose()
