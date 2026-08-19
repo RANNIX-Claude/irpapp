@@ -30,7 +30,8 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
     grupo_gasto:     gasto?.grupo_gasto || GRUPOS[0],
     descripcion:     gasto?.descripcion || '',
     ticket_total:    gasto?.ticket_total || gasto?.cantidad || '',
-    categoria_ticket: '',   // VENDING | OPERACION | MANTENIMIENTO | '' (mixto)
+    tipo_compra:     gasto?.tipo_compra || '',      // VENDING | MANTENIMIENTO | CONSUMO
+    categoria_ticket: '',   // categoría de líneas: VENDING | OPERACION | MANTENIMIENTO | '' (mixto)
   })
   const [lineas, setLineas]       = useState([])
   const [proveedores, setProveedores] = useState([])
@@ -120,6 +121,8 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         ticket_total: montoTotal,
         ...calcDatos(form.fecha),
       }
+
+      if (form.tipo_compra) payload.tipo_compra = form.tipo_compra
 
       let gastoId = gasto?.id
       if (isEdit) {
@@ -287,6 +290,23 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
                   {GRUPOS.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
+              {/* Tipo de compra — clasificación independiente */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={lbl}>Tipo de compra</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[['VENDING','🥤 Vending'],['MANTENIMIENTO','🔧 Mantenimiento'],['CONSUMO','🛒 Consumo']].map(([v, lb]) => {
+                    const active = form.tipo_compra === v
+                    const color = v === 'VENDING' ? '#EC4899' : v === 'MANTENIMIENTO' ? '#B24020' : '#057642'
+                    return (
+                      <button key={v} type="button" onClick={() => set('tipo_compra', active ? '' : v)}
+                        style={{ padding: '7px 16px', borderRadius: 20, border: `2px solid ${color}`, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? color : 'white', color: active ? 'white' : color }}>
+                        {lb}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               {/* Categoría del ticket — aplica a TODAS las líneas */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={lbl}>Categoría del ticket <span style={{ color: '#0A66C2' }}>(se aplica a todas las líneas)</span></label>
