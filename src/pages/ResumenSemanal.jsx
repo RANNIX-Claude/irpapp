@@ -1143,6 +1143,7 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
     : '✏️ Editar Ingreso'
 
   return (
+    <>
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
       <div style={{ background:'white', borderRadius:'14px', width:'400px', maxWidth:'95vw', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6' }}>
@@ -1278,5 +1279,6 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
         </div>
       </div>
     )}
+    </>
   )
 }
