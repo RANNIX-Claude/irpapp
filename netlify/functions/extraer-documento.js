@@ -94,33 +94,81 @@ Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el
 Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el JSON, sin texto adicional.`,
 }
 
+// Prompt para extraer datos de texto libre pegado
+const PROMPT_TEXTO = `Analiza el siguiente texto (puede ser un texto pegado de una credencial, documento, o datos escritos a mano)
+y extrae todos los datos de identificación personal que encuentres. Devuelve JSON con EXACTAMENTE estas claves
+(pon null si no está presente):
+{
+  "nombre_completo": null,
+  "curp": null,
+  "rfc": null,
+  "fecha_nacimiento": "YYYY-MM-DD o null",
+  "sexo": "H o M o null",
+  "clave_elector": null,
+  "vigencia": null,
+  "calle": null,
+  "no_ext": null,
+  "no_int": null,
+  "colonia": null,
+  "municipio": null,
+  "estado": null,
+  "cp": null,
+  "tel_casa": null,
+  "celular": null,
+  "correo": null,
+  "estado_civil": null,
+  "empresa": null,
+  "puesto": null,
+  "ingreso_mensual": null,
+  "antiguedad": null
+}
+TEXTO A ANALIZAR:
+`
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: HEADERS, body: '' }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: HEADERS, body: JSON.stringify({ error: 'Método no permitido' }) }
 
   try {
-    const { url, tipo_doc = 'DEFAULT' } = JSON.parse(event.body || '{}')
+    const { url, tipo_doc = 'DEFAULT', image_base64, media_type, texto_libre } = JSON.parse(event.body || '{}')
 
-    if (!url) return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: 'Se requiere la URL del documento' }) }
+    if (!url && !image_base64 && !texto_libre) {
+      return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: 'Se requiere url, image_base64 o texto_libre' }) }
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: 'API key no configurada' }) }
 
-    // Descargar imagen del Storage de Supabase
-    const imgResp = await fetch(url)
-    if (!imgResp.ok) throw new Error(`No se pudo obtener el documento: ${imgResp.status}`)
+    let messageContent
+    let prompt
 
-    const contentType = imgResp.headers.get('content-type') || 'image/jpeg'
-    const isImage = contentType.startsWith('image/')
-    if (!isImage) {
-      return { statusCode: 422, headers: HEADERS, body: JSON.stringify({ error: 'El documento debe ser una imagen (JPG, PNG, WebP). Los PDF no son soportados aún.' }) }
+    if (texto_libre) {
+      // Extracción desde texto pegado — sin imagen
+      messageContent = [{ type: 'text', text: PROMPT_TEXTO + texto_libre }]
+      prompt = PROMPT_TEXTO
+    } else {
+      // Obtener imagen: base64 directo o URL de Supabase Storage
+      let b64, resolvedMediaType
+      if (image_base64) {
+        b64 = image_base64
+        resolvedMediaType = media_type || 'image/jpeg'
+      } else {
+        const imgResp = await fetch(url)
+        if (!imgResp.ok) throw new Error(`No se pudo obtener el documento: ${imgResp.status}`)
+        const contentType = imgResp.headers.get('content-type') || 'image/jpeg'
+        if (!contentType.startsWith('image/')) {
+          return { statusCode: 422, headers: HEADERS, body: JSON.stringify({ error: 'El documento debe ser una imagen (JPG, PNG, WebP).' }) }
+        }
+        resolvedMediaType = contentType.split(';')[0].trim()
+        const buffer = await imgResp.arrayBuffer()
+        b64 = Buffer.from(buffer).toString('base64')
+      }
+      prompt = PROMPTS[tipo_doc] || PROMPTS.DEFAULT
+      messageContent = [
+        { type: 'image', source: { type: 'base64', media_type: resolvedMediaType, data: b64 } },
+        { type: 'text', text: prompt },
+      ]
     }
-
-    const mediaType = contentType.split(';')[0].trim()
-    const buffer = await imgResp.arrayBuffer()
-    const b64 = Buffer.from(buffer).toString('base64')
-
-    const prompt = PROMPTS[tipo_doc] || PROMPTS.DEFAULT
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -132,13 +180,7 @@ export const handler = async (event) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-            { type: 'text', text: prompt },
-          ],
-        }],
+        messages: [{ role: 'user', content: messageContent }],
       }),
     })
 

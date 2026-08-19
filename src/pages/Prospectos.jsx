@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import NuevoContratoModal from '../components/ui/NuevoContratoModal'
+import ModalSolicitudPersona from '../components/ui/ModalSolicitudPersona'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const ETAPAS = [
@@ -197,6 +198,7 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   const [modalContrato, setModalContrato] = useState(false)
   const [extrayendo, setExtrayendo] = useState(null)    // doc.id
   const [extractResult, setExtractResult] = useState(null) // { personaId, datos, docId }
+  const [modalSolicitud, setModalSolicitud] = useState(null) // persona object
 
   const cargar = useCallback(async () => {
     const { data: p } = await supabase.from('prospecto_personas')
@@ -360,12 +362,19 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
                         <div style={{ fontSize:15, fontWeight:700 }}>{p.nombre_completo || '(sin nombre)'}</div>
                         <div style={{ fontSize:12, color:'#6B7280' }}>{p.email} {p.cel ? `· ${p.cel}` : ''}</div>
                       </div>
-                      <button
-                        onClick={() => enviarMagicLink(p)}
-                        disabled={!p.email || enviandoLink === p.id}
-                        style={{ ...btnPrimario, fontSize:11, padding:'5px 12px' }}>
-                        {enviandoLink === p.id ? 'Enviando...' : '📧 Enviar link'}
-                      </button>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button
+                          onClick={() => setModalSolicitud(p)}
+                          style={{ ...btnPrimario, fontSize:11, padding:'5px 12px', background:'#7C3AED' }}>
+                          📋 Solicitud
+                        </button>
+                        <button
+                          onClick={() => enviarMagicLink(p)}
+                          disabled={!p.email || enviandoLink === p.id}
+                          style={{ ...btnPrimario, fontSize:11, padding:'5px 12px' }}>
+                          {enviandoLink === p.id ? 'Enviando...' : '📧 Enviar link'}
+                        </button>
+                      </div>
                     </div>
                     {/* Barra de progreso docs */}
                     <div style={{ marginTop:12 }}>
@@ -520,6 +529,13 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
           docs={docs}
           onClose={() => setModalDespacho(false)}
           onDone={() => { setModalDespacho(false); onRefresh() }}
+        />
+      )}
+      {modalSolicitud && (
+        <ModalSolicitudPersona
+          persona={modalSolicitud}
+          onClose={() => setModalSolicitud(null)}
+          onSaved={() => { setModalSolicitud(null); cargar() }}
         />
       )}
       {extractResult && (
