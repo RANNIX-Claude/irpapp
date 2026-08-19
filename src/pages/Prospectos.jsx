@@ -13,7 +13,11 @@ const ETAPAS = [
   { id: 'APROBADO',       label: 'Aprobado',        color: '#057642' },
   { id: 'RECHAZADO',      label: 'Rechazado',       color: '#B24020' },
   { id: 'CONTRATO',       label: 'Contrato',        color: '#1A3C5E' },
+  { id: 'CANCELADO',      label: 'Cancelado',       color: '#6B7280' },
 ]
+
+// Etapas que se ocultan del listado activo por default
+const ETAPAS_INACTIVAS = ['CANCELADO', 'CONTRATO']
 
 const TIPOS_PERSONA = {
   INQUILINO:         'Inquilino / Arrendatario',

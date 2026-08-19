@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+const OCR_FN = '/.netlify/functions/extraer-documento'
+
 // ─── Docs requeridos por tipo de persona ─────────────────────────────────────
 const DOCS_POR_TIPO = {
   INQUILINO: [
@@ -140,8 +142,59 @@ function FormPersona({ persona: p, docs, onActualizado }) {
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado]   = useState(false)
   const [docsState, setDocsState] = useState(docs)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrMsg, setOcrMsg]         = useState(null)
+  const ocrFileRef = useRef()
   const rol = ROL[p.tipo] || ROL.INQUILINO
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+
+  const handleOcrFile = async (file, tipo_doc) => {
+    setOcrLoading(true); setOcrMsg(null)
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload  = () => res(r.result.split(',')[1])
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+      const resp = await fetch(OCR_FN, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ image_base64: b64, media_type: file.type, tipo_doc }),
+      })
+      const json = await resp.json()
+      if (!resp.ok || !json.datos) throw new Error(json.error || 'Sin datos')
+      const d = json.datos
+      const upd = {}
+      if (d.nombre_completo) upd.nombre_completo = d.nombre_completo
+      if (d.curp)            upd.curp = d.curp.toUpperCase()
+      if (d.rfc)             upd.rfc  = d.rfc.toUpperCase()
+      // Dirección INE → campo calle (calle + no_ext)
+      const calleParts = [d.calle || d.domicilio_ine, d.no_ext].filter(Boolean)
+      if (calleParts.length) upd.calle = calleParts.join(' ')
+      if (d.colonia_ine || d.colonia) upd.colonia = d.colonia_ine || d.colonia
+      if (d.municipio_ine || d.municipio) upd.municipio = d.municipio_ine || d.municipio
+      if (d.estado_ine || d.estado) upd.estado_domicilio = d.estado_ine || d.estado
+      if (d.cp_ine || d.cp) upd.cp = d.cp_ine || d.cp
+      // Comprobante domicilio → también dirección
+      if (d.nombre_titular) {
+        if (d.calle) upd.calle = [d.calle, d.no_ext].filter(Boolean).join(' ')
+        if (d.colonia) upd.colonia = d.colonia
+        if (d.municipio) upd.municipio = d.municipio
+        if (d.estado) upd.estado_domicilio = d.estado
+        if (d.cp) upd.cp = d.cp
+      }
+      // Comprobante ingresos
+      if (d.empresa_patron || d.nombre_titular) upd.empresa = d.empresa_patron || d.empresa || ''
+      if (d.puesto) upd.puesto = d.puesto
+      if (d.ingreso_mensual_neto) upd.ingreso_mensual = String(d.ingreso_mensual_neto)
+      setForm(prev => ({ ...prev, ...upd }))
+      const campos = Object.keys(upd).length
+      setOcrMsg({ ok: true, txt: `✓ ${campos} campo${campos !== 1 ? 's' : ''} importados` })
+    } catch (e) {
+      setOcrMsg({ ok: false, txt: e.message })
+    } finally { setOcrLoading(false) }
+  }
 
   const [errores, setErrores] = useState({})
 
@@ -206,6 +259,55 @@ function FormPersona({ persona: p, docs, onActualizado }) {
       </div>
 
       <div style={{ padding:'18px 18px 20px' }}>
+
+        {/* ── Panel OCR — Importar desde INE ── */}
+        <div style={{ background:'#EFF6FF', border:'2px solid #BFDBFE', borderRadius:10, padding:'12px 14px', marginBottom:18 }}>
+          <div style={{ fontSize:10, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>
+            📲 Importar datos desde INE
+          </div>
+          <div style={{ fontSize:11, color:'#475569', marginBottom:10 }}>
+            Toma foto de la credencial — los datos se llenan automáticamente
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom: ocrMsg ? 8 : 0 }}>
+            {[
+              ['INE_FRENTE',            '📸 INE Frente'],
+              ['INE_REVERSO',           '📸 INE Reverso'],
+              ['COMPROBANTE_DOMICILIO', '🏠 Comp. domicilio'],
+              ['COMPROBANTE_INGRESOS_1','💰 Comp. ingresos'],
+            ].map(([tipo, label]) => (
+              <button
+                key={tipo}
+                disabled={ocrLoading}
+                onClick={() => { ocrFileRef.current._tipo = tipo; ocrFileRef.current.click() }}
+                style={{
+                  padding:'9px 6px', borderRadius:8, border:'1.5px solid #BFDBFE',
+                  background:'white', fontSize:12, fontWeight:700, cursor: ocrLoading ? 'wait' : 'pointer',
+                  color:'#1E40AF', opacity: ocrLoading ? 0.6 : 1,
+                }}
+              >{ocrLoading ? '⏳ Procesando…' : label}</button>
+            ))}
+          </div>
+          {/* Input oculto — capture=environment activa cámara trasera en móvil */}
+          <input
+            ref={ocrFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display:'none' }}
+            onChange={e => {
+              const f = e.target.files[0]
+              if (f) handleOcrFile(f, ocrFileRef.current._tipo)
+              e.target.value = ''
+            }}
+          />
+          {ocrMsg && (
+            <div style={{ fontSize:11, fontWeight:700, padding:'6px 10px', borderRadius:6,
+              color: ocrMsg.ok ? '#057642' : '#B24020',
+              background: ocrMsg.ok ? '#D1FAE5' : '#FEE2E2' }}>
+              {ocrMsg.txt}
+            </div>
+          )}
+        </div>
 
         {/* Datos personales */}
         <div style={{ fontSize:11, fontWeight:800, letterSpacing:0.8, textTransform:'uppercase', color: rol.color, marginBottom:10 }}>
