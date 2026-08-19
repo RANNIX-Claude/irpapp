@@ -1,6 +1,9 @@
 // Netlify Function: portal-prospecto
 // Valida magic link y devuelve datos del prospecto + todas las personas y docs
 
+// Workaround: supabase-js Realtime requiere WebSocket; Node 20 no lo tiene nativamente
+if (!globalThis.WebSocket) globalThis.WebSocket = class { constructor() {} }
+
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = 'https://kusuoxwzdxfuybvyiakg.supabase.co'
