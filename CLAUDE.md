@@ -163,7 +163,7 @@ npm run preview    # Vista previa del build
 
 ## Deploy
 
-- **URL producción**: https://juriscontrol02.netlify.app
+- **URL producción**: https://irpapp.netlify.app
 - **GitHub**: https://github.com/NapoNapo67/JurisControl
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
