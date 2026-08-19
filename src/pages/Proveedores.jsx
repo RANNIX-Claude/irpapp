@@ -1,157 +1,106 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
-import { Truck, Plus, Search, Star, Phone, Mail, FileText, CheckCircle, AlertTriangle, X, Wrench, DollarSign } from 'lucide-react'
-import KPICard from '../components/ui/KPICard'
-import StatusBadge from '../components/ui/StatusBadge'
+import { useState, useEffect, useCallback } from 'react'
+import { Truck, Plus, Search, X, Pencil, Check, ChevronDown } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-const PROVEEDORES = [
-  { id: 'PRV-001', nombre: 'Servicios Eléctricos del Noroeste SA', contacto: 'Ing. Pérez Rueda', telefono: '667-123-4567', email: 'contacto@senoreste.mx', categoria: 'Eléctrico', calificacion: 4.8, contratos_activos: 3, monto_anual: 285000, estado: 'ACTIVO', rfc: 'SEN920314KL2',
-    ots: [
-      { id: 'OT-2026-089', descripcion: 'Revisión tablero eléctrico L3', estado: 'COMPLETADO', fecha: '2026-07-20', monto: 4500 },
-      { id: 'OT-2026-092', descripcion: 'Cambio luminaria LED estacionamiento', estado: 'EN_PROCESO', fecha: '2026-08-01', monto: 12800 },
-      { id: 'OT-2026-095', descripcion: 'Instalación tierra física local 14', estado: 'PENDIENTE', fecha: '2026-08-10', monto: 3200 },
-    ] },
-  { id: 'PRV-002', nombre: 'Limpieza Industrial Sinaloa SC', contacto: 'Lic. Torres Medina', telefono: '668-234-5678', email: 'ventas@limpsin.mx', categoria: 'Limpieza', calificacion: 4.5, contratos_activos: 1, monto_anual: 96000, estado: 'ACTIVO', rfc: 'LIS050819AB3',
-    ots: [
-      { id: 'OT-2026-081', descripcion: 'Limpieza profunda área foodcourt', estado: 'COMPLETADO', fecha: '2026-07-15', monto: 8000 },
-      { id: 'OT-2026-091', descripcion: 'Lavado de fachada exterior', estado: 'EN_PROCESO', fecha: '2026-08-03', monto: 15000 },
-    ] },
-  { id: 'PRV-003', nombre: 'Fontanería y Plomería del Pacífico', contacto: 'Sr. Ramírez López', telefono: '669-345-6789', email: 'fppacifico@gmail.com', categoria: 'Plomería', calificacion: 4.2, contratos_activos: 2, monto_anual: 54000, estado: 'ACTIVO', rfc: 'RPL780901FG4', ots: [] },
-  { id: 'PRV-004', nombre: 'Seguridad Privada GAMA SA de CV', contacto: 'Lic. Soto Carrillo', telefono: '667-456-7890', email: 'operaciones@gama-seg.mx', categoria: 'Seguridad', calificacion: 3.9, contratos_activos: 1, monto_anual: 420000, estado: 'ACTIVO', rfc: 'SGA991210HJ5',
-    ots: [
-      { id: 'OT-2026-078', descripcion: 'Reparación cámara acceso principal', estado: 'COMPLETADO', fecha: '2026-07-10', monto: 2800 },
-    ] },
-  { id: 'PRV-005', nombre: 'Materiales de Construcción Hernández', contacto: 'Sr. Hernández Vega', telefono: '668-567-8901', email: 'ventas@mchernandez.mx', categoria: 'Materiales', calificacion: 4.0, contratos_activos: 0, monto_anual: 0, estado: 'INACTIVO', rfc: 'HVE650715MN6', ots: [] },
-  { id: 'PRV-006', nombre: 'Clima y Refrigeración Norte', contacto: 'Ing. Acosta Ruiz', telefono: '667-678-9012', email: 'clima@crn.mx', categoria: 'HVAC', calificacion: 4.6, contratos_activos: 2, monto_anual: 180000, estado: 'ACTIVO', rfc: 'CRN110420OP7',
-    ots: [
-      { id: 'OT-2026-085', descripcion: 'Mantenimiento preventivo climatización', estado: 'COMPLETADO', fecha: '2026-07-22', monto: 9500 },
-      { id: 'OT-2026-094', descripcion: 'Recarga refrigerante equipo B3', estado: 'PENDIENTE', fecha: '2026-08-12', monto: 4200 },
-    ] },
+const CATEGORIAS = [
+  { id: 'VENDING',       label: 'Vending',        color: '#EC4899' },
+  { id: 'OPERACION',     label: 'Operación',      color: '#057642' },
+  { id: 'MANTENIMIENTO', label: 'Mantenimiento',   color: '#E8A020' },
+  { id: 'MIXTO',         label: 'Mixto',           color: '#0A66C2' },
 ]
+const catInfo = (id) => CATEGORIAS.find(c => c.id === id) || { label: id || '—', color: '#6B7280' }
 
-const CATS = ['Todos', 'Eléctrico', 'Limpieza', 'Plomería', 'Seguridad', 'Materiales', 'HVAC']
-const CAT_COLORS = { Eléctrico: '#FEF9C3', Limpieza: '#DCFCE7', Plomería: '#DBEAFE', Seguridad: '#FEE2E2', Materiales: '#F3E8FF', HVAC: '#E0F2FE' }
-const CAT_TEXT = { Eléctrico: '#854D0E', Limpieza: '#166534', Plomería: '#1E40AF', Seguridad: '#991B1B', Materiales: '#6B21A8', HVAC: '#0C4A6E' }
-const OT_COLOR = { COMPLETADO: 'var(--color-success)', EN_PROCESO: 'var(--color-secondary)', PENDIENTE: 'var(--color-warning)' }
-function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
+function Badge({ cat }) {
+  const { label, color } = catInfo(cat)
+  return <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: color + '22', color, border: `1px solid ${color}44` }}>{label}</span>
+}
 
-function ProveedorModal({ p, onClose }) {
-  const [tab, setTab] = useState('info')
-  if (!p) return null
-  const ots = p.ots || []
-  const montoOTs = ots.reduce((a, b) => a + (b.monto || 0), 0)
+const EMPTY = { clave: '', nombre: '', rfc: '', categoria: '', telefono: '', email: '', contacto: '', notas: '' }
+
+function ModalProveedor({ proveedor, onClose, onSaved }) {
+  const [form, setForm] = useState(proveedor ? { ...proveedor } : { ...EMPTY })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const isEdit = !!proveedor?.id
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (!form.clave.trim() || !form.nombre.trim()) { setError('Clave y nombre son obligatorios'); return }
+    setSaving(true); setError(null)
+    try {
+      if (isEdit) {
+        const { error: err } = await supabase.from('cat_proveedores').update({ ...form, clave: form.clave.toUpperCase() }).eq('id', proveedor.id)
+        if (err) throw err
+      } else {
+        const { error: err } = await supabase.from('cat_proveedores').insert({ ...form, clave: form.clave.toUpperCase() })
+        if (err) throw err
+      }
+      onSaved()
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+
+  const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }
+  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 5, textTransform: 'uppercase' }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '14px', width: '580px', maxWidth: '95vw', maxHeight: '88vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '4px' }}>{p.categoria} · {p.rfc}</div>
-            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>{p.nombre}</h2>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <StatusBadge status={p.estado} />
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-light)' }}><X size={20} /></button>
-          </div>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 12, width: '100%', maxWidth: 520, maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0A66C2' }}>{isEdit ? 'Editar proveedor' : 'Nuevo proveedor'}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={18} /></button>
         </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '2px solid #F3F4F6', padding: '0 24px' }}>
-          {[['info', 'Datos'], ['ots', `OTs (${ots.length})`], ['evaluar', 'Calificación']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
-              color: tab === id ? 'var(--color-primary)' : 'var(--color-text-light)',
-              borderBottom: tab === id ? '2px solid var(--color-primary)' : '2px solid transparent',
-              marginBottom: '-2px',
-            }}>{label}</button>
-          ))}
-        </div>
-
-        <div style={{ padding: '20px 24px' }}>
-          {tab === 'info' && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                {[['Contacto', p.contacto], ['Teléfono', p.telefono], ['Email', p.email], ['Categoría', p.categoria]].map(([k, v]) => (
-                  <div key={k} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{k}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
-                {[
-                  ['Contratos activos', p.contratos_activos, 'var(--color-primary)'],
-                  ['Monto anual', fmt(p.monto_anual), 'var(--color-success)'],
-                  ['Calificación', `${p.calificacion} ★`, 'var(--color-warning)'],
-                ].map(([label, val, color]) => (
-                  <div key={label} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '18px', fontWeight: 700, color }}>{val}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px', textTransform: 'uppercase' }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                <button style={{ flex: 1, padding: '9px', border: '1.5px solid var(--color-primary)', borderRadius: '8px', color: 'var(--color-primary)', background: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>Nueva OT</button>
-                <button style={{ flex: 1, padding: '9px', border: '1.5px solid #E5E7EB', borderRadius: '8px', color: 'var(--color-text)', background: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>Ver contratos</button>
-              </div>
-            </>
-          )}
-
-          {tab === 'ots' && (
-            <>
-              {ots.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-light)', fontSize: '13px' }}>Sin órdenes de trabajo registradas</div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-                    <div style={{ flex: 1, padding: '10px', background: '#F9FAFB', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-primary)' }}>{ots.length}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Total OTs</div>
-                    </div>
-                    <div style={{ flex: 1, padding: '10px', background: '#F9FAFB', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(montoOTs)}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>Monto total</div>
-                    </div>
-                  </div>
-                  {ots.map(o => (
-                    <div key={o.id} style={{ padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{o.descripcion}</div>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px',
-                          background: (OT_COLOR[o.estado] || '#E5E7EB') + '20',
-                          color: OT_COLOR[o.estado] || '#9CA3AF' }}>{o.estado.replace('_',' ')}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-light)' }}>
-                        <span>{o.id} · {o.fecha}</span>
-                        <span style={{ fontWeight: 700 }}>{fmt(o.monto)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </>
-          )}
-
-          {tab === 'evaluar' && (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontSize: '48px', color: '#F59E0B', marginBottom: '8px' }}>{'★'.repeat(Math.floor(p.calificacion))}{'☆'.repeat(5 - Math.floor(p.calificacion))}</div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-text)', marginBottom: '4px' }}>{p.calificacion} / 5.0</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-light)', marginBottom: '24px' }}>Calificación promedio acumulada</div>
-              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #F59E0B', background: n <= Math.floor(p.calificacion) ? '#F59E0B' : 'white', color: n <= Math.floor(p.calificacion) ? 'white' : '#F59E0B', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <button style={{ padding: '10px 24px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
-                Registrar evaluación
-              </button>
+        <form onSubmit={guardar} style={{ padding: 22, display: 'grid', gap: 14 }}>
+          {error && <div style={{ padding: '8px 12px', background: '#FEE2E2', color: '#B24020', borderRadius: 8, fontSize: 13 }}>{error}</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>Clave *</label>
+              <input value={form.clave} onChange={e => set('clave', e.target.value.toUpperCase())} style={inp} placeholder="DOGO" required />
             </div>
-          )}
-        </div>
+            <div>
+              <label style={lbl}>Nombre *</label>
+              <input value={form.nombre} onChange={e => set('nombre', e.target.value)} style={inp} placeholder="Nombre del proveedor" required />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>RFC</label>
+              <input value={form.rfc || ''} onChange={e => set('rfc', e.target.value.toUpperCase())} style={inp} placeholder="RFC123456789" />
+            </div>
+            <div>
+              <label style={lbl}>Categoría</label>
+              <select value={form.categoria || ''} onChange={e => set('categoria', e.target.value)} style={inp}>
+                <option value="">— Seleccionar —</option>
+                {CATEGORIAS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>Teléfono</label>
+              <input value={form.telefono || ''} onChange={e => set('telefono', e.target.value)} style={inp} placeholder="667-000-0000" />
+            </div>
+            <div>
+              <label style={lbl}>Email</label>
+              <input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} style={inp} placeholder="contacto@proveedor.mx" />
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Contacto / Nombre persona</label>
+            <input value={form.contacto || ''} onChange={e => set('contacto', e.target.value)} style={inp} placeholder="Nombre del contacto" />
+          </div>
+          <div>
+            <label style={lbl}>Notas</label>
+            <textarea value={form.notas || ''} onChange={e => set('notas', e.target.value)} style={{ ...inp, resize: 'vertical', minHeight: 60 }} placeholder="Observaciones…" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #E5E7EB' }}>
+            <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px', background: saving ? '#9CA3AF' : '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer' }}>
+              {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Agregar proveedor'}
+            </button>
+            <button type="button" onClick={onClose} style={{ padding: '10px 18px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancelar</button>
+          </div>
+        </form>
       </div>
     </div>
   )
@@ -159,101 +108,146 @@ function ProveedorModal({ p, onClose }) {
 
 export default function Proveedores() {
   useModuleAudit('PROVEEDORES')
+  const [lista, setLista] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [cat, setCat] = useState('Todos')
-  const [selected, setSelected] = useState(null)
+  const [filtroCat, setFiltroCat] = useState('Todos')
+  const [modal, setModal] = useState(null) // null | 'nuevo' | {proveedor}
+  const [expanded, setExpanded] = useState(null)
 
-  const filtrados = PROVEEDORES.filter(p => {
-    const q = search.toLowerCase()
-    const match = p.nombre.toLowerCase().includes(q) || p.rfc.toLowerCase().includes(q)
-    const c = cat === 'Todos' || p.categoria === cat
-    return match && c
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase.from('cat_proveedores').select('*').order('nombre')
+    setLista(data || [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  const toggleActivo = async (p) => {
+    await supabase.from('cat_proveedores').update({ activo: !p.activo }).eq('id', p.id)
+    cargar()
+  }
+
+  const filtrados = lista.filter(p => {
+    const matchQ = !search || p.nombre.toLowerCase().includes(search.toLowerCase()) || (p.rfc || '').toLowerCase().includes(search.toLowerCase())
+    const matchC = filtroCat === 'Todos' || p.categoria === filtroCat
+    return matchQ && matchC
   })
 
-  const activos = PROVEEDORES.filter(p => p.estado === 'ACTIVO').length
-  const montoTotal = PROVEEDORES.reduce((a, b) => a + b.monto_anual, 0)
-  const contratos = PROVEEDORES.reduce((a, b) => a + b.contratos_activos, 0)
-  const calProm = (PROVEEDORES.filter(p => p.estado === 'ACTIVO').reduce((a, b) => a + b.calificacion, 0) / activos).toFixed(1)
+  const kpis = [
+    { label: 'Total proveedores', val: lista.length,                                      color: '#0A66C2' },
+    { label: 'Activos',           val: lista.filter(p => p.activo).length,               color: '#057642' },
+    { label: 'Vending',          val: lista.filter(p => p.categoria === 'VENDING').length, color: '#EC4899' },
+    { label: 'Mantenimiento',    val: lista.filter(p => p.categoria === 'MANTENIMIENTO').length, color: '#E8A020' },
+  ]
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1280px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Proveedores</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>Clic en un proveedor para ver detalle, OTs y calificación</p>
+    <div style={{ padding: '24px 28px', maxWidth: 1000, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Truck size={22} color="#0A66C2" />
+          <div>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0A66C2' }}>Proveedores</h1>
+            <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Catálogo compartido: Gastos, Mantenimiento, Vending</p>
+          </div>
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-          <Plus size={16} /> Nuevo Proveedor
+        <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          <Plus size={15} /> Nuevo proveedor
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Proveedores Activos" value={activos} icon={Truck} color="var(--color-primary)" />
-        <KPICard title="Contratos Vigentes" value={contratos} icon={FileText} color="var(--color-success)" />
-        <KPICard title="Monto Anual" value={`$${(montoTotal / 1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
-        <KPICard title="Calificación Promedio" value={`${calProm}★`} icon={Star} color="var(--color-warning)" />
-      </div>
-
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-light)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor o RFC..."
-            style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {CATS.map(c => (
-            <button key={c} onClick={() => setCat(c)} style={{
-              padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: cat === c ? 'var(--color-primary)' : '#E5E7EB',
-              background: cat === c ? 'var(--color-primary)' : 'white',
-              color: cat === c ? 'white' : 'var(--color-text-light)',
-            }}>{c}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '14px' }}>
-        {filtrados.map(p => (
-          <div key={p.id} onClick={() => setSelected(p)} style={{ background: 'white', borderRadius: '10px', border: '1.5px solid', borderColor: selected?.id === p.id ? 'var(--color-primary)' : '#E5E7EB', padding: '18px', cursor: 'pointer', transition: 'all 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(10,102,194,0.10)'}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{p.nombre}</div>
-                <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--color-text-light)' }}>{p.rfc}</div>
-              </div>
-              <StatusBadge status={p.estado} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <span style={{ padding: '2px 8px', borderRadius: '20px', background: CAT_COLORS[p.categoria] || '#F3F4F6', color: CAT_TEXT[p.categoria] || 'var(--color-text)', fontSize: '11px', fontWeight: 700 }}>{p.categoria}</span>
-              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 700 }}>{'★'.repeat(Math.floor(p.calificacion))} {p.calificacion}</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: 'var(--color-text-light)', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={12} />{p.telefono}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Mail size={12} />{p.email}</div>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid #F3F4F6', paddingTop: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>{p.contratos_activos}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Contratos</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-success)' }}>${(p.monto_anual/1000).toFixed(0)}K</div>
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>Anual</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-warning)' }}>{(p.ots||[]).length}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-light)', textTransform: 'uppercase' }}>OTs</div>
-                </div>
-              </div>
-              <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 600 }}>Ver detalle →</span>
-            </div>
+      {/* KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        {kpis.map(k => (
+          <div key={k.label} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 18px', borderLeft: `4px solid ${k.color}` }}>
+            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>{k.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: k.color, marginTop: 4 }}>{k.val}</div>
           </div>
         ))}
       </div>
 
-      {selected && <ProveedorModal p={selected} onClose={() => setSelected(null)} />}
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1 1 220px' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nombre o RFC…" style={{ width: '100%', paddingLeft: 30, padding: '8px 8px 8px 32px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+        {['Todos', ...CATEGORIAS.map(c => c.id)].map(c => (
+          <button key={c} onClick={() => setFiltroCat(c)} style={{ padding: '7px 14px', borderRadius: 20, border: '1.5px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: filtroCat === c ? (catInfo(c).color || '#0A66C2') : 'white', color: filtroCat === c ? 'white' : (catInfo(c).color || '#374151'), borderColor: catInfo(c).color || '#E5E7EB' }}>
+            {c === 'Todos' ? 'Todos' : catInfo(c).label}
+          </button>
+        ))}
+      </div>
+
+      {/* Lista */}
+      <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Cargando…</div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>
+            <Truck size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+            <div>{lista.length === 0 ? 'Agrega el primer proveedor con el botón +' : 'Sin resultados para esta búsqueda'}</div>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+                {['Proveedor', 'RFC', 'Categoría', 'Contacto', 'Teléfono', ''].map(h => (
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map(p => (
+                <>
+                  <tr key={p.id} style={{ borderBottom: '1px solid #F3F4F6', opacity: p.activo ? 1 : 0.5, cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{p.nombre}</div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>{p.clave}</div>
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: 13, color: '#6B7280' }}>{p.rfc || '—'}</td>
+                    <td style={{ padding: '12px 14px' }}><Badge cat={p.categoria} /></td>
+                    <td style={{ padding: '12px 14px', fontSize: 13, color: '#374151' }}>{p.contacto || '—'}</td>
+                    <td style={{ padding: '12px 14px', fontSize: 13, color: '#374151' }}>{p.telefono || '—'}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}><Pencil size={13} /></button>
+                        <button onClick={() => toggleActivo(p)} title={p.activo ? 'Desactivar' : 'Activar'} style={{ padding: '5px 8px', background: p.activo ? '#FEF3C7' : '#D1FAE5', color: p.activo ? '#92400E' : '#065F46', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                          {p.activo ? 'Act' : 'Inact'}
+                        </button>
+                        {p.notas && (
+                          <button onClick={() => setExpanded(expanded === p.id ? null : p.id)} style={{ padding: '5px 8px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                            <ChevronDown size={13} style={{ transform: expanded === p.id ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  {expanded === p.id && (
+                    <tr key={p.id + '-notes'} style={{ background: '#F9FAFB' }}>
+                      <td colSpan={6} style={{ padding: '8px 14px 10px 28px', fontSize: 13, color: '#6B7280', fontStyle: 'italic' }}>
+                        📝 {p.notas}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {modal && (
+        <ModalProveedor
+          proveedor={modal === 'nuevo' ? null : modal}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); cargar() }}
+        />
+      )}
     </div>
   )
 }
