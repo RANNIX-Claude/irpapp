@@ -1,7 +1,7 @@
 {
   "name": "irp-app",
   "private": true,
-  "version": "0.05",
+  "version": "1.01",
   "type": "module",
   "scripts": {
     "dev": "vite",

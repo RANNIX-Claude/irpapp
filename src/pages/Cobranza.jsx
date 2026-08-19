@@ -36,6 +36,10 @@ function CobroRow({ c, onSelect, onExpediente }) {
         <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{MES_NOMBRES[c.mes]} {c.anio} · Pagaré #{c.pagare_numero}</div>
       </td>
       <td style={{ padding: '12px 16px' }}>
+        <div style={{ fontWeight: 700, fontSize: '13px', color: '#374151' }}>{c.unidad_numero || '—'}</div>
+        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre}</div>
+      </td>
+      <td style={{ padding: '12px 16px' }}>
         <button
           onClick={e => { e.stopPropagation(); onExpediente(c) }}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
@@ -44,7 +48,7 @@ function CobroRow({ c, onSelect, onExpediente }) {
             {c.arrendatario_nombre}<ExternalLink size={11} />
           </div>
         </button>
-        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{c.inmueble_nombre} · {c.unidad_numero}</div>
+        <div style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>{MES_NOMBRES[c.mes]} {c.anio}</div>
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
         <div style={{ fontWeight: 700, fontSize: '14px' }}>{fmt(c.monto_total)}</div>
@@ -608,6 +612,13 @@ export default function Cobranza() {
   const [expedienteData, setExpedienteData] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [tab, setTab] = useState('cobros')
+  const [sortCol, setSortCol] = useState('fecha_limite_pago')
+  const [sortDir, setSortDir] = useState('asc')
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
 
   const abrirExpediente = (c) => {
     setExpedienteData({
@@ -634,6 +645,14 @@ export default function Cobranza() {
     const matchEst = filtroEstatus === 'Todos' || c.estatus === filtroEstatus
     const matchMes = mesFiltro === 0 || (c.mes === mesFiltro && c.anio === anioFiltro)
     return matchQ && matchEst && matchMes
+  }).sort((a, b) => {
+    let va, vb
+    if (sortCol === 'monto_total') { va = parseFloat(a.monto_total) || 0; vb = parseFloat(b.monto_total) || 0 }
+    else if (sortCol === 'fecha_pago_real') { va = a.fecha_pago_real || '9999'; vb = b.fecha_pago_real || '9999' }
+    else { va = (a[sortCol] || '').toString().toLowerCase(); vb = (b[sortCol] || '').toString().toLowerCase() }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1
+    if (va > vb) return sortDir === 'asc' ? 1 : -1
+    return 0
   })
 
   const pagados = lista.filter(c => c.estatus === 'PAGADO').length
@@ -714,8 +733,21 @@ export default function Cobranza() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ background: '#F9FAFB' }}>
-                    {['Referencia', 'Arrendatario', 'Total', 'Vence', 'Pagado', 'Estatus'].map(h => (
-                      <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Total' ? 'right' : 'left', fontWeight: 600, fontSize: '12px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB' }}>{h}</th>
+                    {[
+                      { label: 'Referencia',   col: 'referencia_pago',  right: false },
+                      { label: 'Local',         col: 'unidad_numero',    right: false },
+                      { label: 'Arrendatario',  col: 'arrendatario_nombre', right: false },
+                      { label: 'Total',         col: 'monto_total',      right: true  },
+                      { label: 'Vence',         col: 'fecha_limite_pago', right: false },
+                      { label: 'Fecha Pago',    col: 'fecha_pago_real',  right: false },
+                      { label: 'Estatus',       col: null,               right: false },
+                    ].map(({ label, col, right }) => (
+                      <th key={label}
+                        onClick={col ? () => toggleSort(col) : undefined}
+                        style={{ padding: '11px 16px', textAlign: right ? 'right' : 'left', fontWeight: 600, fontSize: '12px', color: sortCol === col ? 'var(--color-primary)' : 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', cursor: col ? 'pointer' : 'default', whiteSpace: 'nowrap', userSelect: 'none' }}>
+                        {label}
+                        {col && <span style={{ marginLeft: '4px', opacity: sortCol === col ? 1 : 0.3 }}>{sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>}
+                      </th>
                     ))}
                   </tr>
                 </thead>
