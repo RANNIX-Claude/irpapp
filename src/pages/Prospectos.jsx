@@ -144,6 +144,48 @@ function ModalNuevoProspecto({ onClose, onSaved }) {
 }
 
 // ─── Panel de detalle del prospecto ──────────────────────────────────────────
+async function extraerDatosDoc(url, tipo_doc) {
+  const resp = await fetch('/.netlify/functions/extraer-documento', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, tipo_doc }),
+  })
+  const json = await resp.json()
+  if (!resp.ok || !json.ok) throw new Error(json.error || 'Error de extracción')
+  return json.datos
+}
+
+// Mapa de campos extraídos → columnas de prospecto_personas
+const MAPA_CAMPOS = {
+  nombre_completo:    'nombre_completo',
+  curp:               'curp',
+  rfc:                'rfc',
+  calle:              'calle',
+  no_ext:             'no_ext',
+  no_int:             'no_int',
+  colonia:            'colonia',
+  municipio:          'municipio',
+  estado:             'estado_domicilio',
+  cp:                 'cp',
+  // desde comprobante domicilio
+  colonia_ine:        'colonia',
+  municipio_ine:      'municipio',
+  estado_ine:         'estado_domicilio',
+  cp_ine:             'cp',
+  // desde ingresos
+  empresa_patron:     'empresa',
+  puesto:             'puesto',
+  ingreso_mensual_neto: 'ingreso_mensual',
+  // desde escritura (fiador)
+  ubicacion_inmueble: 'garantia_calle',
+  colonia_escritura:  'garantia_colonia',
+  municipio_escritura:'garantia_municipio',
+  estado_escritura:   'garantia_estado',
+  numero_escritura:   'escritura_no',
+  notario:            'escritura_notario',
+  fecha_escritura:    'escritura_fecha',
+}
+
 function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   const [personas, setPersonas] = useState([])
   const [docs, setDocs] = useState([])
@@ -151,6 +193,8 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   const [modalPersona, setModalPersona] = useState(false)
   const [enviandoLink, setEnviandoLink] = useState(null)
   const [modalDespacho, setModalDespacho] = useState(false)
+  const [extrayendo, setExtrayendo] = useState(null)    // doc.id
+  const [extractResult, setExtractResult] = useState(null) // { personaId, datos, docId }
 
   const cargar = useCallback(async () => {
     const { data: p } = await supabase.from('prospecto_personas')
@@ -203,6 +247,31 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   }
 
   const docsPersona = (personaId) => docs.filter(d => d.persona_id === personaId)
+
+  const handleExtraer = async (doc) => {
+    if (!doc.storage_path) return
+    setExtrayendo(doc.id)
+    try {
+      const datos = await extraerDatosDoc(doc.storage_path, doc.tipo_doc)
+      setExtractResult({ personaId: doc.persona_id, datos, docId: doc.id, tipo_doc: doc.tipo_doc })
+    } catch (err) {
+      alert('Error al extraer: ' + err.message)
+    } finally {
+      setExtrayendo(null)
+    }
+  }
+
+  const handleAplicarDatos = async (personaId, camposSeleccionados) => {
+    const payload = {}
+    Object.entries(camposSeleccionados).forEach(([campo, valor]) => {
+      const col = MAPA_CAMPOS[campo] || campo
+      if (valor !== null && valor !== undefined && valor !== '') payload[col] = String(valor)
+    })
+    if (Object.keys(payload).length === 0) { setExtractResult(null); return }
+    await supabase.from('prospecto_personas').update(payload).eq('id', personaId)
+    setExtractResult(null)
+    cargar()
+  }
 
   const etapaSig = () => {
     const idx = ETAPAS.findIndex(e => e.id === prospecto.etapa)
@@ -352,8 +421,19 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
                               </>
                             )}
                             {doc.storage_path && (
-                              <a href={doc.storage_path} target="_blank" rel="noreferrer"
-                                style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2', textDecoration:'none' }}>Ver</a>
+                              <>
+                                <a href={doc.storage_path} target="_blank" rel="noreferrer"
+                                  style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2', textDecoration:'none' }}>Ver</a>
+                                {doc.mime_type?.startsWith('image/') && (
+                                  <button
+                                    onClick={() => handleExtraer(doc)}
+                                    disabled={extrayendo === doc.id}
+                                    title="Extraer datos con IA"
+                                    style={{ ...btnMini, background: extrayendo === doc.id ? '#F3F4F6' : '#F5F3FF', color: extrayendo === doc.id ? '#9CA3AF' : '#7C3AED', whiteSpace:'nowrap' }}>
+                                    {extrayendo === doc.id ? '⏳ Extrayendo...' : '✦ Extraer datos'}
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -427,6 +507,14 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
           onDone={() => { setModalDespacho(false); onRefresh() }}
         />
       )}
+      {extractResult && (
+        <ModalDatosExtraidos
+          resultado={extractResult}
+          personas={personas}
+          onAplicar={handleAplicarDatos}
+          onClose={() => setExtractResult(null)}
+        />
+      )}
     </div>
   )
 }
@@ -469,6 +557,110 @@ function ModalAgregarPersona({ prospectoId, onClose, onSaved }) {
         <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
           <button onClick={onClose} style={btnSecundario}>Cancelar</button>
           <button onClick={guardar} disabled={loading} style={btnPrimario}>{loading ? 'Guardando...' : 'Agregar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal: Datos Extraídos por IA ───────────────────────────────────────────
+const LABEL_CAMPO = {
+  nombre_completo:'Nombre completo', curp:'CURP', rfc:'RFC',
+  calle:'Calle', no_ext:'No. exterior', no_int:'No. interior',
+  colonia:'Colonia', colonia_ine:'Colonia (INE)', municipio:'Municipio', municipio_ine:'Municipio (INE)',
+  estado:'Estado', estado_ine:'Estado (INE)', cp:'CP', cp_ine:'CP (INE)',
+  empresa_patron:'Empresa / Patrón', puesto:'Puesto',
+  ingreso_mensual_neto:'Ingreso mensual neto',
+  ubicacion_inmueble:'Domicilio inmueble garantía',
+  numero_escritura:'No. escritura', notario:'Notario', fecha_escritura:'Fecha escritura',
+  tipo_documento:'Tipo de documento', periodo:'Periodo', vigencia:'Vigencia INE',
+  nombre_titular:'Nombre titular', tipo_servicio:'Tipo servicio',
+  propietario:'Propietario', superficie_m2:'Superficie m²',
+}
+
+function ModalDatosExtraidos({ resultado, personas, onAplicar, onClose }) {
+  const { personaId, datos, tipo_doc } = resultado
+  const persona = personas.find(p => p.id === personaId)
+
+  // Filtrar solo campos con valor
+  const camposConValor = Object.entries(datos).filter(([, v]) => v !== null && v !== undefined && v !== '' && typeof v !== 'object')
+
+  const [seleccionados, setSeleccionados] = useState(() => {
+    const init = {}
+    camposConValor.forEach(([k]) => { init[k] = true })
+    return init
+  })
+
+  const toggle = (k) => setSeleccionados(s => ({ ...s, [k]: !s[k] }))
+
+  const camposAplicar = Object.fromEntries(
+    camposConValor.filter(([k]) => seleccionados[k])
+  )
+
+  const TIPO_LABEL_DOC = {
+    INE_FRENTE:'INE (frente)', INE_REVERSO:'INE (reverso)',
+    COMPROBANTE_DOMICILIO:'Comprobante de domicilio',
+    COMPROBANTE_INGRESOS_1:'Comprobante ingresos',
+    ESCRITURA_INMUEBLE:'Escritura inmueble',
+    DEFAULT:'Documento',
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#0008', zIndex:1400, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:560, maxHeight:'85vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 60px #0004' }}>
+
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid #E5E7EB' }}>
+          <div style={{ fontSize:11, color:'#7C3AED', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>
+            ✦ Extracción con IA — {TIPO_LABEL_DOC[tipo_doc] || tipo_doc}
+          </div>
+          <h3 style={{ margin:'4px 0 0', fontSize:17, fontWeight:800, color:'var(--color-primary)' }}>
+            Datos detectados · {persona?.nombre_completo || 'Persona'}
+          </h3>
+          <p style={{ margin:'4px 0 0', fontSize:12, color:'#6B7280' }}>
+            Selecciona los campos que deseas aplicar al expediente. Revisa antes de confirmar.
+          </p>
+        </div>
+
+        <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
+          {camposConValor.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'32px', color:'#9CA3AF' }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>🔍</div>
+              <p>No se pudieron extraer datos legibles de este documento.</p>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <button onClick={() => { const s={}; camposConValor.forEach(([k])=>{s[k]=true}); setSeleccionados(s) }}
+                  style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2' }}>Seleccionar todo</button>
+                <button onClick={() => setSeleccionados({})}
+                  style={{ ...btnMini, background:'#F3F4F6', color:'#6B7280' }}>Limpiar</button>
+              </div>
+              {camposConValor.map(([campo, valor]) => (
+                <label key={campo} style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 12px', borderRadius:8, border:`1.5px solid ${seleccionados[campo] ? '#7C3AED' : '#E5E7EB'}`, background: seleccionados[campo] ? '#F5F3FF' : 'white', cursor:'pointer', transition:'all 0.15s' }}>
+                  <input type="checkbox" checked={!!seleccionados[campo]} onChange={() => toggle(campo)}
+                    style={{ marginTop:2, accentColor:'#7C3AED' }} />
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:2 }}>
+                      {LABEL_CAMPO[campo] || campo}
+                    </div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'#111827' }}>{String(valor)}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding:'16px 24px', borderTop:'1px solid #E5E7EB', display:'flex', gap:8 }}>
+          <button
+            onClick={() => onAplicar(personaId, camposAplicar)}
+            disabled={Object.keys(camposAplicar).length === 0}
+            style={{ flex:1, padding:'11px', background: Object.keys(camposAplicar).length === 0 ? '#E5E7EB' : '#7C3AED', color: Object.keys(camposAplicar).length === 0 ? '#9CA3AF' : 'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor: Object.keys(camposAplicar).length > 0 ? 'pointer' : 'default' }}>
+            Aplicar {Object.keys(camposAplicar).length} campo{Object.keys(camposAplicar).length !== 1 ? 's' : ''}
+          </button>
+          <button onClick={onClose} style={{ padding:'11px 16px', background:'#F3F4F6', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer' }}>
+            Cancelar
+          </button>
         </div>
       </div>
     </div>
