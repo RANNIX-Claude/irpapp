@@ -215,9 +215,13 @@ function PagosModal({ cobro, onClose, onSaved }) {
       const monto = parseFloat(form.monto)
 
       // 1. Insertar ingreso vinculado al cobro
+      const _dt = new Date(form.fecha_pago + 'T12:00:00')
+      const _MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
       const { error: errIng } = await supabase.from('ingresos').insert({
         cobro_id:        cobro.id,
         fecha:           form.fecha_pago,
+        mes:             cobro.mes || _MESES[_dt.getMonth()],
+        anio:            cobro.anio || _dt.getFullYear(),
         importe:         monto,
         tipo:            form.tipo_concepto === 'RENTA' ? 'RENTA' : 'SANCION',
         tipo_concepto:   form.tipo_concepto,

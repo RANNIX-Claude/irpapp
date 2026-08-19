@@ -4,6 +4,7 @@ import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, Lis
 import toast from 'react-hot-toast'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
+import TicketModal from '../components/ui/TicketModal'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 
@@ -338,17 +339,14 @@ export default function FondoRevolvente() {
       }
 
       {showModal && (
-        <GastoModal
-          gasto={null}
-          fondo={f}
+        <TicketModal
           onClose={() => setShowModal(false)}
-          onSaved={() => setRefreshKey(k => k + 1)}
+          onSaved={() => { setRefreshKey(k => k + 1); setShowModal(false) }}
         />
       )}
       {modalData && (
-        <GastoModal
+        <TicketModal
           gasto={modalData}
-          fondo={f}
           onClose={() => setModalData(null)}
           onSaved={() => { setRefreshKey(k => k + 1); setModalData(null) }}
         />
