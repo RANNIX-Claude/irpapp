@@ -78,6 +78,18 @@ Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el
 }
 Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el JSON, sin texto adicional.`,
 
+  COMPROBANTE_PAGO: `Extrae de este comprobante de pago (transferencia, depósito, SPEI, etc.) los datos en JSON exacto:
+{
+  "fecha_pago": "YYYY-MM-DD o null",
+  "monto": número o null,
+  "banco": "nombre del banco o institución",
+  "referencia": "número de operación, folio o referencia",
+  "forma_pago": "Transferencia, SPEI, Depósito en ventanilla, Efectivo, etc.",
+  "nombre_emisor": "nombre de quien realiza el pago o null",
+  "cuenta_destino": "últimos 4 dígitos o CLABE destino o null"
+}
+Si no puedes leer algún campo con certeza escribe null. Responde ÚNICAMENTE el JSON, sin texto adicional.`,
+
   DEFAULT: `Extrae de este documento todos los datos relevantes de identificación personal, domicilio e ingresos que encuentres, en JSON:
 {
   "nombre_completo": "...",

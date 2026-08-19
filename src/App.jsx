@@ -36,11 +36,14 @@ import Ingresos from './pages/Ingresos.jsx'
 import Despachos from './pages/Despachos.jsx'
 import './styles/theme.css'
 
+// Roles que tienen acceso al portal de administración
+const ROLES_ADMIN = ['SUPERADMIN','ADMIN','ADMINISTRADOR','GERENTE','COBRANZA','CONTABILIDAD','OPERACIONES','MANTENIMIENTO','VIGILANCIA']
+
 function AppLayout() {
-  const { user, loading, sidebarOpen } = useApp()
+  const { user, perfil, loading, sidebarOpen } = useApp()
   const location = useLocation()
 
-  // Rutas públicas — sin layout admin
+  // Rutas públicas — sin layout admin (portal prospecto / arrendatario)
   if (location.pathname.startsWith('/portal/')) {
     return (
       <Routes>
@@ -59,6 +62,15 @@ function AppLayout() {
   )
 
   if (!user) return <Login />
+
+  // Arrendatario logueado → redirigir a su portal (no al admin)
+  if (perfil && !ROLES_ADMIN.includes(perfil.rol_id)) {
+    return (
+      <Routes>
+        <Route path="*" element={<PortalArrendatario embedded />} />
+      </Routes>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>

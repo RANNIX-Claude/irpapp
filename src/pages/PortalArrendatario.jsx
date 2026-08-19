@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   LogOut, Download, FileText, CheckCircle, Clock, AlertTriangle,
-  DollarSign, ChevronDown, ChevronUp, Eye, Home, CreditCard
+  DollarSign, ChevronDown, ChevronUp, Eye, Home, CreditCard, Upload, X
 } from 'lucide-react'
+
+const OCR_FN = '/.netlify/functions/extraer-documento'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }
@@ -36,9 +38,231 @@ function EstatusBadge({ estatus }) {
   )
 }
 
+// ── Modal: subir comprobante de pago ─────────────────────────────────────────
+function ModalComprobante({ cobro, arrendatarioId, onClose, onSaved }) {
+  const fileRef  = useRef()
+  const [step, setStep]         = useState('foto')  // 'foto' | 'confirm'
+  const [preview, setPreview]   = useState(null)
+  const [b64, setB64]           = useState(null)
+  const [mtype, setMtype]       = useState('image/jpeg')
+  const [ocr, setOcr]           = useState({})
+  const [loading, setLoading]   = useState(false)
+  const [err, setErr]           = useState(null)
+  const [saved, setSaved]       = useState(false)
+
+  // Form fields (pre-llenados por OCR)
+  const [form, setForm] = useState({
+    fecha_pago: '', monto: '', banco: '', referencia: '', forma_pago: 'Transferencia', notas: ''
+  })
+  const setF = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  const handleFile = async (file) => {
+    if (!file) return
+    setErr(null)
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    setMtype(file.type)
+
+    // Leer base64
+    const b = await new Promise((res, rej) => {
+      const r = new FileReader()
+      r.onload  = () => res(r.result.split(',')[1])
+      r.onerror = rej
+      r.readAsDataURL(file)
+    })
+    setB64(b)
+
+    // OCR automático
+    setLoading(true)
+    try {
+      const res = await fetch(OCR_FN, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ image_base64: b, media_type: file.type, tipo_doc: 'COMPROBANTE_PAGO' }),
+      })
+      const j = await res.json()
+      if (j.datos) {
+        const d = j.datos
+        setOcr(d)
+        setForm({
+          fecha_pago:  d.fecha_pago || d.fecha || '',
+          monto:       String(d.monto || d.total || ''),
+          banco:       d.banco || d.institucion || '',
+          referencia:  d.referencia || d.folio || d.numero_operacion || '',
+          forma_pago:  d.forma_pago || 'Transferencia',
+          notas: '',
+        })
+      }
+    } catch (_) { /* OCR opcional — no bloquea */ }
+    finally { setLoading(false) }
+    setStep('confirm')
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true); setErr(null)
+    try {
+      // Subir imagen a Storage
+      let imagen_url = null, imagen_path = null
+      if (b64) {
+        const ext  = mtype.split('/')[1] || 'jpg'
+        const path = `${arrendatarioId}/${cobro.id}_${Date.now()}.${ext}`
+        const bin  = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+        const { error: upErr } = await supabase.storage
+          .from('comprobantes-pago')
+          .upload(path, bin, { contentType: mtype, upsert: false })
+        if (!upErr) {
+          imagen_path = path
+          const { data: pub } = supabase.storage.from('comprobantes-pago').getPublicUrl(path)
+          imagen_url = pub?.publicUrl || null
+        }
+      }
+
+      const { error: dbErr } = await supabase.from('comprobantes_pago').insert({
+        cobro_id:        cobro.id,
+        arrendatario_id: arrendatarioId,
+        imagen_url,
+        imagen_path,
+        ocr_datos:  ocr,
+        fecha_pago: form.fecha_pago || null,
+        monto:      parseFloat(form.monto) || null,
+        banco:      form.banco || null,
+        referencia: form.referencia || null,
+        forma_pago: form.forma_pago || null,
+        notas:      form.notas || null,
+        estado:     'ENVIADO',
+      })
+      if (dbErr) throw dbErr
+      setSaved(true)
+      setTimeout(() => { onSaved?.(); onClose() }, 1800)
+    } catch (e) {
+      setErr(e.message || 'Error al guardar')
+    } finally { setLoading(false) }
+  }
+
+  const fInp = {
+    width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8,
+    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+  }
+  const fLbl = { fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 3000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'white', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: '480px', padding: '20px 20px 32px', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Handle */}
+        <div style={{ width: 40, height: 4, background: '#E5E7EB', borderRadius: 2, margin: '0 auto 16px' }} />
+
+        {/* Cabecera */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#1F2937' }}>Subir comprobante</div>
+            <div style={{ fontSize: 12, color: '#6B7280' }}>
+              {cobro.tipo} — {cobro.mes && ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][cobro.mes]} {cobro.anio}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {saved && (
+          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, color: '#057642', fontSize: 16 }}>¡Comprobante enviado!</div>
+            <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>La administración revisará tu pago.</div>
+          </div>
+        )}
+
+        {!saved && step === 'foto' && (
+          <div>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16, lineHeight: 1.5 }}>
+              Toma una foto de tu comprobante de pago. La IA leerá los datos automáticamente.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Botón cámara (móvil) */}
+              <button
+                onClick={() => { fileRef.current.removeAttribute('capture'); fileRef.current.setAttribute('capture', 'environment'); fileRef.current.click() }}
+                style={{ padding: '16px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                📷 Tomar foto con la cámara
+              </button>
+              {/* Botón galería / archivo */}
+              <button
+                onClick={() => { fileRef.current.removeAttribute('capture'); fileRef.current.click() }}
+                style={{ padding: '14px', background: '#F3F4F6', color: '#374151', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                🖼 Seleccionar de galería / archivo
+              </button>
+            </div>
+            <input ref={fileRef} type='file' accept='image/*' style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files[0]; if (f) handleFile(f); e.target.value = '' }} />
+          </div>
+        )}
+
+        {!saved && step === 'confirm' && (
+          <div>
+            {/* Preview imagen */}
+            {preview && (
+              <div style={{ marginBottom: 14, textAlign: 'center' }}>
+                <img src={preview} alt="comprobante" style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 10, border: '1px solid #E5E7EB', objectFit: 'contain' }} />
+                {loading && <div style={{ fontSize: 12, color: '#0A66C2', marginTop: 6 }}>⏳ Leyendo datos con IA…</div>}
+              </div>
+            )}
+
+            {/* Campos confirmación */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={fLbl}>Fecha de pago</label>
+                  <input type='date' value={form.fecha_pago} onChange={e => setF('fecha_pago', e.target.value)} style={fInp} />
+                </div>
+                <div>
+                  <label style={fLbl}>Monto pagado</label>
+                  <input type='number' value={form.monto} onChange={e => setF('monto', e.target.value)} placeholder='0.00' style={fInp} />
+                </div>
+              </div>
+              <div>
+                <label style={fLbl}>Banco / institución</label>
+                <input value={form.banco} onChange={e => setF('banco', e.target.value)} placeholder='BBVA, Banorte, SPEI…' style={fInp} />
+              </div>
+              <div>
+                <label style={fLbl}>Referencia / folio</label>
+                <input value={form.referencia} onChange={e => setF('referencia', e.target.value)} placeholder='Número de operación' style={fInp} />
+              </div>
+              <div>
+                <label style={fLbl}>Forma de pago</label>
+                <select value={form.forma_pago} onChange={e => setF('forma_pago', e.target.value)} style={{ ...fInp, cursor: 'pointer' }}>
+                  {['Transferencia','SPEI','Depósito en ventanilla','Efectivo','Cheque','Tarjeta'].map(o => <option key={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={fLbl}>Notas (opcional)</label>
+                <textarea value={form.notas} onChange={e => setF('notas', e.target.value)} rows={2} placeholder='Cualquier comentario adicional…' style={{ ...fInp, resize: 'vertical' }} />
+              </div>
+            </div>
+
+            {err && <div style={{ marginTop: 10, padding: '8px 12px', background: '#FEE2E2', color: '#DC2626', borderRadius: 8, fontSize: 13 }}>{err}</div>}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setStep('foto')} style={{ flex: 1, padding: '12px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                ← Cambiar foto
+              </button>
+              <button onClick={handleSubmit} disabled={loading || !form.monto} style={{ flex: 2, padding: '12px', background: loading || !form.monto ? '#9CA3AF' : '#0A66C2', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: loading || !form.monto ? 'default' : 'pointer' }}>
+                {loading ? 'Enviando…' : '✓ Enviar comprobante'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Componente: tarjeta de un cobro ──────────────────────────────────────────
-function CobrosCard({ cobro }) {
+function CobrosCard({ cobro, arrendatarioId }) {
   const [open, setOpen] = useState(false)
+  const [modalComp, setModalComp] = useState(false)
   const ingresos = cobro.ingresos_json || []
   const m = ESTATUS_META[cobro.estatus] || ESTATUS_META.PENDIENTE
   const tipo = TIPO_META[cobro.tipo] || TIPO_META.RENTA
@@ -145,18 +369,37 @@ function CobrosCard({ cobro }) {
 
           {/* Si está pendiente o en mora */}
           {(cobro.estatus === 'PENDIENTE' || cobro.estatus === 'EN_MORA' || cobro.estatus === 'PARCIAL') && (
-            <div style={{ marginTop: '12px', padding: '10px 14px', background: cobro.estatus === 'EN_MORA' ? '#FEF2F2' : '#FFFBEB', borderRadius: '8px', border: `1px solid ${cobro.estatus === 'EN_MORA' ? '#FCA5A5' : '#FDE68A'}` }}>
-              <div style={{ fontSize: '12px', color: cobro.estatus === 'EN_MORA' ? '#DC2626' : '#92400E', fontWeight: 600 }}>
+            <div style={{ marginTop: '12px', padding: '12px 14px', background: cobro.estatus === 'EN_MORA' ? '#FEF2F2' : '#FFFBEB', borderRadius: '10px', border: `1px solid ${cobro.estatus === 'EN_MORA' ? '#FCA5A5' : '#FDE68A'}` }}>
+              <div style={{ fontSize: '12px', color: cobro.estatus === 'EN_MORA' ? '#DC2626' : '#92400E', fontWeight: 600, marginBottom: 6 }}>
                 {cobro.estatus === 'EN_MORA'
                   ? `⚠ Pago vencido — Saldo pendiente: ${fmt((parseFloat(cobro.monto_total) || 0) - (parseFloat(cobro.monto_pagado) || 0))}`
                   : `Saldo pendiente: ${fmt((parseFloat(cobro.monto_total) || 0) - (parseFloat(cobro.monto_pagado) || 0))}`}
               </div>
-              <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
-                Para realizar tu pago utiliza la cuenta BBVA indicada en tu contrato y envía tu comprobante a la administración.
+              <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: 10 }}>
+                Realiza tu depósito/transferencia a la cuenta BBVA indicada en tu contrato y sube aquí tu comprobante.
               </div>
+              {/* Botón subir comprobante */}
+              {arrendatarioId && (
+                <button
+                  onClick={() => setModalComp(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
+                >
+                  <Upload size={15} /> Subir comprobante de pago
+                </button>
+              )}
             </div>
           )}
         </div>
+      )}
+
+      {/* Modal comprobante */}
+      {modalComp && (
+        <ModalComprobante
+          cobro={cobro}
+          arrendatarioId={arrendatarioId}
+          onClose={() => setModalComp(false)}
+          onSaved={() => setModalComp(false)}
+        />
       )}
     </div>
   )
@@ -233,7 +476,7 @@ function PortalLogin({ onLogin }) {
 }
 
 // ── Página principal del portal ───────────────────────────────────────────────
-export default function PortalArrendatario() {
+export default function PortalArrendatario({ embedded = false }) {
   const [session, setSession] = useState(null)
   const [arrendatario, setArrendatario] = useState(null)
   const [cobros, setCobros] = useState([])
@@ -279,8 +522,9 @@ export default function PortalArrendatario() {
 
   const cerrarSesion = () => supabase.auth.signOut()
 
-  // ── Sin sesión → login ──
-  if (!session) return <PortalLogin onLogin={cargarDatos} />
+  // ── Sin sesión → login (no mostrar si embedded — el usuario ya está logueado) ──
+  if (!session && !embedded) return <PortalLogin onLogin={cargarDatos} />
+  if (!session && embedded)  return null  // espera que la sesión cargue
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -421,7 +665,7 @@ export default function PortalArrendatario() {
               <div style={{ fontWeight: 600 }}>Sin movimientos para este período</div>
             </div>
           ) : (
-            filtrados.map(cobro => <CobrosCard key={cobro.id} cobro={cobro} />)
+            filtrados.map(cobro => <CobrosCard key={cobro.id} cobro={cobro} arrendatarioId={arrendatario?.id} />)
           )}
         </div>
 
