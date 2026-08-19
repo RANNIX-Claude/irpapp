@@ -1,10 +1,5 @@
 // Netlify Function: portal-prospecto
-// Valida magic link y devuelve datos del prospecto + todas las personas y docs
-
-// Workaround: supabase-js Realtime requiere WebSocket; Node 20 no lo tiene nativamente
-if (!globalThis.WebSocket) globalThis.WebSocket = class { constructor() {} }
-
-import { createClient } from '@supabase/supabase-js'
+// Usa fetch directo a Supabase REST (evita supabase-js + problema WebSocket Node 20)
 
 const SUPABASE_URL = 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,6 +8,18 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json',
+}
+
+function rest(path, params = {}) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${path}`)
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+  return fetch(url.toString(), {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Accept: 'application/json',
+    },
+  }).then(r => r.json())
 }
 
 export const handler = async (event) => {
@@ -25,53 +32,76 @@ export const handler = async (event) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'Configuración incompleta en el servidor' }) }
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-
   // 1. Validar magic link
-  const { data: link, error: linkErr } = await supabase
-    .from('prospecto_magic_links')
-    .select('id, persona_id, expira_at, activo, usado_at, prospecto_personas(prospecto_id)')
-    .eq('token', token)
-    .eq('activo', true)
-    .single()
+  const links = await rest('prospecto_magic_links', {
+    select: 'id,persona_id,expira_at,activo,usado_at',
+    token: `eq.${token}`,
+    activo: 'eq.true',
+    limit: '1',
+  })
 
-  if (linkErr || !link) {
+  if (!Array.isArray(links) || links.length === 0) {
     return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Link inválido o no encontrado' }) }
   }
+
+  const link = links[0]
 
   if (new Date(link.expira_at) < new Date()) {
     return { statusCode: 410, headers: CORS, body: JSON.stringify({ error: 'Este link ha expirado. Solicita uno nuevo al administrador.' }) }
   }
 
-  // 2. Registrar primer uso
-  if (!link.usado_at) {
-    await supabase.from('prospecto_magic_links').update({ usado_at: new Date().toISOString() }).eq('id', link.id)
-  }
+  // 2. Obtener prospecto_id desde persona
+  const personas_link = await rest('prospecto_personas', {
+    select: 'prospecto_id',
+    id: `eq.${link.persona_id}`,
+    limit: '1',
+  })
 
-  const prospectoId = link.prospecto_personas?.prospecto_id
-  if (!prospectoId) {
+  if (!Array.isArray(personas_link) || personas_link.length === 0) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'No se encontró el prospecto asociado' }) }
   }
 
-  // 3. Datos del prospecto
-  const { data: prospecto } = await supabase
-    .from('prospectos')
-    .select('id, nombre_negocio, renta_propuesta')
-    .eq('id', prospectoId)
-    .single()
+  const prospectoId = personas_link[0].prospecto_id
 
-  // 4. Todas las personas del prospecto
-  const { data: personas } = await supabase
-    .from('prospecto_personas')
-    .select('*')
-    .eq('prospecto_id', prospectoId)
-    .order('tipo')
+  // 3. Registrar primer uso
+  if (!link.usado_at) {
+    await fetch(`${SUPABASE_URL}/rest/v1/prospecto_magic_links?id=eq.${link.id}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ usado_at: new Date().toISOString() }),
+    })
+  }
 
-  // 5. Todos los documentos de todas las personas
+  // 4. Datos del prospecto
+  const prospectos = await rest('prospectos', {
+    select: 'id,nombre_negocio,renta_propuesta',
+    id: `eq.${prospectoId}`,
+    limit: '1',
+  })
+  const prospecto = prospectos?.[0]
+
+  // 5. Todas las personas del prospecto
+  const personas = await rest('prospecto_personas', {
+    select: '*',
+    prospecto_id: `eq.${prospectoId}`,
+    order: 'tipo',
+  })
+
+  // 6. Todos los documentos de todas las personas
   const personaIds = (personas || []).map(p => p.id)
-  const { data: docs } = personaIds.length
-    ? await supabase.from('prospecto_documentos').select('*').in('persona_id', personaIds).order('tipo_doc')
-    : { data: [] }
+  let docs = []
+  if (personaIds.length > 0) {
+    docs = await rest('prospecto_documentos', {
+      select: '*',
+      persona_id: `in.(${personaIds.join(',')})`,
+      order: 'tipo_doc',
+    })
+  }
 
   return {
     statusCode: 200,
