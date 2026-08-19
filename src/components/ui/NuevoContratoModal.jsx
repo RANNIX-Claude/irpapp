@@ -1,4 +1,4 @@
-// NuevoContratoModal — componente compartido usado en Contratos y Prospectos
+// NuevoContratoModal — inserta en prp.contratos_arrendamiento
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
@@ -8,17 +8,21 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
   const { data: arrendatarios } = usePRP('prp_arrendatarios', { order: { col: 'nombre_razon_social' } })
   const { data: unidades } = usePRP('prp_unidades', { filters: [['estado_id', 'eq', 'DISPONIBLE']], order: { col: 'numero_local' } })
 
+  const yearNow = new Date().getFullYear()
+  const defaultFin = new Date(); defaultFin.setFullYear(defaultFin.getFullYear() + 1); defaultFin.setDate(defaultFin.getDate() - 1)
+
   const [form, setForm] = useState({
     arrendatario_id: '',
     unidad_id: '',
     tipo_contrato: 'ANUAL',
     fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_fin: '',
+    fecha_fin: defaultFin.toISOString().split('T')[0],
     renta_mensual: fromProspecto?.renta || '',
     cuota_mant: '0',
     deposito_garantia: '',
-    dia_pago: '1',
-    penalizacion_pct: '5',
+    dia_cobro: '1',
+    penalizacion_mora: '5',
+    incremento_anual: '0',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -33,36 +37,25 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
     setSaving(true); setError(null)
     try {
       const renta = parseFloat(form.renta_mensual)
-      const folio = 'C-' + Math.random().toString(36).substr(2, 8)
+      const seq   = Math.floor(Math.random() * 9000) + 1000
+      const folio = `CA-${yearNow}-${seq}`
 
-      // 1. Insertar contrato
-      const { data: contrato, error: e1 } = await supabase.from('contratos').insert({
-        numero_contrato:   folio,
-        arrendatario_id:   form.arrendatario_id,
-        tipo_contrato:     form.tipo_contrato,
-        fecha_inicio:      form.fecha_inicio,
-        fecha_fin:         form.fecha_fin || null,
-        renta_mensual:     renta,
-        renta_sin_iva:     renta / 1.16,
+      const { error: e1 } = await supabase.schema('prp').from('contratos_arrendamiento').insert({
+        folio,
+        arrendatario_id:  form.arrendatario_id,
+        unidad_id:        form.unidad_id,
+        tipo_contrato:    form.tipo_contrato,
+        fecha_inicio:     form.fecha_inicio,
+        fecha_fin:        form.fecha_fin || null,
+        renta_mensual:    renta,
+        cuota_mant:       parseFloat(form.cuota_mant) || 0,
         deposito_garantia: parseFloat(form.deposito_garantia) || renta * 2,
-        cuota_mant:        parseFloat(form.cuota_mant) || 0,
-        dia_pago:          parseInt(form.dia_pago) || 1,
-        penalizacion_pct:  parseFloat(form.penalizacion_pct) || 5,
-        estatus:           'VIGENTE',
-      }).select('id').single()
-      if (e1) throw e1
-
-      // 2. Ligar local seleccionado
-      const { error: e2 } = await supabase.from('contratos_locales').insert({
-        contrato_id:     contrato.id,
-        local_id:        form.unidad_id,
-        renta_asignada:  renta,
-        es_principal:    true,
+        dia_cobro:        parseInt(form.dia_cobro) || 1,
+        penalizacion_mora: parseFloat(form.penalizacion_mora) || 5,
+        incremento_anual: parseFloat(form.incremento_anual) || 0,
+        estado_id:        'VIGENTE',
       })
-      if (e2) throw e2
-
-      // 3. Marcar unidad como OCUPADO
-      await supabase.from('unidades').update({ estado_id: 'OCUPADO' }).eq('id', form.unidad_id)
+      if (e1) throw e1
 
       setSuccess(`Contrato ${folio} creado exitosamente.`)
       setTimeout(() => { onCreated?.(); onClose() }, 1800)
@@ -80,7 +73,6 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
       <div style={{ background: 'white', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflow: 'auto' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0A66C2' }}>Nuevo Contrato</h2>
@@ -89,7 +81,6 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
         </div>
 
-        {/* Banner desde prospecto */}
         {fromProspecto && (
           <div style={{ margin: '16px 24px 0', padding: '10px 14px', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '18px' }}>📋</span>
@@ -149,12 +140,12 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
                   placeholder={form.renta_mensual ? String(parseFloat(form.renta_mensual || 0) * 2) : '2 meses renta'} style={inp} min="0" step="0.01" />
               </div>
               <div>
-                <label style={lbl}>Día límite de pago</label>
-                <input type="number" value={form.dia_pago} onChange={e => set('dia_pago', e.target.value)} style={inp} min="1" max="28" />
+                <label style={lbl}>Día de cobro</label>
+                <input type="number" value={form.dia_cobro} onChange={e => set('dia_cobro', e.target.value)} style={inp} min="1" max="28" />
               </div>
               <div>
                 <label style={lbl}>% mora mensual</label>
-                <input type="number" value={form.penalizacion_pct} onChange={e => set('penalizacion_pct', e.target.value)} style={inp} min="0" max="100" step="0.1" />
+                <input type="number" value={form.penalizacion_mora} onChange={e => set('penalizacion_mora', e.target.value)} style={inp} min="0" max="100" step="0.1" />
               </div>
               <div>
                 <label style={lbl}>Fecha inicio *</label>

@@ -600,10 +600,11 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
     fecha_inicio:     toISO(defaultInicio),
     fecha_fin:        toISO(defaultFin),
     renta_mensual:    c.renta_mensual ?? '',
+    cuota_mant:       c.cuota_mant ?? 0,
     deposito_garantia: c.deposito_garantia ?? '',
-    dia_pago:         c.dia_pago ?? 5,
-    penalizacion_pct: c.penalizacion_pct ?? 5,
-    incremento_anual_pct: c.incremento_anual_pct ?? 0,
+    dia_cobro:        c.dia_cobro ?? 1,
+    penalizacion_mora: c.penalizacion_mora ?? 5,
+    incremento_anual: c.incremento_anual ?? 0,
     fiador_nombre:    c.fiador_nombre ?? '',
     fiador_rfc:       c.fiador_rfc ?? '',
     fiador_domicilio: c.fiador_domicilio ?? '',
@@ -617,36 +618,28 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
     if (!form.fecha_inicio || !form.renta_mensual) { setError('Fecha inicio y renta son obligatorios.'); return }
     setSaving(true); setError(null)
     try {
-      // 1. Crear nuevo contrato
-      const newFolio = (c.folio || 'C').replace(/(-R\d+)?$/, '') + '-R' + new Date().getFullYear().toString().slice(-2)
-      const { data: nuevo, error: e1 } = await supabase.from('contratos').insert({
-        numero_contrato:      newFolio,
-        arrendatario_id:      c.arrendatario_id,
-        fecha_inicio:         form.fecha_inicio,
-        fecha_fin:            form.fecha_fin || null,
-        renta_mensual:        parseFloat(form.renta_mensual),
-        renta_sin_iva:        parseFloat(form.renta_mensual) / 1.16,
-        deposito_garantia:    parseFloat(form.deposito_garantia) || 0,
-        dia_pago:             parseInt(form.dia_pago) || 5,
-        penalizacion_pct:     parseFloat(form.penalizacion_pct) || 5,
-        incremento_anual_pct: parseFloat(form.incremento_anual_pct) || 0,
-        estatus:              'VIGENTE',
-        contrato_origen_id:   c.id,
-        locales_referencia:   c.locales_referencia,
-        locales_display:      c.locales_display,
-        num_locales:          c.num_locales,
-        notas:                form.notas || null,
-      }).select('id').single()
+      // 1. Crear nuevo contrato en prp.contratos_arrendamiento
+      const newFolio = (c.folio || 'CA').replace(/(-R\d+)?$/, '') + '-R' + new Date().getFullYear().toString().slice(-2)
+      const { error: e1 } = await supabase.schema('prp').from('contratos_arrendamiento').insert({
+        folio:            newFolio,
+        arrendatario_id:  c.arrendatario_id,
+        unidad_id:        c.unidad_id,
+        tipo_contrato:    c.tipo_contrato,
+        fecha_inicio:     form.fecha_inicio,
+        fecha_fin:        form.fecha_fin || null,
+        renta_mensual:    parseFloat(form.renta_mensual),
+        cuota_mant:       parseFloat(form.cuota_mant) || 0,
+        deposito_garantia: parseFloat(form.deposito_garantia) || 0,
+        dia_cobro:        parseInt(form.dia_cobro) || 1,
+        penalizacion_mora: parseFloat(form.penalizacion_mora) || 5,
+        incremento_anual: parseFloat(form.incremento_anual) || 0,
+        estado_id:        'VIGENTE',
+        notas:            form.notas || null,
+      })
       if (e1) throw e1
 
-      // 2. Copiar contratos_locales al nuevo contrato
-      const { data: locales } = await supabase.from('contratos_locales').select('local_id,renta_asignada,es_principal,notas').eq('contrato_id', c.id)
-      if (locales?.length) {
-        await supabase.from('contratos_locales').insert(locales.map(l => ({ ...l, contrato_id: nuevo.id })))
-      }
-
-      // 3. Marcar contrato original como RENOVADO
-      const { error: e2 } = await supabase.from('contratos').update({ estatus: 'RENOVADO' }).eq('id', c.id)
+      // 2. Marcar contrato original como RENOVADO
+      const { error: e2 } = await supabase.schema('prp').from('contratos_arrendamiento').update({ estado_id: 'RENOVADO' }).eq('id', c.id)
       if (e2) throw e2
 
       onDone?.()
