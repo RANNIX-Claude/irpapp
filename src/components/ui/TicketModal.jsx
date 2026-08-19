@@ -138,6 +138,85 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         if (lineasPayload.length) await supabase.from('gasto_detalle').insert(lineasPayload)
       }
 
+      // ── Integración Vending: líneas VENDING → compras automáticas ──────
+      const lineasVending = lineas.filter(l => l.categoria === 'VENDING' && l.descripcion && l.precio_unit)
+      if (lineasVending.length > 0) {
+        // 1. Obtener semana vending activa
+        const { data: semana } = await supabase
+          .from('vending_semanas')
+          .select('id')
+          .eq('estado', 'ABIERTA')
+          .order('semana_inicio', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (semana) {
+          for (const linea of lineasVending) {
+            // 2. Buscar producto vending por nombre (ILIKE)
+            const { data: prods } = await supabase
+              .from('vending_productos')
+              .select('id, nombre, precio_compra_default')
+              .ilike('nombre', `%${linea.descripcion.trim()}%`)
+              .eq('activo', true)
+              .limit(1)
+
+            const vprod = prods?.[0]
+            if (!vprod) continue // no hay match, se omite
+
+            const cant   = parseFloat(linea.cantidad) || 1
+            const precio = parseFloat(linea.precio_unit) || vprod.precio_compra_default || 0
+
+            // 3. Obtener o crear snapshot semana-producto
+            let { data: sp } = await supabase
+              .from('vending_semana_producto')
+              .select('id, qty_compras, importe_compras, qty_ventas, importe_ventas, precio_compra_semana, precio_venta_semana')
+              .eq('semana_id', semana.id)
+              .eq('producto_id', vprod.id)
+              .single()
+
+            if (!sp) {
+              const { data: nuevo } = await supabase
+                .from('vending_semana_producto')
+                .insert({ semana_id: semana.id, producto_id: vprod.id, qty_inicial: 0, qty_compras: 0, qty_ventas: 0, precio_compra_semana: precio, precio_venta_semana: 0, importe_compras: 0, importe_ventas: 0 })
+                .select('*').single()
+              sp = nuevo
+            }
+            if (!sp) continue
+
+            // 4. Registrar movimiento COMPRA
+            await supabase.from('vending_movimientos').insert({
+              semana_id:    semana.id,
+              producto_id:  vprod.id,
+              fecha:        form.fecha,
+              tipo:         'COMPRA',
+              cantidad:     cant,
+              precio_unitario: precio,
+              proveedor:    form.proveedor_txt || (proveedores.find(p => p.id === form.proveedor_id)?.nombre) || null,
+              nota:         `Desde ticket gastos: ${form.descripcion || ''}`.trim(),
+            })
+
+            // 5. Actualizar snapshot
+            await supabase.from('vending_semana_producto').update({
+              qty_compras:          (parseFloat(sp.qty_compras) || 0) + cant,
+              importe_compras:      (parseFloat(sp.importe_compras) || 0) + cant * precio,
+              precio_compra_semana: precio,
+            }).eq('id', sp.id)
+          }
+
+          // 6. Sincronizar totales en vending_semanas
+          const { data: totales } = await supabase
+            .from('vending_semana_producto')
+            .select('importe_ventas, importe_compras, qty_ventas, qty_compras')
+            .eq('semana_id', semana.id)
+          const totVentas  = (totales || []).reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
+          const totCompras = (totales || []).reduce((s, r) => s + (parseFloat(r.importe_compras) || 0), 0)
+          const totUnidC   = (totales || []).reduce((s, r) => s + (parseFloat(r.qty_compras) || 0), 0)
+          await supabase.from('vending_semanas').update({
+            compras: totUnidC,
+          }).eq('id', semana.id)
+        }
+      }
+
       toast.success(isEdit ? 'Gasto actualizado' : 'Ticket registrado')
       onSaved()
     } catch (err) { toast.error(err.message) }
