@@ -1,35 +1,8 @@
-// gastos-ocr.js — extrae datos de ticket con Claude Vision
-// Input: { image_base64, media_type }
-// Output: { total, proveedor, lineas: [{descripcion, cantidad, precio_unit}] }
+// gastos-ocr.js — extrae datos de ticket con Claude Vision o texto libre
+// Input: { image_base64, media_type } | { texto_libre }
+// Output: { total, proveedor, lineas: [{descripcion, cantidad, precio_unit, codigo_proveedor}] }
 
-export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-
-  try {
-    const { image_base64, media_type = 'image/jpeg' } = JSON.parse(event.body)
-    if (!image_base64) return { statusCode: 400, body: JSON.stringify({ error: 'image_base64 requerido' }) }
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':         process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type:   'image',
-              source: { type: 'base64', media_type, data: image_base64 },
-            },
-            {
-              type: 'text',
-              text: `Analiza este ticket/nota de compra y extrae los datos en JSON con exactamente este formato:
-{
+const JSON_FORMAT = `{
   "proveedor": "nombre del establecimiento",
   "fecha": "YYYY-MM-DD o null si no se ve",
   "total": número con centavos (ej: 3387.00),
@@ -41,7 +14,10 @@ export const handler = async (event) => {
       "precio_unit": número
     }
   ]
-}
+}`
+
+const PROMPT_IMAGEN = `Analiza este ticket/nota de compra y extrae los datos en JSON con exactamente este formato:
+${JSON_FORMAT}
 
 Reglas especiales para tickets de Sam's Club y similares:
 - Cada línea comienza con un código numérico (ej: 332944, 980025248) seguido del nombre del producto — extrae ese código en "codigo_proveedor"
@@ -51,10 +27,54 @@ Reglas especiales para tickets de Sam's Club y similares:
 - cantidad por defecto es 1 si no se especifica
 - precio_unit es el precio por unidad (no el subtotal de la línea)
 - Ignora líneas de descuento, IVA, IEPS, subtotal — solo productos
-- Responde SOLO el JSON, sin markdown ni explicaciones`,
-            },
-          ],
-        }],
+- Responde SOLO el JSON, sin markdown ni explicaciones`
+
+const PROMPT_TEXTO = (texto) => `A partir del siguiente texto (puede ser una descripción de compra, lista de productos, mensaje de WhatsApp, etc.)
+extrae los datos de la compra en JSON con exactamente este formato:
+${JSON_FORMAT}
+
+- Si el texto menciona un nombre de tienda, ponlo en "proveedor"
+- Si menciona una fecha, ponla en "fecha" formato YYYY-MM-DD
+- Si menciona un total, ponlo en "total"
+- Extrae cada artículo como una línea con descripcion, cantidad y precio_unit
+- Si no hay precio individual pero sí total, puedes aproximarlo dividiendo
+- Responde SOLO el JSON, sin markdown ni explicaciones
+
+TEXTO:
+${texto}`
+
+export const handler = async (event) => {
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
+
+  try {
+    const body = JSON.parse(event.body || '{}')
+    const { image_base64, media_type = 'image/jpeg', texto_libre } = body
+
+    if (!image_base64 && !texto_libre) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Se requiere image_base64 o texto_libre' }) }
+    }
+
+    let messageContent
+    if (texto_libre) {
+      messageContent = [{ type: 'text', text: PROMPT_TEXTO(texto_libre) }]
+    } else {
+      messageContent = [
+        { type: 'image', source: { type: 'base64', media_type, data: image_base64 } },
+        { type: 'text', text: PROMPT_IMAGEN },
+      ]
+    }
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: messageContent }],
       }),
     })
 
