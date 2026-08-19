@@ -40,7 +40,13 @@ export const handler = async (event) => {
     limit: '1',
   })
 
-  if (!Array.isArray(links) || links.length === 0) {
+  if (!Array.isArray(links)) {
+    // links es un objeto de error de Supabase/PostgREST
+    const msg = links?.message || links?.hint || JSON.stringify(links)
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'Error de servidor', detail: msg }) }
+  }
+
+  if (links.length === 0) {
     return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Link inválido o no encontrado' }) }
   }
 
