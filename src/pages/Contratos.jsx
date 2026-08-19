@@ -645,8 +645,8 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
         await supabase.from('contratos_locales').insert(locales.map(l => ({ ...l, contrato_id: nuevo.id })))
       }
 
-      // 3. Marcar contrato original como EN_RENOVACION
-      const { error: e2 } = await supabase.from('contratos').update({ estatus: 'EN_RENOVACION' }).eq('id', c.id)
+      // 3. Marcar contrato original como RENOVADO
+      const { error: e2 } = await supabase.from('contratos').update({ estatus: 'RENOVADO' }).eq('id', c.id)
       if (e2) throw e2
 
       onDone?.()
