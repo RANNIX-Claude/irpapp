@@ -33,6 +33,7 @@ import PortalProspecto from './pages/PortalProspecto.jsx'
 import PortalArrendatario from './pages/PortalArrendatario.jsx'
 import MapaLocales from './pages/MapaLocales.jsx'
 import Ingresos from './pages/Ingresos.jsx'
+import Despachos from './pages/Despachos.jsx'
 import './styles/theme.css'
 
 function AppLayout() {
@@ -93,6 +94,7 @@ function AppLayout() {
           <Route path="/utilidades" element={<Utilidades />} />
           <Route path="/mapa-locales" element={<MapaLocales />} />
           <Route path="/ingresos" element={<Ingresos />} />
+          <Route path="/despachos" element={<Despachos />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

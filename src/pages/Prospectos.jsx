@@ -150,6 +150,7 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
   const [tab, setTab] = useState('personas')
   const [modalPersona, setModalPersona] = useState(false)
   const [enviandoLink, setEnviandoLink] = useState(null)
+  const [modalDespacho, setModalDespacho] = useState(false)
 
   const cargar = useCallback(async () => {
     const { data: p } = await supabase.from('prospecto_personas')
@@ -380,23 +381,32 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
         </div>
 
         {/* Footer — acciones de etapa */}
-        <div style={{ borderTop:'1px solid #E5E7EB', padding:'16px 24px', display:'flex', gap:8, justifyContent:'space-between' }}>
-          {prospecto.etapa === 'RECHAZADO' ? (
-            <button
-              onClick={() => avanzarEtapa('CONTACTO')}
-              style={{ ...btnSecundario, color:'#0A66C2', borderColor:'#BFDBFE' }}>
-              ↺ Reactivar prospecto
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                const motivo = prompt('Motivo del rechazo (requerido):')
-                if (motivo) avanzarEtapa('RECHAZADO')
-              }}
-              style={{ ...btnSecundario, color:'#B24020', borderColor:'#FECACA' }}>
-              Rechazar
-            </button>
-          )}
+        <div style={{ borderTop:'1px solid #E5E7EB', padding:'16px 24px', display:'flex', gap:8, justifyContent:'space-between', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:8 }}>
+            {prospecto.etapa === 'RECHAZADO' ? (
+              <button onClick={() => avanzarEtapa('CONTACTO')} style={{ ...btnSecundario, color:'#0A66C2', borderColor:'#BFDBFE' }}>
+                ↺ Reactivar prospecto
+              </button>
+            ) : (
+              <button onClick={() => { const m = prompt('Motivo del rechazo (requerido):'); if (m) avanzarEtapa('RECHAZADO') }}
+                style={{ ...btnSecundario, color:'#B24020', borderColor:'#FECACA' }}>
+                Rechazar
+              </button>
+            )}
+            {/* Botón Enviar a Despacho — disponible desde APROBADO */}
+            {['APROBADO', 'INVESTIGACION', 'DOCS_COMPLETOS'].includes(prospecto.etapa) && (
+              <button onClick={() => setModalDespacho(true)}
+                style={{ ...btnSecundario, color:'#7C3AED', borderColor:'#DDD6FE', display:'flex', alignItems:'center', gap:6 }}>
+                ⚖ Enviar a despacho
+              </button>
+            )}
+            {/* Indicador si ya tiene despacho asignado */}
+            {prospecto.ruta_elaboracion === 'DESPACHO' && (
+              <span style={{ padding:'6px 12px', background:'#F5F3FF', color:'#7C3AED', borderRadius:8, fontSize:12, fontWeight:700 }}>
+                ⚖ Ruta: Despacho
+              </span>
+            )}
+          </div>
           {siguiente && prospecto.etapa !== 'RECHAZADO' && (
             <button onClick={() => avanzarEtapa(siguiente.id)} style={btnPrimario}>
               Avanzar a {siguiente.label} →
@@ -406,10 +416,15 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
       </div>
 
       {modalPersona && (
-        <ModalAgregarPersona
-          prospectoId={prospecto.id}
-          onClose={() => setModalPersona(false)}
-          onSaved={cargar}
+        <ModalAgregarPersona prospectoId={prospecto.id} onClose={() => setModalPersona(false)} onSaved={cargar} />
+      )}
+      {modalDespacho && (
+        <ModalEnviarDespacho
+          prospecto={prospecto}
+          personas={personas}
+          docs={docs}
+          onClose={() => setModalDespacho(false)}
+          onDone={() => { setModalDespacho(false); onRefresh() }}
         />
       )}
     </div>
@@ -454,6 +469,215 @@ function ModalAgregarPersona({ prospectoId, onClose, onSaved }) {
         <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
           <button onClick={onClose} style={btnSecundario}>Cancelar</button>
           <button onClick={guardar} disabled={loading} style={btnPrimario}>{loading ? 'Guardando...' : 'Agregar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Generador Formato de Investigación PDF ──────────────────────────────────
+function generarFormatoInvestigacion(prospecto, personas, docs, despacho) {
+  const fecha = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' })
+
+  const LABEL_DOC = {
+    INE_FRENTE:'INE (frente)', INE_REVERSO:'INE (reverso)', PASAPORTE:'Pasaporte',
+    COMPROBANTE_INGRESOS_1:'Comprobante ingresos mes 1', COMPROBANTE_INGRESOS_2:'Comprobante ingresos mes 2',
+    COMPROBANTE_INGRESOS_3:'Comprobante ingresos mes 3', COMPROBANTE_DOMICILIO:'Comprobante de domicilio',
+    ESCRITURA_INMUEBLE:'Escritura inmueble en garantía', SOLICITUD_FIRMADA:'Solicitud firmada',
+  }
+  const TIPO_LABEL = { INQUILINO:'Arrendatario / Inquilino', OBLIGADO_SOLIDARIO:'Obligado Solidario', FIADOR:'Fiador / Aval' }
+
+  const seccionPersona = (p) => {
+    const dp = docs.filter(d => d.persona_id === p.id)
+    const docsHtml = dp.map(d => `
+      <tr>
+        <td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">${LABEL_DOC[d.tipo_doc] || d.tipo_doc}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:center">
+          <span style="color:${d.estado==='APROBADO'?'#057642':d.estado==='SUBIDO'?'#0A66C2':'#B45309'};font-weight:700">${d.estado}</span>
+        </td>
+      </tr>`).join('')
+
+    return `
+      <div style="margin-bottom:24px;page-break-inside:avoid">
+        <div style="background:#0A66C2;color:white;padding:8px 14px;border-radius:6px 6px 0 0;font-weight:700;font-size:13px">
+          ${TIPO_LABEL[p.tipo] || p.tipo} — ${p.nombre_completo || p.email}
+        </div>
+        <div style="border:1px solid #0A66C2;border-top:none;border-radius:0 0 6px 6px;padding:14px">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+            <tr><td style="padding:4px 0;font-size:12px;width:140px;color:#666;font-weight:600">Nombre completo</td><td style="font-size:13px">${p.nombre_completo||'—'}</td>
+                <td style="padding:4px 0;font-size:12px;width:140px;color:#666;font-weight:600">RFC</td><td style="font-size:13px">${p.rfc||'—'}</td></tr>
+            <tr><td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">CURP</td><td style="font-size:13px">${p.curp||'—'}</td>
+                <td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Correo</td><td style="font-size:13px">${p.email||'—'}</td></tr>
+            <tr><td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Celular</td><td style="font-size:13px">${p.cel||'—'}</td>
+                <td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Empresa / Puesto</td><td style="font-size:13px">${p.empresa?`${p.empresa} · ${p.puesto||''}`:p.puesto||'—'}</td></tr>
+            <tr><td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Ingreso mensual</td><td style="font-size:13px">${p.ingreso_mensual?`$${Number(p.ingreso_mensual).toLocaleString('es-MX')}`:'—'}</td>
+                <td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Domicilio</td><td style="font-size:13px">${[p.calle,p.no_ext?`#${p.no_ext}`:'',p.colonia,p.municipio,p.estado_domicilio,p.cp?`CP ${p.cp}`:''].filter(Boolean).join(', ')||'—'}</td></tr>
+            ${p.tipo==='FIADOR'||p.tipo==='OBLIGADO_SOLIDARIO'?`
+            <tr><td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Garantía / Inmueble</td><td colspan="3" style="font-size:13px">${[p.garantia_calle,p.garantia_colonia,p.garantia_municipio,p.garantia_estado].filter(Boolean).join(', ')||'—'}</td></tr>
+            <tr><td style="padding:4px 0;font-size:12px;color:#666;font-weight:600">Escritura</td><td colspan="3" style="font-size:13px">${p.escritura_no?`No. ${p.escritura_no}, Notario ${p.escritura_notario||'—'}, ${p.escritura_fecha||''}`:' —'}</td></tr>
+            `:''}
+          </table>
+          ${dp.length?`
+          <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:6px;text-transform:uppercase">Documentos</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="background:#F3F4F6"><th style="padding:5px 8px;border:1px solid #ddd;font-size:11px;text-align:left">Documento</th><th style="padding:5px 8px;border:1px solid #ddd;font-size:11px">Estado</th></tr>
+            ${docsHtml}
+          </table>`:''}
+        </div>
+      </div>`
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Formato de Investigación — ${prospecto.nombre_negocio}</title>
+  <style>
+    * { font-family: Arial, Helvetica, sans-serif; box-sizing: border-box; }
+    body { margin: 0; padding: 24px; color: #111; }
+    @media print { body { padding: 12px; } @page { margin: 1.5cm; } }
+  </style>
+  </head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #0A66C2">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#0A66C2;text-transform:uppercase;letter-spacing:1px">Inmobiliaria Alcedines del Norte · Plaza IWOL</div>
+      <h1 style="margin:4px 0;font-size:22px;color:#1A3C5E">FORMATO DE INVESTIGACIÓN</h1>
+      <div style="font-size:13px;color:#374151">Expediente de arrendamiento — ${prospecto.nombre_negocio || 'Sin nombre'}</div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#6B7280">
+      <div>Fecha: <strong>${fecha}</strong></div>
+      <div>Folio: <strong>PROS-${prospecto.id?.substr(0,8)}</strong></div>
+      ${prospecto.renta_propuesta?`<div>Renta propuesta: <strong>$${Number(prospecto.renta_propuesta).toLocaleString('es-MX')}/mes</strong></div>`:''}
+    </div>
+  </div>
+
+  ${despacho?`
+  <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:12px 16px;margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:#7C3AED;text-transform:uppercase;margin-bottom:4px">Dirigido al Despacho Jurídico</div>
+    <div style="font-size:15px;font-weight:700">${despacho.nombre}</div>
+    ${despacho.titular?`<div style="font-size:13px;color:#374151">Attn: ${despacho.titular}</div>`:''}
+    ${despacho.email?`<div style="font-size:12px;color:#6B7280">${despacho.email}</div>`:''}
+  </div>`:''}
+
+  <div style="margin-bottom:20px">
+    ${personas.map(p => seccionPersona(p)).join('')}
+  </div>
+
+  <div style="margin-top:40px;border-top:1px solid #E5E7EB;padding-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px">
+    <div style="text-align:center">
+      <div style="border-top:1px solid #374151;padding-top:8px;font-size:12px;color:#374151">Administrador de la Plaza</div>
+    </div>
+    <div style="text-align:center">
+      <div style="border-top:1px solid #374151;padding-top:8px;font-size:12px;color:#374151">Arrendatario</div>
+    </div>
+    <div style="text-align:center">
+      <div style="border-top:1px solid #374151;padding-top:8px;font-size:12px;color:#374151">Fiador / Aval</div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;font-size:10px;color:#9CA3AF;text-align:center">
+    Documento generado por IRP — RANNIX Consulting · ${new Date().toISOString()}
+  </div>
+  </body></html>`
+
+  const w = window.open('', '_blank')
+  w.document.write(html)
+  w.document.close()
+  setTimeout(() => w.print(), 500)
+}
+
+// ─── Modal: Enviar a Despacho ─────────────────────────────────────────────────
+function ModalEnviarDespacho({ prospecto, personas, docs, onClose, onDone }) {
+  const [despachos, setDespachos] = useState([])
+  const [despachoId, setDespachoId] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('cat_despachos').select('*').eq('activo', true).order('nombre')
+      .then(({ data }) => setDespachos(data || []))
+  }, [])
+
+  const despachoSel = despachos.find(d => d.id === despachoId)
+
+  const handleConfirmar = async () => {
+    if (!despachoId) { alert('Selecciona un despacho'); return }
+    setSaving(true)
+    await supabase.from('prospectos').update({
+      despacho_id: despachoId,
+      ruta_elaboracion: 'DESPACHO',
+      updated_at: new Date().toISOString(),
+    }).eq('id', prospecto.id)
+    generarFormatoInvestigacion(prospecto, personas, docs, despachoSel)
+    setSaving(false)
+    onDone()
+    onClose()
+  }
+
+  const handleSoloFormato = () => {
+    generarFormatoInvestigacion(prospecto, personas, docs, despachoSel)
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#0006', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:500, padding:28, boxShadow:'0 20px 60px #0003' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:11, color:'#7C3AED', fontWeight:700, textTransform:'uppercase' }}>Ruta Despacho Jurídico</div>
+            <h3 style={{ margin:'2px 0 0', fontSize:17, fontWeight:800 }}>Enviar expediente al despacho</h3>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9CA3AF' }}>×</button>
+        </div>
+
+        <div style={{ background:'#F5F3FF', borderRadius:10, border:'1px solid #DDD6FE', padding:'12px 16px', marginBottom:20, fontSize:13, color:'#5B21B6' }}>
+          El despacho elaborará el contrato. El administrador generará los pagarés en IRP una vez firmado.
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <label style={{ fontSize:12, fontWeight:700, color:'#374151', display:'block', marginBottom:6, textTransform:'uppercase' }}>
+            Seleccionar despacho *
+          </label>
+          {despachos.length === 0 ? (
+            <div style={{ padding:'12px', background:'#FEF3C7', borderRadius:8, fontSize:13, color:'#92400E' }}>
+              No hay despachos registrados. <a href="/despachos" style={{ color:'#0A66C2', fontWeight:700 }}>Registrar despacho →</a>
+            </div>
+          ) : (
+            <select value={despachoId} onChange={e => setDespachoId(e.target.value)}
+              style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, outline:'none' }}>
+              <option value="">— Seleccionar despacho —</option>
+              {despachos.map(d => (
+                <option key={d.id} value={d.id}>{d.nombre}{d.titular ? ` (${d.titular})` : ''}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {despachoSel && (
+          <div style={{ background:'#F9FAFB', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#374151', marginBottom:16 }}>
+            {despachoSel.email && <div>✉ {despachoSel.email}</div>}
+            {despachoSel.telefono && <div>📞 {despachoSel.telefono}</div>}
+            {despachoSel.domicilio && <div>📍 {despachoSel.domicilio}</div>}
+          </div>
+        )}
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:6, textTransform:'uppercase' }}>
+            Formato de investigación
+          </div>
+          <div style={{ fontSize:12, color:'#6B7280', marginBottom:8 }}>
+            Se generará un PDF con todos los datos del inquilino y aval/fiador para entregar al despacho.
+            {personas.length === 0 && <span style={{ color:'#B45309', fontWeight:600 }}> ⚠ Sin personas en el expediente.</span>}
+          </div>
+          <button onClick={handleSoloFormato}
+            style={{ padding:'7px 14px', background:'#F3F4F6', border:'1px solid #D1D5DB', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer', color:'#374151' }}>
+            Vista previa del formato →
+          </button>
+        </div>
+
+        <div style={{ display:'flex', gap:8, paddingTop:16, borderTop:'1px solid #E5E7EB' }}>
+          <button onClick={handleConfirmar} disabled={saving || !despachoId}
+            style={{ flex:1, padding:'11px', background: !despachoId ? '#E5E7EB' : '#7C3AED', color: !despachoId ? '#9CA3AF' : 'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor: despachoId ? 'pointer' : 'default' }}>
+            {saving ? 'Guardando...' : 'Confirmar y generar formato'}
+          </button>
+          <button onClick={onClose} style={{ padding:'11px 16px', background:'#F3F4F6', border:'none', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer' }}>
+            Cancelar
+          </button>
         </div>
       </div>
     </div>
