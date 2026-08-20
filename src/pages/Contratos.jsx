@@ -120,10 +120,11 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [localesSel, setLocalesSel] = useState([])
   const pdfRef = useRef()
 
-  const puedeRenovar = c && !['CANCELADO', 'RESCISION'].includes(c.estado_id) && (
-    c.estatus_proceso === 'EN_RENOVACION' ||
-    ['ALERTA', 'CRITICO', 'VENCIDO'].includes(c.semaforo_vencimiento)
-  )
+  // Renovar: solo si NO tiene ya renovación en proceso, y vence en ≤30d o ya expiró
+  const puedeRenovar = c
+    && !['CANCELADO', 'RESCISION'].includes(c.estado_id)
+    && c.estatus_proceso !== 'EN_RENOVACION'
+    && (c.dias_restantes <= 30 || c.semaforo_vencimiento === 'VENCIDO')
   const puedeCancelar = c && !['CANCELADO', 'RESCISION'].includes(c.estatus)
 
   const startEdit = async () => {
@@ -493,7 +494,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                 <button
                   onClick={() => setShowRenovar(true)}
                   disabled={!puedeRenovar}
-                  title={puedeRenovar ? 'Renovar contrato' : 'No disponible — el contrato ya fue cancelado, rescindido o está en proceso de renovación'}
+                  title={puedeRenovar ? 'Renovar contrato' : c?.estatus_proceso === 'EN_RENOVACION' ? 'Ya tiene renovación en proceso' : 'Solo disponible cuando vence en ≤30 días o ya está vencido'}
                   style={{ padding: '8px 14px', background: puedeRenovar ? 'var(--color-success)' : '#E5E7EB', color: puedeRenovar ? 'white' : '#9CA3AF', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: puedeRenovar ? 'pointer' : 'not-allowed' }}>
                   Renovar contrato
                 </button>

@@ -338,7 +338,7 @@ export default function Renovaciones() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F5F3FF' }}>
-                      {['Contrato', 'Local(es)', 'Arrendatario', 'Renta', 'Vencimiento original', 'Plazo', 'Acciones'].map(h => (
+                      {['Contrato', 'Local(es)', 'Arrendatario', 'Renta', 'Vencimiento original', 'Plazo', 'Proceso', 'Vigencia', 'Acciones'].map(h => (
                         <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: '#5B21B6', borderBottom: '1px solid #DDD6FE', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
@@ -375,6 +375,24 @@ export default function Renovaciones() {
                           </td>
                           <td style={{ padding: '13px 16px' }}>
                             <span style={{ fontSize: '11px', fontWeight: 600, color, background: color + '18', padding: '3px 8px', borderRadius: '12px' }}>{texto}</span>
+                          </td>
+                          {/* Estatus proceso */}
+                          <td style={{ padding: '13px 16px' }}>
+                            <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, background: '#F5F3FF', color: '#7C3AED', padding: '3px 8px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+                              EN RENOVACIÓN
+                            </span>
+                          </td>
+                          {/* Estatus vigencia */}
+                          <td style={{ padding: '13px 16px' }}>
+                            {(() => {
+                              const hoy = new Date().toISOString().split('T')[0]
+                              const vencido = c.fecha_fin && c.fecha_fin < hoy
+                              return (
+                                <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, background: vencido ? '#FEF2F2' : '#F0FDF4', color: vencido ? 'var(--color-danger)' : 'var(--color-success)', padding: '3px 8px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+                                  {vencido ? 'VENCIDO' : 'VIGENTE'}
+                                </span>
+                              )
+                            })()}
                           </td>
                           <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '4px' }}>
