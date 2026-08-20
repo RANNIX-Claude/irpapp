@@ -691,7 +691,13 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
     if (!form.fecha_inicio || !form.renta_mensual) { setError('Fecha inicio y renta son obligatorios.'); return }
     setSaving(true); setError(null)
     try {
-      const newFolio = (c.folio || 'CA').replace(/(-R\d+)?$/, '') + '-R' + new Date().getFullYear().toString().slice(-2)
+      // Quitar sufijo -Rxx existente y generar nuevo folio único con año
+      const base = (c.folio || 'CA').replace(/-R\d{2}(-\d+)?$/, '')
+      const anio = new Date().getFullYear().toString().slice(-2)
+      const candidato = `${base}-R${anio}`
+      // Verificar si ya existe ese folio; si es así, agregar sufijo incremental
+      const { data: existe } = await supabase.from('contratos').select('id').eq('numero_contrato', candidato).maybeSingle()
+      const newFolio = existe ? `${candidato}-${Date.now().toString().slice(-4)}` : candidato
       const { error: e1 } = await supabase.rpc('renovar_contrato', {
         p_contrato_id:       c.id,
         p_folio:             newFolio,
