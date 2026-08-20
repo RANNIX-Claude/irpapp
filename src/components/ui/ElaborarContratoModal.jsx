@@ -351,11 +351,27 @@ function StepGenerar({ generando, error, onGenerar, docsCompletos }) {
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
+// `contrato` es opcional — cuando se pasa (desde Renovaciones) precarga todos los datos del contrato anterior
+export default function ElaborarContratoModal({ prospecto, unidad, contrato, onClose }) {
   const [step, setStep] = useState(0)
   const [generando, setGenerando] = useState(null)
   const [docCheck, setDocCheck] = useState({})
   const [error, setError] = useState('')
+
+  // Calcular fecha de inicio para renovación: día siguiente al vencimiento del contrato anterior
+  const fechaInicioRenovacion = (() => {
+    if (!contrato?.fecha_fin) return ''
+    const d = new Date(contrato.fecha_fin + 'T12:00:00')
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+
+  // Calcular meses de depósito según ratio depósito/renta del contrato anterior
+  const mesesDepositoPrevio = (() => {
+    if (!contrato?.deposito_garantia || !contrato?.renta_mensual) return 1
+    const ratio = Math.round(contrato.deposito_garantia / contrato.renta_mensual)
+    return [1, 2, 3].includes(ratio) ? ratio : 1
+  })()
 
   const [form, setForm] = useState({
     tipo_persona: 'FISICA',
@@ -367,19 +383,19 @@ export default function ElaborarContratoModal({ prospecto, unidad, onClose }) {
     arrendatario_instrumento: '',
     numero_local: unidad?.numero_local || '',
     domicilio_local: 'Avenida Gobernadores número 1622, Colonia La Providencia, Código Postal 52177, en Metepec, México',
-    fecha_inicio: '',
+    fecha_inicio: fechaInicioRenovacion,
     fecha_fin: '',
-    duracion_meses: 12,
+    duracion_meses: contrato?.duracion_meses || 12,
     renta_mensual: prospecto?.monto_ofertado || '',
-    dia_pago: '10',
-    interes_moratorio: 'diez',
-    meses_deposito: 1,
+    dia_pago: contrato?.dia_pago ? String(contrato.dia_pago) : '10',
+    interes_moratorio: contrato?.penalizacion_pct === 5 ? 'cinco' : contrato?.penalizacion_pct === 10 ? 'diez' : contrato?.penalizacion_pct === 15 ? 'quince' : 'diez',
+    meses_deposito: mesesDepositoPrevio,
     giro_actividad: prospecto?.giro_solicitado || '',
     fiador_nombre: prospecto?.fiador_nombre || '',
     fiador_telefono: prospecto?.fiador_telefono || '',
     fiador_domicilio: prospecto?.fiador_domicilio || '',
     fiador_ine: '',
-    dia_vencimiento: 10,
+    dia_vencimiento: contrato?.dia_pago || 10,
   })
 
   useEffect(() => {
