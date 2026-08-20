@@ -602,9 +602,10 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
     renta_mensual:    c.renta_mensual ?? '',
     cuota_mant:       c.cuota_mant ?? 0,
     deposito_garantia: c.deposito_garantia ?? '',
-    dia_cobro:        c.dia_cobro ?? 1,
-    penalizacion_mora: c.penalizacion_mora ?? 5,
-    incremento_anual: c.incremento_anual ?? 0,
+    // dia_pago / penalizacion_pct / incremento_anual_pct son los nombres en prp_contratos
+    dia_cobro:        c.dia_pago ?? c.dia_cobro ?? 1,
+    penalizacion_mora: c.penalizacion_pct ?? c.penalizacion_mora ?? 5,
+    incremento_anual: c.incremento_anual_pct ?? c.incremento_anual ?? 0,
     fiador_nombre:    c.fiador_nombre ?? '',
     fiador_rfc:       c.fiador_rfc ?? '',
     fiador_domicilio: c.fiador_domicilio ?? '',
@@ -686,9 +687,9 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Renta y condiciones</div>
               <Row label="Renta mensual"><input type="number" value={form.renta_mensual} onChange={e => set('renta_mensual', e.target.value)} style={inp} /></Row>
               <Row label="Depósito"><input type="number" value={form.deposito_garantia} onChange={e => set('deposito_garantia', e.target.value)} style={inp} /></Row>
-              <Row label="Día pago"><input type="number" value={form.dia_pago} onChange={e => set('dia_pago', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
-              <Row label="Mora %"><input type="number" value={form.penalizacion_pct} onChange={e => set('penalizacion_pct', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
-              <Row label="Incremento %"><input type="number" value={form.incremento_anual_pct} onChange={e => set('incremento_anual_pct', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <Row label="Día pago"><input type="number" value={form.dia_cobro} onChange={e => set('dia_cobro', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <Row label="Mora %"><input type="number" value={form.penalizacion_mora} onChange={e => set('penalizacion_mora', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <Row label="Incremento %"><input type="number" value={form.incremento_anual} onChange={e => set('incremento_anual', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
             </div>
           </div>
 
