@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Inmuebles from './pages/Inmuebles.jsx'
 import Contratos from './pages/Contratos.jsx'
+import Renovaciones from './pages/Renovaciones.jsx'
 import Cobranza from './pages/Cobranza.jsx'
 import Arrendatarios from './pages/Arrendatarios.jsx'
 import Mantenimiento from './pages/Mantenimiento.jsx'
@@ -86,6 +87,7 @@ function AppLayout() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/inmuebles" element={<Inmuebles />} />
           <Route path="/contratos" element={<Contratos />} />
+          <Route path="/renovaciones" element={<Renovaciones />} />
           <Route path="/cobranza" element={<Cobranza />} />
           <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<Mantenimiento />} />
