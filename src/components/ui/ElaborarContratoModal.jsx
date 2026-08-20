@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react'
-import { FileText, Download, X, ChevronRight, ChevronLeft, AlertCircle, CheckCircle } from 'lucide-react'
+import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import { FileText, Download, X, ChevronRight, ChevronLeft, AlertCircle, CheckCircle, Upload, Eye, Paperclip } from 'lucide-react'
 import { logAudit } from '../../hooks/useAudit'
+import { supabase } from '../../lib/supabase'
 
 const NETLIFY_FN = '/.netlify/functions/generar-documentos'
 
@@ -42,6 +43,13 @@ const CAMPOS_DOC = {
     { key: 'estado_cuenta_3', label: 'Estado de cuenta bancario — mes 3', requerido: true },
   ],
 }
+
+const CAMPOS_FIADOR = [
+  { key: 'fiador_ine',       label: 'INE / Identificación oficial',             requerido: true  },
+  { key: 'fiador_domicilio_doc', label: 'Comprobante de domicilio (≤3 meses)', requerido: true  },
+  { key: 'fiador_ingresos',  label: 'Comprobante de ingresos / estado de cuenta', requerido: false },
+  { key: 'fiador_escrituras', label: 'Escrituras / garantía inmobiliaria',       requerido: false },
+]
 
 // ── Context para pasar form/set a componentes de formulario ─────────────────
 const FormCtx = createContext(null)
@@ -102,7 +110,42 @@ function FTextarea({ field, rows = 2, ...props }) {
 
 // ── Steps como componentes estables (fuera de ElaborarContratoModal) ─────────
 
-function StepArrendatario({ docCheck, setDocCheck }) {
+// ── Fila de documento con upload ─────────────────────────────────────────────
+function DocRow({ campo, checked, onCheck, url, onUpload, uploading }) {
+  const fileRef = useRef()
+  return (
+    <div className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:bg-gray-50">
+      <input type="checkbox" checked={checked} onChange={e => onCheck(e.target.checked)}
+        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0" />
+      <span className="text-sm text-gray-700 flex-1">
+        {campo.label}{campo.requerido && <span className="text-red-500 ml-1">*</span>}
+      </span>
+      <div className="flex items-center gap-1 shrink-0">
+        {url ? (
+          <>
+            <a href={url} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-md font-medium hover:bg-green-100">
+              <Eye size={11} /> Ver
+            </a>
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2 py-1 rounded-md font-medium hover:bg-gray-200">
+              {uploading ? '...' : 'Reemplazar'}
+            </button>
+          </>
+        ) : (
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md font-medium hover:bg-blue-100">
+            <Upload size={11} /> {uploading ? 'Subiendo...' : 'Subir'}
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(campo.key, f) }} />
+      </div>
+    </div>
+  )
+}
+
+function StepArrendatario({ docCheck, setDocCheck, docUrls, uploadingDoc, onUploadDoc, loadingDocs, hasContrato }) {
   const { form, set } = useContext(FormCtx)
   const camposDoc = CAMPOS_DOC[form.tipo_persona] || []
   const docsRequeridos = camposDoc.filter(c => c.requerido)
@@ -140,33 +183,42 @@ function StepArrendatario({ docCheck, setDocCheck }) {
       <Field label="Domicilio" required>
         <FTextarea field="arrendatario_domicilio" placeholder="Calle, número, colonia, CP, ciudad" />
       </Field>
+
+      {/* Expediente documental del arrendatario */}
       <div className="mt-6">
+        {loadingDocs && (
+          <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2 mb-3">
+            Cargando documentos del expediente...
+          </p>
+        )}
+        {!loadingDocs && hasContrato && Object.keys(docUrls).length > 0 && (
+          <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2 mb-3 flex items-center gap-2">
+            <CheckCircle size={13} />
+            {Object.keys(docUrls).length} documento(s) encontrado(s) en el expediente — subidos por el arrendatario o administrador.
+          </div>
+        )}
         <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <span>Documentación recibida</span>
+          <Paperclip size={14} />
+          <span>Expediente del arrendatario</span>
           {docsCompletos
-            ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={12} /> Completa</span>
+            ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={12} /> Completo</span>
             : <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertCircle size={12} /> Pendiente</span>
           }
         </h4>
-        <div className="space-y-2">
+        <div className="space-y-1">
           {camposDoc.map(campo => (
-            <label key={campo.key} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!docCheck[campo.key]}
-                onChange={e => setDocCheck(dc => ({ ...dc, [campo.key]: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700">
-                {campo.label}
-                {campo.requerido && <span className="text-red-500 ml-1">*</span>}
-              </span>
-            </label>
+            <DocRow key={campo.key} campo={campo}
+              checked={!!docCheck[campo.key]}
+              onCheck={v => setDocCheck(dc => ({ ...dc, [campo.key]: v }))}
+              url={docUrls[campo.key]}
+              uploading={uploadingDoc === campo.key}
+              onUpload={onUploadDoc}
+            />
           ))}
         </div>
         {!docsCompletos && (
           <p className="mt-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-            Los documentos marcados con * son requeridos para proceder con la elaboración del contrato.
+            Los documentos con * son requeridos. Puedes subir PDFs o imágenes.
           </p>
         )}
       </div>
@@ -229,11 +281,12 @@ function StepContrato() {
   )
 }
 
-function StepFiador() {
+function StepFiador({ docUrls, uploadingDoc, onUploadDoc, fiadorCheck, setFiadorCheck }) {
   const { form } = useContext(FormCtx)
+  const docsCompletos = CAMPOS_FIADOR.filter(c => c.requerido).every(c => fiadorCheck[c.key] || docUrls[c.key])
   return (
     <div>
-      <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Fiador</h3>
+      <h3 className="font-semibold text-gray-700 mb-4 pb-2 border-b">Fiador / Aval</h3>
       <Field label="Nombre completo del fiador" required>
         <FInput field="fiador_nombre" placeholder="Nombre del fiador solidario" />
       </Field>
@@ -241,6 +294,9 @@ function StepFiador() {
         <FInput field="fiador_ine" placeholder="Número de credencial para votar" />
       </Field>
       <div className="grid grid-cols-2 gap-4">
+        <Field label="RFC del fiador">
+          <FInput field="fiador_rfc" placeholder="RFC con homoclave" />
+        </Field>
         <Field label="Teléfono del fiador">
           <FInput field="fiador_telefono" placeholder="55 1234 5678" />
         </Field>
@@ -248,6 +304,29 @@ function StepFiador() {
       <Field label="Domicilio del fiador">
         <FTextarea field="fiador_domicilio" placeholder="Calle, número, colonia, CP, municipio, estado" />
       </Field>
+
+      {/* Expediente documental del fiador */}
+      <div className="mt-5 mb-2">
+        <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <Paperclip size={14} />
+          <span>Expediente del fiador</span>
+          {docsCompletos
+            ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={12} /> Completo</span>
+            : <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertCircle size={12} /> Pendiente</span>
+          }
+        </h4>
+        <div className="space-y-1">
+          {CAMPOS_FIADOR.map(campo => (
+            <DocRow key={campo.key} campo={campo}
+              checked={!!fiadorCheck[campo.key] || !!docUrls[campo.key]}
+              onCheck={v => setFiadorCheck(dc => ({ ...dc, [campo.key]: v }))}
+              url={docUrls[campo.key]}
+              uploading={uploadingDoc === campo.key}
+              onUpload={onUploadDoc}
+            />
+          ))}
+        </div>
+      </div>
 
       <h3 className="font-semibold text-gray-700 mt-6 mb-4 pb-2 border-b">Configuración de Pagarés</h3>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
@@ -356,6 +435,7 @@ export default function ElaborarContratoModal({ prospecto, unidad, contrato, onC
   const [step, setStep] = useState(0)
   const [generando, setGenerando] = useState(null)
   const [docCheck, setDocCheck] = useState({})
+  const [fiadorCheck, setFiadorCheck] = useState({})
   const [error, setError] = useState('')
 
   // Calcular fecha de inicio para renovación: día siguiente al vencimiento del contrato anterior
@@ -410,6 +490,52 @@ export default function ElaborarContratoModal({ prospecto, unidad, contrato, onC
 
   const camposDoc = CAMPOS_DOC[form.tipo_persona] || []
   const docsCompletos = camposDoc.filter(c => c.requerido).every(c => docCheck[c.key])
+
+  // Estado de documentos subidos — carga los que ya existen en Storage (subidos por arrendatario o admin)
+  const [docUrls, setDocUrls] = useState({})
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(null)
+
+  useEffect(() => {
+    const contratoId = contrato?.id
+    if (!contratoId) return
+    setLoadingDocs(true)
+    supabase.storage.from('contratos-firmados').list(`contratos/${contratoId}/docs`)
+      .then(({ data }) => {
+        if (!data) return
+        const urls = {}
+        data.forEach(file => {
+          const key = file.name.replace(/\.[^.]+$/, '') // strip extension
+          const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(`contratos/${contratoId}/docs/${file.name}`)
+          urls[key] = urlData.publicUrl
+        })
+        setDocUrls(urls)
+        // Auto-check docs que ya tienen archivo (arrendatario y fiador)
+        const arrendKeys = Object.keys(urls).filter(k => !k.startsWith('fiador_'))
+        const fiadorKeys = Object.keys(urls).filter(k => k.startsWith('fiador_'))
+        if (arrendKeys.length) setDocCheck(prev => { const u = { ...prev }; arrendKeys.forEach(k => { u[k] = true }); return u })
+        if (fiadorKeys.length) setFiadorCheck(prev => { const u = { ...prev }; fiadorKeys.forEach(k => { u[k] = true }); return u })
+      })
+      .finally(() => setLoadingDocs(false))
+  }, [contrato?.id])
+
+  const handleUploadDoc = async (key, file) => {
+    const contratoId = contrato?.id
+    if (!contratoId) {
+      alert('Guarda el contrato primero para poder adjuntar documentos.')
+      return
+    }
+    setUploadingDoc(key)
+    const ext = file.name.split('.').pop()
+    const path = `contratos/${contratoId}/docs/${key}.${ext}`
+    const { error: upErr } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
+    if (upErr) { setUploadingDoc(null); alert('Error al subir: ' + upErr.message); return }
+    const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(path)
+    setDocUrls(prev => ({ ...prev, [key]: urlData.publicUrl }))
+    // Auto-marcar checkbox si no estaba
+    setDocCheck(prev => ({ ...prev, [key]: true }))
+    setUploadingDoc(null)
+  }
 
   async function generar(tipo) {
     setError('')
@@ -507,9 +633,9 @@ export default function ElaborarContratoModal({ prospecto, unidad, contrato, onC
 
           {/* Content */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-            {step === 0 && <StepArrendatario docCheck={docCheck} setDocCheck={setDocCheck} />}
+            {step === 0 && <StepArrendatario docCheck={docCheck} setDocCheck={setDocCheck} docUrls={docUrls} uploadingDoc={uploadingDoc} onUploadDoc={handleUploadDoc} loadingDocs={loadingDocs} hasContrato={!!contrato?.id} />}
             {step === 1 && <StepContrato />}
-            {step === 2 && <StepFiador />}
+            {step === 2 && <StepFiador docUrls={docUrls} uploadingDoc={uploadingDoc} onUploadDoc={handleUploadDoc} fiadorCheck={fiadorCheck} setFiadorCheck={setFiadorCheck} />}
             {step === 3 && <StepGenerar generando={generando} error={error} onGenerar={generar} docsCompletos={docsCompletos} />}
           </div>
 

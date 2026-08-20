@@ -375,6 +375,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
               monto_ofertado:   c.renta_mensual,
             }}
             contrato={{
+              id:               c.id,
               fecha_fin:        c.fecha_fin,
               dia_pago:         c.dia_pago,
               duracion_meses:   12,
