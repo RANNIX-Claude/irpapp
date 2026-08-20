@@ -21,7 +21,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Prospectos',   path: '/prospectos',                        icon: UserPlus  },
       { label: 'Contratos',    path: '/contratos',                         icon: FileText  },
-      { label: 'Renovaciones', path: '/contratos?filtro=POR_VENCER',       icon: RotateCcw },
+      { label: 'Renovaciones', path: '/contratos?filtro=EN_RENOVACION',    icon: RotateCcw },
     ]
   },
   {

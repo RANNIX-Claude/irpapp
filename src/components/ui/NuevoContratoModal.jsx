@@ -69,8 +69,8 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
       // 2. Asociar local en public.contratos_locales
       const { error: e2 } = await supabase.from('contratos_locales').insert({
         contrato_id: nuevo.id,
-        local_id:    form.local_id,
-        renta_local: renta,
+        local_id:        form.local_id,
+        renta_asignada:  renta,
       })
       if (e2) throw e2
 

@@ -5,7 +5,7 @@ import NuevoContratoModalShared from '../components/ui/NuevoContratoModal'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
-  Send, Download, Eye, ChevronRight, Wand2, Pencil, Save
+  Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -40,13 +40,13 @@ function diasLabel(dias, semaforo) {
 
 // ─── Fila de tabla ───────────────────────────────────────────────────────────
 
-function ContratoRow({ c, onClick }) {
+function ContratoRow({ c, onView, onEdit, onDelete }) {
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      onClick={() => onClick(c)}>
+      onClick={() => onView(c)}>
       <td style={{ padding: '13px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-primary)' }}>{c.folio}</span>
@@ -74,9 +74,25 @@ function ContratoRow({ c, onClick }) {
       </td>
       <td style={{ padding: '13px 16px' }}>
         <StatusBadge status={c.estado_id} />
+        {c.estatus_proceso === 'EN_RENOVACION' && (
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#7C3AED', marginTop: '3px' }}>En renovación</div>
+        )}
       </td>
-      <td style={{ padding: '13px 16px' }}>
-        <ChevronRight size={16} color="#9CA3AF" />
+      <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button title="Ver detalle" onClick={e => { e.stopPropagation(); onView(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-primary)' }}>
+            <Eye size={14} />
+          </button>
+          <button title="Editar contrato" onClick={e => { e.stopPropagation(); onEdit(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-secondary)' }}>
+            <Pencil size={14} />
+          </button>
+          <button title="Eliminar contrato" onClick={e => { e.stopPropagation(); onDelete(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)' }}>
+            <Trash2 size={14} />
+          </button>
+        </div>
       </td>
     </tr>
   )
@@ -84,7 +100,7 @@ function ContratoRow({ c, onClick }) {
 
 // ─── Modal de detalle con tabs ───────────────────────────────────────────────
 
-function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60 }) {
+function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initialEditMode = false }) {
   const [tab, setTab] = useState('datos')
   const [notas, setNotas] = useState([])
   const [notasLoading, setNotasLoading] = useState(false)
@@ -96,7 +112,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60 }) {
   const [showElaborar, setShowElaborar] = useState(false)
   const [showRenovar, setShowRenovar] = useState(false)
   const [showCancelar, setShowCancelar] = useState(false)
-  const [editMode, setEditMode] = useState(false)
+  const [editMode, setEditMode] = useState(initialEditMode)
   const [editForm, setEditForm] = useState({})
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErr, setEditErr] = useState(null)
@@ -792,6 +808,9 @@ export default function Contratos() {
   const [sortCol, setSortCol] = useState('fecha_inicio')
   const [sortAsc, setSortAsc] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [selectedInEditMode, setSelectedInEditMode] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [showNuevo, setShowNuevo] = useState(false)
 
   // ?filtro=POR_VENCER viene del link "Renovaciones" del sidebar
@@ -814,7 +833,7 @@ export default function Contratos() {
   const cntVigentes    = lista.filter(c => c.estado_id === 'VIGENTE' && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento)).length
   const cntPorVencer   = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
   const cntVencidos    = lista.filter(c => c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO').length
-  const cntRenovacion  = lista.filter(c => c.estado_id === 'EN_RENOVACION').length
+  const cntRenovacion  = lista.filter(c => c.estatus_proceso === 'EN_RENOVACION').length
   const cntRescision   = lista.filter(c => c.estado_id === 'RESCISION').length
   const cntCancelados  = lista.filter(c => c.estado_id === 'CANCELADO').length
   const rentaTotal     = lista.filter(c => c.estado_id === 'VIGENTE').reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
@@ -852,7 +871,8 @@ export default function Contratos() {
         || (filtroEst === 'POR_VENCER' && ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento))
         || (filtroEst === 'VENCIDO'    && (c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO'))
         || (filtroEst === 'VIGENTE'    && c.estado_id === 'VIGENTE'  && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento))
-        || (!['POR_VENCER','VENCIDO','VIGENTE'].includes(filtroEst) && c.estado_id === filtroEst)
+        || (filtroEst === 'EN_RENOVACION' && c.estatus_proceso === 'EN_RENOVACION')
+        || (!['POR_VENCER','VENCIDO','VIGENTE','EN_RENOVACION'].includes(filtroEst) && c.estado_id === filtroEst)
       const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
       return matchQ && matchE && matchPDF
     })
@@ -992,7 +1012,13 @@ export default function Contratos() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtrados.map(c => <ContratoRow key={c.id} c={c} onClick={setSelected} />)}
+                    {filtrados.map(c => (
+                      <ContratoRow key={c.id} c={c}
+                        onView={c => { setSelectedInEditMode(false); setSelected(c) }}
+                        onEdit={c => { setSelectedInEditMode(true); setSelected(c) }}
+                        onDelete={c => setConfirmDelete(c)}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1001,10 +1027,52 @@ export default function Contratos() {
 
       <DetalleModal
         contrato={selected}
-        onClose={() => setSelected(null)}
-        onUpdated={() => { setRefreshKey(k => k + 1); setSelected(null) }}
+        onClose={() => { setSelected(null); setSelectedInEditMode(false) }}
+        onUpdated={() => { setRefreshKey(k => k + 1); setSelected(null); setSelectedInEditMode(false) }}
         diasAnticip={diasAnticip}
+        initialEditMode={selectedInEditMode}
       />
+
+      {/* Modal confirmación de borrado */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Trash2 size={18} color="var(--color-danger)" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '16px' }}>Eliminar contrato</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>{confirmDelete.folio}</div>
+              </div>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-text)', margin: '0 0 8px', lineHeight: 1.5 }}>
+              ¿Confirmas eliminar el contrato de <strong>{confirmDelete.arrendatario_nombre}</strong>?
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--color-danger)', margin: '0 0 24px', background: '#FFF5F5', padding: '10px 14px', borderRadius: '8px', border: '1px solid #FECACA' }}>
+              Esta acción es irreversible. El registro se eliminará permanentemente.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDelete(null)} disabled={deleting}
+                style={{ padding: '9px 20px', border: '1px solid #E5E7EB', borderRadius: '8px', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                Cancelar
+              </button>
+              <button disabled={deleting} onClick={async () => {
+                setDeleting(true)
+                await supabase.from('contratos_locales').delete().eq('contrato_id', confirmDelete.id)
+                await supabase.from('contratos').delete().eq('id', confirmDelete.id)
+                setDeleting(false)
+                setConfirmDelete(null)
+                setRefreshKey(k => k + 1)
+              }}
+                style={{ padding: '9px 20px', border: 'none', borderRadius: '8px', background: 'var(--color-danger)', color: 'white', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, opacity: deleting ? 0.7 : 1 }}>
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNuevo && (
         <NuevoContratoModal
           onClose={() => setShowNuevo(false)}
