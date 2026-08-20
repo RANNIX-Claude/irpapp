@@ -257,41 +257,43 @@ function generarContrato(d) {
 
     // Firmas
     new Paragraph({ children: [new PageBreak()] }),
-    p(F.normal('Leído que fue el presente contrato y enteradas las partes de su contenido, alcance y consecuencias legales, lo firman de conformidad en la ciudad de Metepec, Estado de México, el día '), AlignmentType.JUSTIFIED),
-    p(F.bold(fechaLetras(fecha_inicio) + '.'), AlignmentType.CENTER),
-    F.espacio(),
+    // Fecha inline en el mismo párrafo
+    new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { after: 480 },
+      children: [
+        new TextRun({ text: 'Leído que fue el presente contrato y enteradas las partes de su contenido, alcance y consecuencias legales, lo firman de conformidad en la ciudad de Metepec, Estado de México, el día ', size: 24 }),
+        new TextRun({ text: fechaLetras(fecha_inicio) + '.', bold: true, size: 24 }),
+      ],
+    }),
     F.espacio(),
 
-    // Tabla de firmas
+    // Tabla de firmas — sin líneas de guiones, espacio suficiente para firma manuscrita
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideH: { style: BorderStyle.NONE }, insideV: { style: BorderStyle.NONE } },
       rows: [
         new TableRow({ children: [
-          new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, children: [
-            p(F.normal('______________________________'), AlignmentType.CENTER),
+          new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: { top: { style: BorderStyle.SINGLE, size: 4, color: '000000' }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }, children: [
             p(F.bold('"EL SUBARRENDADOR"'), AlignmentType.CENTER),
             p(F.normal(subarrendador_rep), AlignmentType.CENTER),
             p(F.normal(subarrendador_empresa), AlignmentType.CENTER),
           ]}),
           new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, children: [p(F.normal(''))] }),
-          new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, children: [
-            p(F.normal('______________________________'), AlignmentType.CENTER),
+          new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: { top: { style: BorderStyle.SINGLE, size: 4, color: '000000' }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }, children: [
             p(F.bold('"EL SUBARRENDATARIO"'), AlignmentType.CENTER),
             p(F.normal(tipo_persona === 'MORAL' ? arrendatario_rep : arrendatario_nombre), AlignmentType.CENTER),
-            p(F.normal(arrendatario_nombre), AlignmentType.CENTER),
           ]}),
         ]}),
         new TableRow({ children: [
-          new TableCell({ children: [F.espacio(), F.espacio()] }),
+          new TableCell({ children: [F.espacio(), F.espacio(), F.espacio()] }),
           new TableCell({ children: [F.espacio()] }),
-          new TableCell({ children: [F.espacio(), F.espacio()] }),
+          new TableCell({ children: [F.espacio(), F.espacio(), F.espacio()] }),
         ]}),
         new TableRow({ children: [
           new TableCell({ children: [p(F.normal(''))] }),
           new TableCell({ children: [p(F.normal(''))] }),
-          new TableCell({ children: [
-            p(F.normal('______________________________'), AlignmentType.CENTER),
+          new TableCell({ borders: { top: { style: BorderStyle.SINGLE, size: 4, color: '000000' }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }, children: [
             p(F.bold('FIADOR'), AlignmentType.CENTER),
             p(F.normal(fiador_nombre), AlignmentType.CENTER),
           ]}),
