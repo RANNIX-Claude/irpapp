@@ -116,6 +116,8 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [editForm, setEditForm] = useState({})
   const [savingEdit, setSavingEdit] = useState(false)
   const [editErr, setEditErr] = useState(null)
+  const [localesDisp, setLocalesDisp] = useState([])
+  const [localesSel, setLocalesSel] = useState([])
   const pdfRef = useRef()
 
   const puedeRenovar = c && !['CANCELADO', 'RESCISION'].includes(c.estado_id) && (
@@ -124,7 +126,13 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   )
   const puedeCancelar = c && !['CANCELADO', 'RESCISION'].includes(c.estatus)
 
-  const startEdit = () => {
+  const startEdit = async () => {
+    // Cargar locales disponibles
+    const { data: todos } = await supabase.from('cat_locales').select('id_local, numero_local, superficie_m2').order('numero_local')
+    setLocalesDisp(todos ?? [])
+    // Locales actuales del contrato
+    const { data: actuales } = await supabase.from('contratos_locales').select('local_id, renta_asignada').eq('contrato_id', c.id)
+    setLocalesSel((actuales ?? []).map(l => l.local_id))
     setEditForm({
       renta_mensual:              c.renta_mensual ?? '',
       deposito_garantia:          c.deposito_garantia ?? '',
@@ -170,9 +178,25 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     if ('fiador_rfc' in c)                   payload.fiador_rfc = editForm.fiador_rfc || null
     if ('fiador_domicilio' in c)             payload.fiador_domicilio = editForm.fiador_domicilio || null
 
+    // Actualizar locales_referencia y locales_display en contratos
+    const rentaXLocal = localesSel.length > 0 ? (parseFloat(editForm.renta_mensual) || 0) / localesSel.length : 0
+    payload.locales_referencia = localesSel.sort().join('|')
+    payload.locales_display    = localesSel.sort().map(l => l.replace('L0','L').replace(/^L(\d)$/,'L$1')).join(', ')
+
     const { error } = await supabase.from('contratos').update(payload).eq('id', c.id)
+    if (error) { setSavingEdit(false); setEditErr(error.message); return }
+
+    // Sincronizar contratos_locales
+    await supabase.from('contratos_locales').delete().eq('contrato_id', c.id)
+    if (localesSel.length > 0) {
+      await supabase.from('contratos_locales').insert(
+        localesSel.map(lid => ({ contrato_id: c.id, local_id: lid, renta_asignada: rentaXLocal }))
+      )
+      // Actualizar cat_locales para que apunten a este contrato
+      await supabase.from('cat_locales').update({ contrato_activo_id: c.id, estatus: 'OCUPADO' }).in('id_local', localesSel)
+    }
+
     setSavingEdit(false)
-    if (error) { setEditErr(error.message); return }
     setEditMode(false)
     onUpdated?.()
   }
@@ -307,11 +331,40 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                 )
                 return (
                   <div>
-                    {/* Local y arrendatario — solo lectura, no se editan */}
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', padding: '10px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 800, background: 'var(--color-primary)', color: 'white', padding: '3px 10px', borderRadius: '20px', whiteSpace: 'nowrap' }}>{c.unidad_numero}</span>
+                    {/* Arrendatario — solo lectura */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', padding: '10px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>{c.arrendatario_nombre}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Local e inquilino no editables</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inquilino no editable</span>
+                    </div>
+
+                    {/* Selector de locales */}
+                    <div style={{ marginBottom: '16px', padding: '14px', background: '#F8FAFF', borderRadius: '10px', border: '1px solid #C7D2FE' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                        Locales asignados a este contrato
+                        <span style={{ marginLeft: '8px', fontWeight: 400, color: '#6B7280', textTransform: 'none' }}>
+                          ({localesSel.length} seleccionado{localesSel.length !== 1 ? 's' : ''})
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                        {localesDisp.map(l => {
+                          const sel = localesSel.includes(l.id_local)
+                          return (
+                            <button key={l.id_local} type="button"
+                              onClick={() => setLocalesSel(prev => sel ? prev.filter(x => x !== l.id_local) : [...prev, l.id_local])}
+                              style={{
+                                padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                                border: `2px solid ${sel ? 'var(--color-primary)' : '#D1D5DB'}`,
+                                background: sel ? 'var(--color-primary)' : 'white',
+                                color: sel ? 'white' : '#374151',
+                                transition: 'all 0.12s',
+                              }}>
+                              {l.numero_local}
+                              {l.superficie_m2 && <span style={{ fontSize: '10px', opacity: 0.7, marginLeft: '4px' }}>{l.superficie_m2}m²</span>}
+                            </button>
+                          )
+                        })}
+                        {localesDisp.length === 0 && <span style={{ fontSize: '12px', color: '#9CA3AF' }}>Cargando locales...</span>}
+                      </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
                       <div>
