@@ -1146,6 +1146,8 @@ export default function Prospectos() {
   const [modalLink, setModalLink]   = useState(null)
   const [modalEditar, setModalEditar] = useState(null)
   const [mostrarInactivos, setMostrarInactivos] = useState(false)
+  const [confirmEliminar, setConfirmEliminar] = useState(null)
+  const [eliminando, setEliminando] = useState(false)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -1258,6 +1260,9 @@ export default function Prospectos() {
                         <button onClick={e => { e.stopPropagation(); setModalEditar({ ...p, _cancelar: true }) }}
                           style={{ ...btnMini, background:'#FEE2E2', color:'#B24020' }}>Cancelar</button>
                       )}
+                      <button onClick={e => { e.stopPropagation(); setConfirmEliminar(p) }}
+                        title="Eliminar permanentemente"
+                        style={{ ...btnMini, background:'#1F2937', color:'white', minWidth:28, padding:'0 7px' }}>🗑</button>
                     </div>
                   </td>
                 </tr>
@@ -1288,6 +1293,43 @@ export default function Prospectos() {
           onClose={() => setModalEditar(null)}
           onSaved={refresh}
         />
+      )}
+
+      {/* Modal confirmación eliminar prospecto */}
+      {confirmEliminar && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ background:'white', borderRadius:14, padding:28, maxWidth:400, width:'90%', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+              <div style={{ width:40, height:40, borderRadius:'50%', background:'#1F2937', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>🗑</div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:16 }}>Eliminar prospecto</div>
+                <div style={{ fontSize:12, color:'#6B7280' }}>PROS-{confirmEliminar.id.substr(0,8)}</div>
+              </div>
+            </div>
+            <p style={{ fontSize:13, margin:'0 0 8px', lineHeight:1.5 }}>
+              ¿Confirmas eliminar a <strong>{confirmEliminar.nombre_negocio}</strong>?
+            </p>
+            <p style={{ fontSize:12, color:'#B24020', margin:'0 0 24px', background:'#FFF5F5', padding:'10px 14px', borderRadius:8, border:'1px solid #FECACA' }}>
+              Acción irreversible. Se eliminará el registro permanentemente.
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setConfirmEliminar(null)} disabled={eliminando}
+                style={{ padding:'9px 20px', border:'1px solid #E5E7EB', borderRadius:8, background:'white', cursor:'pointer', fontSize:13, fontWeight:600 }}>
+                Cancelar
+              </button>
+              <button disabled={eliminando} onClick={async () => {
+                setEliminando(true)
+                await supabase.from('prospectos').delete().eq('id', confirmEliminar.id)
+                setEliminando(false)
+                setConfirmEliminar(null)
+                refresh()
+              }}
+                style={{ padding:'9px 20px', border:'none', borderRadius:8, background:'#1F2937', color:'white', cursor: eliminando ? 'not-allowed' : 'pointer', fontSize:13, fontWeight:600, opacity: eliminando ? 0.7 : 1 }}>
+                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

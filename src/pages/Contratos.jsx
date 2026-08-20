@@ -118,7 +118,10 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [editErr, setEditErr] = useState(null)
   const pdfRef = useRef()
 
-  const puedeRenovar = c && ['VIGENTE', 'ALERTA', 'CRITICO', 'VENCIDO'].includes(c.semaforo_vencimiento) && !['CANCELADO', 'RESCISION', 'EN_RENOVACION'].includes(c.estado_id)
+  const puedeRenovar = c && !['CANCELADO', 'RESCISION'].includes(c.estado_id) && (
+    c.estatus_proceso === 'EN_RENOVACION' ||
+    ['ALERTA', 'CRITICO', 'VENCIDO'].includes(c.semaforo_vencimiento)
+  )
   const puedeCancelar = c && !['CANCELADO', 'RESCISION'].includes(c.estatus)
 
   const startEdit = () => {
@@ -805,6 +808,8 @@ export default function Contratos() {
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
   const [filtroPDF, setFiltroPDF] = useState('Todos')
+  const [filtroVencAno, setFiltroVencAno] = useState('')
+  const [filtroVencMes, setFiltroVencMes] = useState('')
   const [sortCol, setSortCol] = useState('fecha_inicio')
   const [sortAsc, setSortAsc] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -874,7 +879,9 @@ export default function Contratos() {
         || (filtroEst === 'EN_RENOVACION' && c.estatus_proceso === 'EN_RENOVACION')
         || (!['POR_VENCER','VENCIDO','VIGENTE','EN_RENOVACION'].includes(filtroEst) && c.estado_id === filtroEst)
       const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
-      return matchQ && matchE && matchPDF
+      const matchVencAno = !filtroVencAno || (c.fecha_fin && c.fecha_fin.startsWith(filtroVencAno))
+      const matchVencMes = !filtroVencMes || (c.fecha_fin && c.fecha_fin.startsWith(filtroVencMes))
+      return matchQ && matchE && matchPDF && matchVencAno && matchVencMes
     })
     .sort((a, b) => {
       const va = a[sortCol] ?? (sortCol === 'dias_restantes' ? 99999 : ''); const vb = b[sortCol] ?? (sortCol === 'dias_restantes' ? 99999 : '')
@@ -994,6 +1001,27 @@ export default function Contratos() {
           </button>
         ))}
         <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: '8px' }}>{filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}</span>
+
+        {/* Filtro por vencimiento año/mes */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>VENCE EN:</span>
+          <select value={filtroVencAno} onChange={e => { setFiltroVencAno(e.target.value); setFiltroVencMes('') }}
+            style={{ padding: '5px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid', borderColor: filtroVencAno ? 'var(--color-primary)' : '#E5E7EB', background: filtroVencAno ? '#EEF2FF' : 'white', color: filtroVencAno ? 'var(--color-primary)' : 'var(--color-text-light)', cursor: 'pointer' }}>
+            <option value="">Año</option>
+            {['2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select value={filtroVencMes} onChange={e => setFiltroVencMes(e.target.value)} disabled={!filtroVencAno}
+            style={{ padding: '5px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: '1px solid', borderColor: filtroVencMes ? 'var(--color-primary)' : '#E5E7EB', background: filtroVencMes ? '#EEF2FF' : (filtroVencAno ? 'white' : '#F9FAFB'), color: filtroVencMes ? 'var(--color-primary)' : 'var(--color-text-light)', cursor: filtroVencAno ? 'pointer' : 'default' }}>
+            <option value="">Mes</option>
+            {[['01','Ene'],['02','Feb'],['03','Mar'],['04','Abr'],['05','May'],['06','Jun'],['07','Jul'],['08','Ago'],['09','Sep'],['10','Oct'],['11','Nov'],['12','Dic']].map(([n,l]) => (
+              <option key={n} value={`${filtroVencAno}-${n}`}>{l}</option>
+            ))}
+          </select>
+          {(filtroVencAno || filtroVencMes) && (
+            <button onClick={() => { setFiltroVencAno(''); setFiltroVencMes('') }}
+              style={{ padding: '4px 8px', border: 'none', borderRadius: '5px', background: '#F3F4F6', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: '#6B7280' }}>✕</button>
+          )}
+        </div>
       </div>
 
       {/* Tabla */}
