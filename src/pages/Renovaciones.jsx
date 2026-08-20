@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, FileText, CheckCircle, Clock, AlertTriangle, Eye, Pencil, Trash2, X, Save, Paperclip } from 'lucide-react'
+import { RefreshCw, FileText, CheckCircle, Clock, AlertTriangle, Eye, Pencil, Trash2, X, Save, Paperclip, Wand2 } from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 import StatusBadge from '../components/ui/StatusBadge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
+import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 
 // Sólo aparecen contratos con estatus_proceso = EN_RENOVACION
 // Salen de aquí cuando se cambia a EN_EJECUCION (contrato firmado y vigente)
@@ -27,6 +28,7 @@ function PanelDetalle({ contrato: c, onClose, onUpdated, onCerrar }) {
   const [err, setErr] = useState(null)
   const [confirmCerrar, setConfirmCerrar] = useState(false)
   const [cerrando, setCerrando] = useState(false)
+  const [showElaborar, setShowElaborar] = useState(false)
 
   const startEdit = () => {
     setEditForm({
@@ -193,13 +195,37 @@ function PanelDetalle({ contrato: c, onClose, onUpdated, onCerrar }) {
           )}
         </div>
 
+        {/* Modal elaborar contrato — puede abrirse múltiples veces hasta que quede afinado */}
+        {showElaborar && (
+          <ElaborarContratoModal
+            prospecto={{
+              nombre:           c.arrendatario_nombre,
+              domicilio:        c.fiador_domicilio || '',
+              rfc:              c.arrendatario_rfc || '',
+              telefono:         '',
+              giro_solicitado:  c.giro_autorizado || '',
+              fiador_nombre:    c.fiador_nombre || '',
+              fiador_telefono:  '',
+              fiador_domicilio: c.fiador_domicilio || '',
+              monto_ofertado:   c.renta_mensual,
+            }}
+            unidad={{ numero_local: c.unidad_numero || c.locales_display }}
+            onClose={() => setShowElaborar(false)}
+          />
+        )}
+
         {/* Footer — acciones */}
         {!editMode && (
           <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA' }}>
             {!confirmCerrar ? (
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Elaborar contrato — puede hacerse múltiples veces hasta quedar afinado */}
+                <button onClick={() => setShowElaborar(true)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  <Wand2 size={16} /> Elaborar Contrato
+                </button>
                 <button onClick={() => setConfirmCerrar(true)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
                   <CheckCircle size={16} /> Marcar como en ejecución
                 </button>
               </div>
