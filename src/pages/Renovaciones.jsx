@@ -24,7 +24,21 @@ function fmtFecha(s) {
 function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated, onCerrar }) {
   const [tab, setTab] = useState('datos')
   const [editMode, setEditMode] = useState(initialEditMode)
-  const [editForm, setEditForm] = useState({})
+  const [editForm, setEditForm] = useState({
+    renta_mensual:     c?.renta_mensual     ?? '',
+    deposito_garantia: c?.deposito_garantia ?? '',
+    fecha_inicio:      c?.fecha_inicio      ?? '',
+    fecha_fin:         c?.fecha_fin         ?? '',
+    giro_autorizado:   c?.giro_autorizado   ?? '',
+    dia_pago:          c?.dia_pago          ?? '',
+    penalizacion_pct:  c?.penalizacion_pct  ?? '',
+    pagares_cantidad:  c?.pagares_cantidad  ?? '',
+    fiador_nombre:     c?.fiador_nombre     ?? '',
+    fiador_rfc:        c?.fiador_rfc        ?? '',
+    fiador_telefono:   c?.fiador_telefono   ?? '',
+    fiador_domicilio:  c?.fiador_domicilio  ?? '',
+    notas:             c?.notas             ?? '',
+  })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [confirmCerrar, setConfirmCerrar] = useState(false)
@@ -35,21 +49,6 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
   const pdfRef = useRef()
 
   const startEdit = () => {
-    setEditForm({
-      renta_mensual:     c.renta_mensual ?? '',
-      deposito_garantia: c.deposito_garantia ?? '',
-      fecha_inicio:      c.fecha_inicio ?? '',
-      fecha_fin:         c.fecha_fin ?? '',
-      giro_autorizado:   c.giro_autorizado ?? '',
-      dia_pago:          c.dia_pago ?? '',
-      penalizacion_pct:  c.penalizacion_pct ?? '',
-      pagares_cantidad:  c.pagares_cantidad ?? '',
-      fiador_nombre:     c.fiador_nombre ?? '',
-      fiador_rfc:        c.fiador_rfc ?? '',
-      fiador_telefono:   c.fiador_telefono ?? '',
-      fiador_domicilio:  c.fiador_domicilio ?? '',
-      notas:             c.notas ?? '',
-    })
     setErr(null)
     setEditMode(true)
   }
