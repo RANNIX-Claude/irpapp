@@ -1,9 +1,11 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Wrench, Plus, Search, AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar, User, MapPin, X, Users, Image, FileText, Printer, ChevronDown } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import StatusBadge from '../components/ui/StatusBadge'
 import EmptyState from '../components/ui/EmptyState'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { supabase } from '../lib/supabase'
 
 const PRIORIDAD_STYLE = {
   ALTA: { bg: '#FEF2F2', text: '#B24020', label: 'Alta' },
@@ -471,13 +473,34 @@ function OTModal({ ot, onClose, onUpdate }) {
 // ── Página principal ───────────────────────────────────────────────────────────
 export default function Mantenimiento() {
   useModuleAudit('MANTENIMIENTO')
-  const [ordenes, setOrdenes] = useState(ORDENES_INICIAL)
+  const [ordenes, setOrdenes] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('Todos')
   const [prioFiltro, setPrioFiltro] = useState('Todas')
   const [selected, setSelected] = useState(null)
 
-  const updateOT = (updated) => {
+  const fetchOrdenes = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('ordenes_trabajo')
+      .select('*')
+      .order('fecha_apertura', { ascending: false })
+    setOrdenes(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchOrdenes() }, [])
+
+  const updateOT = async (updated) => {
+    await supabase.from('ordenes_trabajo').update({
+      estado:           updated.estado,
+      costo_real:       updated.costo_real || null,
+      fecha_cierre_real: updated.fecha_cierre_real || null,
+      asignado:         updated.asignado,
+      evidencias:       undefined, // evidencias se manejan en Storage
+      updated_at:       new Date().toISOString(),
+    }).eq('id', updated.id)
     setOrdenes(prev => prev.map(o => o.id === updated.id ? updated : o))
     setSelected(updated.estado !== 'COMPLETADO' ? updated : null)
   }
@@ -494,6 +517,8 @@ export default function Mantenimiento() {
   const urgentes = ordenes.filter(o => o.prioridad === 'URGENTE' && o.estado !== 'COMPLETADO').length
   const completadas = ordenes.filter(o => o.estado === 'COMPLETADO').length
   const costoTotal = ordenes.reduce((a, b) => a + (b.costo_real || b.costo_est), 0)
+
+  if (loading) return <div style={{ padding: '60px', textAlign: 'center' }}><LoadingSpinner /></div>
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>

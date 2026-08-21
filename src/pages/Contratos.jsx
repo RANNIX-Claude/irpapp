@@ -5,7 +5,8 @@ import NuevoContratoModalShared from '../components/ui/NuevoContratoModal'
 import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
-  Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2
+  Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
+  Grid, AlignJustify
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -40,7 +41,47 @@ function diasLabel(dias, semaforo) {
 
 // ─── Fila de tabla ───────────────────────────────────────────────────────────
 
-function ContratoRow({ c, onView, onEdit, onDelete }) {
+const PROCESO_OPTS = [
+  { val: 'EN_CONTRATACION', label: 'En contratación', color: '#0A66C2', bg: '#EFF6FF' },
+  { val: 'EN_RENOVACION',   label: 'En renovación',   color: '#7C3AED', bg: '#F5F3FF' },
+  { val: 'EN_EJECUCION',    label: 'En ejecución',    color: '#057642', bg: '#ECFDF5' },
+]
+
+function ProcesoBadge({ c, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const opt = PROCESO_OPTS.find(o => o.val === c.estatus_proceso) || { label: c.estatus_proceso || '—', color: '#6B7280', bg: '#F3F4F6' }
+
+  const cambiar = async (val) => {
+    setOpen(false); setSaving(true)
+    await supabase.from('contratos').update({ estatus_proceso: val, updated_at: new Date().toISOString() }).eq('id', c.id)
+    setSaving(false)
+    onChange?.()
+  }
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }} onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOpen(o => !o)} disabled={saving}
+        title="Cambiar estatus de proceso"
+        style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', background: opt.bg, color: opt.color, border: `1px solid ${opt.color}40`, borderRadius: '12px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        {saving ? '...' : opt.label}
+        <span style={{ fontSize: '8px' }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: '150px', overflow: 'hidden', marginTop: '4px' }}>
+          {PROCESO_OPTS.map(o => (
+            <button key={o.val} onClick={() => cambiar(o.val)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: c.estatus_proceso === o.val ? o.bg : 'white', color: o.color, fontSize: '12px', fontWeight: c.estatus_proceso === o.val ? 700 : 500, cursor: 'pointer' }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
@@ -72,11 +113,11 @@ function ContratoRow({ c, onView, onEdit, onDelete }) {
       <td style={{ padding: '13px 16px' }}>
         <span style={{ fontSize: '11px', fontWeight: 600, color, background: color + '18', padding: '3px 8px', borderRadius: '12px' }}>{texto}</span>
       </td>
-      <td style={{ padding: '13px 16px' }}>
+      <td style={{ padding: '13px 16px' }} onClick={e => e.stopPropagation()}>
         <StatusBadge status={c.estado_id} />
-        {c.estatus_proceso === 'EN_RENOVACION' && (
-          <div style={{ fontSize: '10px', fontWeight: 700, color: '#7C3AED', marginTop: '3px' }}>En renovación</div>
-        )}
+        <div style={{ marginTop: '4px' }}>
+          <ProcesoBadge c={c} onChange={onRefresh} />
+        </div>
       </td>
       <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
@@ -860,6 +901,97 @@ function NuevoContratoModal({ onClose, onCreated, fromProspecto = null }) {
 }
 
 
+// ─── Vista Anual de Vencimientos ──────────────────────────────────────────────
+
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+function VistaAnual({ lista, anio, onSelectContrato }) {
+  const hoy = new Date()
+
+  const byMes = Array.from({ length: 12 }, (_, i) => {
+    const mes = String(i + 1).padStart(2, '0')
+    const prefix = `${anio}-${mes}`
+    return lista.filter(c => c.fecha_fin && c.fecha_fin.startsWith(prefix))
+  })
+
+  const chipColor = (c) => {
+    if (!c.fecha_fin) return { bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' }
+    const d = new Date(c.fecha_fin + 'T12:00:00')
+    const dias = Math.round((d - hoy) / 86400000)
+    if (dias < 0)  return { bg: '#FEF2F2', text: '#B24020', border: '#FECACA' }
+    if (dias <= 30) return { bg: '#FFF7ED', text: '#C2410C', border: '#FED7AA' }
+    if (dias <= 60) return { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' }
+    return { bg: '#F0FDF4', text: '#057642', border: '#BBF7D0' }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+      {byMes.map((contratos, i) => {
+        const esActual = hoy.getFullYear() === parseInt(anio) && hoy.getMonth() === i
+        return (
+          <div key={i} style={{
+            background: 'white', borderRadius: '10px',
+            border: esActual ? '2px solid var(--color-primary)' : '1px solid #E5E7EB',
+            overflow: 'hidden', minHeight: '120px',
+          }}>
+            {/* Cabecera del mes */}
+            <div style={{
+              padding: '8px 14px',
+              background: esActual ? 'var(--color-primary)' : '#F9FAFB',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: esActual ? 'white' : 'var(--color-text)' }}>
+                {MESES[i]} {anio}
+              </span>
+              {contratos.length > 0 && (
+                <span style={{
+                  fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px',
+                  background: esActual ? 'rgba(255,255,255,0.25)' : 'var(--color-primary)',
+                  color: 'white',
+                }}>
+                  {contratos.length}
+                </span>
+              )}
+            </div>
+
+            {/* Chips de contratos */}
+            <div style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {contratos.length === 0 ? (
+                <span style={{ fontSize: '11px', color: '#D1D5DB', textAlign: 'center', padding: '12px 0', display: 'block' }}>—</span>
+              ) : contratos.map(c => {
+                const col = chipColor(c)
+                return (
+                  <button key={c.id} onClick={() => onSelectContrato(c)}
+                    title={`${c.arrendatario_nombre} · Vence ${c.fecha_fin}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '5px 9px', border: `1px solid ${col.border}`,
+                      borderRadius: '7px', background: col.bg, cursor: 'pointer',
+                      textAlign: 'left', width: '100%',
+                    }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: col.text, fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.unidad_numero || c.locales_display || c.folio}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.arrendatario_nombre?.split(' ').slice(0, 2).join(' ')}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '10px', color: col.text, fontWeight: 700, flexShrink: 0 }}>
+                      {c.fecha_fin?.slice(8)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Página principal ────────────────────────────────────────────────────────
 
 export default function Contratos() {
@@ -885,6 +1017,8 @@ export default function Contratos() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [refreshKey, setRefreshKey] = useState(0)
   const [diasAnticip, setDiasAnticip] = useState(60)
+  const [vistaAnual, setVistaAnual] = useState(false)
+  const [anioAnual, setAnioAnual] = useState(String(new Date().getFullYear()))
   const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false }, refreshKey })
 
   useEffect(() => {
@@ -962,13 +1096,32 @@ export default function Contratos() {
             {lista.length} contratos · <span style={{ color: conPDF === lista.length ? 'var(--color-success)' : 'var(--color-warning)' }}>{conPDF} con PDF adjunto</span>
           </p>
         </div>
-        <button onClick={() => setShowNuevo(true)} style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          background: 'var(--color-primary)', color: 'white', border: 'none',
-          borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-        }}>
-          <Plus size={16} /> Nuevo Contrato
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Toggle lista / vista anual */}
+          <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
+            <button onClick={() => setVistaAnual(false)} title="Vista lista"
+              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: !vistaAnual ? 'var(--color-primary)' : 'white', color: !vistaAnual ? 'white' : '#6B7280' }}>
+              <AlignJustify size={16} />
+            </button>
+            <button onClick={() => setVistaAnual(true)} title="Vista anual de vencimientos"
+              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: vistaAnual ? 'var(--color-primary)' : 'white', color: vistaAnual ? 'white' : '#6B7280' }}>
+              <Grid size={16} />
+            </button>
+          </div>
+          {vistaAnual && (
+            <select value={anioAnual} onChange={e => setAnioAnual(e.target.value)}
+              style={{ padding: '8px 10px', borderRadius: '8px', border: '1.5px solid #E5E7EB', fontSize: '13px', fontWeight: 700, color: 'var(--color-primary)', cursor: 'pointer' }}>
+              {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+          <button onClick={() => setShowNuevo(true)} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: 'var(--color-primary)', color: 'white', border: 'none',
+            borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          }}>
+            <Plus size={16} /> Nuevo Contrato
+          </button>
+        </div>
       </div>
 
       {/* KPIs — clickeables para filtrar */}
@@ -1084,34 +1237,43 @@ export default function Contratos() {
         </div>
       </div>
 
-      {/* Tabla */}
-      <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-        {loading
-          ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
-          : filtrados.length === 0
-            ? <EmptyState title="Sin contratos" description="No hay contratos que coincidan con los filtros." />
-            : <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: '#F9FAFB' }}>
-                      {['Contrato','Local','Arrendatario','Renta','Vigencia','Plazo','Estado',''].map(h => (
-                        <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+      {/* Vista Anual / Tabla */}
+      {vistaAnual ? (
+        <VistaAnual
+          lista={lista}
+          anio={anioAnual}
+          onSelectContrato={c => { setSelectedInEditMode(false); setSelected(c) }}
+        />
+      ) : (
+        <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          {loading
+            ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
+            : filtrados.length === 0
+              ? <EmptyState title="Sin contratos" description="No hay contratos que coincidan con los filtros." />
+              : <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: '#F9FAFB' }}>
+                        {['Contrato','Local','Arrendatario','Renta','Vigencia','Plazo','Estado',''].map(h => (
+                          <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrados.map(c => (
+                        <ContratoRow key={c.id} c={c}
+                          onView={c => { setSelectedInEditMode(false); setSelected(c) }}
+                          onEdit={c => { setSelectedInEditMode(true); setSelected(c) }}
+                          onDelete={c => setConfirmDelete(c)}
+                          onRefresh={() => setRefreshKey(k => k + 1)}
+                        />
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrados.map(c => (
-                      <ContratoRow key={c.id} c={c}
-                        onView={c => { setSelectedInEditMode(false); setSelected(c) }}
-                        onEdit={c => { setSelectedInEditMode(true); setSelected(c) }}
-                        onDelete={c => setConfirmDelete(c)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-        }
-      </div>
+                    </tbody>
+                  </table>
+                </div>
+          }
+        </div>
+      )}
 
       <DetalleModal
         contrato={selected}
