@@ -560,6 +560,7 @@ export default function Vending() {
   const [stockActual, setStockActual] = useState({})   // producto_id → { qty_final, qty_ventas }
   const [listaCompras, setListaCompras] = useState(null) // post-corte
   const [vistaCorta, setVistaCorta]   = useState(false)
+  const [gastosVending, setGastosVending] = useState(0)  // gastos_operativos grupo Vending/Reabasto
 
   const semana = semanas[selIdx] || semanas[0]
 
@@ -598,8 +599,18 @@ export default function Vending() {
         .order('created_at', { ascending: false })
         .limit(50)
       setMovs(mvs || [])
+
+      // 4. Sumar gastos_operativos grupo "Vending / Reabasto" en el rango de la semana
+      const { data: gastRows } = await supabase
+        .from('gastos_operativos')
+        .select('monto')
+        .eq('grupo', 'Vending / Reabasto')
+        .gte('fecha', semana.ini)
+        .lte('fecha', semana.fin)
+      setGastosVending((gastRows || []).reduce((s, r) => s + (parseFloat(r.monto) || 0), 0))
     } else {
       setDetalle([]); setMovs([])
+      setGastosVending(0)
     }
     setLoading(false)
   }, [semana.ini])
@@ -731,7 +742,8 @@ export default function Vending() {
 
   // ── KPIs ──
   const totVentas  = detalle.reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
-  const totCompras = detalle.reduce((s, r) => s + (parseFloat(r.importe_compras)|| 0), 0)
+  const totComprasMov = detalle.reduce((s, r) => s + (parseFloat(r.importe_compras)|| 0), 0)
+  const totCompras = totComprasMov + gastosVending   // incluye gastos_operativos "Vending / Reabasto"
   const totUnidVentas  = detalle.reduce((s, r) => s + (parseFloat(r.qty_ventas) || 0), 0)
   const totUnidCompras = detalle.reduce((s, r) => s + (parseFloat(r.qty_compras)|| 0), 0)
   // Utilidad real = (precio_venta - costo_unitario) × qty_ventas por producto
@@ -835,7 +847,7 @@ export default function Vending() {
               {[
                 { icon: TrendingUp, label:'Ventas semana', value: fmt(totVentas), sub: `${fmtN(totUnidVentas)} unidades`, color:'var(--color-success)' },
                 { icon: BarChart2,  label:'Utilidad bruta', value: fmt(utilidad), sub: totVentas>0 ? ((utilidad/totVentas)*100).toFixed(0)+'% margen' : '—', color:'var(--color-primary)' },
-                { icon: ShoppingCart, label:'Compras semana', value: fmt(totCompras), sub: `${fmtN(totUnidCompras)} unidades`, color:'var(--color-secondary)' },
+                { icon: ShoppingCart, label:'Compras semana', value: fmt(totCompras), sub: gastosVending > 0 ? `${fmtN(totUnidCompras)} uds · +${fmt(gastosVending)} reabasto` : `${fmtN(totUnidCompras)} unidades`, color:'var(--color-secondary)' },
                 { icon: Package,   label:'Productos', value: detalle.length, sub: `${detalle.filter(d=>parseFloat(d.qty_final)<=0).length} sin stock`, color:'#6B7280' },
               ].map(({ icon: Icon, label, value, sub, color }) => (
                 <div key={label} style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'10px', padding:'14px 16px' }}>
