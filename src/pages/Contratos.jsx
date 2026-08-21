@@ -47,6 +47,52 @@ const PROCESO_OPTS = [
   { val: 'EN_EJECUCION',    label: 'En ejecución',    color: '#057642', bg: '#ECFDF5' },
 ]
 
+const ESTATUS_OPTS = [
+  { val: 'VIGENTE',               label: 'Vigente',               color: '#057642', bg: '#ECFDF5' },
+  { val: 'VENCIDO',               label: 'Vencido',               color: '#B24020', bg: '#FEF2F2' },
+  { val: 'TERMINADO',             label: 'Terminado',             color: '#374151', bg: '#F3F4F6' },
+  { val: 'TERMINACION_ANTICIPADA',label: 'Terminación anticipada',color: '#92400E', bg: '#FEF3C7' },
+  { val: 'RESCISION',             label: 'Rescisión',             color: '#7C3AED', bg: '#F5F3FF' },
+  { val: 'CANCELADO',             label: 'Cancelado',             color: '#6B7280', bg: '#F9FAFB' },
+]
+
+function EstatusBadge({ c, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const opt = ESTATUS_OPTS.find(o => o.val === c.estatus) || { label: c.estatus || '—', color: '#6B7280', bg: '#F3F4F6' }
+
+  const cambiar = async (val) => {
+    setOpen(false); setSaving(true)
+    await supabase.from('contratos').update({ estatus: val, updated_at: new Date().toISOString() }).eq('id', c.id)
+    setSaving(false)
+    onChange?.()
+  }
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }} onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOpen(o => !o)} disabled={saving}
+        title="Cambiar estatus del contrato"
+        style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 9px', background: opt.bg, color: opt.color, border: `1.5px solid ${opt.color}50`, borderRadius: '12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        {saving ? '...' : opt.label}
+        <span style={{ fontSize: '8px' }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 300, background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', minWidth: '185px', overflow: 'hidden', marginTop: '4px' }}>
+          {ESTATUS_OPTS.map(o => (
+            <button key={o.val} onClick={() => cambiar(o.val)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: c.estatus === o.val ? o.bg : 'white', color: o.color, fontSize: '12px', fontWeight: c.estatus === o.val ? 700 : 500, cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = o.bg}
+              onMouseLeave={e => e.currentTarget.style.background = c.estatus === o.val ? o.bg : 'white'}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: o.color, flexShrink: 0 }} />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProcesoBadge({ c, onChange }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -114,7 +160,7 @@ function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
         <span style={{ fontSize: '11px', fontWeight: 600, color, background: color + '18', padding: '3px 8px', borderRadius: '12px' }}>{texto}</span>
       </td>
       <td style={{ padding: '13px 16px' }} onClick={e => e.stopPropagation()}>
-        <StatusBadge status={c.estado_id} />
+        <EstatusBadge c={c} onChange={onRefresh} />
         <div style={{ marginTop: '4px' }}>
           <ProcesoBadge c={c} onChange={onRefresh} />
         </div>
@@ -169,13 +215,21 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const puedeCancelar = c && !['CANCELADO', 'RESCISION'].includes(c.estatus)
 
   const startEdit = async () => {
-    // Cargar locales disponibles
-    const { data: todos } = await supabase.from('cat_locales').select('id_local, numero_local, superficie_m2').order('numero_local')
+    // Cargar locales disponibles, locales actuales del contrato, y datos reales del arrendatario — en paralelo
+    const [{ data: todos }, { data: actuales }, { data: arr }] = await Promise.all([
+      supabase.from('cat_locales').select('id_local, numero_local, superficie_m2').order('numero_local'),
+      supabase.from('contratos_locales').select('local_id, renta_asignada').eq('contrato_id', c.id),
+      c.arrendatario_id
+        ? supabase.from('arrendatarios').select('nombre, apellidos').eq('id', c.arrendatario_id).single()
+        : Promise.resolve({ data: null }),
+    ])
     setLocalesDisp(todos ?? [])
-    // Locales actuales del contrato
-    const { data: actuales } = await supabase.from('contratos_locales').select('local_id, renta_asignada').eq('contrato_id', c.id)
     setLocalesSel((actuales ?? []).map(l => l.local_id))
     setEditForm({
+      arr_nombre:                 arr?.nombre    ?? '',
+      arr_apellidos:              arr?.apellidos ?? '',
+      estatus:                    c.estatus      ?? 'VIGENTE',
+      estatus_proceso:            c.estatus_proceso ?? 'EN_EJECUCION',
       renta_mensual:              c.renta_mensual ?? '',
       deposito_garantia:          c.deposito_garantia ?? '',
       dia_limite_pago:            c.dia_limite_pago ?? '',
@@ -201,6 +255,8 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     setSavingEdit(true); setEditErr(null)
     // Columnas reales de public.contratos (dia_pago y penalizacion_pct son los nombres en tabla)
     const payload = {
+      estatus:          editForm.estatus          || null,
+      estatus_proceso:  editForm.estatus_proceso  || null,
       renta_mensual:    editForm.renta_mensual    ? parseFloat(editForm.renta_mensual)    : null,
       deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
       dia_pago:         editForm.dia_limite_pago  ? parseInt(editForm.dia_limite_pago)   : null,
@@ -227,6 +283,14 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
 
     const { error } = await supabase.from('contratos').update(payload).eq('id', c.id)
     if (error) { setSavingEdit(false); setEditErr(error.message); return }
+
+    // Actualizar nombre del arrendatario si fue modificado
+    if (c.arrendatario_id && (editForm.arr_nombre || editForm.arr_apellidos)) {
+      await supabase.from('arrendatarios').update({
+        nombre:    editForm.arr_nombre    || null,
+        apellidos: editForm.arr_apellidos || null,
+      }).eq('id', c.arrendatario_id)
+    }
 
     // Sincronizar contratos_locales
     await supabase.from('contratos_locales').delete().eq('contrato_id', c.id)
@@ -365,18 +429,45 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                     onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
                     style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
                 )
-                const Row = ({ label, children }) => (
-                  <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #F3F4F6' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
-                    {children}
-                  </div>
-                )
                 return (
                   <div>
-                    {/* Arrendatario — solo lectura */}
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', padding: '10px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>{c.arrendatario_nombre}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Inquilino no editable</span>
+                    {/* Arrendatario — editable */}
+                    <div style={{ marginBottom: '12px', padding: '12px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Arrendatario</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Nombre(s)</div>
+                          <input value={editForm.arr_nombre}
+                            onChange={e => setEditForm(f => ({ ...f, arr_nombre: e.target.value }))}
+                            placeholder="Nombre(s)"
+                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Apellidos</div>
+                          <input value={editForm.arr_apellidos}
+                            onChange={e => setEditForm(f => ({ ...f, arr_apellidos: e.target.value }))}
+                            placeholder="Apellido paterno materno"
+                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Estatus del contrato */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '4px' }}>Estatus contrato</div>
+                        <select value={editForm.estatus} onChange={e => setEditForm(f => ({ ...f, estatus: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }}>
+                          {ESTATUS_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '4px' }}>Etapa de proceso</div>
+                        <select value={editForm.estatus_proceso} onChange={e => setEditForm(f => ({ ...f, estatus_proceso: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }}>
+                          {PROCESO_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                        </select>
+                      </div>
                     </div>
 
                     {/* Selector de locales */}
@@ -411,29 +502,29 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Renta y pagos</div>
-                        <Row label="Renta mensual">{inp('renta_mensual','number','0')}</Row>
-                        <Row label="Depósito garantía">{inp('deposito_garantia','number','0')}</Row>
-                        <Row label="Día límite pago">{inp('dia_limite_pago','number','10')}</Row>
-                        <Row label="Mora %">{inp('penalizacion_mora_pct','number','5')}</Row>
-                        <Row label="Cuenta BBVA">{inp('cuenta_banco_pago')}</Row>
-                        <Row label="CLABE">{inp('clabe_interbancaria')}</Row>
+                        <FormRow label="Renta mensual">{inp('renta_mensual','number','0')}</FormRow>
+                        <FormRow label="Depósito garantía">{inp('deposito_garantia','number','0')}</FormRow>
+                        <FormRow label="Día límite pago">{inp('dia_limite_pago','number','10')}</FormRow>
+                        <FormRow label="Mora %">{inp('penalizacion_mora_pct','number','5')}</FormRow>
+                        <FormRow label="Cuenta BBVA">{inp('cuenta_banco_pago')}</FormRow>
+                        <FormRow label="CLABE">{inp('clabe_interbancaria')}</FormRow>
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Vigencia y condiciones</div>
-                        <Row label="Inicio">{inp('fecha_inicio','date')}</Row>
-                        <Row label="Vencimiento">{inp('fecha_fin','date')}</Row>
-                        <Row label="Fecha firma">{inp('fecha_firma','date')}</Row>
-                        <Row label="Giro autorizado">{inp('giro_autorizado')}</Row>
-                        <Row label="Horario inicio">{inp('horario_inicio','time')}</Row>
-                        <Row label="Horario fin">{inp('horario_fin','time')}</Row>
-                        <Row label="Canc. anticip. (meses)">{inp('cancelacion_anticipada_meses','number','2')}</Row>
+                        <FormRow label="Inicio">{inp('fecha_inicio','date')}</FormRow>
+                        <FormRow label="Vencimiento">{inp('fecha_fin','date')}</FormRow>
+                        <FormRow label="Fecha firma">{inp('fecha_firma','date')}</FormRow>
+                        <FormRow label="Giro autorizado">{inp('giro_autorizado')}</FormRow>
+                        <FormRow label="Horario inicio">{inp('horario_inicio','time')}</FormRow>
+                        <FormRow label="Horario fin">{inp('horario_fin','time')}</FormRow>
+                        <FormRow label="Canc. anticip. (meses)">{inp('cancelacion_anticipada_meses','number','2')}</FormRow>
                       </div>
                     </div>
                     <div style={{ marginTop: '16px', padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador</div>
-                      <Row label="Nombre">{inp('fiador_nombre')}</Row>
-                      <Row label="RFC">{inp('fiador_rfc')}</Row>
-                      <Row label="Domicilio">{inp('fiador_domicilio')}</Row>
+                      <FormRow label="Nombre">{inp('fiador_nombre')}</FormRow>
+                      <FormRow label="RFC">{inp('fiador_rfc')}</FormRow>
+                      <FormRow label="Domicilio">{inp('fiador_domicilio')}</FormRow>
                     </div>
                     {editErr && <p style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '8px' }}>{editErr}</p>}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
@@ -702,6 +793,16 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   )
 }
 
+// ─── FormRow compartido (debe estar fuera de cualquier componente para no perder foco) ──
+function FormRow({ label, children }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F3F4F6' }}>
+      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
+      {children}
+    </div>
+  )
+}
+
 // ─── Modal Renovación ────────────────────────────────────────────────────────
 
 function ModalRenovacion({ contrato: c, onClose, onDone }) {
@@ -769,12 +870,6 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
   }
 
   const inp = { width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: '7px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
-  const Row = ({ label, children }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F3F4F6' }}>
-      <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
-      {children}
-    </div>
-  )
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
@@ -800,24 +895,24 @@ function ModalRenovacion({ contrato: c, onClose, onDone }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Vigencia nuevo contrato</div>
-              <Row label="Inicio"><input type="date" value={form.fecha_inicio} onChange={e => set('fecha_inicio', e.target.value)} style={inp} /></Row>
-              <Row label="Vencimiento"><input type="date" value={form.fecha_fin} onChange={e => set('fecha_fin', e.target.value)} style={inp} /></Row>
+              <FormRow label="Inicio"><input type="date" value={form.fecha_inicio} onChange={e => set('fecha_inicio', e.target.value)} style={inp} /></FormRow>
+              <FormRow label="Vencimiento"><input type="date" value={form.fecha_fin} onChange={e => set('fecha_fin', e.target.value)} style={inp} /></FormRow>
             </div>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Renta y condiciones</div>
-              <Row label="Renta mensual"><input type="number" value={form.renta_mensual} onChange={e => set('renta_mensual', e.target.value)} style={inp} /></Row>
-              <Row label="Depósito"><input type="number" value={form.deposito_garantia} onChange={e => set('deposito_garantia', e.target.value)} style={inp} /></Row>
-              <Row label="Día pago"><input type="number" value={form.dia_cobro} onChange={e => set('dia_cobro', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
-              <Row label="Mora %"><input type="number" value={form.penalizacion_mora} onChange={e => set('penalizacion_mora', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
-              <Row label="Incremento %"><input type="number" value={form.incremento_anual} onChange={e => set('incremento_anual', e.target.value)} style={{ ...inp, width: '60px' }} /></Row>
+              <FormRow label="Renta mensual"><input type="number" value={form.renta_mensual} onChange={e => set('renta_mensual', e.target.value)} style={inp} /></FormRow>
+              <FormRow label="Depósito"><input type="number" value={form.deposito_garantia} onChange={e => set('deposito_garantia', e.target.value)} style={inp} /></FormRow>
+              <FormRow label="Día pago"><input type="number" value={form.dia_cobro} onChange={e => set('dia_cobro', e.target.value)} style={{ ...inp, width: '60px' }} /></FormRow>
+              <FormRow label="Mora %"><input type="number" value={form.penalizacion_mora} onChange={e => set('penalizacion_mora', e.target.value)} style={{ ...inp, width: '60px' }} /></FormRow>
+              <FormRow label="Incremento %"><input type="number" value={form.incremento_anual} onChange={e => set('incremento_anual', e.target.value)} style={{ ...inp, width: '60px' }} /></FormRow>
             </div>
           </div>
 
           <div style={{ padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
             <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador / Aval</div>
-            <Row label="Nombre"><input type="text" value={form.fiador_nombre} onChange={e => set('fiador_nombre', e.target.value)} style={inp} /></Row>
-            <Row label="RFC"><input type="text" value={form.fiador_rfc} onChange={e => set('fiador_rfc', e.target.value)} style={{ ...inp, textTransform: 'uppercase' }} /></Row>
-            <Row label="Domicilio"><input type="text" value={form.fiador_domicilio} onChange={e => set('fiador_domicilio', e.target.value)} style={inp} /></Row>
+            <FormRow label="Nombre"><input type="text" value={form.fiador_nombre} onChange={e => set('fiador_nombre', e.target.value)} style={inp} /></FormRow>
+            <FormRow label="RFC"><input type="text" value={form.fiador_rfc} onChange={e => set('fiador_rfc', e.target.value)} style={{ ...inp, textTransform: 'uppercase' }} /></FormRow>
+            <FormRow label="Domicilio"><input type="text" value={form.fiador_domicilio} onChange={e => set('fiador_domicilio', e.target.value)} style={inp} /></FormRow>
           </div>
 
           <div>

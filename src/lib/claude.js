@@ -7,7 +7,8 @@ export const chatOperativo = async (messages, context = '') => {
     body: JSON.stringify({ messages, context }),
   })
   if (!res.ok) throw new Error('Error en Agente Operativo')
-  return res.json()
+  const data = await res.json()
+  return data.content ?? data.reply ?? data.text ?? JSON.stringify(data)
 }
 
 export const chatAnalitico = async (messages, dataSummary = {}) => {
@@ -17,5 +18,6 @@ export const chatAnalitico = async (messages, dataSummary = {}) => {
     body: JSON.stringify({ messages, data_summary: dataSummary }),
   })
   if (!res.ok) throw new Error('Error en Agente Analítico')
-  return res.json()
+  const data = await res.json()
+  return data.content ?? data.reply ?? data.text ?? JSON.stringify(data)
 }

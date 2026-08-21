@@ -65,13 +65,33 @@ function PanelIA({ onExtracted }) {
     } finally { setLoading(false) }
   }
 
+  const SUPPORTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
   const handleFile = (file) => {
     if (!file) return
     const reader = new FileReader()
     reader.onload = (ev) => {
-      const b64 = ev.target.result.split(',')[1]
-      setImgPreview(ev.target.result)
-      callOCR(b64, file.type)   // OCR automático al seleccionar foto
+      const dataUrl = ev.target.result
+
+      // Claude Vision no soporta TIFF ni BMP: convertir a JPEG via canvas
+      if (!SUPPORTED.includes(file.type)) {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width  = img.naturalWidth
+          canvas.height = img.naturalHeight
+          canvas.getContext('2d').drawImage(img, 0, 0)
+          const jpegUrl = canvas.toDataURL('image/jpeg', 0.92)
+          setImgPreview(jpegUrl)
+          callOCR(jpegUrl.split(',')[1], 'image/jpeg')
+        }
+        img.onerror = () => setResult('err')  // TIFF no renderizable en el browser
+        img.src = dataUrl
+        return
+      }
+
+      setImgPreview(dataUrl)
+      callOCR(dataUrl.split(',')[1], file.type)
     }
     reader.readAsDataURL(file)
   }
@@ -151,7 +171,7 @@ function PanelIA({ onExtracted }) {
                   {imgPreview ? 'Procesando…' : 'Selecciona o toma la foto del ticket'}
                 </div>
             }
-            {result === 'err' && <div style={{ fontSize: 12, color: '#B24020', marginTop: 6 }}>Error al leer — intenta con otra foto</div>}
+            {result === 'err' && <div style={{ fontSize: 12, color: '#B24020', marginTop: 6 }}>Error al leer — si es TIFF, verifica que tu navegador lo soporte, o guárdalo como JPG/PNG</div>}
             <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               <button onClick={() => fileRef.current?.click()} disabled={loading}
                 style={{ padding: '7px 14px', background: '#fff', color: '#0A66C2', border: '1.5px solid #0A66C2', borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>

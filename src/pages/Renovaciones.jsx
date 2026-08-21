@@ -25,19 +25,26 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
   const [tab, setTab] = useState('datos')
   const [editMode, setEditMode] = useState(initialEditMode)
   const [editForm, setEditForm] = useState({
-    renta_mensual:     c?.renta_mensual     ?? '',
-    deposito_garantia: c?.deposito_garantia ?? '',
-    fecha_inicio:      c?.fecha_inicio      ?? '',
-    fecha_fin:         c?.fecha_fin         ?? '',
-    giro_autorizado:   c?.giro_autorizado   ?? '',
-    dia_pago:          c?.dia_pago          ?? '',
-    penalizacion_pct:  c?.penalizacion_pct  ?? '',
-    pagares_cantidad:  c?.pagares_cantidad  ?? '',
-    fiador_nombre:     c?.fiador_nombre     ?? '',
-    fiador_rfc:        c?.fiador_rfc        ?? '',
-    fiador_telefono:   c?.fiador_telefono   ?? '',
-    fiador_domicilio:  c?.fiador_domicilio  ?? '',
-    notas:             c?.notas             ?? '',
+    // Arrendatario (tabla arrendatarios)
+    arrendatario_nombre:   c?.arrendatario_nombre   ?? '',
+    arrendatario_rfc:      c?.arrendatario_rfc      ?? '',
+    arrendatario_telefono: c?.arrendatario_telefono ?? '',
+    arrendatario_email:    c?.arrendatario_email    ?? '',
+    // Contrato (tabla contratos)
+    renta_mensual:         c?.renta_mensual         ?? '',
+    deposito_garantia:     c?.deposito_garantia     ?? '',
+    fecha_inicio:          c?.fecha_inicio          ?? '',
+    fecha_fin:             c?.fecha_fin             ?? '',
+    giro_autorizado:       c?.giro_autorizado       ?? '',
+    dia_pago:              c?.dia_pago              ?? '',
+    penalizacion_pct:      c?.penalizacion_pct      ?? '',
+    pagares_cantidad:      c?.pagares_cantidad      ?? '',
+    fiador_nombre:         c?.fiador_nombre         ?? '',
+    fiador_rfc:            c?.fiador_rfc            ?? '',
+    fiador_telefono:       c?.fiador_telefono       ?? '',
+    fiador_domicilio:      c?.fiador_domicilio      ?? '',
+    notas:                 c?.notas                 ?? '',
+    estatus:               c?.estatus               ?? 'VIGENTE',
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
@@ -55,24 +62,34 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
 
   const guardar = async () => {
     setSaving(true); setErr(null)
-    const { error } = await supabase.from('contratos').update({
-      renta_mensual:     editForm.renta_mensual     ? parseFloat(editForm.renta_mensual)     : null,
-      deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
-      fecha_inicio:      editForm.fecha_inicio      || null,
-      fecha_fin:         editForm.fecha_fin         || null,
-      giro_autorizado:   editForm.giro_autorizado   || null,
-      dia_pago:          editForm.dia_pago          ? parseInt(editForm.dia_pago)            : null,
-      penalizacion_pct:  editForm.penalizacion_pct  ? parseFloat(editForm.penalizacion_pct) : null,
-      pagares_cantidad:  editForm.pagares_cantidad   ? parseInt(editForm.pagares_cantidad)   : null,
-      fiador_nombre:     editForm.fiador_nombre     || null,
-      fiador_rfc:        editForm.fiador_rfc        || null,
-      fiador_telefono:   editForm.fiador_telefono   || null,
-      fiador_domicilio:  editForm.fiador_domicilio  || null,
-      notas:             editForm.notas             || null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', c.id)
+    const [{ error }, { error: errArr }] = await Promise.all([
+      supabase.from('contratos').update({
+        estatus:           editForm.estatus           || null,
+        estatus_proceso:   ['TERMINADO','TERMINACION_ANTICIPADA','RESCISION','CANCELADO'].includes(editForm.estatus) ? 'EN_EJECUCION' : undefined,
+        renta_mensual:     editForm.renta_mensual     ? parseFloat(editForm.renta_mensual)     : null,
+        deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
+        fecha_inicio:      editForm.fecha_inicio      || null,
+        fecha_fin:         editForm.fecha_fin         || null,
+        giro_autorizado:   editForm.giro_autorizado   || null,
+        dia_pago:          editForm.dia_pago          ? parseInt(editForm.dia_pago)            : null,
+        penalizacion_pct:  editForm.penalizacion_pct  ? parseFloat(editForm.penalizacion_pct) : null,
+        pagares_cantidad:  editForm.pagares_cantidad   ? parseInt(editForm.pagares_cantidad)   : null,
+        fiador_nombre:     editForm.fiador_nombre     || null,
+        fiador_rfc:        editForm.fiador_rfc        || null,
+        fiador_telefono:   editForm.fiador_telefono   || null,
+        fiador_domicilio:  editForm.fiador_domicilio  || null,
+        notas:             editForm.notas             || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', c.id),
+      supabase.from('arrendatarios').update({
+        nombre:   editForm.arrendatario_nombre   || null,
+        rfc:      editForm.arrendatario_rfc      || null,
+        telefono: editForm.arrendatario_telefono || null,
+        email:    editForm.arrendatario_email    || null,
+      }).eq('id', c.arrendatario_id),
+    ])
     setSaving(false)
-    if (error) { setErr(error.message); return }
+    if (error || errArr) { setErr((error || errArr).message); return }
     setEditMode(false)
     onUpdated?.()
   }
@@ -221,6 +238,26 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
           {tab === 'datos' && editMode && (
             <div>
               <div style={{ fontSize: '11px', fontWeight: 800, color: '#7C3AED', textTransform: 'uppercase', marginBottom: '14px' }}>Editar datos del contrato</div>
+
+              {/* Estatus — cierre del contrato */}
+              <div style={{ marginBottom: '14px', padding: '12px 14px', background: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                <div style={{ fontSize: '10px', fontWeight: 800, color: '#374151', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Estatus del contrato</div>
+                <select value={editForm.estatus} onChange={e => setEditForm(f => ({ ...f, estatus: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #D1D5DB', borderRadius: '7px', fontSize: '13px', fontWeight: 600, background: 'white', cursor: 'pointer' }}>
+                  <option value="VIGENTE">Vigente</option>
+                  <option value="VENCIDO">Vencido</option>
+                  <option value="TERMINADO">Terminado — cierra el contrato</option>
+                  <option value="TERMINACION_ANTICIPADA">Terminación anticipada</option>
+                  <option value="RESCISION">Rescisión</option>
+                  <option value="CANCELADO">Cancelado</option>
+                </select>
+                {['TERMINADO','TERMINACION_ANTICIPADA','RESCISION','CANCELADO'].includes(editForm.estatus) && (
+                  <div style={{ marginTop: '8px', padding: '8px 10px', background: '#FEF2F2', borderRadius: '6px', border: '1px solid #FECACA', fontSize: '11px', color: '#991B1B', fontWeight: 600 }}>
+                    ⚠ Al guardar, este contrato saldrá de Renovaciones y pasará al historial.
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                 <div>
                   <ERow label="Renta mensual">{inp('renta_mensual','number','$0.00')}</ERow>
@@ -235,7 +272,14 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
                   <ERow label="Giro">{inp('giro_autorizado')}</ERow>
                 </div>
               </div>
-              <div style={{ marginTop: '14px', padding: '12px', background: '#FFF8F0', borderRadius: '8px', border: '1px solid #FBBF24' }}>
+              <div style={{ marginTop: '14px', padding: '12px', background: '#EFF6FF', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#1D4ED8', textTransform: 'uppercase', marginBottom: '10px' }}>Datos del arrendatario</div>
+                <ERow label="Nombre">{inp('arrendatario_nombre')}</ERow>
+                <ERow label="RFC">{inp('arrendatario_rfc')}</ERow>
+                <ERow label="Teléfono">{inp('arrendatario_telefono','tel')}</ERow>
+                <ERow label="Email">{inp('arrendatario_email','email')}</ERow>
+              </div>
+              <div style={{ marginTop: '10px', padding: '12px', background: '#FFF8F0', borderRadius: '8px', border: '1px solid #FBBF24' }}>
                 <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '10px' }}>Fiador / Aval</div>
                 <ERow label="Nombre">{inp('fiador_nombre')}</ERow>
                 <ERow label="RFC">{inp('fiador_rfc')}</ERow>
@@ -271,18 +315,27 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase' }}>Arrendatario</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                {editMode ? (
                   <div>
-                    <Campo label="Nombre completo" val={c.arrendatario_nombre} />
-                    <Campo label="RFC"             val={c.arrendatario_rfc}    mono />
-                    <Campo label="Teléfono"        val={c.arrendatario_telefono} />
+                    <ERow label="Nombre">{inp('arrendatario_nombre')}</ERow>
+                    <ERow label="RFC">{inp('arrendatario_rfc')}</ERow>
+                    <ERow label="Teléfono">{inp('arrendatario_telefono', 'tel')}</ERow>
+                    <ERow label="Email">{inp('arrendatario_email', 'email')}</ERow>
                   </div>
-                  <div>
-                    <Campo label="Email"           val={c.arrendatario_email} />
-                    <Campo label="Domicilio"       val={c.arrendatario_domicilio} />
-                    <Campo label="Local(es)"       val={c.unidad_numero || c.locales_display} />
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                    <div>
+                      <Campo label="Nombre completo" val={c.arrendatario_nombre} />
+                      <Campo label="RFC"             val={c.arrendatario_rfc}    mono />
+                      <Campo label="Teléfono"        val={c.arrendatario_telefono} />
+                    </div>
+                    <div>
+                      <Campo label="Email"           val={c.arrendatario_email} />
+                      <Campo label="Domicilio"       val={c.arrendatario_domicilio} />
+                      <Campo label="Local(es)"       val={c.unidad_numero || c.locales_display} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Fiador */}
@@ -292,20 +345,29 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
                     <Shield size={14} color="#D97706" />
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase' }}>Fiador / Aval</span>
-                  {!c.fiador_nombre && (
+                  {!c.fiador_nombre && !editMode && (
                     <span style={{ fontSize: '10px', background: '#FEF3C7', color: '#D97706', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>Sin fiador</span>
                   )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                {editMode ? (
                   <div>
-                    <Campo label="Nombre"    val={c.fiador_nombre} />
-                    <Campo label="RFC"       val={c.fiador_rfc}    mono />
-                    <Campo label="Teléfono"  val={c.fiador_telefono} />
+                    <ERow label="Nombre">{inp('fiador_nombre')}</ERow>
+                    <ERow label="RFC">{inp('fiador_rfc')}</ERow>
+                    <ERow label="Teléfono">{inp('fiador_telefono', 'tel')}</ERow>
+                    <ERow label="Domicilio">{inp('fiador_domicilio')}</ERow>
                   </div>
-                  <div>
-                    <Campo label="Domicilio" val={c.fiador_domicilio} />
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                    <div>
+                      <Campo label="Nombre"    val={c.fiador_nombre} />
+                      <Campo label="RFC"       val={c.fiador_rfc}    mono />
+                      <Campo label="Teléfono"  val={c.fiador_telefono} />
+                    </div>
+                    <div>
+                      <Campo label="Domicilio" val={c.fiador_domicilio} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

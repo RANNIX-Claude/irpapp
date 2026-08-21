@@ -1,9 +1,233 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check } from 'lucide-react'
+import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
+
+// ─── Catálogo de proveedores ──────────────────────────────────────────────────
+
+const CATS_PRV = [
+  { id: 'VENDING',       label: 'Vending',       color: '#EC4899' },
+  { id: 'OPERACION',     label: 'Operación',     color: '#057642' },
+  { id: 'MANTENIMIENTO', label: 'Mantenimiento', color: '#E8A020' },
+  { id: 'MIXTO',         label: 'Mixto',         color: '#0A66C2' },
+]
+const catColor = (id) => CATS_PRV.find(c => c.id === id)?.color || '#6B7280'
+const catLabel = (id) => CATS_PRV.find(c => c.id === id)?.label || (id || '—')
+
+const PRV_EMPTY = { clave: '', nombre: '', rfc: '', categoria: 'OPERACION', telefono: '', email: '', contacto: '', notas: '', activo: true }
+
+function FormProveedor({ inicial, onSaved, onCancel }) {
+  const [form, setForm] = useState(inicial ? { ...inicial } : { ...PRV_EMPTY })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const isEdit = !!inicial?.id
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (!form.clave.trim() || !form.nombre.trim()) { setErr('Clave y nombre son obligatorios'); return }
+    setSaving(true); setErr(null)
+    try {
+      const payload = { ...form, clave: form.clave.toUpperCase().trim() }
+      if (isEdit) {
+        const { error } = await supabase.from('cat_proveedores').update(payload).eq('id', inicial.id)
+        if (error) throw error
+        toast.success('Proveedor actualizado')
+      } else {
+        const { error } = await supabase.from('cat_proveedores').insert(payload)
+        if (error) throw error
+        toast.success('Proveedor agregado')
+      }
+      onSaved()
+    } catch (e) { setErr(e.message) } finally { setSaving(false) }
+  }
+
+  const inp = { width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, outline: 'none', boxSizing: 'border-box' }
+  const lbl = { display: 'block', fontSize: 10, fontWeight: 700, color: '#6B7280', marginBottom: 4, textTransform: 'uppercase' }
+
+  return (
+    <form onSubmit={guardar} style={{ background: '#F8FAFC', border: '1.5px solid #C7D2FE', borderRadius: 10, padding: '16px 18px', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#0A66C2', marginBottom: 12, textTransform: 'uppercase' }}>
+        {isEdit ? 'Editar proveedor' : 'Nuevo proveedor'}
+      </div>
+      {err && <div style={{ padding: '6px 10px', background: '#FEE2E2', color: '#B24020', borderRadius: 6, fontSize: 12, marginBottom: 10 }}>{err}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={lbl}>Clave *</label>
+          <input value={form.clave} onChange={e => set('clave', e.target.value.toUpperCase())} style={inp} placeholder="DOGO" maxLength={12} required />
+        </div>
+        <div>
+          <label style={lbl}>Nombre *</label>
+          <input value={form.nombre} onChange={e => set('nombre', e.target.value)} style={inp} placeholder="Sam's Club" required />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={lbl}>RFC</label>
+          <input value={form.rfc} onChange={e => set('rfc', e.target.value.toUpperCase())} style={inp} placeholder="RFC del proveedor" />
+        </div>
+        <div>
+          <label style={lbl}>Categoría</label>
+          <select value={form.categoria} onChange={e => set('categoria', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+            {CATS_PRV.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div>
+          <label style={lbl}>Teléfono</label>
+          <input value={form.telefono} onChange={e => set('telefono', e.target.value)} style={inp} placeholder="(614) 000-0000" />
+        </div>
+        <div>
+          <label style={lbl}>Contacto</label>
+          <input value={form.contacto} onChange={e => set('contacto', e.target.value)} style={inp} placeholder="Nombre del contacto" />
+        </div>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label style={lbl}>Email</label>
+        <input value={form.email} onChange={e => set('email', e.target.value)} style={inp} placeholder="proveedor@email.com" type="email" />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={lbl}>Notas</label>
+        <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
+          style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} placeholder="Condiciones de pago, horarios, etc." />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="submit" disabled={saving}
+          style={{ flex: 1, padding: '9px', background: saving ? '#9CA3AF' : '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: saving ? 'default' : 'pointer' }}>
+          {saving ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Agregar proveedor')}
+        </button>
+        <button type="button" onClick={onCancel}
+          style={{ padding: '9px 16px', background: '#F3F4F6', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function DrawerProveedores({ onClose }) {
+  const [lista, setLista]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch]   = useState('')
+  const [editando, setEditando] = useState(null)  // null | 'nuevo' | proveedor
+  const [filtroCat, setFiltroCat] = useState('TODOS')
+
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase.from('cat_proveedores').select('*').order('nombre')
+    setLista(data || [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  const toggleActivo = async (p) => {
+    await supabase.from('cat_proveedores').update({ activo: !p.activo }).eq('id', p.id)
+    setLista(l => l.map(x => x.id === p.id ? { ...x, activo: !x.activo } : x))
+  }
+
+  const filtrados = lista.filter(p => {
+    const q = search.toLowerCase()
+    const matchQ = !q || p.nombre?.toLowerCase().includes(q) || p.clave?.toLowerCase().includes(q) || p.rfc?.toLowerCase().includes(q)
+    const matchC = filtroCat === 'TODOS' || p.categoria === filtroCat
+    return matchQ && matchC
+  })
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} onClick={onClose} />
+      <div style={{ position: 'relative', width: 520, height: '100%', background: 'white', boxShadow: '-4px 0 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #E5E7EB', background: '#EFF6FF', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BookUser size={18} color="#0A66C2" />
+              <span style={{ fontWeight: 800, fontSize: 16, color: '#1A3C5E' }}>Catálogo de Proveedores</span>
+              <span style={{ fontSize: 11, background: '#DBEAFE', color: '#0A66C2', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{lista.length}</span>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={18} /></button>
+          </div>
+          {/* Búsqueda + botón nuevo */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, clave, RFC…"
+                style={{ width: '100%', paddingLeft: 26, padding: '7px 8px 7px 26px', border: '1.5px solid #DBEAFE', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box', background: 'white' }} />
+            </div>
+            <button onClick={() => setEditando('nuevo')} disabled={editando === 'nuevo'}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <Plus size={13} /> Agregar
+            </button>
+          </div>
+          {/* Filtro categoría */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {['TODOS', ...CATS_PRV.map(c => c.id)].map(cat => {
+              const active = filtroCat === cat
+              const color = cat === 'TODOS' ? '#6B7280' : catColor(cat)
+              return (
+                <button key={cat} onClick={() => setFiltroCat(cat)}
+                  style={{ padding: '3px 10px', borderRadius: 20, border: `1.5px solid ${color}`, fontSize: 10, fontWeight: 700, cursor: 'pointer', background: active ? color : 'transparent', color: active ? 'white' : color }}>
+                  {cat === 'TODOS' ? 'Todos' : catLabel(cat)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }}>
+          {/* Formulario nuevo/edición */}
+          {editando && (
+            <FormProveedor
+              inicial={editando === 'nuevo' ? null : editando}
+              onSaved={() => { setEditando(null); cargar() }}
+              onCancel={() => setEditando(null)}
+            />
+          )}
+
+          {loading && <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 30, fontSize: 13 }}>Cargando…</div>}
+
+          {!loading && filtrados.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 30, fontSize: 13 }}>
+              {search ? 'Sin resultados para la búsqueda' : 'Sin proveedores registrados'}
+            </div>
+          )}
+
+          {filtrados.map(p => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 8, background: p.activo ? 'white' : '#FAFAFA', opacity: p.activo ? 1 : 0.6 }}>
+              {/* Cat badge */}
+              <div style={{ width: 6, borderRadius: 3, alignSelf: 'stretch', background: catColor(p.categoria), flexShrink: 0 }} />
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: '#1A3C5E' }}>{p.nombre}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', fontFamily: 'monospace', background: '#F3F4F6', padding: '1px 6px', borderRadius: 4 }}>{p.clave}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: catColor(p.categoria), background: catColor(p.categoria) + '18', padding: '1px 7px', borderRadius: 10 }}>{catLabel(p.categoria)}</span>
+                </div>
+                {p.rfc && <div style={{ fontSize: 11, color: '#6B7280', fontFamily: 'monospace' }}>RFC: {p.rfc}</div>}
+                {p.contacto && <div style={{ fontSize: 11, color: '#6B7280' }}>Contacto: {p.contacto}</div>}
+                {p.telefono && <div style={{ fontSize: 11, color: '#6B7280' }}>{p.telefono}{p.email ? `  ·  ${p.email}` : ''}</div>}
+                {p.notas && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2, fontStyle: 'italic' }}>{p.notas}</div>}
+              </div>
+              {/* Acciones */}
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <button onClick={() => setEditando(p)} title="Editar"
+                  style={{ padding: '5px 7px', background: '#EFF6FF', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#0A66C2' }}><Pencil size={13} /></button>
+                <button onClick={() => toggleActivo(p)} title={p.activo ? 'Desactivar' : 'Activar'}
+                  style={{ padding: '5px 7px', background: p.activo ? '#FEF3C7' : '#F0FDF4', border: 'none', borderRadius: 6, cursor: 'pointer', color: p.activo ? '#D97706' : '#057642' }}>
+                  {p.activo ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
@@ -23,6 +247,7 @@ export default function GastosOperativos() {
   const [search, setSearch]       = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState('Todos')
   const [modal, setModal]         = useState(null) // null | 'nuevo' | gasto
+  const [showProveedores, setShowProveedores] = useState(false)
   const [expanded, setExpanded]   = useState(null)
   const [detalle, setDetalle]     = useState({})
 
@@ -79,9 +304,14 @@ export default function GastosOperativos() {
             <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Tickets con detalle de productos • Proveedor • OCR</p>
           </div>
         </div>
-        <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#E8A020', color: 'white', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-          <Plus size={15} /> Nuevo ticket
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowProveedores(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            <BookUser size={15} /> Proveedores
+          </button>
+          <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#E8A020', color: 'white', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            <Plus size={15} /> Nuevo ticket
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -210,6 +440,8 @@ export default function GastosOperativos() {
           onSaved={() => { setModal(null); setDetalle({}); cargar() }}
         />
       )}
+
+      {showProveedores && <DrawerProveedores onClose={() => setShowProveedores(false)} />}
     </div>
   )
 }
