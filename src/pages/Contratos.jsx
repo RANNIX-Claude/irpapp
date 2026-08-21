@@ -1124,7 +1124,8 @@ export default function Contratos() {
         </div>
       </div>
 
-      {/* KPIs — clickeables para filtrar */}
+      {/* KPIs + filtros: solo en vista lista */}
+      {!vistaAnual && <>{/* KPIs — clickeables para filtrar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '20px' }}>
         {[
           { title: 'Vigentes',        value: cntVigentes,  icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
@@ -1236,6 +1237,8 @@ export default function Contratos() {
           )}
         </div>
       </div>
+
+      </>}
 
       {/* Vista Anual / Tabla */}
       {vistaAnual ? (
