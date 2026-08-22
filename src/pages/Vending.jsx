@@ -1395,8 +1395,79 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
     return m
   })
   const [saving, setSaving] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
+  const [ocring, setOcring] = useState(false)
+  const [imgPreview, setImgPreview] = useState(null)
 
   const set = (id, val) => setCantidades(prev => ({ ...prev, [id]: val }))
+
+  const SUPPORTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+  // ── Importar imagen con OCR ──
+  const importarImagen = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setOcring(true); setImportMsg(''); setImgPreview(null)
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target.result
+
+      const procesarOCR = async (b64, mtype) => {
+        setImgPreview(dataUrl)
+        try {
+          const res = await fetch('/.netlify/functions/vending-ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image_base64: b64,
+              media_type: mtype,
+              productos: prodActivos.map(p => ({ id: p.id, producto: p.producto })),
+            }),
+          })
+          const json = await res.json()
+          if (!res.ok || json.error) throw new Error(json.error || 'Error OCR')
+
+          const ventas = json.ventas || []
+          let encontrados = 0, noEncontrados = []
+          const nuevas = { ...cantidades }
+          ventas.forEach(({ producto: nombre, cantidad }) => {
+            const nombreLimpio = (nombre || '').toLowerCase()
+            const prod = prodActivos.find(p =>
+              p.producto.toLowerCase() === nombreLimpio ||
+              p.producto.toLowerCase().includes(nombreLimpio) ||
+              nombreLimpio.includes(p.producto.toLowerCase())
+            )
+            if (prod && cantidad > 0) {
+              nuevas[prod.id] = String(cantidad); encontrados++
+            } else if (nombre) noEncontrados.push(nombre)
+          })
+          setCantidades(nuevas)
+          const msg = `✅ ${encontrados} productos leídos` + (noEncontrados.length ? ` · ⚠ Sin match: ${noEncontrados.join(', ')}` : '')
+          setImportMsg(msg)
+        } catch (err) {
+          setImportMsg(`❌ ${err.message}`)
+        } finally { setOcring(false) }
+      }
+
+      if (!SUPPORTED.includes(file.type)) {
+        // Convertir a JPEG via canvas
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
+          canvas.getContext('2d').drawImage(img, 0, 0)
+          const jpegUrl = canvas.toDataURL('image/jpeg', 0.92)
+          procesarOCR(jpegUrl.split(',')[1], 'image/jpeg')
+        }
+        img.onerror = () => { setImportMsg('❌ No se pudo leer la imagen'); setOcring(false) }
+        img.src = dataUrl
+      } else {
+        procesarOCR(dataUrl.split(',')[1], file.type)
+      }
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const totalUds   = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0), 0)
   const totalPesos = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0) * (parseFloat(p.precio_venta) || 0), 0)
@@ -1468,12 +1539,27 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
       <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'560px', maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding:'14px 20px', background:'#057642', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
-          <div>
-            <div style={{ color:'white', fontWeight:800, fontSize:'15px' }}>🛒 Carga en Bloque — Ventas</div>
-            <div style={{ color:'rgba(255,255,255,0.75)', fontSize:'12px', marginTop:'2px' }}>Ingresa las unidades vendidas por producto · Fecha: {fecha}</div>
+        <div style={{ padding:'14px 20px', background:'#057642', flexShrink:0 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div>
+              <div style={{ color:'white', fontWeight:800, fontSize:'15px' }}>🛒 Carga en Bloque — Ventas</div>
+              <div style={{ color:'rgba(255,255,255,0.75)', fontSize:'12px', marginTop:'2px' }}>Ingresa o importa las unidades vendidas · Fecha: {fecha}</div>
+            </div>
+            <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', color:'white' }}><X size={16} /></button>
           </div>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', color:'white' }}><X size={16} /></button>
+          {/* Botón importar imagen */}
+          <div style={{ display:'flex', gap:'8px', marginTop:'10px', alignItems:'center' }}>
+            <label style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', background:'rgba(255,255,255,0.2)', border:'1.5px solid rgba(255,255,255,0.5)', borderRadius:'7px', color:'white', fontSize:'13px', fontWeight:700, cursor: ocring ? 'not-allowed' : 'pointer', opacity: ocring ? 0.7 : 1 }}>
+              {ocring ? '⏳ Leyendo imagen…' : '📷 Importar foto del reporte'}
+              <input type="file" accept="image/*" onChange={importarImagen} disabled={ocring} style={{ display:'none' }} />
+            </label>
+            {imgPreview && <img src={imgPreview} alt="preview" style={{ height:'36px', borderRadius:'4px', border:'2px solid rgba(255,255,255,0.4)', objectFit:'cover' }} />}
+          </div>
+          {importMsg && (
+            <div style={{ marginTop:'8px', fontSize:'11px', color:'rgba(255,255,255,0.9)', background:'rgba(0,0,0,0.25)', borderRadius:'5px', padding:'6px 10px' }}>
+              {importMsg}
+            </div>
+          )}
         </div>
 
         {/* Tabla */}
