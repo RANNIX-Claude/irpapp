@@ -86,9 +86,10 @@ export const handler = async (event) => {
     const data = await res.json()
     const text = data.content?.[0]?.text || '{}'
 
-    // Limpiar posible markdown wrapper
-    const clean = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-    const parsed = JSON.parse(clean)
+    // Extraer primer bloque JSON válido (ignorar texto previo como "Analizando...")
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total: null, proveedor: null, fecha: null, lineas: [], raw: text }) }
+    const parsed = JSON.parse(match[0])
 
     return {
       statusCode: 200,

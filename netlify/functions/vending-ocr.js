@@ -54,9 +54,10 @@ Instrucciones:
 
     const data = await res.json()
     let text = data.content?.[0]?.text || '{}'
-    // Limpiar markdown
-    text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-    const parsed = JSON.parse(text)
+    // Extraer el primer bloque JSON válido (ignorar texto previo/posterior)
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ventas: [], raw: text }) }
+    const parsed = JSON.parse(match[0])
 
     return {
       statusCode: 200,
