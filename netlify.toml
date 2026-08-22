@@ -1,3 +1,4 @@
+# ─── PRODUCCIÓN (rama: master) ────────────────────────────────────────────────
 [build]
   command = "npm run build"
   publish = "dist"
@@ -10,7 +11,19 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  VITE_SUPABASE_URL = "https://kusuoxwzdxfuybvyiakg.supabase.co"
-  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1c3VveHd6ZHhmdXlidnlpYWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTU2NjQsImV4cCI6MjEwMTQ3MTY2NH0.z5doG19A2bYwbBDuMlo5im6s6SLycu38x2Whpv8RGjM"
-  VITE_APP_TITLE = "IRP — Inmueble Resource Planning"
-  VITE_APP_URL = "https://irpapp.netlify.app"
+  VITE_AMBIENTE   = "PRODUCCION"
+  VITE_APP_TITLE  = "IRP — Inmueble Resource Planning"
+  VITE_APP_URL    = "https://irpapp.netlify.app"
+  # VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY se configuran en Netlify UI → Site settings
+  # ANTHROPIC_API_KEY y SUPABASE_SERVICE_ROLE_KEY NUNCA aquí — solo en Netlify UI
+
+# ─── QA / DEV (rama: develop) — sitio Netlify separado ────────────────────────
+# Las siguientes variables se configuran en el sitio Netlify de QA directamente,
+# NO en este archivo. Este bloque es solo referencia documentada.
+#
+# [context.develop.environment]
+#   VITE_AMBIENTE           = "QA"
+#   VITE_APP_TITLE          = "IRP QA — Inmueble Resource Planning"
+#   VITE_APP_URL            = "https://irpapp-qa.netlify.app"
+#   VITE_SUPABASE_URL       = "<URL del proyecto Supabase QA>"
+#   VITE_SUPABASE_ANON_KEY  = "<anon key del proyecto Supabase QA>"

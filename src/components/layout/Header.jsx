@@ -46,6 +46,9 @@ export default function Header() {
             <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'rgba(232,160,32,0.25)', color: '#E8A020', letterSpacing: '0.02em' }}>
               {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'v0.03'}
             </span>
+            {import.meta.env.VITE_AMBIENTE === 'QA' && (
+              <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 7px', borderRadius: '4px', background: '#7C3AED', color: 'white', letterSpacing: '0.05em' }}>QA</span>
+            )}
           </div>
           <div style={{ fontSize: '10px', opacity: 0.8, lineHeight: 1 }}>IWOL Resource Planning</div>
         </div>
