@@ -561,6 +561,8 @@ export default function Vending() {
   const [listaCompras, setListaCompras] = useState(null) // post-corte
   const [vistaCorta, setVistaCorta]   = useState(false)
   const [gastosVending, setGastosVending] = useState(0)  // gastos_operativos grupo Vending/Reabasto
+  const [confirmDelMov, setConfirmDelMov] = useState(null) // movimiento a eliminar
+  const [deletingMov, setDeletingMov] = useState(false)
 
   const semana = semanas[selIdx] || semanas[0]
 
@@ -570,6 +572,57 @@ export default function Vending() {
     setProductos(data || [])
     return data || []
   }, [])
+
+  // ── Eliminar movimiento (revierte snapshot) ──
+  const eliminarMov = async (mov) => {
+    setDeletingMov(true)
+    try {
+      // 1. Obtener snapshot actual del producto en la semana
+      const { data: sp } = await supabase
+        .from('vending_semana_producto')
+        .select('*')
+        .eq('id', mov.semana_producto_id)
+        .single()
+      if (!sp) throw new Error('No se encontró el registro de semana-producto')
+
+      const cant = parseFloat(mov.cantidad) || 0
+      const imp  = parseFloat(mov.importe)  || 0
+
+      // 2. Revertir snapshot
+      const patch = mov.tipo === 'COMPRA'
+        ? { qty_compras: Math.max(0, (parseFloat(sp.qty_compras)||0) - cant),
+            importe_compras: Math.max(0, (parseFloat(sp.importe_compras)||0) - imp) }
+        : { qty_ventas: Math.max(0, (parseFloat(sp.qty_ventas)||0) - cant),
+            importe_ventas: Math.max(0, (parseFloat(sp.importe_ventas)||0) - imp) }
+      await supabase.from('vending_semana_producto').update(patch).eq('id', sp.id)
+
+      // 3. Eliminar movimiento
+      await supabase.from('vending_movimientos').delete().eq('id', mov.id)
+
+      // 4. Recalcular totales en vending_semanas
+      const { data: totales } = await supabase
+        .from('vending_semana_producto')
+        .select('importe_ventas, importe_compras, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
+        .eq('semana_id', mov.semana_id)
+      const totVentas = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
+      const totUtil   = (totales||[]).reduce((s,r) => {
+        const p = r.vending_productos
+        if (!p?.precio_venta || !p?.costo_caja || !p?.unidades_caja) return s
+        const cu = parseFloat(p.costo_caja) / parseInt(p.unidades_caja)
+        return s + (parseFloat(p.precio_venta) - cu) * (parseFloat(r.qty_ventas)||0)
+      }, 0)
+      const totUnidV = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
+      const totUnidC = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
+      await supabase.from('vending_semanas').update({
+        venta_pesos: totVentas, utilidad: totUtil,
+        venta_unidades: totUnidV, compras: totUnidC,
+      }).eq('id', mov.semana_id)
+
+      toast.success(`${mov.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} eliminada`)
+      setConfirmDelMov(null)
+      setRefreshKey(k => k + 1)
+    } catch (e) { toast.error(e.message) } finally { setDeletingMov(false) }
+  }
 
   // ── Cargar datos de la semana seleccionada ──
   const cargarSemana = useCallback(async () => {
@@ -1085,7 +1138,7 @@ export default function Vending() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                 <thead>
                   <tr style={{ background:'#F9FAFB' }}>
-                    {['Fecha','Tipo','Producto','Cantidad','Precio/u','Importe','Proveedor','Nota'].map(h => (
+                    {['Fecha','Tipo','Producto','Cantidad','Precio/u','Importe','Proveedor','Nota',''].map(h => (
                       <th key={h} style={{ padding:'8px 12px', textAlign: ['Cantidad','Precio/u','Importe'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -1105,6 +1158,19 @@ export default function Vending() {
                       <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, color: m.tipo==='VENTA'?'var(--color-success)':'#6B7280', fontVariantNumeric:'tabular-nums' }}>{fmt(m.importe)}</td>
                       <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.proveedor || '—'}</td>
                       <td style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'11px' }}>{m.nota || '—'}</td>
+                      <td style={{ padding:'8px 12px', textAlign:'right' }}>
+                        {semanaDb?.estado === 'ABIERTA' && (
+                          <button
+                            onClick={() => setConfirmDelMov(m)}
+                            title="Eliminar movimiento"
+                            style={{ background:'none', border:'none', cursor:'pointer', padding:'4px', color:'#EF4444', opacity:0.7, lineHeight:0 }}
+                            onMouseEnter={e => e.currentTarget.style.opacity='1'}
+                            onMouseLeave={e => e.currentTarget.style.opacity='0.7'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1213,6 +1279,33 @@ export default function Vending() {
       {listaCompras && (
         <ModalListaCompras lista={listaCompras} onClose={() => setListaCompras(null)} />
       )}
+      {/* Confirm: eliminar movimiento */}
+      {confirmDelMov && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDelMov(null)}>
+          <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'420px', width:'100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:800, fontSize:'15px', marginBottom:'6px', color:'#B91C1C' }}>
+              ⚠ Eliminar movimiento
+            </div>
+            <div style={{ fontSize:'13px', color:'#374151', marginBottom:'4px' }}>
+              <strong>{confirmDelMov.tipo}</strong> — {confirmDelMov.vending_productos?.producto}
+            </div>
+            <div style={{ fontSize:'13px', color:'#6B7280', marginBottom:'16px' }}>
+              {fmtN(confirmDelMov.cantidad)} uds × {fmt(confirmDelMov.precio_unitario)} = <strong>{fmt(confirmDelMov.importe)}</strong>
+              {' · '}{confirmDelMov.fecha}
+            </div>
+            <div style={{ fontSize:'12px', color:'#9CA3AF', marginBottom:'20px' }}>
+              Se revertirá el efecto en el inventario y los totales de la semana.
+            </div>
+            <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+              <button onClick={() => setConfirmDelMov(null)} style={{ padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => eliminarMov(confirmDelMov)} disabled={deletingMov} style={{ padding:'9px 18px', background:'#B91C1C', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor: deletingMov?'not-allowed':'pointer', opacity: deletingMov?0.7:1 }}>
+                {deletingMov ? 'Eliminando…' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
           <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'380px', width:'100%' }} onClick={e => e.stopPropagation()}>
