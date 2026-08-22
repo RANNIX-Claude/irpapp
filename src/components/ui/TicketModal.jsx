@@ -37,7 +37,7 @@ function PanelIA({ onExtracted }) {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      onExtracted(data)
+      onExtracted(data, { b64, mtype: mediaType })   // pasar imagen fuente para Storage
       setResult('ok')
       toast.success(`Ticket leído: ${data.lineas?.length || 0} artículos`)
     } catch (err) {
@@ -251,8 +251,11 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
       .then(({ data }) => setLineas(data?.map(d => ({ ...d, _key: d.id })) || []))
   }, [gasto?.id])
 
+  const [ticketImgSrc, setTicketImgSrc] = useState(null)   // {b64, mtype} de la foto del ticket
+
   // Callback cuando la IA extrae datos (OCR o texto)
-  const handleExtracted = (data) => {
+  const handleExtracted = (data, imgSrc) => {
+    if (imgSrc) setTicketImgSrc(imgSrc)
     if (data.total)     set('ticket_total', String(data.total))
     if (data.proveedor) set('proveedor_txt', data.proveedor)
     if (data.fecha)     set('fecha', data.fecha)
@@ -301,6 +304,21 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         const { data, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
         if (error) throw error
         gastoId = data.id
+      }
+
+      // Subir foto del ticket a Storage como referencia
+      if (ticketImgSrc && gastoId) {
+        try {
+          const ext  = ticketImgSrc.mtype?.includes('png') ? 'png' : 'jpg'
+          const path = `${form.fecha?.slice(0,7) || 'sin-fecha'}/${gastoId}.${ext}`
+          const byteArr = Uint8Array.from(atob(ticketImgSrc.b64), c => c.charCodeAt(0))
+          const blob = new Blob([byteArr], { type: ticketImgSrc.mtype || 'image/jpeg' })
+          const { data: upData } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert: true })
+          if (upData?.path) {
+            const { data: { publicUrl } } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
+            await supabase.from('gastos_operativos').update({ ticket_url: publicUrl }).eq('id', gastoId)
+          }
+        } catch (_) { /* silencioso */ }
       }
 
       if (lineas.length > 0) {

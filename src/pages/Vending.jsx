@@ -1398,6 +1398,7 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
   const [importMsg, setImportMsg] = useState('')
   const [ocring, setOcring] = useState(false)
   const [imgPreview, setImgPreview] = useState(null)
+  const [reporteB64, setReporteB64] = useState(null)   // base64 de la imagen fuente para Storage
 
   const set = (id, val) => setCantidades(prev => ({ ...prev, [id]: val }))
 
@@ -1414,6 +1415,7 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
 
       const procesarOCR = async (b64, mtype) => {
         setImgPreview(dataUrl)
+        setReporteB64({ b64, mtype })  // guardar para subir a Storage al registrar
         try {
           const res = await fetch('/.netlify/functions/vending-ocr', {
             method: 'POST',
@@ -1526,6 +1528,21 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
         return s + (parseFloat(p.precio_venta)-cu)*(parseFloat(r.qty_ventas)||0)
       }, 0)
       await supabase.from('vending_semanas').update({ venta_pesos: totV, utilidad: totUtil, venta_unidades: totU }).eq('id', semanaId)
+
+      // Subir imagen fuente a Storage como referencia
+      if (reporteB64) {
+        try {
+          const ext  = reporteB64.mtype?.includes('png') ? 'png' : 'jpg'
+          const path = `${semanaId}/${fecha}.${ext}`
+          const byteArr = Uint8Array.from(atob(reporteB64.b64), c => c.charCodeAt(0))
+          const blob = new Blob([byteArr], { type: reporteB64.mtype || 'image/jpeg' })
+          const { data: upData } = await supabase.storage.from('vending-reportes').upload(path, blob, { upsert: true })
+          if (upData?.path) {
+            const { data: { publicUrl } } = supabase.storage.from('vending-reportes').getPublicUrl(path)
+            await supabase.from('vending_semanas').update({ reporte_url: publicUrl }).eq('id', semanaId)
+          }
+        } catch (_) { /* silencioso — no bloquear el guardado */ }
+      }
 
       toast.success(`✅ ${lineas.length} productos registrados — ${totalUds.toLocaleString('es-MX')} uds`)
       onSaved(); onClose()
