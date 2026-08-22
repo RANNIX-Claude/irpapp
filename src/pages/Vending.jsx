@@ -147,9 +147,17 @@ async function checkAndRunCorte(productos, onCorteEjecutado) {
   if (onCorteEjecutado) onCorteEjecutado()
 }
 
-// ── Modal: Registrar Movimiento (COMPRA o VENTA) ───────────────────────────
-function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPresel, onClose, onSaved }) {
-  const [form, setForm] = useState({
+// ── Modal: Registrar / Editar Movimiento (COMPRA o VENTA) ────────────────────
+function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPresel, editMov, onClose, onSaved }) {
+  const [form, setForm] = useState(() => editMov ? {
+    tipo:            editMov.tipo,
+    producto_id:     editMov.producto_id,
+    fecha:           editMov.fecha,
+    cantidad:        String(parseFloat(editMov.cantidad) || ''),
+    precio_unitario: String(parseFloat(editMov.precio_unitario) || ''),
+    proveedor:       editMov.proveedor || '',
+    nota:            editMov.nota || '',
+  } : {
     tipo:           'VENTA',
     producto_id:    productoPresel?.id || '',
     fecha:          hoyLocal(),
@@ -183,6 +191,23 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
       return toast.error('Selecciona producto y cantidad')
     setSaving(true)
     try {
+      // Si es edición, revertir el movimiento anterior primero
+      if (editMov) {
+        const { data: spViejo } = await supabase
+          .from('vending_semana_producto').select('*').eq('id', editMov.semana_producto_id).single()
+        if (spViejo) {
+          const cantV = parseFloat(editMov.cantidad) || 0
+          const impV  = parseFloat(editMov.importe)  || 0
+          const patchV = editMov.tipo === 'COMPRA'
+            ? { qty_compras: Math.max(0, (parseFloat(spViejo.qty_compras)||0) - cantV),
+                importe_compras: Math.max(0, (parseFloat(spViejo.importe_compras)||0) - impV) }
+            : { qty_ventas: Math.max(0, (parseFloat(spViejo.qty_ventas)||0) - cantV),
+                importe_ventas: Math.max(0, (parseFloat(spViejo.importe_ventas)||0) - impV) }
+          await supabase.from('vending_semana_producto').update(patchV).eq('id', spViejo.id)
+        }
+        await supabase.from('vending_movimientos').delete().eq('id', editMov.id)
+      }
+
       const prod = productos.find(p => p.id === form.producto_id)
       const cant = parseFloat(form.cantidad)
       const precio = parseFloat(form.precio_unitario) || 0
@@ -263,7 +288,7 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         compras:        totUnidC,
       }).eq('id', semanaId)
 
-      toast.success(`${form.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} registrada`)
+      toast.success(`${form.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} ${editMov ? 'actualizada' : 'registrada'}`)
       onSaved(); onClose()
     } catch (e) { toast.error(e.message) } finally { setSaving(false) }
   }
@@ -278,7 +303,7 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         {/* Header */}
         <div style={{ padding:'16px 20px', background: form.tipo==='COMPRA' ? '#1A3C5E' : '#057642', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ color:'white', fontWeight:800, fontSize:'15px' }}>
-            {form.tipo === 'COMPRA' ? '📦 Registrar Compra' : '🛒 Registrar Venta'}
+            {editMov ? '✏️ Editar movimiento' : (form.tipo === 'COMPRA' ? '📦 Registrar Compra' : '🛒 Registrar Venta')}
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', color:'white' }}><X size={16} /></button>
         </div>
@@ -358,7 +383,7 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         <div style={{ padding:'14px 20px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'10px' }}>
           <button onClick={onClose} style={{ flex:1, padding:'10px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600, color:'#6B7280' }}>Cancelar</button>
           <button onClick={guardar} disabled={saving} style={{ flex:2, padding:'10px', border:'none', borderRadius:'8px', background: form.tipo==='COMPRA'?'#1A3C5E':'#057642', color:'white', cursor: saving?'not-allowed':'pointer', fontSize:'13px', fontWeight:700, opacity: saving?0.7:1 }}>
-            {saving ? 'Guardando…' : `Guardar ${form.tipo}`}
+            {saving ? 'Guardando…' : editMov ? 'Actualizar' : `Guardar ${form.tipo}`}
           </button>
         </div>
       </div>
@@ -554,6 +579,7 @@ export default function Vending() {
   const [modal, setModal]         = useState(null)    // null | 'mov' | 'prod' | 'editProd'
   const [prodPresel, setProdPresel]   = useState(null)
   const [editProd, setEditProd]       = useState(null)
+  const [editMovItem, setEditMovItem] = useState(null) // movimiento a editar
   const [confirmDel, setConfirmDel]   = useState(null)
   const [refreshKey, setRefreshKey]   = useState(0)
   const [cortando, setCortando]       = useState(false)
@@ -1158,17 +1184,28 @@ export default function Vending() {
                       <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, color: m.tipo==='VENTA'?'var(--color-success)':'#6B7280', fontVariantNumeric:'tabular-nums' }}>{fmt(m.importe)}</td>
                       <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.proveedor || '—'}</td>
                       <td style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'11px' }}>{m.nota || '—'}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'right' }}>
+                      <td style={{ padding:'8px 12px', textAlign:'right', whiteSpace:'nowrap' }}>
                         {semanaDb?.estado === 'ABIERTA' && (
-                          <button
-                            onClick={() => setConfirmDelMov(m)}
-                            title="Eliminar movimiento"
-                            style={{ background:'none', border:'none', cursor:'pointer', padding:'4px', color:'#EF4444', opacity:0.7, lineHeight:0 }}
-                            onMouseEnter={e => e.currentTarget.style.opacity='1'}
-                            onMouseLeave={e => e.currentTarget.style.opacity='0.7'}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <span style={{ display:'inline-flex', gap:'2px' }}>
+                            <button
+                              onClick={() => { setEditMovItem(m); setProdPresel(null); setModal('mov') }}
+                              title="Editar movimiento"
+                              style={{ background:'none', border:'none', cursor:'pointer', padding:'4px', color:'#0A66C2', opacity:0.7, lineHeight:0 }}
+                              onMouseEnter={e => e.currentTarget.style.opacity='1'}
+                              onMouseLeave={e => e.currentTarget.style.opacity='0.7'}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelMov(m)}
+                              title="Eliminar movimiento"
+                              style={{ background:'none', border:'none', cursor:'pointer', padding:'4px', color:'#EF4444', opacity:0.7, lineHeight:0 }}
+                              onMouseEnter={e => e.currentTarget.style.opacity='1'}
+                              onMouseLeave={e => e.currentTarget.style.opacity='0.7'}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -1257,7 +1294,8 @@ export default function Vending() {
           semanaFin={semana.fin}
           productos={productos}
           productoPresel={prodPresel}
-          onClose={() => { setModal(null); setProdPresel(null) }}
+          editMov={editMovItem}
+          onClose={() => { setModal(null); setProdPresel(null); setEditMovItem(null) }}
           onSaved={() => setRefreshKey(k => k+1)}
         />
       )}
