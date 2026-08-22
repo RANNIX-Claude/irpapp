@@ -1,6 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight, Images, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
@@ -240,6 +240,284 @@ const GRUPO_COLOR = {
   'Alimentación': '#10B981', 'Otros': '#6B7280',
 }
 
+// ─── Utilidades OCR ───────────────────────────────────────────────────────────
+function calcDatosGasto(fecha) {
+  const dt = new Date(fecha + 'T12:00:00')
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+  return { anio: dt.getFullYear(), mes: MESES[dt.getMonth()], dia_semana: DIAS[dt.getDay()], semana: `S${Math.ceil(dt.getDate() / 7)}` }
+}
+
+const SUPPORTED_IMG = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+async function fileToB64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      if (!SUPPORTED_IMG.includes(file.type)) {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width  = img.naturalWidth
+          canvas.height = img.naturalHeight
+          canvas.getContext('2d').drawImage(img, 0, 0)
+          const jpegUrl = canvas.toDataURL('image/jpeg', 0.92)
+          resolve({ b64: jpegUrl.split(',')[1], mtype: 'image/jpeg', preview: jpegUrl })
+        }
+        img.onerror = () => resolve(null)
+        img.src = dataUrl
+      } else {
+        resolve({ b64: dataUrl.split(',')[1], mtype: file.type, preview: dataUrl })
+      }
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+async function ocrizarTicket(b64, mtype) {
+  const res = await fetch('/.netlify/functions/gastos-ocr', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ image_base64: b64, media_type: mtype }),
+  })
+  const data = await res.json()
+  if (data.error) throw new Error(data.error)
+  return data
+}
+
+const GRUPOS_LISTA = [
+  'Ferretería y materiales', 'Limpieza e higiene', 'Papelería y oficina',
+  'Electricidad', 'Plomería', 'Herramienta y equipo', 'Servicios externos',
+  'Vending / Reabasto', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros',
+]
+
+// ─── Modal Carga en Grupo ─────────────────────────────────────────────────────
+function ModalCargaGrupo({ onClose, onSaved }) {
+  const hoy = new Date().toISOString().slice(0, 10)
+  const [tickets, setTickets] = useState([])   // [{id, file, preview, b64, mtype, estado, ocr, form}]
+  const [saving, setSaving]   = useState(false)
+  const fileRef = useRef()
+
+  const setTicket = (id, patch) =>
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
+  const setForm = (id, field, val) =>
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, form: { ...t.form, [field]: val } } : t))
+
+  const agregarArchivos = async (files) => {
+    const nuevos = Array.from(files).map(f => ({
+      id: `${Date.now()}-${Math.random()}`,
+      file: f,
+      preview: null,
+      b64: null,
+      mtype: null,
+      estado: 'leyendo',   // leyendo | ocrizando | listo | error
+      ocr: null,
+      form: { fecha: hoy, grupo_gasto: '', proveedor_txt: '', ticket_total: '', descripcion: '' },
+    }))
+    setTickets(prev => [...prev, ...nuevos])
+
+    for (const ticket of nuevos) {
+      try {
+        const img = await fileToB64(ticket.file)
+        if (!img) { setTicket(ticket.id, { estado: 'error', errorMsg: 'No se pudo leer la imagen' }); continue }
+        setTicket(ticket.id, { b64: img.b64, mtype: img.mtype, preview: img.preview, estado: 'ocrizando' })
+
+        const ocr = await ocrizarTicket(img.b64, img.mtype)
+        setTicket(ticket.id, {
+          estado: 'listo',
+          ocr,
+          form: {
+            fecha:         ocr.fecha || hoy,
+            grupo_gasto:   '',
+            proveedor_txt: ocr.proveedor || '',
+            ticket_total:  ocr.total ? String(ocr.total) : '',
+            descripcion:   '',
+          },
+        })
+      } catch (e) {
+        setTicket(ticket.id, { estado: 'error', errorMsg: e.message })
+      }
+    }
+  }
+
+  const quitar = (id) => setTickets(prev => prev.filter(t => t.id !== id))
+
+  const guardarTodos = async () => {
+    const listos = tickets.filter(t => t.estado === 'listo' && t.form.grupo_gasto)
+    if (!listos.length) { toast.error('Ningún ticket listo con grupo asignado'); return }
+    setSaving(true)
+    let ok = 0, fail = 0
+    for (const t of listos) {
+      try {
+        const monto = parseFloat(t.form.ticket_total) || 0
+        const payload = {
+          fecha:        t.form.fecha,
+          proveedor:    t.form.proveedor_txt || null,
+          grupo_gasto:  t.form.grupo_gasto,
+          descripcion:  t.form.descripcion || null,
+          cantidad:     monto,
+          ticket_total: monto,
+          ...calcDatosGasto(t.form.fecha),
+        }
+        const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
+        if (error) throw error
+
+        // Guardar líneas OCR si las hay
+        if (t.ocr?.lineas?.length) {
+          const lineas = t.ocr.lineas.filter(l => l.descripcion && l.precio_unit).map(l => ({
+            gasto_id: ins.id,
+            descripcion: l.descripcion,
+            cantidad: parseFloat(l.cantidad) || 1,
+            precio_unit: parseFloat(l.precio_unit),
+            categoria: null, codigo_proveedor: l.codigo_proveedor || null, producto_id: null,
+          }))
+          if (lineas.length) await supabase.from('gasto_detalle').insert(lineas)
+        }
+
+        // Subir foto a Storage
+        if (t.b64) {
+          try {
+            const ext  = t.mtype?.includes('png') ? 'png' : 'jpg'
+            const path = `${t.form.fecha?.slice(0,7) || 'sin-fecha'}/${ins.id}.${ext}`
+            const byteArr = Uint8Array.from(atob(t.b64), c => c.charCodeAt(0))
+            const blob = new Blob([byteArr], { type: t.mtype || 'image/jpeg' })
+            const { data: upData } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert: true })
+            if (upData?.path) {
+              const { data: { publicUrl } } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
+              await supabase.from('gastos_operativos').update({ ticket_url: publicUrl }).eq('id', ins.id)
+            }
+          } catch (_) {}
+        }
+
+        setTicket(t.id, { estado: 'guardado' })
+        ok++
+      } catch (e) {
+        setTicket(t.id, { estado: 'error_guardar', errorMsg: e.message })
+        fail++
+      }
+    }
+    setSaving(false)
+    if (ok) toast.success(`✅ ${ok} ticket${ok > 1 ? 's' : ''} guardado${ok > 1 ? 's' : ''}`)
+    if (fail) toast.error(`${fail} ticket${fail > 1 ? 's' : ''} con error`)
+    if (!fail) { onSaved(); onClose() }
+  }
+
+  const listos   = tickets.filter(t => t.estado === 'listo')
+  const sinGrupo = listos.filter(t => !t.form.grupo_gasto).length
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'12px' }} onClick={onClose}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:780, maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.35)' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding:'14px 20px', background:'#E8A020', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <div>
+            <div style={{ fontSize:16, fontWeight:800, color:'white' }}>📷 Carga en Grupo — Tickets</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.85)' }}>Sube varias fotos • OCR automático • Revisión y guardado masivo</div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'6px 10px', color:'white', cursor:'pointer', fontWeight:800 }}>✕</button>
+        </div>
+
+        {/* Zona de carga */}
+        <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', flexShrink:0 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 20px', background:'#FFFBEB', border:'2px dashed #FCD34D', borderRadius:10, cursor:'pointer', justifyContent:'center' }}>
+            <Images size={20} color="#E8A020" />
+            <span style={{ fontSize:14, fontWeight:700, color:'#92400E' }}>Seleccionar fotos de tickets (una o varias)</span>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => { agregarArchivos(e.target.files); e.target.value = '' }} style={{ display:'none' }} />
+          </label>
+        </div>
+
+        {/* Lista de tickets */}
+        <div style={{ flex:1, overflowY:'auto', padding:'0 20px' }}>
+          {tickets.length === 0 && (
+            <div style={{ textAlign:'center', padding:'40px 0', color:'#9CA3AF', fontSize:14 }}>
+              Aún no has cargado ninguna foto. Selecciona una o varias imágenes arriba.
+            </div>
+          )}
+          {tickets.map((t, i) => (
+            <div key={t.id} style={{ display:'flex', gap:14, padding:'14px 0', borderBottom:'1px solid #F3F4F6', alignItems:'flex-start' }}>
+              {/* Miniatura */}
+              <div style={{ flexShrink:0, width:72, height:72, borderRadius:8, overflow:'hidden', background:'#F9FAFB', border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {t.preview
+                  ? <img src={t.preview} alt="ticket" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <Loader2 size={22} color="#9CA3AF" style={{ animation:'spin 1s linear infinite' }} />}
+              </div>
+
+              {/* Contenido */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#6B7280' }}>#{i+1} {t.file.name}</span>
+                  {t.estado === 'leyendo'    && <span style={{ fontSize:11, background:'#EFF6FF', color:'#0A66C2', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>Leyendo imagen…</span>}
+                  {t.estado === 'ocrizando'  && <span style={{ fontSize:11, background:'#FFF7ED', color:'#C2410C', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>⏳ Procesando con IA…</span>}
+                  {t.estado === 'listo'      && <span style={{ fontSize:11, background:'#ECFDF5', color:'#057642', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✓ Listo</span>}
+                  {t.estado === 'guardado'   && <span style={{ fontSize:11, background:'#ECFDF5', color:'#057642', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✅ Guardado</span>}
+                  {(t.estado === 'error' || t.estado === 'error_guardar') && <span style={{ fontSize:11, background:'#FEF2F2', color:'#B24020', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>❌ {t.errorMsg || 'Error'}</span>}
+                  <button onClick={() => quitar(t.id)} style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', padding:'2px 4px' }}>✕</button>
+                </div>
+
+                {(t.estado === 'listo' || t.estado === 'error_guardar') && (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 10px' }}>
+                    <div>
+                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Fecha</label>
+                      <input type="date" value={t.form.fecha} onChange={e => setForm(t.id, 'fecha', e.target.value)}
+                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Total $</label>
+                      <input type="number" value={t.form.ticket_total} onChange={e => setForm(t.id, 'ticket_total', e.target.value)} placeholder="0.00"
+                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Grupo *</label>
+                      <select value={t.form.grupo_gasto} onChange={e => setForm(t.id, 'grupo_gasto', e.target.value)}
+                        style={{ width:'100%', padding:'5px 8px', border: t.form.grupo_gasto ? '1.5px solid #E5E7EB' : '1.5px solid #FCA5A5', borderRadius:6, fontSize:13, boxSizing:'border-box', background:'white' }}>
+                        <option value="">— Seleccionar —</option>
+                        {GRUPOS_LISTA.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Proveedor</label>
+                      <input value={t.form.proveedor_txt} onChange={e => setForm(t.id, 'proveedor_txt', e.target.value)} placeholder="Nombre o tienda"
+                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
+                    </div>
+                    <div style={{ gridColumn:'1/-1' }}>
+                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Descripción</label>
+                      <input value={t.form.descripcion} onChange={e => setForm(t.id, 'descripcion', e.target.value)} placeholder="Opcional"
+                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
+                    </div>
+                    {t.ocr?.lineas?.length > 0 && (
+                      <div style={{ gridColumn:'1/-1', fontSize:11, color:'#6B7280' }}>
+                        {t.ocr.lineas.length} artículo{t.ocr.lineas.length > 1 ? 's' : ''} detectado{t.ocr.lineas.length > 1 ? 's' : ''} en el ticket
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'14px 20px', borderTop:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <div style={{ fontSize:13, color:'#6B7280' }}>
+            {listos.length} listo{listos.length !== 1 ? 's' : ''}
+            {sinGrupo > 0 && <span style={{ color:'#F59E0B', marginLeft:8 }}>· {sinGrupo} sin grupo</span>}
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={onClose} style={{ padding:'9px 18px', background:'white', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', color:'#374151' }}>Cancelar</button>
+            <button onClick={guardarTodos} disabled={saving || !listos.filter(t => t.form.grupo_gasto).length}
+              style={{ padding:'9px 22px', background: saving ? '#9CA3AF' : '#057642', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:800, cursor: saving ? 'not-allowed' : 'pointer' }}>
+              {saving ? 'Guardando…' : `Guardar ${listos.filter(t=>t.form.grupo_gasto).length} ticket${listos.filter(t=>t.form.grupo_gasto).length !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }`}</style>
+    </div>
+  )
+}
+
 export default function GastosOperativos() {
   useModuleAudit('GASTOS_OPERATIVOS')
   const [gastos, setGastos]       = useState([])
@@ -247,6 +525,7 @@ export default function GastosOperativos() {
   const [search, setSearch]       = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState('Todos')
   const [modal, setModal]         = useState(null) // null | 'nuevo' | gasto
+  const [showCargaGrupo, setShowCargaGrupo] = useState(false)
   const [showProveedores, setShowProveedores] = useState(false)
   const [expanded, setExpanded]   = useState(null)
   const [detalle, setDetalle]     = useState({})
@@ -307,6 +586,9 @@ export default function GastosOperativos() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setShowProveedores(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             <BookUser size={15} /> Proveedores
+          </button>
+          <button onClick={() => setShowCargaGrupo(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#057642', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            <Images size={15} /> Carga en Grupo
           </button>
           <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#E8A020', color: 'white', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
             <Plus size={15} /> Nuevo ticket
@@ -438,6 +720,13 @@ export default function GastosOperativos() {
           gasto={modal === 'nuevo' ? null : modal}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); setDetalle({}); cargar() }}
+        />
+      )}
+
+      {showCargaGrupo && (
+        <ModalCargaGrupo
+          onClose={() => setShowCargaGrupo(false)}
+          onSaved={() => { setShowCargaGrupo(false); cargar() }}
         />
       )}
 
