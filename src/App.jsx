@@ -37,8 +37,8 @@ import Ingresos from './pages/Ingresos.jsx'
 import Despachos from './pages/Despachos.jsx'
 import './styles/theme.css'
 
-// Roles que tienen acceso al portal de administración
-const ROLES_ADMIN = ['SUPERADMIN','ADMIN','ADMINISTRADOR','GERENTE','COBRANZA','CONTABILIDAD','OPERACIONES','MANTENIMIENTO','VIGILANCIA']
+// Roles que NO son admin (van al portal arrendatario/externo)
+const ROLES_PORTAL = ['arrendatario', 'prospecto']
 
 function AppLayout() {
   const { user, perfil, loading, sidebarOpen } = useApp()
@@ -65,7 +65,7 @@ function AppLayout() {
   if (!user) return <Login />
 
   // Arrendatario logueado → redirigir a su portal (no al admin)
-  if (perfil && !ROLES_ADMIN.includes(perfil.rol_id)) {
+  if (perfil && ROLES_PORTAL.includes(perfil.rol_id)) {
     return (
       <Routes>
         <Route path="*" element={<PortalArrendatario embedded />} />
