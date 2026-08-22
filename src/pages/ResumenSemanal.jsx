@@ -103,9 +103,9 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('semana_inicio', ini)
       .order('num_recibo'),
 
-    // Vending: semana cuyo fecha_inicio = Sábado seleccionado
+    // Vending: semana cuyo fecha_inicio = Sábado seleccionado (con detalle para calcular real)
     supabase.from('vending_semanas')
-      .select('id, fecha_inicio, venta_pesos, residual_pesos, es_material, nota')
+      .select('id, fecha_inicio, venta_pesos, residual_pesos, es_material, nota, vending_semana_producto(importe_ventas)')
       .eq('fecha_inicio', ini)
       .limit(1),
 
@@ -125,22 +125,18 @@ async function cargarDatos(ini, fin, iniEstac) {
 
   const ingresosEf = rentasEf ?? []
 
-  // Re-calcular venta_pesos real desde vending_semana_producto (evita desincronía)
-  const vendingRows = vending ?? []
-  if (vendingRows[0]?.id) {
-    const { data: detV } = await supabase
-      .from('vending_semana_producto')
-      .select('importe_ventas')
-      .eq('semana_id', vendingRows[0].id)
-    if (detV && detV.length > 0) {
-      const realVentas = detV.reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
-      if (Math.abs(realVentas - (parseFloat(vendingRows[0].venta_pesos) || 0)) > 0.5) {
-        // Desincronía detectada: usar el valor real y actualizar el registro
-        vendingRows[0] = { ...vendingRows[0], venta_pesos: realVentas }
-        supabase.from('vending_semanas').update({ venta_pesos: realVentas }).eq('id', vendingRows[0].id).then(() => {})
-      }
+  // Calcular venta_pesos real desde el JOIN con vending_semana_producto
+  const vendingRows = (vending ?? []).map(v => {
+    const det = v.vending_semana_producto ?? []
+    if (det.length === 0) return v
+    const realVentas = det.reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
+    if (Math.abs(realVentas - (parseFloat(v.venta_pesos) || 0)) > 0.5) {
+      // Actualizar en BD en background (sin esperar)
+      supabase.from('vending_semanas').update({ venta_pesos: realVentas }).eq('id', v.id).then(() => {})
+      return { ...v, venta_pesos: realVentas }
     }
-  }
+    return v
+  })
 
   return {
     estac:     estac     ?? [],
