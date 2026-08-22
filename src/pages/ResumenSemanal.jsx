@@ -105,7 +105,7 @@ async function cargarDatos(ini, fin, iniEstac) {
 
     // Vending: semana cuyo fecha_inicio = Sábado seleccionado
     supabase.from('vending_semanas')
-      .select('fecha_inicio, venta_pesos, residual_pesos, es_material, nota')
+      .select('id, fecha_inicio, venta_pesos, residual_pesos, es_material, nota')
       .eq('fecha_inicio', ini)
       .limit(1),
 
@@ -125,10 +125,27 @@ async function cargarDatos(ini, fin, iniEstac) {
 
   const ingresosEf = rentasEf ?? []
 
+  // Re-calcular venta_pesos real desde vending_semana_producto (evita desincronía)
+  const vendingRows = vending ?? []
+  if (vendingRows[0]?.id) {
+    const { data: detV } = await supabase
+      .from('vending_semana_producto')
+      .select('importe_ventas')
+      .eq('semana_id', vendingRows[0].id)
+    if (detV && detV.length > 0) {
+      const realVentas = detV.reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
+      if (Math.abs(realVentas - (parseFloat(vendingRows[0].venta_pesos) || 0)) > 0.5) {
+        // Desincronía detectada: usar el valor real y actualizar el registro
+        vendingRows[0] = { ...vendingRows[0], venta_pesos: realVentas }
+        supabase.from('vending_semanas').update({ venta_pesos: realVentas }).eq('id', vendingRows[0].id).then(() => {})
+      }
+    }
+  }
+
   return {
     estac:     estac     ?? [],
     pensiones: pensiones ?? [],
-    vending:   vending   ?? [],
+    vending:   vendingRows,
     gastos:    gastos    ?? [],
     rentasEf:  ingresosEf.filter(r => r.tipo === 'RENTA'),
     aguaEf:    ingresosEf.filter(r => r.tipo === 'AGUA'),
@@ -586,18 +603,28 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
       </table>
 
       <!-- Fondo recibido vs gastado -->
-      <div style="margin-top:12px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:8px 12px">
-        <div style="font-size:11px;font-weight:700;color:#DC2626;margin-bottom:4px">BALANCE FONDO REVOLVENTE</div>
-        <div style="display:flex;justify-content:space-between;font-size:11px">
-          <span>Fondo recibido (base $5,000)</span><span style="font-weight:700">$5,000.00</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px">
-          <span>Total gastado</span><span style="font-weight:700;color:#DC2626">${fmt(totGastosFondo)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;border-top:1px solid #FCA5A5;margin-top:4px;padding-top:4px;font-weight:700">
-          <span>Diferencia (a comprobación)</span><span style="color:${totGastosFondo > 5000 ? '#DC2626':'#16a34a'}">${fmt(totGastosFondo - 5000)}</span>
-        </div>
-      </div>
+      ${(() => {
+        const sobrante = 5000 - totGastosFondo
+        const excede   = totGastosFondo > 5000
+        const bgColor  = excede ? '#FEF2F2'  : '#F0FDF4'
+        const brColor  = excede ? '#FCA5A5'  : '#86EFAC'
+        const hdColor  = excede ? '#DC2626'  : '#15803D'
+        const difColor = excede ? '#DC2626'  : '#15803D'
+        const label    = excede ? 'Faltante (excede el fondo)' : 'Balance restante'
+        return `
+        <div style="margin-top:12px;background:${bgColor};border:1px solid ${brColor};border-radius:6px;padding:8px 12px">
+          <div style="font-size:11px;font-weight:700;color:${hdColor};margin-bottom:4px">BALANCE FONDO REVOLVENTE</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span>Fondo recibido (base $5,000)</span><span style="font-weight:700">$5,000.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span>Total gastado</span><span style="font-weight:700;color:#DC2626">${fmt(totGastosFondo)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;border-top:1px solid ${brColor};margin-top:4px;padding-top:4px;font-weight:700">
+            <span>${label}</span><span style="color:${difColor}">${fmt(Math.abs(sobrante))}</span>
+          </div>
+        </div>`
+      })()}
     </div>
   </div>
 

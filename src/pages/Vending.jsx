@@ -683,7 +683,7 @@ export default function Vending() {
       const { data: gastRows } = await supabase
         .from('gastos_operativos')
         .select('monto')
-        .eq('grupo', 'Vending / Reabasto')
+        .eq('grupo_gasto', 'Vending / Reabasto')
         .gte('fecha', semana.ini)
         .lte('fecha', semana.fin)
       setGastosVending((gastRows || []).reduce((s, r) => s + (parseFloat(r.monto) || 0), 0))
