@@ -862,6 +862,9 @@ export default function Vending() {
           <button onClick={() => setModal('prod')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600 }}>
             <Plus size={15} /> Producto
           </button>
+          <button onClick={() => semanaDb && setModal('bloque')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #057642', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#057642' }}>
+            <Plus size={15} /> Carga en Bloque
+          </button>
           <button onClick={() => abrirMov(null)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 16px', border:'none', borderRadius:'8px', background:'var(--color-primary)', color:'white', cursor:'pointer', fontSize:'13px', fontWeight:700 }}>
             <Plus size={15} /> Movimiento
           </button>
@@ -1306,6 +1309,16 @@ export default function Vending() {
           onSaved={() => setRefreshKey(k => k+1)}
         />
       )}
+      {modal === 'bloque' && semanaDb && (
+        <ModalCargaBloque
+          semanaId={semanaDb.id}
+          semanaFin={semana.fin}
+          detalle={detalle}
+          productos={productos}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); setRefreshKey(k => k+1) }}
+        />
+      )}
       {modal === 'ajuste' && semanaDb && (
         <ModalAjusteInicial
           semanaId={semanaDb.id}
@@ -1362,6 +1375,165 @@ export default function Vending() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Modal: Carga en Bloque (ventas masivas) ───────────────────────────────────
+function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, onSaved }) {
+  const hoy = hoyLocal()
+  const fecha = hoy <= semanaFin ? hoy : semanaFin
+  const prodActivos = productos.filter(p => p.activo)
+
+  // Mapa de qty_final (inventario actual) por producto_id
+  const stockMap = {}
+  detalle.forEach(d => { stockMap[d.producto_id] = parseFloat(d.qty_final) ?? 0 })
+
+  const [cantidades, setCantidades] = useState(() => {
+    const m = {}
+    prodActivos.forEach(p => { m[p.id] = '' })
+    return m
+  })
+  const [saving, setSaving] = useState(false)
+
+  const set = (id, val) => setCantidades(prev => ({ ...prev, [id]: val }))
+
+  const totalUds   = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0), 0)
+  const totalPesos = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0) * (parseFloat(p.precio_venta) || 0), 0)
+
+  const guardar = async () => {
+    const lineas = prodActivos.filter(p => parseFloat(cantidades[p.id]) > 0)
+    if (!lineas.length) return toast.error('Ingresa al menos una cantidad')
+    setSaving(true)
+    try {
+      for (const prod of lineas) {
+        const cant   = parseFloat(cantidades[prod.id])
+        const precio = parseFloat(prod.precio_venta) || 0
+
+        // Buscar o crear vending_semana_producto
+        let { data: sp } = await supabase
+          .from('vending_semana_producto').select('*')
+          .eq('semana_id', semanaId).eq('producto_id', prod.id).single()
+        if (!sp) {
+          const { data: ins } = await supabase.from('vending_semana_producto').insert({
+            semana_id: semanaId, producto_id: prod.id,
+            qty_inicial: 0, qty_compras: 0, qty_ventas: 0,
+            precio_venta_semana: precio, precio_compra_semana: precioCostoPorUnidad(prod),
+            importe_ventas: 0, importe_compras: 0,
+          }).select('*').single()
+          sp = ins
+        }
+        if (!sp) continue
+
+        // Insertar movimiento
+        await supabase.from('vending_movimientos').insert({
+          semana_id: semanaId, producto_id: prod.id,
+          semana_producto_id: sp.id, fecha,
+          tipo: 'VENTA', cantidad: cant, precio_unitario: precio,
+          nota: 'Carga en bloque',
+        })
+
+        // Actualizar snapshot
+        await supabase.from('vending_semana_producto').update({
+          qty_ventas:    (parseFloat(sp.qty_ventas)   || 0) + cant,
+          importe_ventas:(parseFloat(sp.importe_ventas)|| 0) + cant * precio,
+          precio_venta_semana: precio,
+        }).eq('id', sp.id)
+      }
+
+      // Recalcular totales en vending_semanas
+      const { data: tots } = await supabase
+        .from('vending_semana_producto')
+        .select('importe_ventas, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
+        .eq('semana_id', semanaId)
+      const totV = (tots||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
+      const totU = (tots||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
+      const totUtil = (tots||[]).reduce((s,r) => {
+        const p = r.vending_productos
+        if (!p?.precio_venta||!p?.costo_caja||!p?.unidades_caja) return s
+        const cu = parseFloat(p.costo_caja)/parseInt(p.unidades_caja)
+        return s + (parseFloat(p.precio_venta)-cu)*(parseFloat(r.qty_ventas)||0)
+      }, 0)
+      await supabase.from('vending_semanas').update({ venta_pesos: totV, utilidad: totUtil, venta_unidades: totU }).eq('id', semanaId)
+
+      toast.success(`✅ ${lineas.length} productos registrados — ${totalUds.toLocaleString('es-MX')} uds`)
+      onSaved(); onClose()
+    } catch(e) { toast.error(e.message) } finally { setSaving(false) }
+  }
+
+  const inputS = { width:'72px', padding:'6px 8px', border:'1.5px solid #E5E7EB', borderRadius:'7px', fontSize:'14px', textAlign:'right', fontVariantNumeric:'tabular-nums', boxSizing:'border-box' }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'12px' }} onClick={onClose}>
+      <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'560px', maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding:'14px 20px', background:'#057642', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <div>
+            <div style={{ color:'white', fontWeight:800, fontSize:'15px' }}>🛒 Carga en Bloque — Ventas</div>
+            <div style={{ color:'rgba(255,255,255,0.75)', fontSize:'12px', marginTop:'2px' }}>Ingresa las unidades vendidas por producto · Fecha: {fecha}</div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'6px', padding:'4px 8px', cursor:'pointer', color:'white' }}><X size={16} /></button>
+        </div>
+
+        {/* Tabla */}
+        <div style={{ overflowY:'auto', flex:1 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+            <thead style={{ position:'sticky', top:0, background:'#F9FAFB', zIndex:1 }}>
+              <tr>
+                {['Producto','Stock','P. Venta','Vendidas','Subtotal'].map(h => (
+                  <th key={h} style={{ padding:'9px 12px', textAlign: ['Stock','P. Venta','Vendidas','Subtotal'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {prodActivos.map((p, i) => {
+                const cant = parseFloat(cantidades[p.id]) || 0
+                const sub  = cant * (parseFloat(p.precio_venta) || 0)
+                const stock = stockMap[p.id] ?? '—'
+                return (
+                  <tr key={p.id} style={{ background: cant > 0 ? '#F0FDF4' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                    <td style={{ padding:'7px 12px', fontWeight:600 }}>{p.producto}</td>
+                    <td style={{ padding:'7px 12px', textAlign:'right', color: stock < 0 ? '#B91C1C' : '#6B7280', fontVariantNumeric:'tabular-nums' }}>{typeof stock === 'number' ? stock.toLocaleString('es-MX',{maximumFractionDigits:0}) : stock}</td>
+                    <td style={{ padding:'7px 12px', textAlign:'right', color:'#6B7280' }}>${parseFloat(p.precio_venta||0).toLocaleString('es-MX')}</td>
+                    <td style={{ padding:'7px 12px', textAlign:'right' }}>
+                      <input
+                        type="number" min="0" step="1"
+                        value={cantidades[p.id]}
+                        onChange={e => set(p.id, e.target.value)}
+                        onFocus={e => e.target.select()}
+                        placeholder="0"
+                        style={{ ...inputS, borderColor: cant > 0 ? '#057642' : '#E5E7EB', outline: cant > 0 ? '2px solid #BBF7D0' : 'none' }}
+                      />
+                    </td>
+                    <td style={{ padding:'7px 12px', textAlign:'right', fontWeight:700, color: cant > 0 ? '#057642' : '#D1D5DB', fontVariantNumeric:'tabular-nums' }}>
+                      {cant > 0 ? '$'+sub.toLocaleString('es-MX',{maximumFractionDigits:0}) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'12px 20px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB', flexShrink:0 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+            <div style={{ fontSize:'12px', color:'#6B7280' }}>
+              <span style={{ fontWeight:700, color:'#057642' }}>{prodActivos.filter(p=>parseFloat(cantidades[p.id])>0).length}</span> productos · <span style={{ fontWeight:700 }}>{totalUds.toLocaleString('es-MX')} uds</span>
+            </div>
+            <div style={{ fontSize:'16px', fontWeight:900, color:'#057642', fontVariantNumeric:'tabular-nums' }}>
+              Total: ${totalPesos.toLocaleString('es-MX',{maximumFractionDigits:0})}
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:'10px' }}>
+            <button onClick={onClose} style={{ flex:1, padding:'10px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600, color:'#6B7280' }}>Cancelar</button>
+            <button onClick={guardar} disabled={saving || totalUds === 0} style={{ flex:2, padding:'10px', border:'none', borderRadius:'8px', background:'#057642', color:'white', cursor: (saving||totalUds===0)?'not-allowed':'pointer', fontSize:'13px', fontWeight:700, opacity:(saving||totalUds===0)?0.6:1 }}>
+              {saving ? 'Registrando…' : `Registrar ${totalUds.toLocaleString('es-MX')} unidades`}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
