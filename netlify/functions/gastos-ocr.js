@@ -1,43 +1,64 @@
 // gastos-ocr.js — extrae datos de ticket con Claude Vision o texto libre
-// Input: { image_base64, media_type } | { texto_libre }
-// Output: { total, proveedor, lineas: [{descripcion, cantidad, precio_unit, codigo_proveedor}] }
+// Output: { proveedor:{...}, ticket:{...}, lineas:[...] }
 
 const JSON_FORMAT = `{
-  "proveedor": "nombre del establecimiento",
-  "fecha": "YYYY-MM-DD o null si no se ve",
-  "total": número con centavos (ej: 3387.00),
+  "proveedor": {
+    "nombre_comercial": "nombre visible del establecimiento",
+    "razon_social": "razón social si aparece, si no null",
+    "rfc": "RFC si aparece, si no null",
+    "regimen_fiscal": "clave o descripción si aparece, si no null",
+    "domicilio_fiscal": "dirección de la empresa si aparece, si no null",
+    "domicilio_sucursal": "dirección de la sucursal si difiere, si no null",
+    "nombre_sucursal": "nombre o número de sucursal si aparece, si no null"
+  },
+  "ticket": {
+    "fecha": "YYYY-MM-DD o null",
+    "hora": "HH:MM:SS o null",
+    "folio": "folio, número de ticket, terminal, operador — todo en un string, o null",
+    "cajero": "nombre del cajero si aparece, si no null",
+    "subtotal": número o null,
+    "descuentos": número (positivo) o 0 si no hay,
+    "iva_base": número o null,
+    "iva_monto": número o null,
+    "ieps_base": número o null,
+    "ieps_monto": número o null,
+    "total": número o null,
+    "forma_pago": "Efectivo | Tarjeta | Mixto | otro, o null",
+    "efectivo": número o null,
+    "cambio": número o null,
+    "articulos_count": número total de artículos o null,
+    "validacion": "ok si subtotal-descuentos+impuestos coincide con total, o discrepancia:[detalle]"
+  },
   "lineas": [
     {
-      "codigo_proveedor": "código numérico del producto o null",
-      "descripcion": "nombre del producto",
+      "sku": "código del producto o null",
+      "descripcion": "nombre del artículo",
       "cantidad": número,
-      "precio_unit": número
+      "precio_unit": número,
+      "subtotal_linea": número o null,
+      "tasa_impuesto": "letra o código que aparezca junto al precio (A/B/C/etc.) o null"
     }
   ]
 }`
 
-const PROMPT_IMAGEN = `Analiza este ticket/nota de compra y extrae los datos en JSON con exactamente este formato:
+const PROMPT_IMAGEN = `Analiza este ticket/nota de compra y extrae los datos en JSON con EXACTAMENTE este formato:
 ${JSON_FORMAT}
 
-Reglas especiales para tickets de Sam's Club y similares:
-- Cada línea comienza con un código numérico (ej: 332944, 980025248) seguido del nombre del producto — extrae ese código en "codigo_proveedor"
-- Si la línea tiene "2 X $270.07" significa cantidad=2 y precio_unit=270.07
-- El total es el campo TOTAL del ticket (después de descuentos), NO el subtotal
-- Si un campo no es legible, usa null
-- cantidad por defecto es 1 si no se especifica
-- precio_unit es el precio por unidad (no el subtotal de la línea)
-- Ignora líneas de descuento, IVA, IEPS, subtotal — solo productos
+Reglas:
+- Extrae TODOS los datos que aparezcan en el ticket — proveedor, ticket financiero y artículos
+- Para Sam's Club: cada línea comienza con código numérico → sku; "2 X $270.07" → cantidad=2, precio_unit=270.07
+- Las letras junto al precio (A, B, C) indican tasa de impuesto — extráelas en "tasa_impuesto"
+- El "total" es el campo TOTAL final (después de descuentos), NO el subtotal
+- Valida: si subtotal - descuentos + IVA + IEPS ≈ total → validacion="ok"; si no → "discrepancia:[diferencia]"
+- Si un campo no es legible, usa null — NUNCA inventes datos
+- Para Novemedic dentro de Sam's: el proveedor es Novemedic, no Sam's Club
 - Responde SOLO el JSON, sin markdown ni explicaciones`
 
-const PROMPT_TEXTO = (texto) => `A partir del siguiente texto (puede ser una descripción de compra, lista de productos, mensaje de WhatsApp, etc.)
-extrae los datos de la compra en JSON con exactamente este formato:
+const PROMPT_TEXTO = (texto) => `A partir del siguiente texto extrae los datos de la compra en JSON con EXACTAMENTE este formato:
 ${JSON_FORMAT}
 
-- Si el texto menciona un nombre de tienda, ponlo en "proveedor"
-- Si menciona una fecha, ponla en "fecha" formato YYYY-MM-DD
-- Si menciona un total, ponlo en "total"
-- Extrae cada artículo como una línea con descripcion, cantidad y precio_unit
-- Si no hay precio individual pero sí total, puedes aproximarlo dividiendo
+- Extrae todo lo que puedas identificar del texto
+- Si no hay dato, usa null
 - Responde SOLO el JSON, sin markdown ni explicaciones
 
 TEXTO:
@@ -73,7 +94,7 @@ export const handler = async (event) => {
       },
       body: JSON.stringify({
         model:      'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: messageContent }],
       }),
     })
@@ -86,10 +107,21 @@ export const handler = async (event) => {
     const data = await res.json()
     const text = data.content?.[0]?.text || '{}'
 
-    // Extraer primer bloque JSON válido (ignorar texto previo como "Analizando...")
     const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total: null, proveedor: null, fecha: null, lineas: [], raw: text }) }
+    if (!match) return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proveedor: null, ticket: null, lineas: [], raw: text }),
+    }
     const parsed = JSON.parse(match[0])
+
+    // Backward compat: si el modelo devuelve la forma antigua, normalizar
+    if (!parsed.ticket && parsed.total !== undefined) {
+      parsed.ticket = { total: parsed.total, fecha: parsed.fecha }
+    }
+    if (!parsed.proveedor && parsed.proveedor !== null) {
+      parsed.proveedor = { nombre_comercial: parsed.proveedor || null }
+    }
 
     return {
       statusCode: 200,

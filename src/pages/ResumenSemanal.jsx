@@ -111,7 +111,7 @@ async function cargarDatos(ini, fin, iniEstac) {
 
     // Gastos operativos por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
-      .select('id, fecha, proveedor, grupo_gasto, descripcion, cantidad, ticket_total')
+      .select('id, fecha, proveedor, grupo_gasto, descripcion, cantidad, ticket_total, ticket_url')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
 
@@ -729,6 +729,9 @@ export default function ResumenSemanal() {
   // ── Drill-down detalle de ticket ──
   const [ticketDetalle, setTicketDetalle] = useState(null) // { gasto, lineas }
   const [loadingDetalle, setLoadingDetalle] = useState(false)
+  const [reciboRec, setReciboRec] = useState(null) // pension para generar recibo
+  const [detalleIngreso, setDetalleIngreso] = useState(null) // { tabla, row } — drilldown panel izq
+  const [ticketLightbox, setTicketLightbox] = useState(null) // URL de imagen ticket
   const abrirDetalle = async (g) => {
     setLoadingDetalle(true)
     setTicketDetalle({ gasto: g, lineas: [] })
@@ -806,9 +809,13 @@ export default function ResumenSemanal() {
                 <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones esta semana</div>
               )}
               {pensiones.map((p, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px', cursor:'pointer' }}
+                    onClick={() => setDetalleIngreso({ tabla:'estacionamiento_pensiones', row: p })}
+                    onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
+                    onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                     <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre} <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span></span>
                     <span style={S.acciones}>
+                      <button style={{ ...S.btnEdit, background:'#E8F4FD', color:'#0A66C2' }} title="Generar Recibo" onClick={() => setReciboRec(p)}>📄</button>
                       <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_pensiones', row: p })}><Pencil size={12}/></button>
                       <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_pensiones', id: p.id, label: `Pensión #${p.num_recibo} — ${p.arrendatario_nombre}` })}><Trash2 size={12}/></button>
                     </span>
@@ -832,12 +839,15 @@ export default function ResumenSemanal() {
             {estac.length === 0 ? (
               <div style={{ padding: '16px 12px', color: '#9CA3AF', fontSize: '12px', textAlign: 'center' }}>Sin registros esta semana</div>
             ) : estac.map((e, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px', cursor:'pointer' }}
+                onClick={() => setDetalleIngreso({ tabla:'estacionamiento_diario', row: e })}
+                onMouseEnter={e2 => e2.currentTarget.style.background='#F0EEFF'}
+                onMouseLeave={e2 => e2.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                 <span style={{ ...S.lbl, display:'flex', alignItems:'center', gap:'6px' }}>
                   <CheckCircle size={13} color={parseFloat(e.cantidad) > 0 ? 'var(--color-success)' : '#E5E7EB'} />
                   {labelFecha(e.fecha)}
                 </span>
-                <span style={S.acciones}>
+                <span style={S.acciones} onClick={ev => ev.stopPropagation()}>
                   <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_diario', row: e })}><Pencil size={12}/></button>
                   <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_diario', id: e.id, label: `Estacionamiento ${labelFecha(e.fecha)}` })}><Trash2 size={12}/></button>
                 </span>
@@ -886,9 +896,12 @@ export default function ResumenSemanal() {
             {rentasEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin rentas esta semana</div>
               : rentasEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px', cursor:'pointer' }}
+                  onClick={() => setDetalleIngreso({ tabla:'ingresos', row: r })}
+                  onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
+                  onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Renta')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
-                  <span style={S.acciones}>
+                  <span style={S.acciones} onClick={e => e.stopPropagation()}>
                     <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
                     <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Renta ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
                   </span>
@@ -913,9 +926,12 @@ export default function ResumenSemanal() {
             {aguaEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin cobros de agua esta semana</div>
               : aguaEf.map((r, i) => (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px', cursor:'pointer' }}
+                  onClick={() => setDetalleIngreso({ tabla:'ingresos', row: r })}
+                  onMouseEnter={e => e.currentTarget.style.background='#F0F9FF'}
+                  onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Agua')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
-                  <span style={S.acciones}>
+                  <span style={S.acciones} onClick={e => e.stopPropagation()}>
                     <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
                     <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Agua ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
                   </span>
@@ -935,9 +951,12 @@ export default function ResumenSemanal() {
               <>
                 <div style={S.sectionHeader}>Otros ingresos en efectivo</div>
                 {otrosEf.map((r, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px' }}>
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px', cursor:'pointer' }}
+                    onClick={() => setDetalleIngreso({ tabla:'ingresos', row: r })}
+                    onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
+                    onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                     <span style={S.lbl}>{r.tipo} · {r.concepto_origen || r.propietario || '—'} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
-                    <span style={S.acciones}>
+                    <span style={S.acciones} onClick={e => e.stopPropagation()}>
                       <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
                       <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `${r.tipo} · ${r.concepto_origen||r.propietario||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
                     </span>
@@ -991,25 +1010,33 @@ export default function ResumenSemanal() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
-                    {['Fecha','Gasto','Concepto','Importe','$$ Comprob.','Factura'].map((h, i) => (
-                      <th key={h} style={{ padding: '8px 8px', textAlign: i >= 3 ? 'right' : 'left', fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                    {['Fecha','Gasto','Concepto','Importe','$$ Comprob.','Ticket','Factura'].map((h, i) => (
+                      <th key={h} style={{ padding: '8px 8px', textAlign: i >= 3 && i !== 5 ? 'right' : i === 5 ? 'center' : 'left', fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {gastos.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px' }}>Sin gastos registrados esta semana</td></tr>
+                    <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px' }}>Sin gastos registrados esta semana</td></tr>
                   ) : gastos.map((g, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                    <tr key={i} onClick={() => abrirDetalle(g)} style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA', cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
+                      onMouseLeave={e => e.currentTarget.style.background= i % 2 === 0 ? 'white' : '#FAFAFA'}>
                       <td style={{ padding: '6px 8px', color: '#6B7280', whiteSpace: 'nowrap' }}>{g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
                       <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.proveedor || '—'}</td>
                       <td style={{ padding: '6px 8px', color: '#374151', maxWidth: '120px' }}>{g.grupo_gasto || g.descripcion || '—'}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
-                        <button onClick={() => abrirDetalle(g)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: '#0A66C2', fontFamily: 'monospace', fontSize: 13, textDecoration: 'underline dotted', padding: 0 }}>
-                          {fmt(g.cantidad)}
-                        </button>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#0A66C2' }}>{fmt(g.cantidad)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.ticket_total ? fmt(g.ticket_total) : ''}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        {g.ticket_url
+                          ? <button onClick={() => setTicketLightbox(g.ticket_url)}
+                              style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:5, padding:'3px 7px', cursor:'pointer', color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700 }}
+                              title="Ver imagen del ticket">
+                              🖼️
+                            </button>
+                          : <span style={{ fontSize: '10px', color: '#D1D5DB' }}>—</span>
+                        }
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.monto_comprobante ? fmt(g.monto_comprobante) : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                         {g.tiene_factura
                           ? <CheckCircle size={13} color="var(--color-success)" />
@@ -1027,7 +1054,7 @@ export default function ResumenSemanal() {
                     <td style={{ padding: '9px 8px', textAlign: 'right', color: '#E8A020', fontWeight: 900, fontSize: '16px', fontFamily: 'monospace' }}>
                       {fmt(totGastosFondo)}
                     </td>
-                    <td colSpan={2} />
+                    <td colSpan={3} />
                   </tr>
                 </tfoot>
               </table>
@@ -1115,6 +1142,125 @@ export default function ResumenSemanal() {
           onSaved={() => { setEditRec(null); recargar() }} />
       )}
 
+      {/* ── MODAL DETALLE TICKET ── */}
+      {ticketDetalle && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setTicketDetalle(null)}>
+          <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:580, maxHeight:'88vh', overflow:'auto' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'sticky', top:0, background:'white', zIndex:2 }}>
+              <div>
+                <div style={{ fontWeight:800, fontSize:16, color:'#1A3C5E' }}>{ticketDetalle.gasto.proveedor || 'Ticket sin proveedor'}</div>
+                <div style={{ fontSize:12, color:'#6B7280', marginTop:2 }}>{ticketDetalle.gasto.fecha} · {ticketDetalle.gasto.grupo_gasto || ticketDetalle.gasto.descripcion}</div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ fontWeight:900, fontSize:20, color:'#B24020' }}>{fmt(ticketDetalle.gasto.cantidad)}</div>
+                <button onClick={() => setTicketDetalle(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={20}/></button>
+              </div>
+            </div>
+            {/* Imagen del ticket */}
+            {ticketDetalle.gasto.ticket_url && (
+              <div style={{ padding:'16px 20px', borderBottom:'1px solid #F3F4F6', textAlign:'center' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:8 }}>Ticket Escaneado</div>
+                <img src={ticketDetalle.gasto.ticket_url} alt="Ticket" style={{ maxWidth:'100%', maxHeight:320, borderRadius:8, border:'1px solid #E5E7EB', objectFit:'contain' }} />
+                <div style={{ marginTop:6 }}>
+                  <a href={ticketDetalle.gasto.ticket_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:4 }}>
+                    <ExternalLink size={11}/> Abrir en nueva pestaña
+                  </a>
+                </div>
+              </div>
+            )}
+            {/* Detalle líneas */}
+            <div style={{ padding:'16px 20px' }}>
+              {loadingDetalle ? (
+                <div style={{ textAlign:'center', padding:24, color:'#9CA3AF' }}>Cargando artículos…</div>
+              ) : ticketDetalle.lineas.length === 0 ? (
+                <div style={{ textAlign:'center', padding:24, color:'#9CA3AF', fontSize:13 }}>
+                  {ticketDetalle.gasto.descripcion && (
+                    <div style={{ marginBottom:10, color:'#374151', fontSize:13, lineHeight:1.5 }}>{ticketDetalle.gasto.descripcion}</div>
+                  )}
+                  Sin detalle de artículos registrado.
+                </div>
+              ) : (
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                  <thead>
+                    <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }}>
+                      {['Cód.','Artículo','Cat.','Cant.','P/U','Subtotal'].map((h,i) => (
+                        <th key={h} style={{ padding:'8px 10px', textAlign: i >= 3 ? 'right' : 'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ticketDetalle.lineas.map((l, i) => (
+                      <tr key={l.id||i} style={{ borderBottom:'1px solid #F3F4F6', background: i%2===0?'white':'#FAFAFA' }}>
+                        <td style={{ padding:'7px 10px', color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{l.codigo_proveedor||'—'}</td>
+                        <td style={{ padding:'7px 10px', color:'#374151', fontWeight:500 }}>{l.descripcion}</td>
+                        <td style={{ padding:'7px 10px' }}>
+                          {l.categoria && (
+                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:99,
+                              background: l.categoria==='VENDING'?'#FCE7F3':l.categoria==='MANTENIMIENTO'?'#FEE2E2':'#DBEAFE',
+                              color:      l.categoria==='VENDING'?'#BE185D':l.categoria==='MANTENIMIENTO'?'#B24020':'#1D4ED8' }}>
+                              {l.categoria}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding:'7px 10px', textAlign:'right' }}>{l.cantidad}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', fontFamily:'monospace' }}>{fmt(l.precio_unit)}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', fontWeight:700, color:'#1A3C5E', fontFamily:'monospace' }}>{fmt(l.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
+                      <td colSpan={5} style={{ padding:'9px 10px', fontWeight:700, textAlign:'right', fontSize:13 }}>Total artículos:</td>
+                      <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:900, fontSize:15, color:'#1A3C5E', fontFamily:'monospace' }}>
+                        {fmt(ticketDetalle.lineas.reduce((a,l) => a + (parseFloat(l.subtotal)||0), 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── LIGHTBOX IMAGEN TICKET ── */}
+      {ticketLightbox && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setTicketLightbox(null)}>
+          <div style={{ position:'relative', maxWidth:'90vw', maxHeight:'90vh' }} onClick={e => e.stopPropagation()}>
+            <img src={ticketLightbox} alt="Ticket escaneado"
+              style={{ maxWidth:'100%', maxHeight:'85vh', objectFit:'contain', borderRadius:8, boxShadow:'0 0 40px rgba(0,0,0,0.6)' }} />
+            <div style={{ position:'absolute', top:8, right:8, display:'flex', gap:8 }}>
+              <a href={ticketLightbox} target="_blank" rel="noopener noreferrer"
+                style={{ background:'rgba(255,255,255,0.9)', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:4, textDecoration:'none' }}>
+                <ExternalLink size={12}/> Nueva pestaña
+              </a>
+              <button onClick={() => setTicketLightbox(null)}
+                style={{ background:'rgba(255,255,255,0.9)', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer', color:'#374151', display:'inline-flex', alignItems:'center' }}>
+                <X size={14}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DETALLE INGRESO ── */}
+      {detalleIngreso && (
+        <ModalDetalleIngreso rec={detalleIngreso} onClose={() => setDetalleIngreso(null)}
+          onEdit={(tabla, row) => { setDetalleIngreso(null); setEditRec({ tabla, row }) }}
+          onEliminar={(tabla, id, label) => { setDetalleIngreso(null); setDelRec({ tabla, id, label }) }}
+          onRecibo={detalleIngreso.tabla === 'estacionamiento_pensiones' ? (row) => { setDetalleIngreso(null); setReciboRec(row) } : null}
+        />
+      )}
+
+      {/* ── MODAL RECIBO DE PAGO ── */}
+      {reciboRec && (
+        <ModalReciboPago rec={reciboRec} onClose={() => setReciboRec(null)} />
+      )}
+
       {/* ── MODAL CONFIRMACIÓN ELIMINAR ── */}
       {delRec && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
@@ -1166,7 +1312,6 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
     : '✏️ Editar Ingreso'
 
   return (
-    <>
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
       <div style={{ background:'white', borderRadius:'14px', width:'400px', maxWidth:'95vw', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6' }}>
@@ -1223,85 +1368,335 @@ function ModalEditar({ rec, semIni, semFin, onClose, onSaved }) {
         </div>
       </div>
     </div>
+  )
+}
 
-    {/* ── Modal detalle ticket ────────────────────────────────── */}
-    {ticketDetalle && (
-      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
-        onClick={() => setTicketDetalle(null)}>
-        <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:540, maxHeight:'85vh', overflow:'auto' }}
-          onClick={e => e.stopPropagation()}>
-          {/* Header */}
-          <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-            <div>
-              <div style={{ fontWeight:800, fontSize:16, color:'#1A3C5E' }}>
-                {ticketDetalle.gasto.proveedor || 'Ticket sin proveedor'}
-              </div>
-              <div style={{ fontSize:12, color:'#6B7280', marginTop:2 }}>
-                {ticketDetalle.gasto.fecha} · {ticketDetalle.gasto.grupo_gasto || ticketDetalle.gasto.descripcion}
-              </div>
+// ── Modal Detalle Ingreso — drilldown genérico panel izquierdo ────────────────
+function ModalDetalleIngreso({ rec, onClose, onEdit, onEliminar, onRecibo }) {
+  const { tabla, row } = rec
+
+  // Campos a mostrar según tabla
+  const campos = tabla === 'estacionamiento_pensiones' ? [
+    ['Local / Ref.', row.local_referencia || '—'],
+    ['Titular', row.arrendatario_nombre || '—'],
+    ['Folio / Recibo', row.num_recibo ? `#${row.num_recibo}` : '—'],
+    ['Semana inicio', row.semana_inicio || '—'],
+    ['Fecha', row.fecha || '—'],
+    ['Pagado', row.pagado ? '✓ Sí' : '✗ No'],
+    ['Nota', row.nota || '—'],
+    ['Monto', '$' + (parseFloat(row.monto)||0).toLocaleString('es-MX',{minimumFractionDigits:2})],
+  ] : tabla === 'estacionamiento_diario' ? [
+    ['Fecha', row.fecha || '—'],
+    ['Importe', '$' + (parseFloat(row.cantidad)||0).toLocaleString('es-MX',{minimumFractionDigits:2})],
+    ['Nota', row.nota || '—'],
+    ['Creado', row.created_at ? new Date(row.created_at).toLocaleString('es-MX') : '—'],
+  ] : /* ingresos */ [
+    ['Tipo', row.tipo || '—'],
+    ['Propietario', row.propietario || '—'],
+    ['Contrato', row.id_contrato || '—'],
+    ['Concepto', row.concepto_origen || '—'],
+    ['Tipo pago', row.tipo_pago || 'Efectivo'],
+    ['Fecha', row.fecha || '—'],
+    ['Importe', '$' + (parseFloat(row.importe)||0).toLocaleString('es-MX',{minimumFractionDigits:2})],
+    ['Nota', row.nota || '—'],
+  ]
+
+  const titulos = {
+    estacionamiento_pensiones: '🚗 Pensión de Estacionamiento',
+    estacionamiento_diario: '🅿️ Estacionamiento Diario',
+    ingresos: '💵 Ingreso en Efectivo',
+  }
+  const monto = parseFloat(row.monto || row.importe || row.cantidad || 0)
+  const labelElim = tabla === 'estacionamiento_pensiones'
+    ? `Pensión #${row.num_recibo} — ${row.arrendatario_nombre}`
+    : tabla === 'estacionamiento_diario'
+    ? `Estacionamiento ${row.fecha}`
+    : `${row.tipo} · ${row.concepto_origen||row.propietario||'—'} · ${row.fecha}`
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+      onClick={onClose}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:420, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ background:'#1A3C5E', padding:'14px 18px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ color:'white', fontWeight:900, fontSize:14 }}>{titulos[tabla] || 'Detalle'}</div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:6, padding:'4px 8px', cursor:'pointer', color:'white', display:'flex' }}><X size={16}/></button>
+        </div>
+
+        {/* Monto destacado */}
+        <div style={{ background:'#F0F9FF', padding:'14px 18px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #E5E7EB' }}>
+          <span style={{ fontSize:12, color:'#6B7280', fontWeight:700, textTransform:'uppercase', letterSpacing:.5 }}>Importe</span>
+          <span style={{ fontSize:22, fontWeight:900, color:'#0A66C2', fontFamily:'monospace' }}>
+            ${monto.toLocaleString('es-MX',{minimumFractionDigits:2})}
+          </span>
+        </div>
+
+        {/* Campos */}
+        <div style={{ padding:'4px 18px 14px' }}>
+          {campos.filter(([,v]) => v && v !== '—').map(([lbl, val]) => (
+            <div key={lbl} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'7px 0', borderBottom:'1px solid #F3F4F6' }}>
+              <span style={{ color:'#6B7280', fontWeight:600 }}>{lbl}</span>
+              <span style={{ fontWeight:700, color:'#1D1D1F', textAlign:'right', maxWidth:'55%' }}>{val}</span>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ fontWeight:900, fontSize:20, color:'#B24020' }}>{fmt(ticketDetalle.gasto.cantidad)}</div>
-              <button onClick={() => setTicketDetalle(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={20}/></button>
+          ))}
+        </div>
+
+        {/* Acciones */}
+        <div style={{ padding:'12px 18px', borderTop:'1px solid #E5E7EB', display:'flex', gap:8, flexWrap:'wrap' }}>
+          {onRecibo && (
+            <button onClick={() => onRecibo(row)}
+              style={{ flex:1, padding:'9px', background:'#7B5EA7', color:'white', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              📄 Generar Recibo
+            </button>
+          )}
+          <button onClick={() => onEdit(tabla, row)}
+            style={{ flex:1, padding:'9px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            ✏️ Editar
+          </button>
+          <button onClick={() => onEliminar(tabla, row.id, labelElim)}
+            style={{ padding:'9px 12px', background:'#FEE2E2', color:'#DC2626', border:'1px solid #FECACA', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Número a letra (español, MXN) ─────────────────────────────────────────────
+function numLetra(n) {
+  const UNIDADES = ['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE']
+  const DECENAS  = ['','DIEZ','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']
+  const CIENTOS  = ['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']
+  const miles    = (x) => x === 1 ? 'MIL' : x > 1 ? `${centenas(x)} MIL` : ''
+  const centenas = (x) => {
+    if (x === 100) return 'CIEN'
+    const c = Math.floor(x/100), r = x % 100
+    return [CIENTOS[c], decenas(r)].filter(Boolean).join(' ')
+  }
+  const decenas = (x) => {
+    if (x < 20) return UNIDADES[x]
+    const d = Math.floor(x/10), u = x%10
+    if (d === 2 && u > 0) return `VEINTI${UNIDADES[u]}`
+    return [DECENAS[d], u ? UNIDADES[u] : ''].filter(Boolean).join(' Y ')
+  }
+  const entero  = Math.floor(Math.abs(n))
+  const cents   = Math.round((Math.abs(n) - entero) * 100)
+  const mil     = Math.floor(entero / 1000)
+  const resto   = entero % 1000
+  const partes  = [miles(mil), centenas(resto)].filter(Boolean).join(' ')
+  return `${partes || 'CERO'} PESOS ${String(cents).padStart(2,'0')}/100 M.N.`
+}
+
+// ── Modal Recibo de Pago (formato físico WOL) ─────────────────────────────────
+function ModalReciboPago({ rec, onClose }) {
+  const hoy    = new Date()
+  const dia    = String(hoy.getDate()).padStart(2,'0')
+  const mes    = String(hoy.getMonth()+1).padStart(2,'0')
+  const anio   = String(hoy.getFullYear())
+  const meses  = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const mesNom = meses[hoy.getMonth()+1]
+  const folio  = String(rec.num_recibo || '').padStart(4,'0') || String(hoy.getTime()).slice(-4)
+  const monto  = parseFloat(rec.monto) || 0
+  const montoStr = monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })
+  const concepto = rec.nota || (rec.local_referencia ? `Pensión estacionamiento — local ${rec.local_referencia}` : 'Pensión de estacionamiento')
+  const titular  = rec.arrendatario_nombre || '—'
+  const letra    = numLetra(monto)
+
+  const htmlRecibo = `<!DOCTYPE html><html><head>
+    <meta charset="utf-8"/>
+    <title>Recibo ${folio} — WOL</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Arial',sans-serif;background:#fff;color:#1D1D1F;padding:20px;max-width:480px}
+      .wol-logo{font-size:32px;font-weight:900;color:#1D1D1F;letter-spacing:-1px;line-height:1}
+      .wol-bar{height:6px;background:linear-gradient(90deg,#E53935,#FF8A80);border-radius:3px;margin:4px 0 6px}
+      .wol-sub{font-size:10px;color:#6E6E73;letter-spacing:0.5px}
+      .recibo-title{font-size:13px;font-weight:900;text-align:center;border:2.5px solid #1D1D1F;padding:6px 12px;letter-spacing:2px;margin:14px 0;text-transform:uppercase}
+      .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+      .fecha-block{display:flex;gap:6px;align-items:center;font-size:11px}
+      .fecha-field{display:flex;flex-direction:column;align-items:center;gap:2px}
+      .fecha-field span{font-size:9px;color:#6E6E73;text-transform:uppercase;letter-spacing:.5px}
+      .fecha-field b{font-size:15px;font-weight:900;border-bottom:1px solid #1D1D1F;min-width:32px;text-align:center;padding-bottom:2px}
+      .folio-block{text-align:right}
+      .folio-block span{font-size:9px;color:#6E6E73;text-transform:uppercase;letter-spacing:.5px;display:block}
+      .folio-block b{font-size:18px;font-weight:900;letter-spacing:1px}
+      .cantidad-box{background:#1D1D1F;color:#fff;text-align:right;padding:10px 14px;border-radius:6px;margin-bottom:12px}
+      .cantidad-box span{font-size:9px;letter-spacing:1px;opacity:.7;display:block;text-align:left}
+      .cantidad-box b{font-size:24px;font-weight:900;font-family:'Courier New',monospace;letter-spacing:1px}
+      .linea{border-bottom:1px solid #D2D2D7;padding:8px 0;font-size:12px;display:flex;gap:4px}
+      .linea label{font-weight:700;white-space:nowrap;min-width:100px}
+      .linea .val{flex:1;border-bottom:1px dotted #9CA3AF}
+      .pagos{display:flex;gap:14px;font-size:12px;padding:10px 0}
+      .pagos label{font-weight:700;margin-right:4px}
+      .check{display:inline-block;width:13px;height:13px;border:1.5px solid #1D1D1F;border-radius:2px;margin-right:4px;vertical-align:middle}
+      .firma-row{display:flex;gap:20px;margin-top:24px}
+      .firma-col{flex:1;text-align:center}
+      .firma-line{border-top:1px solid #1D1D1F;margin-top:40px;padding-top:5px;font-size:9px;color:#6E6E73;text-transform:uppercase;letter-spacing:.5px}
+      .disclaimer{margin-top:16px;border-top:1px solid #E5E7EB;padding-top:10px;font-size:9px;color:#9CA3AF;text-align:center;line-height:1.5}
+      @media print{body{padding:6px}}
+    </style>
+  </head><body>
+    <div class="top-row">
+      <div>
+        <div class="wol-logo">WOL.</div>
+        <div class="wol-bar"></div>
+        <div class="wol-sub">Plaza Comercial IWOL</div>
+      </div>
+      <div class="folio-block">
+        <span>Folio</span>
+        <b>${folio}</b>
+      </div>
+    </div>
+    <div class="recibo-title">Recibo de Pago</div>
+    <div class="top-row" style="margin-bottom:14px">
+      <div class="fecha-block">
+        <div class="fecha-field"><span>Día</span><b>${dia}</b></div>
+        <div style="font-size:12px;margin-top:14px">/</div>
+        <div class="fecha-field"><span>Mes</span><b>${mes}</b></div>
+        <div style="font-size:12px;margin-top:14px">/</div>
+        <div class="fecha-field"><span>Año</span><b>${anio}</b></div>
+        <div style="font-size:11px;color:#6E6E73;margin-top:14px;margin-left:4px">${mesNom} ${anio}</div>
+      </div>
+      <div class="cantidad-box">
+        <span>Cantidad</span>
+        <b>$${montoStr}</b>
+      </div>
+    </div>
+    <div class="linea"><label>Recibí de:</label><span class="val">&nbsp;${titular}</span></div>
+    <div class="linea"><label>Cantidad con Letra:</label><span class="val">&nbsp;${letra}</span></div>
+    <div class="linea"><label>Concepto:</label><span class="val">&nbsp;${concepto}</span></div>
+    <div class="pagos">
+      <label>Forma de pago:</label>
+      <span><span class="check">✓</span> Efectivo</span>
+      <span><span class="check"></span> Cheque</span>
+      <span><span class="check"></span> Transferencia</span>
+    </div>
+    <div class="firma-row">
+      <div class="firma-col"><div class="firma-line">Nombre y Firma</div></div>
+      <div class="firma-col"><div class="firma-line">Administración WOL</div></div>
+    </div>
+    <div class="disclaimer">Plaza IWOL está obligada a emitirle el recibo correspondiente de cualquier pago de servicio.<br/>Para cualquier aclaración conserve este recibo.</div>
+    <script>window.onload=function(){window.print();}</script>
+  </body></html>`
+
+  const imprimir = () => {
+    const ventana = window.open('', '_blank', 'width=520,height=700')
+    ventana.document.write(htmlRecibo)
+    ventana.document.close()
+  }
+
+  const compartirWA = () => {
+    const texto = `*RECIBO DE PAGO — Plaza IWOL*\n` +
+      `Folio: ${folio} · Fecha: ${dia}/${mes}/${anio}\n` +
+      `Recibí de: ${titular}\n` +
+      `Concepto: ${concepto}\n` +
+      `*Cantidad: $${montoStr}*\n` +
+      `(${letra})\n` +
+      `Forma de pago: ✓ Efectivo\n\n` +
+      `Plaza IWOL está obligada a emitirle el recibo correspondiente de cualquier pago de servicio.`
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+      onClick={onClose}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:420, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.35)' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header preview del recibo */}
+        <div style={{ padding:'16px 20px 12px', borderBottom:'1px solid #E5E7EB' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+            <div>
+              <div style={{ fontSize:24, fontWeight:900, color:'#1D1D1F', letterSpacing:-1, lineHeight:1 }}>WOL.</div>
+              <div style={{ height:4, background:'linear-gradient(90deg,#E53935,#FF8A80)', borderRadius:2, margin:'3px 0 4px' }} />
+              <div style={{ fontSize:9, color:'#6E6E73', letterSpacing:.5 }}>Plaza Comercial IWOL</div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div style={{ fontSize:9, color:'#6E6E73', textTransform:'uppercase', letterSpacing:.5 }}>Folio</div>
+              <div style={{ fontSize:20, fontWeight:900, letterSpacing:1 }}>{folio}</div>
+            </div>
+          </div>
+          <div style={{ border:'2px solid #1D1D1F', borderRadius:4, textAlign:'center', fontSize:11, fontWeight:900, padding:'5px 0', letterSpacing:3, textTransform:'uppercase', marginTop:10 }}>
+            Recibo de Pago
+          </div>
+        </div>
+
+        {/* Cuerpo */}
+        <div style={{ padding:'14px 20px', display:'flex', flexDirection:'column', gap:0 }}>
+          {/* Fecha + Cantidad */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12, gap:12 }}>
+            <div style={{ display:'flex', gap:6, alignItems:'center', fontSize:12 }}>
+              {[['Día',dia],['Mes',mes],['Año',anio]].map(([lbl,val]) => (
+                <div key={lbl} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                  <span style={{ fontSize:8, color:'#6E6E73', textTransform:'uppercase', letterSpacing:.5 }}>{lbl}</span>
+                  <strong style={{ fontSize:15, fontWeight:900, borderBottom:'1px solid #1D1D1F', minWidth:28, textAlign:'center' }}>{val}</strong>
+                </div>
+              ))}
+              <span style={{ fontSize:11, color:'#6E6E73', marginTop:12, marginLeft:4 }}>{mesNom}</span>
+            </div>
+            <div style={{ background:'#1D1D1F', color:'white', borderRadius:6, padding:'8px 12px', textAlign:'right', flexShrink:0 }}>
+              <div style={{ fontSize:8, letterSpacing:1, opacity:.7, textAlign:'left' }}>Cantidad</div>
+              <div style={{ fontSize:18, fontWeight:900, fontFamily:'monospace', letterSpacing:1 }}>${montoStr}</div>
             </div>
           </div>
 
-          {/* Detalle */}
-          <div style={{ padding:'16px 20px' }}>
-            {loadingDetalle ? (
-              <div style={{ textAlign:'center', padding:24, color:'#9CA3AF' }}>Cargando artículos…</div>
-            ) : ticketDetalle.lineas.length === 0 ? (
-              <div style={{ textAlign:'center', padding:24, color:'#9CA3AF', fontSize:13 }}>
-                Este ticket no tiene detalle de artículos registrado.
+          {/* Campos */}
+          {[
+            ['Recibí de', titular],
+            ['Cantidad con Letra', letra],
+            ['Concepto', concepto],
+          ].map(([lbl, val]) => (
+            <div key={lbl} style={{ borderBottom:'1px solid #E5E7EB', padding:'7px 0', fontSize:12 }}>
+              <span style={{ fontWeight:700, marginRight:4 }}>{lbl}:</span>
+              <span style={{ color:'#374151' }}>{val}</span>
+            </div>
+          ))}
+
+          {/* Forma de pago */}
+          <div style={{ padding:'10px 0', fontSize:12, display:'flex', gap:14, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ fontWeight:700 }}>Forma de pago:</span>
+            {['Efectivo','Cheque','Transferencia'].map((fp,i) => (
+              <label key={fp} style={{ display:'flex', alignItems:'center', gap:4, cursor:'default' }}>
+                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, border:'1.5px solid #1D1D1F', borderRadius:2, fontSize:10, background: i===0?'#1D1D1F':'white', color:'white' }}>
+                  {i===0?'✓':''}
+                </span>
+                {fp}
+              </label>
+            ))}
+          </div>
+
+          {/* Firmas */}
+          <div style={{ display:'flex', gap:20, marginTop:16 }}>
+            {['Nombre y Firma','Administración WOL'].map(f => (
+              <div key={f} style={{ flex:1, textAlign:'center' }}>
+                <div style={{ borderTop:'1px solid #1D1D1F', marginTop:36, paddingTop:5, fontSize:9, color:'#6E6E73', textTransform:'uppercase', letterSpacing:.5 }}>{f}</div>
               </div>
-            ) : (
-              <>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-                  <thead>
-                    <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }}>
-                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cód.</th>
-                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Artículo</th>
-                      <th style={{ padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cat.</th>
-                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Cant.</th>
-                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>P/U</th>
-                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ticketDetalle.lineas.map((l, i) => (
-                      <tr key={l.id || i} style={{ borderBottom:'1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
-                        <td style={{ padding:'7px 10px', color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{l.codigo_proveedor || '—'}</td>
-                        <td style={{ padding:'7px 10px', color:'#374151', fontWeight:500 }}>{l.descripcion}</td>
-                        <td style={{ padding:'7px 10px' }}>
-                          {l.categoria && (
-                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:99,
-                              background: l.categoria==='VENDING' ? '#FCE7F3' : l.categoria==='MANTENIMIENTO' ? '#FEE2E2' : '#DBEAFE',
-                              color:      l.categoria==='VENDING' ? '#BE185D' : l.categoria==='MANTENIMIENTO' ? '#B24020' : '#1D4ED8' }}>
-                              {l.categoria}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{l.cantidad}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151', fontFamily:'monospace' }}>{fmt(l.precio_unit)}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right', fontWeight:700, color:'#1A3C5E', fontFamily:'monospace' }}>{fmt(l.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={5} style={{ padding:'9px 10px', fontWeight:700, textAlign:'right', fontSize:13 }}>Total artículos:</td>
-                      <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:900, fontSize:15, color:'#1A3C5E', fontFamily:'monospace' }}>
-                        {fmt(ticketDetalle.lineas.reduce((a,l) => a + (parseFloat(l.subtotal)||0), 0))}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </>
-            )}
+            ))}
+          </div>
+
+          {/* Disclaimer */}
+          <div style={{ marginTop:12, fontSize:9, color:'#9CA3AF', textAlign:'center', borderTop:'1px solid #F0EEF8', paddingTop:8, lineHeight:1.5 }}>
+            Plaza IWOL está obligada a emitirle el recibo correspondiente de cualquier pago de servicio.<br/>
+            Para cualquier aclaración conserve este recibo.
+          </div>
+
+          {/* Botones */}
+          <div style={{ display:'flex', gap:10, marginTop:14 }}>
+            <button onClick={imprimir} style={{ flex:1, padding:'11px', background:'#1D1D1F', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              🖨️ Imprimir / PDF
+            </button>
+            <button onClick={compartirWA} style={{ flex:1, padding:'11px', background:'#25D366', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              📱 WhatsApp
+            </button>
+            <button onClick={onClose} style={{ padding:'11px 14px', background:'#F3F4F6', color:'#374151', border:'none', borderRadius:8, fontSize:13, cursor:'pointer' }}>
+              <X size={16}/>
+            </button>
           </div>
         </div>
       </div>
-    )}
-    </>
+    </div>
   )
 }

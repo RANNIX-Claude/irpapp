@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Receipt, Plus, X, Camera, AlertTriangle, Check, FileText, Sparkles } from 'lucide-react'
+import { Receipt, Plus, X, Camera, AlertTriangle, Check, FileText, Sparkles, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -412,6 +412,28 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         </div>
 
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* ── Ticket existente (solo en edición con ticket_url) ── */}
+          {isEdit && gasto?.ticket_url && (
+            <div style={{ background: '#F8FAFF', border: '1.5px solid #BFDBFE', borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#0A66C2', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.06em' }}>
+                🖼️ Ticket Escaneado
+              </div>
+              <img
+                src={gasto.ticket_url}
+                alt="Ticket escaneado"
+                style={{ width: '100%', maxHeight: 280, objectFit: 'contain', borderRadius: 8, border: '1px solid #DBEAFE', background: '#fff' }}
+              />
+              <a
+                href={gasto.ticket_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, color: '#0A66C2', textDecoration: 'none' }}
+              >
+                <ExternalLink size={11} /> Abrir en pantalla completa
+              </a>
+            </div>
+          )}
 
           {/* ── 0. APOYO IA (arriba siempre) ── */}
           <PanelIA onExtracted={handleExtracted} />

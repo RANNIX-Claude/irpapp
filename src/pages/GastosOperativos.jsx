@@ -293,9 +293,208 @@ const GRUPOS_LISTA = [
 ]
 
 // ─── Modal Carga en Grupo ─────────────────────────────────────────────────────
+const fmt2 = n => n != null ? '$' + (parseFloat(n)||0).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'
+
+function TicketCard({ t, idx, setForm, quitar }) {
+  const [showLineas, setShowLineas] = useState(false)
+  const ocr = t.ocr || {}
+  const prv = ocr.proveedor || {}
+  const tkt = ocr.ticket   || {}
+  const lineas = ocr.lineas || []
+  const ok = t.estado === 'listo' || t.estado === 'error_guardar'
+
+  return (
+    <div style={{ border:'1.5px solid #E5E7EB', borderRadius:10, marginBottom:14, overflow:'hidden', background: t.estado==='guardado' ? '#F0FDF4' : 'white' }}>
+      {/* ── Encabezado de card ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
+        <div style={{ flexShrink:0, width:52, height:52, borderRadius:7, overflow:'hidden', background:'#F3F4F6', border:'1px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {t.preview
+            ? <img src={t.preview} alt="ticket" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+            : <Loader2 size={18} color="#9CA3AF" style={{ animation:'spin 1s linear infinite' }} />}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+            #{idx+1} {prv.nombre_comercial || t.file.name}
+          </div>
+          {prv.rfc && <div style={{ fontSize:10, color:'#6B7280' }}>RFC: {prv.rfc}</div>}
+          {prv.nombre_sucursal && <div style={{ fontSize:10, color:'#6B7280' }}>{prv.nombre_sucursal}</div>}
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+          {t.estado === 'leyendo'   && <span style={{ fontSize:10, background:'#EFF6FF', color:'#0A66C2', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>Leyendo…</span>}
+          {t.estado === 'ocrizando' && <span style={{ fontSize:10, background:'#FFF7ED', color:'#C2410C', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>⏳ IA…</span>}
+          {t.estado === 'listo'     && <span style={{ fontSize:10, background:'#ECFDF5', color:'#057642', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✓ Listo</span>}
+          {t.estado === 'guardado'  && <span style={{ fontSize:10, background:'#DCFCE7', color:'#15803D', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✅ Guardado</span>}
+          {(t.estado==='error'||t.estado==='error_guardar') && <span style={{ fontSize:10, background:'#FEF2F2', color:'#B24020', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>❌ Error</span>}
+          <button onClick={() => quitar(t.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', fontSize:14, lineHeight:1, padding:'2px 4px' }}>✕</button>
+        </div>
+      </div>
+
+      {ok && (
+        <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+
+          {/* ── Sección PROVEEDOR ── */}
+          <div style={{ background:'#F5F3FF', borderRadius:7, padding:'8px 10px' }}>
+            <div style={{ fontSize:10, fontWeight:800, color:'#7B5EA7', textTransform:'uppercase', letterSpacing:.5, marginBottom:6 }}>🏪 Proveedor</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 10px' }}>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Nombre comercial</label>
+                <input value={t.form.proveedor_nombre} onChange={e => setForm(t.id,'proveedor_nombre',e.target.value)}
+                  placeholder="Nombre visible en ticket"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #DDD6FE', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>RFC</label>
+                <input value={t.form.proveedor_rfc} onChange={e => setForm(t.id,'proveedor_rfc',e.target.value.toUpperCase())}
+                  placeholder="Ej: NWM9709244W4"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #DDD6FE', borderRadius:5, fontSize:12, boxSizing:'border-box', fontFamily:'monospace' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Razón social</label>
+                <input value={t.form.proveedor_razon_social} onChange={e => setForm(t.id,'proveedor_razon_social',e.target.value)}
+                  placeholder="Razón social completa"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #DDD6FE', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Sucursal / Unidad</label>
+                <input value={t.form.proveedor_sucursal} onChange={e => setForm(t.id,'proveedor_sucursal',e.target.value)}
+                  placeholder="Ej: Suc. Portales"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #DDD6FE', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Sección TICKET FINANCIERO ── */}
+          <div style={{ background:'#FFFBEB', borderRadius:7, padding:'8px 10px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:10, fontWeight:800, color:'#92400E', textTransform:'uppercase', letterSpacing:.5 }}>🧾 Ticket</div>
+              {tkt.validacion && (
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                  background: tkt.validacion==='ok' ? '#DCFCE7' : '#FEF3C7',
+                  color:      tkt.validacion==='ok' ? '#15803D'  : '#92400E' }}>
+                  {tkt.validacion==='ok' ? '✔ Totales OK' : `⚠ ${tkt.validacion}`}
+                </span>
+              )}
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'4px 10px', marginBottom:8 }}>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Fecha</label>
+                <input type="date" value={t.form.fecha} onChange={e => setForm(t.id,'fecha',e.target.value)}
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Hora</label>
+                <input value={t.form.hora || ''} onChange={e => setForm(t.id,'hora',e.target.value)} placeholder="HH:MM:SS"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Folio / Terminal</label>
+                <input value={t.form.folio || ''} onChange={e => setForm(t.id,'folio',e.target.value)} placeholder="Folio o No. ticket"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+            </div>
+            {/* Fila de montos */}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {[
+                ['Subtotal', 'subtotal'],
+                ['Descuentos', 'descuentos'],
+                ['IVA', 'iva_monto'],
+                ['IEPS', 'ieps_monto'],
+              ].map(([lbl, key]) => (
+                <div key={key} style={{ flex:'1 1 70px' }}>
+                  <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>{lbl}</label>
+                  <input type="number" value={t.form[key] || ''} onChange={e => setForm(t.id, key, e.target.value)} placeholder="0.00"
+                    style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+                </div>
+              ))}
+              <div style={{ flex:'1 1 80px' }}>
+                <label style={{ fontSize:10, fontWeight:800, color:'#92400E' }}>TOTAL $</label>
+                <input type="number" value={t.form.ticket_total} onChange={e => setForm(t.id,'ticket_total',e.target.value)} placeholder="0.00"
+                  style={{ width:'100%', padding:'4px 7px', border:'2px solid #F59E0B', borderRadius:5, fontSize:13, fontWeight:800, boxSizing:'border-box', color:'#92400E' }} />
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 10px', marginTop:6 }}>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Forma de pago</label>
+                <input value={t.form.forma_pago || ''} onChange={e => setForm(t.id,'forma_pago',e.target.value)} placeholder="Efectivo / Tarjeta"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:10, fontWeight:700, color:'#6B7280' }}>Cambio</label>
+                <input type="number" value={t.form.cambio || ''} onChange={e => setForm(t.id,'cambio',e.target.value)} placeholder="0.00"
+                  style={{ width:'100%', padding:'4px 7px', border:'1.5px solid #FDE68A', borderRadius:5, fontSize:12, boxSizing:'border-box' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Sección ARTÍCULOS ── */}
+          {lineas.length > 0 && (
+            <div style={{ border:'1px solid #E5E7EB', borderRadius:7, overflow:'hidden' }}>
+              <button onClick={() => setShowLineas(v => !v)}
+                style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#F9FAFB', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:'#374151' }}>
+                <span>📦 {lineas.length} artículo{lineas.length!==1?'s':''} detectados</span>
+                {showLineas ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+              </button>
+              {showLineas && (
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                    <thead>
+                      <tr style={{ background:'#F3F4F6' }}>
+                        {['SKU','Descripción','Cant.','P/U','Subtotal','Imp.'].map((h,i) => (
+                          <th key={h} style={{ padding:'5px 7px', textAlign: i>1?'right':'left', fontSize:9, fontWeight:700, color:'#6B7280', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineas.map((l, li) => (
+                        <tr key={li} style={{ borderTop:'1px solid #F3F4F6', background: li%2===0?'white':'#FAFAFA' }}>
+                          <td style={{ padding:'4px 7px', color:'#9CA3AF', fontFamily:'monospace', fontSize:10 }}>{l.sku||'—'}</td>
+                          <td style={{ padding:'4px 7px', color:'#111827', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.descripcion}</td>
+                          <td style={{ padding:'4px 7px', textAlign:'right' }}>{l.cantidad}</td>
+                          <td style={{ padding:'4px 7px', textAlign:'right', fontFamily:'monospace' }}>{fmt2(l.precio_unit)}</td>
+                          <td style={{ padding:'4px 7px', textAlign:'right', fontFamily:'monospace', fontWeight:700 }}>{fmt2(l.subtotal_linea ?? (l.cantidad*(l.precio_unit||0)))}</td>
+                          <td style={{ padding:'4px 7px', textAlign:'right' }}>
+                            {l.tasa_impuesto
+                              ? <span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3, background:'#DBEAFE', color:'#1D4ED8' }}>{l.tasa_impuesto}</span>
+                              : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Sección DATOS DE GASTO (requeridos para BD) ── */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 10px' }}>
+            <div>
+              <label style={{ fontSize:10, fontWeight:800, color:'#374151' }}>Grupo * <span style={{ color:'#EF4444' }}>requerido</span></label>
+              <select value={t.form.grupo_gasto} onChange={e => setForm(t.id,'grupo_gasto',e.target.value)}
+                style={{ width:'100%', padding:'5px 8px', border: t.form.grupo_gasto ? '1.5px solid #E5E7EB' : '2px solid #FCA5A5', borderRadius:6, fontSize:12, boxSizing:'border-box', background:'white' }}>
+                <option value="">— Seleccionar grupo —</option>
+                {GRUPOS_LISTA.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:10, fontWeight:700, color:'#374151' }}>Descripción / Concepto</label>
+              <input value={t.form.descripcion} onChange={e => setForm(t.id,'descripcion',e.target.value)} placeholder="Opcional"
+                style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:12, boxSizing:'border-box' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(t.estado==='error'||t.estado==='error_guardar') && (
+        <div style={{ padding:'8px 14px', fontSize:12, color:'#B24020' }}>❌ {t.errorMsg}</div>
+      )}
+    </div>
+  )
+}
+
 function ModalCargaGrupo({ onClose, onSaved }) {
   const hoy = new Date().toISOString().slice(0, 10)
-  const [tickets, setTickets] = useState([])   // [{id, file, preview, b64, mtype, estado, ocr, form}]
+  const [tickets, setTickets] = useState([])
   const [saving, setSaving]   = useState(false)
   const fileRef = useRef()
 
@@ -303,57 +502,89 @@ function ModalCargaGrupo({ onClose, onSaved }) {
     setTickets(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
   const setForm = (id, field, val) =>
     setTickets(prev => prev.map(t => t.id === id ? { ...t, form: { ...t.form, [field]: val } } : t))
+  const quitar = (id) => setTickets(prev => prev.filter(t => t.id !== id))
+
+  const formDeOcr = (ocr, hoy) => {
+    const prv = ocr?.proveedor || {}
+    const tkt = ocr?.ticket   || {}
+    return {
+      fecha:                 tkt.fecha || ocr?.fecha || hoy,
+      hora:                  tkt.hora  || null,
+      folio:                 tkt.folio || null,
+      grupo_gasto:           '',
+      descripcion:           '',
+      proveedor_nombre:      prv.nombre_comercial || ocr?.proveedor_str || '',
+      proveedor_rfc:         prv.rfc || '',
+      proveedor_razon_social: prv.razon_social || '',
+      proveedor_sucursal:    prv.nombre_sucursal || '',
+      ticket_total:          tkt.total != null ? String(tkt.total) : (ocr?.total != null ? String(ocr.total) : ''),
+      subtotal:              tkt.subtotal    || '',
+      descuentos:            tkt.descuentos  || '',
+      iva_monto:             tkt.iva_monto   || '',
+      ieps_monto:            tkt.ieps_monto  || '',
+      forma_pago:            tkt.forma_pago  || '',
+      cambio:                tkt.cambio      || '',
+    }
+  }
 
   const agregarArchivos = async (files) => {
     const nuevos = Array.from(files).map(f => ({
       id: `${Date.now()}-${Math.random()}`,
       file: f,
-      preview: null,
-      b64: null,
-      mtype: null,
-      estado: 'leyendo',   // leyendo | ocrizando | listo | error
+      preview: null, b64: null, mtype: null,
+      estado: 'leyendo',
       ocr: null,
-      form: { fecha: hoy, grupo_gasto: '', proveedor_txt: '', ticket_total: '', descripcion: '' },
+      form: { fecha:hoy, hora:'', folio:'', grupo_gasto:'', descripcion:'', proveedor_nombre:'', proveedor_rfc:'', proveedor_razon_social:'', proveedor_sucursal:'', ticket_total:'', subtotal:'', descuentos:'', iva_monto:'', ieps_monto:'', forma_pago:'', cambio:'' },
     }))
     setTickets(prev => [...prev, ...nuevos])
 
     for (const ticket of nuevos) {
       try {
         const img = await fileToB64(ticket.file)
-        if (!img) { setTicket(ticket.id, { estado: 'error', errorMsg: 'No se pudo leer la imagen' }); continue }
-        setTicket(ticket.id, { b64: img.b64, mtype: img.mtype, preview: img.preview, estado: 'ocrizando' })
+        if (!img) { setTicket(ticket.id, { estado:'error', errorMsg:'No se pudo leer la imagen' }); continue }
+        setTicket(ticket.id, { b64:img.b64, mtype:img.mtype, preview:img.preview, estado:'ocrizando' })
 
         const ocr = await ocrizarTicket(img.b64, img.mtype)
-        setTicket(ticket.id, {
-          estado: 'listo',
-          ocr,
-          form: {
-            fecha:         ocr.fecha || hoy,
-            grupo_gasto:   '',
-            proveedor_txt: ocr.proveedor || '',
-            ticket_total:  ocr.total ? String(ocr.total) : '',
-            descripcion:   '',
-          },
-        })
+        // Backward compat: si viene proveedor como string
+        if (typeof ocr.proveedor === 'string') ocr.proveedor_str = ocr.proveedor
+        setTicket(ticket.id, { estado:'listo', ocr, form: formDeOcr(ocr, hoy) })
       } catch (e) {
-        setTicket(ticket.id, { estado: 'error', errorMsg: e.message })
+        setTicket(ticket.id, { estado:'error', errorMsg: e.message })
       }
     }
   }
-
-  const quitar = (id) => setTickets(prev => prev.filter(t => t.id !== id))
 
   const guardarTodos = async () => {
     const listos = tickets.filter(t => t.estado === 'listo' && t.form.grupo_gasto)
     if (!listos.length) { toast.error('Ningún ticket listo con grupo asignado'); return }
     setSaving(true)
     let ok = 0, fail = 0
+
     for (const t of listos) {
       try {
         const monto = parseFloat(t.form.ticket_total) || 0
+
+        // Upsert proveedor si hay RFC
+        let proveedor_id = null
+        if (t.form.proveedor_rfc) {
+          const { data: prvExistente } = await supabase.from('proveedores')
+            .select('id').eq('rfc', t.form.proveedor_rfc).maybeSingle()
+          if (prvExistente) {
+            proveedor_id = prvExistente.id
+          } else {
+            const { data: prvNuevo } = await supabase.from('proveedores').insert({
+              nombre:    t.form.proveedor_nombre || null,
+              rfc:       t.form.proveedor_rfc    || null,
+              razon_social: t.form.proveedor_razon_social || null,
+              sucursal:  t.form.proveedor_sucursal || null,
+            }).select('id').maybeSingle()
+            proveedor_id = prvNuevo?.id || null
+          }
+        }
+
         const payload = {
           fecha:        t.form.fecha,
-          proveedor:    t.form.proveedor_txt || null,
+          proveedor:    t.form.proveedor_nombre || null,
           grupo_gasto:  t.form.grupo_gasto,
           descripcion:  t.form.descripcion || null,
           cantidad:     monto,
@@ -363,26 +594,26 @@ function ModalCargaGrupo({ onClose, onSaved }) {
         const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
         if (error) throw error
 
-        // Guardar líneas OCR si las hay
-        if (t.ocr?.lineas?.length) {
-          const lineas = t.ocr.lineas.filter(l => l.descripcion && l.precio_unit).map(l => ({
-            gasto_id: ins.id,
-            descripcion: l.descripcion,
-            cantidad: parseFloat(l.cantidad) || 1,
-            precio_unit: parseFloat(l.precio_unit),
-            categoria: null, codigo_proveedor: l.codigo_proveedor || null, producto_id: null,
-          }))
-          if (lineas.length) await supabase.from('gasto_detalle').insert(lineas)
-        }
+        // Líneas OCR
+        const lineas = (t.ocr?.lineas || []).filter(l => l.descripcion && l.precio_unit).map(l => ({
+          gasto_id:         ins.id,
+          descripcion:      l.descripcion,
+          cantidad:         parseFloat(l.cantidad) || 1,
+          precio_unit:      parseFloat(l.precio_unit),
+          codigo_proveedor: l.sku || l.codigo_proveedor || null,
+          categoria:        null,
+          producto_id:      null,
+        }))
+        if (lineas.length) await supabase.from('gasto_detalle').insert(lineas)
 
-        // Subir foto a Storage
+        // Foto a Storage
         if (t.b64) {
           try {
             const ext  = t.mtype?.includes('png') ? 'png' : 'jpg'
             const path = `${t.form.fecha?.slice(0,7) || 'sin-fecha'}/${ins.id}.${ext}`
             const byteArr = Uint8Array.from(atob(t.b64), c => c.charCodeAt(0))
             const blob = new Blob([byteArr], { type: t.mtype || 'image/jpeg' })
-            const { data: upData } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert: true })
+            const { data: upData } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert:true })
             if (upData?.path) {
               const { data: { publicUrl } } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
               await supabase.from('gastos_operativos').update({ ticket_url: publicUrl }).eq('id', ins.id)
@@ -390,16 +621,16 @@ function ModalCargaGrupo({ onClose, onSaved }) {
           } catch (_) {}
         }
 
-        setTicket(t.id, { estado: 'guardado' })
+        setTicket(t.id, { estado:'guardado' })
         ok++
       } catch (e) {
-        setTicket(t.id, { estado: 'error_guardar', errorMsg: e.message })
+        setTicket(t.id, { estado:'error_guardar', errorMsg: e.message })
         fail++
       }
     }
     setSaving(false)
-    if (ok) toast.success(`✅ ${ok} ticket${ok > 1 ? 's' : ''} guardado${ok > 1 ? 's' : ''}`)
-    if (fail) toast.error(`${fail} ticket${fail > 1 ? 's' : ''} con error`)
+    if (ok)   toast.success(`✅ ${ok} ticket${ok>1?'s':''} guardado${ok>1?'s':''}`)
+    if (fail) toast.error(`${fail} ticket${fail>1?'s':''} con error`)
     if (!fail) { onSaved(); onClose() }
   }
 
@@ -408,112 +639,54 @@ function ModalCargaGrupo({ onClose, onSaved }) {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'12px' }} onClick={onClose}>
-      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:780, maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.35)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background:'white', borderRadius:14, width:'100%', maxWidth:820, maxHeight:'94vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.35)' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ padding:'14px 20px', background:'#E8A020', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:16, fontWeight:800, color:'white' }}>📷 Carga en Grupo — Tickets</div>
-            <div style={{ fontSize:12, color:'rgba(255,255,255,0.85)' }}>Sube varias fotos • OCR automático • Revisión y guardado masivo</div>
+            <div style={{ fontSize:16, fontWeight:800, color:'white' }}>📷 Carga en Grupo — Comprobantes</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.85)' }}>Sube fotos → IA extrae Proveedor · Ticket · Artículos → Revisas → Guardas</div>
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'6px 10px', color:'white', cursor:'pointer', fontWeight:800 }}>✕</button>
         </div>
 
         {/* Zona de carga */}
-        <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', flexShrink:0 }}>
-          <label style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 20px', background:'#FFFBEB', border:'2px dashed #FCD34D', borderRadius:10, cursor:'pointer', justifyContent:'center' }}>
+        <div style={{ padding:'12px 20px', borderBottom:'1px solid #E5E7EB', flexShrink:0 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 20px', background:'#FFFBEB', border:'2px dashed #FCD34D', borderRadius:10, cursor:'pointer', justifyContent:'center' }}>
             <Images size={20} color="#E8A020" />
-            <span style={{ fontSize:14, fontWeight:700, color:'#92400E' }}>Seleccionar fotos de tickets (una o varias)</span>
+            <span style={{ fontSize:13, fontWeight:700, color:'#92400E' }}>Seleccionar fotos de tickets (una o varias)</span>
             <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => { agregarArchivos(e.target.files); e.target.value = '' }} style={{ display:'none' }} />
           </label>
         </div>
 
         {/* Lista de tickets */}
-        <div style={{ flex:1, overflowY:'auto', padding:'0 20px' }}>
+        <div style={{ flex:1, overflowY:'auto', padding:'14px 20px' }}>
           {tickets.length === 0 && (
-            <div style={{ textAlign:'center', padding:'40px 0', color:'#9CA3AF', fontSize:14 }}>
-              Aún no has cargado ninguna foto. Selecciona una o varias imágenes arriba.
+            <div style={{ textAlign:'center', padding:'48px 0', color:'#9CA3AF', fontSize:14 }}>
+              Aún no has cargado ningún comprobante.<br/>Selecciona una o varias fotos arriba.
             </div>
           )}
           {tickets.map((t, i) => (
-            <div key={t.id} style={{ display:'flex', gap:14, padding:'14px 0', borderBottom:'1px solid #F3F4F6', alignItems:'flex-start' }}>
-              {/* Miniatura */}
-              <div style={{ flexShrink:0, width:72, height:72, borderRadius:8, overflow:'hidden', background:'#F9FAFB', border:'1.5px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {t.preview
-                  ? <img src={t.preview} alt="ticket" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : <Loader2 size={22} color="#9CA3AF" style={{ animation:'spin 1s linear infinite' }} />}
-              </div>
-
-              {/* Contenido */}
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:'#6B7280' }}>#{i+1} {t.file.name}</span>
-                  {t.estado === 'leyendo'    && <span style={{ fontSize:11, background:'#EFF6FF', color:'#0A66C2', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>Leyendo imagen…</span>}
-                  {t.estado === 'ocrizando'  && <span style={{ fontSize:11, background:'#FFF7ED', color:'#C2410C', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>⏳ Procesando con IA…</span>}
-                  {t.estado === 'listo'      && <span style={{ fontSize:11, background:'#ECFDF5', color:'#057642', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✓ Listo</span>}
-                  {t.estado === 'guardado'   && <span style={{ fontSize:11, background:'#ECFDF5', color:'#057642', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>✅ Guardado</span>}
-                  {(t.estado === 'error' || t.estado === 'error_guardar') && <span style={{ fontSize:11, background:'#FEF2F2', color:'#B24020', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>❌ {t.errorMsg || 'Error'}</span>}
-                  <button onClick={() => quitar(t.id)} style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', padding:'2px 4px' }}>✕</button>
-                </div>
-
-                {(t.estado === 'listo' || t.estado === 'error_guardar') && (
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 10px' }}>
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Fecha</label>
-                      <input type="date" value={t.form.fecha} onChange={e => setForm(t.id, 'fecha', e.target.value)}
-                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Total $</label>
-                      <input type="number" value={t.form.ticket_total} onChange={e => setForm(t.id, 'ticket_total', e.target.value)} placeholder="0.00"
-                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Grupo *</label>
-                      <select value={t.form.grupo_gasto} onChange={e => setForm(t.id, 'grupo_gasto', e.target.value)}
-                        style={{ width:'100%', padding:'5px 8px', border: t.form.grupo_gasto ? '1.5px solid #E5E7EB' : '1.5px solid #FCA5A5', borderRadius:6, fontSize:13, boxSizing:'border-box', background:'white' }}>
-                        <option value="">— Seleccionar —</option>
-                        {GRUPOS_LISTA.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Proveedor</label>
-                      <input value={t.form.proveedor_txt} onChange={e => setForm(t.id, 'proveedor_txt', e.target.value)} placeholder="Nombre o tienda"
-                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
-                    </div>
-                    <div style={{ gridColumn:'1/-1' }}>
-                      <label style={{ fontSize:11, fontWeight:700, color:'#374151' }}>Descripción</label>
-                      <input value={t.form.descripcion} onChange={e => setForm(t.id, 'descripcion', e.target.value)} placeholder="Opcional"
-                        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:6, fontSize:13, boxSizing:'border-box' }} />
-                    </div>
-                    {t.ocr?.lineas?.length > 0 && (
-                      <div style={{ gridColumn:'1/-1', fontSize:11, color:'#6B7280' }}>
-                        {t.ocr.lineas.length} artículo{t.ocr.lineas.length > 1 ? 's' : ''} detectado{t.ocr.lineas.length > 1 ? 's' : ''} en el ticket
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            <TicketCard key={t.id} t={t} idx={i} setForm={setForm} quitar={quitar} />
           ))}
         </div>
 
         {/* Footer */}
-        <div style={{ padding:'14px 20px', borderTop:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+        <div style={{ padding:'12px 20px', borderTop:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, background:'#F9FAFB' }}>
           <div style={{ fontSize:13, color:'#6B7280' }}>
-            {listos.length} listo{listos.length !== 1 ? 's' : ''}
-            {sinGrupo > 0 && <span style={{ color:'#F59E0B', marginLeft:8 }}>· {sinGrupo} sin grupo</span>}
+            {tickets.length} foto{tickets.length!==1?'s':''} · {listos.length} lista{listos.length!==1?'s':''}
+            {sinGrupo > 0 && <span style={{ color:'#F59E0B', marginLeft:8 }}>· ⚠ {sinGrupo} sin grupo</span>}
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={onClose} style={{ padding:'9px 18px', background:'white', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', color:'#374151' }}>Cancelar</button>
             <button onClick={guardarTodos} disabled={saving || !listos.filter(t => t.form.grupo_gasto).length}
-              style={{ padding:'9px 22px', background: saving ? '#9CA3AF' : '#057642', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:800, cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'Guardando…' : `Guardar ${listos.filter(t=>t.form.grupo_gasto).length} ticket${listos.filter(t=>t.form.grupo_gasto).length !== 1 ? 's' : ''}`}
+              style={{ padding:'9px 22px', background: saving?'#9CA3AF':'#057642', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:800, cursor: saving?'not-allowed':'pointer' }}>
+              {saving ? 'Guardando…' : `Guardar ${listos.filter(t=>t.form.grupo_gasto).length} ticket${listos.filter(t=>t.form.grupo_gasto).length!==1?'s':''}`}
             </button>
           </div>
         </div>
       </div>
-      <style>{`@keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }`}</style>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
