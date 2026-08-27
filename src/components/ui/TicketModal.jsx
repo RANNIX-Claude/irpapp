@@ -252,17 +252,30 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
   }, [gasto?.id])
 
   const [ticketImgSrc, setTicketImgSrc] = useState(null)   // {b64, mtype} de la foto del ticket
+  const [ocrData, setOcrData]           = useState(null)   // { proveedor, ticket, lineas } — preview 3-tabla
 
-  // Callback cuando la IA extrae datos (OCR o texto)
+  // Callback cuando la IA extrae datos (OCR o texto) — formato 3-tabla
   const handleExtracted = (data, imgSrc) => {
     if (imgSrc) setTicketImgSrc(imgSrc)
-    if (data.total)     set('ticket_total', String(data.total))
-    if (data.proveedor) set('proveedor_txt', data.proveedor)
-    if (data.fecha)     set('fecha', data.fecha)
+    setOcrData(data)   // guardar para preview estructurado
+
+    // Normalizar: soporta formato nuevo { proveedor:{}, ticket:{}, lineas:[] }
+    // y backward compat formato viejo { proveedor: string, total, fecha, lineas }
+    const prov  = data.proveedor   // objeto o null
+    const tkt   = data.ticket      // objeto o null
+
+    const nombreProv = prov?.nombre_comercial || (typeof data.proveedor === 'string' ? data.proveedor : null)
+    const total      = tkt?.total ?? data.total
+    const fecha      = tkt?.fecha ?? data.fecha
+
+    if (total)      set('ticket_total', String(total))
+    if (nombreProv) set('proveedor_txt', nombreProv)
+    if (fecha)      set('fecha', fecha)
+
     if (data.lineas?.length) {
       setLineas(data.lineas.map((l, i) => ({
         _key: Date.now() + i,
-        codigo_proveedor: l.codigo_proveedor || '',
+        codigo_proveedor: l.sku || l.codigo_proveedor || '',
         descripcion:      l.descripcion || '',
         cantidad:         l.cantidad ?? 1,
         precio_unit:      l.precio_unit ?? '',
@@ -437,6 +450,106 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
 
           {/* ── 0. APOYO IA (arriba siempre) ── */}
           <PanelIA onExtracted={handleExtracted} />
+
+          {/* ── 0b. PREVIEW 3-TABLA OCR ── */}
+          {ocrData && (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+
+              {/* PROVEEDOR */}
+              {ocrData.proveedor && (
+                <div style={{ background:'#FAF5FF', border:'1.5px solid #DDD6FE', borderRadius:10, padding:12 }}>
+                  <div style={{ fontSize:10, fontWeight:800, color:'#6D28D9', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>🏪 Proveedor identificado</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 12px' }}>
+                    {[
+                      ['Nombre comercial', ocrData.proveedor.nombre_comercial],
+                      ['Razón social', ocrData.proveedor.razon_social],
+                      ['RFC', ocrData.proveedor.rfc],
+                      ['Sucursal', ocrData.proveedor.nombre_sucursal],
+                      ['Domicilio sucursal', ocrData.proveedor.domicilio_sucursal],
+                    ].filter(([,v]) => v).map(([k,v]) => (
+                      <div key={k} style={{ fontSize:11 }}>
+                        <span style={{ color:'#7C3AED', fontWeight:700 }}>{k}: </span>
+                        <span style={{ color:'#374151' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TICKET FINANCIERO */}
+              {ocrData.ticket && (
+                <div style={{ background:'#FFFBEB', border:'1.5px solid #FDE68A', borderRadius:10, padding:12 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:'#D97706', textTransform:'uppercase', letterSpacing:'.06em' }}>🧾 Ticket financiero</div>
+                    {ocrData.ticket.validacion && (
+                      <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                        background: ocrData.ticket.validacion==='ok'?'#D1FAE5':'#FEE2E2',
+                        color:      ocrData.ticket.validacion==='ok'?'#065F46':'#B91C1C' }}>
+                        {ocrData.ticket.validacion==='ok' ? '✓ Cuadra' : '⚠ ' + ocrData.ticket.validacion}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 12px' }}>
+                    {[
+                      ['Fecha', ocrData.ticket.fecha],
+                      ['Hora', ocrData.ticket.hora],
+                      ['Folio', ocrData.ticket.folio],
+                      ['Subtotal', ocrData.ticket.subtotal != null ? '$'+parseFloat(ocrData.ticket.subtotal).toLocaleString('es-MX',{minimumFractionDigits:2}) : null],
+                      ['Descuentos', ocrData.ticket.descuentos ? '-$'+parseFloat(ocrData.ticket.descuentos).toLocaleString('es-MX',{minimumFractionDigits:2}) : null],
+                      ['IVA', ocrData.ticket.iva_monto != null ? '$'+parseFloat(ocrData.ticket.iva_monto).toLocaleString('es-MX',{minimumFractionDigits:2}) : null],
+                      ['IEPS', ocrData.ticket.ieps_monto != null ? '$'+parseFloat(ocrData.ticket.ieps_monto).toLocaleString('es-MX',{minimumFractionDigits:2}) : null],
+                      ['Total', ocrData.ticket.total != null ? '$'+parseFloat(ocrData.ticket.total).toLocaleString('es-MX',{minimumFractionDigits:2}) : null],
+                      ['Forma pago', ocrData.ticket.forma_pago],
+                      ['Artículos', ocrData.ticket.articulos_count],
+                    ].filter(([,v]) => v != null && v !== '').map(([k,v]) => (
+                      <div key={k} style={{ fontSize:11 }}>
+                        <span style={{ color:'#B45309', fontWeight:700 }}>{k}: </span>
+                        <span style={{ color:'#374151', fontFamily: typeof v === 'string' && v.startsWith('$') ? 'monospace' : 'inherit' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* PRODUCTOS / LÍNEAS */}
+              {ocrData.lineas?.length > 0 && (
+                <div style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:10, padding:12 }}>
+                  <div style={{ fontSize:10, fontWeight:800, color:'#065F46', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>
+                    📦 {ocrData.lineas.length} artículos extraídos
+                  </div>
+                  <div style={{ overflowX:'auto' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                      <thead>
+                        <tr style={{ background:'#D1FAE5' }}>
+                          {['SKU','Descripción','Cant.','P/U','IMP'].map((h,i) => (
+                            <th key={h} style={{ padding:'4px 6px', textAlign: i>=2?'right':'left', fontSize:10, fontWeight:700, color:'#065F46', whiteSpace:'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ocrData.lineas.map((l,i) => (
+                          <tr key={i} style={{ borderBottom:'1px solid #D1FAE5', background: i%2===0?'white':'#F0FDF4' }}>
+                            <td style={{ padding:'3px 6px', color:'#9CA3AF', fontFamily:'monospace', fontSize:10 }}>{l.sku||'—'}</td>
+                            <td style={{ padding:'3px 6px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.descripcion}</td>
+                            <td style={{ padding:'3px 6px', textAlign:'right' }}>{l.cantidad}</td>
+                            <td style={{ padding:'3px 6px', textAlign:'right', fontFamily:'monospace' }}>{l.precio_unit != null ? '$'+parseFloat(l.precio_unit).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
+                            <td style={{ padding:'3px 6px', textAlign:'right', fontFamily:'monospace', fontWeight:600 }}>
+                              {l.tasa_impuesto ? <span style={{ fontSize:9, background:'#D1FAE5', color:'#065F46', borderRadius:3, padding:'1px 4px', marginRight:2 }}>{l.tasa_impuesto}</span> : null}
+                              {l.subtotal_linea != null ? '$'+parseFloat(l.subtotal_linea).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop:6, fontSize:10, color:'#6B7280', textAlign:'right' }}>
+                    ↑ Ya aplicado al detalle del gasto abajo
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
 
           {/* ── 1. Encabezado ── */}
           <div style={{ background: '#F8FAFF', border: '1px solid #DBEAFE', borderRadius: 10, padding: 14 }}>
