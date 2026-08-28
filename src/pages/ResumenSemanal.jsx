@@ -1065,7 +1065,7 @@ export default function ResumenSemanal() {
             {totGastosFondo > 5000 && (
               <div style={{ padding: '8px 0' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '6px 14px', borderBottom: '1px solid #F3F4F6' }}>
-                  <span style={{ fontSize: '12px', color: '#DC2626' }}>Balance gastos a comprobar</span>
+                  <span style={{ fontSize: '12px', color: '#DC2626' }}>Déficit Fondo Revolvente</span>
                   <span style={{ fontWeight: 700, fontSize: '13px', color: '#DC2626', textAlign: 'right', fontFamily: 'monospace' }}>— {fmt(totGastosFondo - 5000)}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '7px 14px', background: '#F0FDF4', borderBottom: '1px solid #BBF7D0' }}>
