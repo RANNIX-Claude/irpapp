@@ -317,14 +317,17 @@ function ModalIngreso({ tipo, semIni, semFin, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.importe) return toast.error('Ingresa el importe')
     setSaving(true)
+    const _fecha = new Date(form.fecha + 'T12:00:00')
     const { error } = await supabase.from('ingresos').insert({
       fecha: form.fecha,
+      mes: _fecha.getMonth() + 1,
+      anio: _fecha.getFullYear(),
       tipo,
       origen: 'EFECTIVO',
       importe: parseFloat(form.importe),
       propietario: form.propietario || null,
       id_contrato: form.id_contrato || null,
-      concepto_origen: form.concepto_origen || `${tipo} ${MESES_INGRESO[new Date(form.fecha+'T12:00:00').getMonth()]}${new Date(form.fecha+'T12:00:00').getFullYear().toString().slice(2)}`,
+      concepto_origen: form.concepto_origen || `${tipo} ${MESES_INGRESO[_fecha.getMonth()]}${_fecha.getFullYear().toString().slice(2)}`,
       nota: form.nota || null,
     })
     if (error) toast.error(error.message)
