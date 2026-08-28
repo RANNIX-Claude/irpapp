@@ -555,7 +555,8 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
           <!-- ESTACIONAMIENTO DIARIO -->
           <tr class="section-row"><td colspan="4">Estacionamiento Diario</td></tr>
           ${rowsEstac || '<tr><td colspan="4" style="padding:6px;color:#9CA3AF;text-align:center">Sin registros</td></tr>'}
-          <tr><td colspan="2" style="padding:4px 8px;font-weight:700">Total Estacionamiento</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px">${fmt(totEstac)}</td></tr>
+          <tr><td colspan="2" style="padding:4px 8px;font-weight:700">Total Estacionamiento Diario</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px">${fmt(totEstac)}</td></tr>
+          ${totParking > 0 ? `<tr><td colspan="2" style="padding:4px 8px;font-weight:700">Tickets Sistema Parking (Vie–Jue)</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px;color:#7C3AED">${fmt(totParking)}</td></tr>` : ''}
 
           <!-- VENDING MACHINE -->
           ${vending.length > 0 ? `
@@ -739,10 +740,11 @@ export default function ResumenSemanal() {
   const vendingMaterial = (datos?.vending ?? []).filter(v => v.es_material).reduce((a, b) => a + (parseFloat(b.venta_pesos) || 0), 0)
   const residualVending = (datos?.vending ?? []).reduce((a, b) => a + (parseFloat(b.residual_pesos) || 0), 0)
 
-  const totalEfectivo = totPensiones + totEstac + totVending + totRentas + totAgua + totOtros
+  const totParking    = parkingData?.total ?? 0
+  const totalEfectivo = totPensiones + totEstac + totParking + totVending + totRentas + totAgua + totOtros
   const diferencia    = totalEfectivo - totGastosFondo
 
-  const totales = { totPensiones, totEstac, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending }
+  const totales = { totPensiones, totEstac, totParking, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending }
 
   const handlePrint = () => {
     const html = generarHTML({ iniStr: semSel.ini, finStr: semSel.fin, ...datos, aguaEf, otrosEf, totales })
