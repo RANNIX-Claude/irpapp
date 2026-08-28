@@ -389,8 +389,12 @@ function ModalPension({ semIni, semFin, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.monto) return toast.error('Ingresa el monto')
     setSaving(true)
+    const _fp = new Date(form.fecha + 'T12:00:00')
     const { error } = await supabase.from('estacionamiento_pensiones').insert({
-      fecha: form.fecha, semana_inicio: semIni,
+      fecha: form.fecha,
+      mes: _fp.getMonth() + 1,
+      anio: _fp.getFullYear(),
+      semana_inicio: semIni,
       local_referencia: form.local_referencia || null,
       arrendatario_nombre: form.arrendatario_nombre || null,
       monto: parseFloat(form.monto),
