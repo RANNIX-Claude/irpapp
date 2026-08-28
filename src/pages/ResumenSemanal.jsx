@@ -1151,9 +1151,9 @@ export default function ResumenSemanal() {
                 <Wallet size={13} /> Balance Fondo Revolvente
               </div>
               {[
-                ['Total efectivo a entregar', totalEfectivo, '#374151'],
-                ['Total gastado (Fondo Revolvente)', totGastosFondo, '#DC2626'],
-                ['Balance', diferencia, diferencia >= 0 ? '#16a34a' : '#DC2626'],
+                ['Fondo Fijo Revolvente', 5000, '#374151'],
+                ['Gastos', totGastosFondo, '#DC2626'],
+                ['Balance', 5000 - totGastosFondo, (5000 - totGastosFondo) >= 0 ? '#16a34a' : '#DC2626'],
               ].map(([label, val, color]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}>
                   <span style={{ color: '#6B7280' }}>{label}</span>
@@ -1165,7 +1165,7 @@ export default function ResumenSemanal() {
             {/* Resumen KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '2px solid #E5E7EB' }}>
               {[
-                ['Estacionamiento', totEstac, '#0A66C2'],
+                ['Estacionamiento', totEstac + totParking, '#0A66C2'],
                 ['Pensiones', totPensiones, '#0A66C2'],
                 ['Vending', totVending, '#0A66C2'],
                 ['Rentas', totRentas, 'var(--color-success)'],
