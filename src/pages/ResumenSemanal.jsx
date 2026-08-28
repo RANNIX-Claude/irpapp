@@ -1262,7 +1262,7 @@ export default function ResumenSemanal() {
         <ModalDetalleIngreso rec={detalleIngreso} onClose={() => setDetalleIngreso(null)}
           onEdit={(tabla, row) => { setDetalleIngreso(null); setEditRec({ tabla, row }) }}
           onEliminar={(tabla, id, label) => { setDetalleIngreso(null); setDelRec({ tabla, id, label }) }}
-          onRecibo={detalleIngreso.tabla === 'estacionamiento_pensiones' ? (row) => { setDetalleIngreso(null); setReciboRec(row) } : null}
+          onRecibo={(row) => { setDetalleIngreso(null); setReciboRec({ ...row, _tabla: detalleIngreso.tabla }) }}
         />
       )}
 
@@ -1455,12 +1455,10 @@ function ModalDetalleIngreso({ rec, onClose, onEdit, onEliminar, onRecibo }) {
 
         {/* Acciones */}
         <div style={{ padding:'12px 18px', borderTop:'1px solid #E5E7EB', display:'flex', gap:8, flexWrap:'wrap' }}>
-          {onRecibo && (
-            <button onClick={() => onRecibo(row)}
-              style={{ flex:1, padding:'9px', background:'#7B5EA7', color:'white', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              📄 Generar Recibo
-            </button>
-          )}
+          <button onClick={() => onRecibo(row)}
+            style={{ flex:1, padding:'9px', background:'#7B5EA7', color:'white', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            📄 Generar Recibo
+          </button>
           <button onClick={() => onEdit(tabla, row)}
             style={{ flex:1, padding:'9px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
             ✏️ Editar
@@ -1502,18 +1500,33 @@ function numLetra(n) {
 
 // ── Modal Recibo de Pago (formato físico WOL) ─────────────────────────────────
 function ModalReciboPago({ rec, onClose }) {
+  const [formaPago, setFormaPago] = useState('Efectivo')
+
   const hoy    = new Date()
   const dia    = String(hoy.getDate()).padStart(2,'0')
   const mes    = String(hoy.getMonth()+1).padStart(2,'0')
   const anio   = String(hoy.getFullYear())
   const meses  = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
   const mesNom = meses[hoy.getMonth()+1]
-  const folio  = String(rec.num_recibo || '').padStart(4,'0') || String(hoy.getTime()).slice(-4)
-  const monto  = parseFloat(rec.monto) || 0
+
+  // Normalizar según tipo de fila (_tabla indica origen)
+  const tabla = rec._tabla || 'estacionamiento_pensiones'
+  const monto = parseFloat(
+    rec.monto ?? rec.importe ?? rec.cantidad ?? 0
+  )
   const montoStr = monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })
-  const concepto = rec.nota || (rec.local_referencia ? `Pensión estacionamiento — local ${rec.local_referencia}` : 'Pensión de estacionamiento')
-  const titular  = rec.arrendatario_nombre || '—'
-  const letra    = numLetra(monto)
+  const titular = rec.arrendatario_nombre || rec.propietario || rec.origen || '—'
+  const folio = String(rec.num_recibo || rec.id || '').padStart(4, '0') || String(hoy.getTime()).slice(-4)
+  const concepto = rec.nota
+    || rec.concepto_origen
+    || (tabla === 'estacionamiento_pensiones' && rec.local_referencia
+        ? `Pensión estacionamiento — Local ${rec.local_referencia}`
+        : tabla === 'estacionamiento_diario'
+        ? `Estacionamiento diario — ${rec.fecha || ''}`
+        : rec.tipo
+        ? `${rec.tipo}${rec.tipo === 'Renta' && rec.id_contrato ? ` — Contrato ${rec.id_contrato}` : ''}`
+        : 'Pago de servicio')
+  const letra = numLetra(monto)
 
   const htmlRecibo = `<!DOCTYPE html><html><head>
     <meta charset="utf-8"/>
@@ -1580,9 +1593,9 @@ function ModalReciboPago({ rec, onClose }) {
     <div class="linea"><label>Concepto:</label><span class="val">&nbsp;${concepto}</span></div>
     <div class="pagos">
       <label>Forma de pago:</label>
-      <span><span class="check">✓</span> Efectivo</span>
-      <span><span class="check"></span> Cheque</span>
-      <span><span class="check"></span> Transferencia</span>
+      <span><span class="check">${formaPago==='Efectivo'?'✓':''}</span> Efectivo</span>
+      <span><span class="check">${formaPago==='Cheque'?'✓':''}</span> Cheque</span>
+      <span><span class="check">${formaPago==='Transferencia'?'✓':''}</span> Transferencia</span>
     </div>
     <div class="firma-row">
       <div class="firma-col"><div class="firma-line">Nombre y Firma</div></div>
@@ -1693,8 +1706,22 @@ function ModalReciboPago({ rec, onClose }) {
             Para cualquier aclaración conserve este recibo.
           </div>
 
+          {/* Forma de pago selector */}
+          <div style={{ marginTop:12, display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, fontWeight:700, color:'#6B7280', whiteSpace:'nowrap' }}>Forma de pago:</span>
+            {['Efectivo','Cheque','Transferencia'].map(fp => (
+              <button key={fp} onClick={() => setFormaPago(fp)}
+                style={{ padding:'4px 12px', borderRadius:20, border:`1.5px solid ${formaPago===fp?'#1D1D1F':'#D1D5DB'}`,
+                  background: formaPago===fp?'#1D1D1F':'white',
+                  color: formaPago===fp?'white':'#374151',
+                  fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                {formaPago===fp ? '✓ ' : ''}{fp}
+              </button>
+            ))}
+          </div>
+
           {/* Botones */}
-          <div style={{ display:'flex', gap:10, marginTop:14 }}>
+          <div style={{ display:'flex', gap:10, marginTop:12 }}>
             <button onClick={imprimir} style={{ flex:1, padding:'11px', background:'#1D1D1F', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer' }}>
               🖨️ Imprimir / PDF
             </button>
