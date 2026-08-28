@@ -1061,23 +1061,25 @@ export default function ResumenSemanal() {
               <span style={{ fontWeight: 900, fontSize: '22px', color: '#E8A020', fontFamily: 'monospace' }}>{fmt(totalEfectivo)}</span>
             </div>
 
-            {/* ── CÁLCULO FONDO ── */}
-            <div style={{ padding: '8px 0' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '6px 14px', borderBottom: '1px solid #F3F4F6' }}>
-                <span style={{ fontSize: '12px', color: '#DC2626' }}>Gastos a comprobar Fondo Revolvente</span>
-                <span style={{ fontWeight: 700, fontSize: '13px', color: '#DC2626', textAlign: 'right', fontFamily: 'monospace' }}>— {fmt(totGastosFondo)}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '7px 14px', background: '#F0FDF4', borderBottom: '1px solid #BBF7D0' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Diferencia</span>
-                <span style={{ fontWeight: 800, fontSize: '14px', color: diferencia >= 0 ? '#16a34a' : '#DC2626', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(diferencia)}</span>
-              </div>
-              {residualVending > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '5px 14px' }}>
-                  <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Residual Vending Machine</span>
-                  <span style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(residualVending)}</span>
+            {/* ── CÁLCULO FONDO — solo si gastos exceden el fondo fijo ── */}
+            {totGastosFondo > 5000 && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '6px 14px', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: '12px', color: '#DC2626' }}>Balance gastos a comprobar</span>
+                  <span style={{ fontWeight: 700, fontSize: '13px', color: '#DC2626', textAlign: 'right', fontFamily: 'monospace' }}>— {fmt(totGastosFondo - 5000)}</span>
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '7px 14px', background: '#F0FDF4', borderBottom: '1px solid #BBF7D0' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Diferencia a entregar</span>
+                  <span style={{ fontWeight: 800, fontSize: '14px', color: '#16a34a', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(diferencia)}</span>
+                </div>
+                {residualVending > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '5px 14px' }}>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Residual Vending Machine</span>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(residualVending)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ══════════════════════════════════════════════
