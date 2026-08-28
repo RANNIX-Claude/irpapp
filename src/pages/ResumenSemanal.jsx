@@ -1151,9 +1151,9 @@ export default function ResumenSemanal() {
                 <Wallet size={13} /> Balance Fondo Revolvente
               </div>
               {[
-                ['Fondo entregado (base semanal)', 5000, '#374151'],
-                ['Total gastado', totGastosFondo, '#DC2626'],
-                ['Balance fondo', 5000 - totGastosFondo, 5000 - totGastosFondo >= 0 ? '#16a34a' : '#DC2626'],
+                ['Total efectivo a entregar', totalEfectivo, '#374151'],
+                ['Total gastado (Fondo Revolvente)', totGastosFondo, '#DC2626'],
+                ['Balance', diferencia, diferencia >= 0 ? '#16a34a' : '#DC2626'],
               ].map(([label, val, color]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}>
                   <span style={{ color: '#6B7280' }}>{label}</span>
