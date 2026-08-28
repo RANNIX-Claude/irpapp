@@ -692,12 +692,15 @@ export default function ResumenSemanal() {
     if (!PARKING_URL || !PARKING_KEY) return
     setParkingLoading(true)
     setParkingData(null)
-    // Corte jueves: el viernes (fin) - 1 día
+    // Ciclo parking: Viernes→Jueves (1 día antes del ciclo IRP Sáb→Vie)
+    const viernesAnterior = new Date(semSel.ini + 'T12:00:00')
+    viernesAnterior.setDate(viernesAnterior.getDate() - 1)
     const jueves = new Date(semSel.fin + 'T12:00:00')
     jueves.setDate(jueves.getDate() - 1)
+    const iniParking = isoDate(viernesAnterior)
     const finParking = isoDate(jueves)
     fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${semSel.ini}&fecha_op=lte.${finParking}&estatus=eq.cobrado&limit=2000`,
+      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=eq.cobrado&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
     )
       .then(r => r.json())
@@ -910,7 +913,7 @@ export default function ResumenSemanal() {
                 <span style={{ fontSize:11, fontWeight:800, color:'#065F46', textTransform:'uppercase', letterSpacing:.5 }}>
                   🎫 Tickets Sistema Parking
                   <span style={{ fontSize:9, fontWeight:600, color:'#6B7280', textTransform:'none', marginLeft:6, letterSpacing:0 }}>
-                    (Sáb–Jue)
+                    (Vie–Jue)
                   </span>
                 </span>
                 {parkingLoading && <span style={{ fontSize:10, color:'#6B7280' }}>Cargando…</span>}
