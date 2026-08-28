@@ -852,31 +852,53 @@ export default function GastosOperativos() {
                     {isOpen && (
                       <tr key={g.id + '-det'} style={{ borderBottom: '1px solid #F3F4F6' }}>
                         <td colSpan={8} style={{ padding: '0 12px 12px 32px', background: '#F0FDF4' }}>
-                          {lineas.length === 0
-                            ? <div style={{ fontSize: 13, color: '#6B7280', padding: '8px 0' }}>Sin detalle — edita para agregar</div>
-                            : <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                                <thead>
-                                  <tr>{['Producto', 'Categoría', 'Cant.', 'Precio unit.', 'Subtotal'].map(h => (
-                                    <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: 10, color: '#6B7280', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
-                                  ))}</tr>
-                                </thead>
-                                <tbody>
-                                  {lineas.map(l => (
-                                    <tr key={l.id}>
-                                      <td style={{ padding: '4px 8px', color: '#374151' }}>{l.descripcion}</td>
-                                      <td style={{ padding: '4px 8px', color: '#6B7280' }}>{l.categoria || '—'}</td>
-                                      <td style={{ padding: '4px 8px', color: '#374151' }}>{l.cantidad}</td>
-                                      <td style={{ padding: '4px 8px', color: '#374151' }}>{fmt(l.precio_unit)}</td>
-                                      <td style={{ padding: '4px 8px', fontWeight: 700, color: '#057642' }}>{fmt(l.subtotal)}</td>
-                                    </tr>
-                                  ))}
-                                  <tr style={{ borderTop: '1px dashed #BBF7D0' }}>
-                                    <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, textAlign: 'right' }}>Total detalle:</td>
-                                    <td style={{ padding: '6px 8px', fontWeight: 800, color: cuadra ? '#057642' : '#B24020' }}>{fmt(sumaD)}</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                          }
+                          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                            {/* Tabla artículos */}
+                            <div style={{ flex: 1 }}>
+                              {lineas.length === 0
+                                ? <div style={{ fontSize: 13, color: '#6B7280', padding: '8px 0' }}>Sin detalle — edita para agregar</div>
+                                : <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                    <thead>
+                                      <tr>{['Producto', 'Categoría', 'Cant.', 'Precio unit.', 'Subtotal'].map(h => (
+                                        <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: 10, color: '#6B7280', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                      ))}</tr>
+                                    </thead>
+                                    <tbody>
+                                      {lineas.map(l => (
+                                        <tr key={l.id}>
+                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{l.descripcion}</td>
+                                          <td style={{ padding: '4px 8px', color: '#6B7280' }}>{l.categoria || '—'}</td>
+                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{l.cantidad}</td>
+                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{fmt(l.precio_unit)}</td>
+                                          <td style={{ padding: '4px 8px', fontWeight: 700, color: '#057642' }}>{fmt(l.subtotal)}</td>
+                                        </tr>
+                                      ))}
+                                      <tr style={{ borderTop: '1px dashed #BBF7D0' }}>
+                                        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, textAlign: 'right' }}>Total detalle:</td>
+                                        <td style={{ padding: '6px 8px', fontWeight: 800, color: cuadra ? '#057642' : '#B24020' }}>{fmt(sumaD)}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                              }
+                            </div>
+                            {/* Imagen del ticket */}
+                            {g.ticket_url && (
+                              <div style={{ flexShrink: 0, width: 180, background: 'white', border: '1.5px solid #BBF7D0', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                                <div style={{ fontSize: 10, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '.06em' }}>🖼️ Ticket</div>
+                                <img
+                                  src={g.ticket_url}
+                                  alt="Ticket"
+                                  style={{ width: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 6, cursor: 'pointer' }}
+                                  onClick={() => window.open(g.ticket_url, '_blank')}
+                                  title="Clic para abrir en pantalla completa"
+                                />
+                                <a href={g.ticket_url} target="_blank" rel="noopener noreferrer"
+                                  style={{ display: 'block', marginTop: 5, fontSize: 10, color: '#0A66C2' }}>
+                                  Ver completo ↗
+                                </a>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}
