@@ -670,6 +670,8 @@ export default function ResumenSemanal() {
   const [modal, setModal] = useState(null) // 'estac' | 'gasto' | 'pension' | 'renta' | 'agua'
   const [editRec, setEditRec] = useState(null)  // { tabla, row } — registro en edición
   const [delRec, setDelRec]   = useState(null)  // { tabla, id, label } — registro a eliminar
+  const [parkingData, setParkingData] = useState(null)   // { total, porDia:[] } del sistema de tickets
+  const [parkingLoading, setParkingLoading] = useState(false)
 
   const semSel = semanas[selIdx]   // { ini, fin, iniEstac, label }
 
@@ -681,6 +683,35 @@ export default function ResumenSemanal() {
   }
 
   useEffect(() => { recargar() }, [semSel?.ini])
+
+  // ── Cargar datos de sistema externo de tickets de estacionamiento ──
+  useEffect(() => {
+    if (!semSel) return
+    const PARKING_URL = import.meta.env.VITE_PARKING_URL
+    const PARKING_KEY = import.meta.env.VITE_PARKING_ANON_KEY
+    if (!PARKING_URL || !PARKING_KEY) return
+    setParkingLoading(true)
+    setParkingData(null)
+    fetch(
+      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${semSel.ini}&fecha_op=lte.${semSel.fin}&estatus=eq.cobrado&limit=2000`,
+      { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
+    )
+      .then(r => r.json())
+      .then(rows => {
+        const byDay = {}
+        let total = 0
+        rows.forEach(t => {
+          const d = t.fecha_op
+          if (!byDay[d]) byDay[d] = { fecha: d, tickets: 0, importe: 0 }
+          byDay[d].tickets++
+          byDay[d].importe += parseFloat(t.importe) || 0
+          total += parseFloat(t.importe) || 0
+        })
+        setParkingData({ total, porDia: Object.values(byDay).sort((a,b) => a.fecha.localeCompare(b.fecha)) })
+        setParkingLoading(false)
+      })
+      .catch(() => setParkingLoading(false))
+  }, [semSel?.ini])
 
   // Calcular totales
   const totPensiones  = (datos?.pensiones  ?? []).reduce((a, b) => a + (parseFloat(b.monto)      || 0), 0)
@@ -867,6 +898,31 @@ export default function ResumenSemanal() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#0A66C2' }}>Total estacionamiento</span>
               <span style={S.monto('#0A66C2')}>{fmt(totEstac)}</span>
+            </div>
+
+            {/* ── TICKETS DE ESTACIONAMIENTO (sistema externo) ── */}
+            <div style={{ background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 12px 4px' }}>
+                <span style={{ fontSize:11, fontWeight:800, color:'#065F46', textTransform:'uppercase', letterSpacing:.5 }}>
+                  🎫 Tickets Sistema Parking
+                </span>
+                {parkingLoading && <span style={{ fontSize:10, color:'#6B7280' }}>Cargando…</span>}
+                {parkingData && !parkingLoading && (
+                  <span style={{ fontSize:11, fontWeight:700, color:'#065F46', fontFamily:'monospace' }}>
+                    {fmt(parkingData.total)}
+                  </span>
+                )}
+              </div>
+              {parkingData?.porDia.map(d => (
+                <div key={d.fecha} style={{ display:'grid', gridTemplateColumns:'1fr auto 90px', padding:'3px 12px 3px 20px', borderTop:'1px solid #D1FAE5', fontSize:11 }}>
+                  <span style={{ color:'#374151' }}>{labelFecha(d.fecha)}</span>
+                  <span style={{ color:'#6B7280', marginRight:8 }}>{d.tickets} tickets</span>
+                  <span style={{ fontFamily:'monospace', fontWeight:700, color:'#065F46', textAlign:'right' }}>{fmt(d.importe)}</span>
+                </div>
+              ))}
+              {!parkingData && !parkingLoading && (
+                <div style={{ padding:'4px 12px 6px', fontSize:11, color:'#9CA3AF' }}>Sin datos</div>
+              )}
             </div>
 
             {/* ── VENDING MACHINE ── */}
