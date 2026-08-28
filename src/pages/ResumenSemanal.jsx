@@ -1070,7 +1070,7 @@ export default function ResumenSemanal() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '7px 14px', background: '#F0FDF4', borderBottom: '1px solid #BBF7D0' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Diferencia a entregar</span>
-                  <span style={{ fontWeight: 800, fontSize: '14px', color: '#16a34a', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(diferencia)}</span>
+                  <span style={{ fontWeight: 800, fontSize: '14px', color: '#16a34a', textAlign: 'right', fontFamily: 'monospace' }}>{fmt(totalEfectivo - (totGastosFondo - 5000))}</span>
                 </div>
                 {residualVending > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '5px 14px' }}>
