@@ -5,6 +5,16 @@ import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
 
+// ─── Helper: extrae nombre legible de proveedor (string, objeto, o JSON serializado) ──
+const parseProvNombre = (val) => {
+  if (!val) return ''
+  if (typeof val === 'object') return val.nombre_comercial || ''
+  if (typeof val === 'string' && val.startsWith('{')) {
+    try { return JSON.parse(val)?.nombre_comercial || val } catch { return val }
+  }
+  return val
+}
+
 // ─── Catálogo de proveedores ──────────────────────────────────────────────────
 
 const CATS_PRV = [
@@ -314,7 +324,7 @@ function TicketCard({ t, idx, setForm, quitar }) {
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-            #{idx+1} {prv.nombre_comercial || t.file.name}
+            #{idx+1} {prv.nombre_comercial || parseProvNombre(t.form?.proveedor_nombre) || t.file.name}
           </div>
           {prv.rfc && <div style={{ fontSize:10, color:'#6B7280' }}>RFC: {prv.rfc}</div>}
           {prv.nombre_sucursal && <div style={{ fontSize:10, color:'#6B7280' }}>{prv.nombre_sucursal}</div>}
@@ -513,7 +523,7 @@ function ModalCargaGrupo({ onClose, onSaved }) {
       folio:                 tkt.folio || null,
       grupo_gasto:           '',
       descripcion:           '',
-      proveedor_nombre:      prv.nombre_comercial || ocr?.proveedor_str || '',
+      proveedor_nombre:      parseProvNombre(prv.nombre_comercial || prv || ocr?.proveedor_str) || '',
       proveedor_rfc:         prv.rfc || '',
       proveedor_razon_social: prv.razon_social || '',
       proveedor_sucursal:    prv.nombre_sucursal || '',
@@ -815,7 +825,7 @@ export default function GastosOperativos() {
                 const sumaD    = lineas.reduce((a, l) => a + parseFloat(l.subtotal || 0), 0)
                 const cuadra   = !g.ticket_total || lineas.length === 0 || Math.abs(sumaD - parseFloat(g.ticket_total)) < 0.02
                 const color    = GRUPO_COLOR[g.grupo_gasto] || '#6B7280'
-                const prvNombre = g.cat_proveedores?.nombre || g.proveedor || '—'
+                const prvNombre = g.cat_proveedores?.nombre || parseProvNombre(g.proveedor) || '—'
 
                 return (
                   <>

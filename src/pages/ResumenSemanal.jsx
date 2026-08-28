@@ -7,6 +7,16 @@ import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Extrae nombre legible de proveedor (puede ser string normal, objeto JSON o JSON serializado)
+const parseProvNombre = (val) => {
+  if (!val) return ''
+  if (typeof val === 'object') return val.nombre_comercial || ''
+  if (typeof val === 'string' && val.startsWith('{')) {
+    try { return JSON.parse(val)?.nombre_comercial || val } catch { return val }
+  }
+  return val
+}
+
 function fmt(n, dec = 2) {
   return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 }
@@ -469,7 +479,7 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
   const rowsGastos = gastos.map(g =>
     `<tr>
       <td style="padding:3px 6px;font-size:11px">${g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
-      <td style="padding:3px 6px;font-size:11px">${g.proveedor || '—'}</td>
+      <td style="padding:3px 6px;font-size:11px">${parseProvNombre(g.proveedor) || '—'}</td>
       <td style="padding:3px 6px;font-size:11px">${g.grupo_gasto || g.descripcion || '—'}</td>
       <td style="padding:3px 6px;text-align:right;font-size:11px">${fmt(g.cantidad)}</td>
       <td style="padding:3px 6px;text-align:right;font-size:11px;color:#6B7280">${g.monto_comprobante ? fmt(g.monto_comprobante) : ''}</td>
@@ -1023,7 +1033,7 @@ export default function ResumenSemanal() {
                       onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
                       onMouseLeave={e => e.currentTarget.style.background= i % 2 === 0 ? 'white' : '#FAFAFA'}>
                       <td style={{ padding: '6px 8px', color: '#6B7280', whiteSpace: 'nowrap' }}>{g.fecha ? g.fecha.slice(5).replace('-','/') : '—'}</td>
-                      <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.proveedor || '—'}</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parseProvNombre(g.proveedor) || '—'}</td>
                       <td style={{ padding: '6px 8px', color: '#374151', maxWidth: '120px' }}>{g.grupo_gasto || g.descripcion || '—'}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#0A66C2' }}>{fmt(g.cantidad)}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.ticket_total ? fmt(g.ticket_total) : ''}</td>
@@ -1151,7 +1161,7 @@ export default function ResumenSemanal() {
             {/* Header */}
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'sticky', top:0, background:'white', zIndex:2 }}>
               <div>
-                <div style={{ fontWeight:800, fontSize:16, color:'#1A3C5E' }}>{ticketDetalle.gasto.proveedor || 'Ticket sin proveedor'}</div>
+                <div style={{ fontWeight:800, fontSize:16, color:'#1A3C5E' }}>{parseProvNombre(ticketDetalle.gasto.proveedor) || 'Ticket sin proveedor'}</div>
                 <div style={{ fontSize:12, color:'#6B7280', marginTop:2 }}>{ticketDetalle.gasto.fecha} · {ticketDetalle.gasto.grupo_gasto || ticketDetalle.gasto.descripcion}</div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
