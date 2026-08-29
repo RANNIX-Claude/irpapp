@@ -688,6 +688,7 @@ export default function ResumenSemanal() {
     setLoading(true)
     cargarDatos(semSel.ini, semSel.fin, semSel.iniEstac)
       .then(d => { setDatos(d); setLoading(false) })
+      .catch(() => setLoading(false))
   }
 
   useEffect(() => { recargar() }, [semSel?.ini])
@@ -833,7 +834,7 @@ export default function ResumenSemanal() {
           >
             Hoy
           </button>
-          <button onClick={handlePrint} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#1A3C5E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={handlePrint} disabled={loading || !datos} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: loading || !datos ? '#6B7280' : '#1A3C5E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: loading || !datos ? 'not-allowed' : 'pointer' }}>
             <Printer size={14} /> Imprimir PDF
           </button>
         </div>
