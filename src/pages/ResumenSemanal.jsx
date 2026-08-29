@@ -113,11 +113,11 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('semana_inicio', ini)
       .order('num_recibo'),
 
-    // Vending: semana cuyo fecha_inicio = Sábado seleccionado (con detalle para calcular real)
+    // Vending: semana cuyo fecha_inicio = Sábado seleccionado
     supabase.from('vending_semanas')
-      .select('id, fecha_inicio, venta_pesos, residual_pesos, es_material, nota, vending_semana_producto(importe_ventas)')
+      .select('id, fecha_inicio, venta_pesos, residual_pesos, es_material, nota')
       .eq('fecha_inicio', ini)
-      .limit(1),
+      .limit(10),
 
     // Gastos operativos por fecha dentro del rango Sáb→Vie
     supabase.from('gastos_operativos')
@@ -466,7 +466,7 @@ function FilaTabla({ label, monto, sub, bold, highlight, indent }) {
 
 // ── Generador HTML para imprimir ──────────────────────────────────────────────
 function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentasEf, aguaEf, otrosEf, totales }) {
-  const { totPensiones, totEstac, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending } = totales
+  const { totPensiones, totEstac, totParking, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending } = totales
 
   const rowsEstac = estac.map(e =>
     `<tr><td style="padding:3px 6px;font-size:12px">${labelFecha(e.fecha)}</td><td></td><td style="text-align:right;padding:3px 6px">${fmt(e.cantidad)}</td><td style="color:#16a34a;text-align:center;font-size:11px">${e.cantidad > 0 ? '✓' : ''}</td></tr>`
