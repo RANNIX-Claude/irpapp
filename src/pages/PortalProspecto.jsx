@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, urlFirmada } from '../lib/supabase'
 
 const OCR_FN = '/.netlify/functions/extraer-documento'
 
@@ -91,9 +91,9 @@ function DocFila({ doc, docDb, personaId, onSubido }) {
       const path = `prospectos/${personaId}/${doc.id}.${ext}`
       const { error: upErr } = await supabase.storage.from('prospecto-docs').upload(path, archivo, { upsert: true })
       if (upErr) throw upErr
-      const { data: { publicUrl } } = supabase.storage.from('prospecto-docs').getPublicUrl(path)
+      // storage_path guarda la RUTA. El bucket es privado; quien la muestre firma.
       const { error: dbErr } = await supabase.from('prospecto_documentos').update({
-        storage_path: publicUrl, nombre_archivo: archivo.name,
+        storage_path: path, nombre_archivo: archivo.name,
         mime_type: archivo.type, tamano_bytes: archivo.size,
         estado: 'SUBIDO', subido_at: new Date().toISOString(),
       }).eq('id', docDb.id)

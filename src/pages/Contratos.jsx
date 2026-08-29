@@ -14,7 +14,7 @@ import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, urlFirmada } from '../lib/supabase'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -194,7 +194,14 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [nuevaNota, setNuevaNota] = useState('')
   const [savingNota, setSavingNota] = useState(false)
   const [uploadingPDF, setUploadingPDF] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState(c?.archivo_contrato_url || null)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  useEffect(() => {
+    const guardado = c?.contrato_pdf_url || c?.archivo_contrato_url
+    if (!guardado) { setPdfUrl(null); return }
+    let vivo = true
+    urlFirmada('contratos-firmados', guardado).then(u => { if (vivo) setPdfUrl(u) })
+    return () => { vivo = false }
+  }, [c?.contrato_pdf_url, c?.archivo_contrato_url])
   const [notaErr, setNotaErr] = useState(null)
   const [showElaborar, setShowElaborar] = useState(false)
   const [showRenovar, setShowRenovar] = useState(false)
@@ -348,10 +355,9 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     const path = `contratos/${c.id}/contrato_firmado.pdf`
     const { error: upErr } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
     if (upErr) { setUploadingPDF(false); alert('Error al subir: ' + upErr.message); return }
-    const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(path)
-    const url = urlData.publicUrl
-    await supabase.from('contratos').update({ contrato_pdf_url: url }).eq('id', c.id)
-    setPdfUrl(url)
+    // Se guarda la RUTA, no la URL: las URLs firmadas caducan.
+    await supabase.from('contratos').update({ contrato_pdf_url: path }).eq('id', c.id)
+    setPdfUrl(await urlFirmada('contratos-firmados', path))
     setUploadingPDF(false)
     onUpdated?.()
   }

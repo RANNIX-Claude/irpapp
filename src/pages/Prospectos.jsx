@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, urlFirmada } from '../lib/supabase'
 import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 import ModalSolicitudPersona from '../components/ui/ModalSolicitudPersona'
 
@@ -260,7 +260,9 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
     if (!doc.storage_path) return
     setExtrayendo(doc.id)
     try {
-      const datos = await extraerDatosDoc(doc.storage_path, doc.tipo_doc)
+      const url = await urlFirmada('prospecto-docs', doc.storage_path)
+      if (!url) throw new Error('No se pudo acceder al archivo')
+      const datos = await extraerDatosDoc(url, doc.tipo_doc)
       setExtractResult({ personaId: doc.persona_id, datos, docId: doc.id, tipo_doc: doc.tipo_doc })
     } catch (err) {
       alert('Error al extraer: ' + err.message)
@@ -437,8 +439,13 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
                             )}
                             {doc.storage_path && (
                               <>
-                                <a href={doc.storage_path} target="_blank" rel="noreferrer"
-                                  style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2', textDecoration:'none' }}>Ver</a>
+                                <button
+                                  onClick={async () => {
+                                    const url = await urlFirmada('prospecto-docs', doc.storage_path)
+                                    if (url) window.open(url, '_blank', 'noopener')
+                                    else alert('No se pudo abrir el documento')
+                                  }}
+                                  style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2' }}>Ver</button>
                                 {doc.mime_type?.startsWith('image/') && (
                                   <button
                                     onClick={() => handleExtraer(doc)}

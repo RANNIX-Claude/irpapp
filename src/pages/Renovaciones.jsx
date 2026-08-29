@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { RefreshCw, FileText, CheckCircle, Clock, AlertTriangle, Eye, Pencil, Trash2, X, Save, Paperclip, Wand2, Upload, ExternalLink, User, Shield } from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, urlFirmada } from '../lib/supabase'
 import StatusBadge from '../components/ui/StatusBadge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
@@ -52,7 +52,14 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
   const [cerrando, setCerrando] = useState(false)
   const [showElaborar, setShowElaborar] = useState(false)
   const [uploadingPDF, setUploadingPDF] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState(c?.contrato_pdf_url || c?.archivo_contrato_url || null)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  useEffect(() => {
+    const guardado = c?.contrato_pdf_url || c?.archivo_contrato_url
+    if (!guardado) { setPdfUrl(null); return }
+    let vivo = true
+    urlFirmada('contratos-firmados', guardado).then(u => { if (vivo) setPdfUrl(u) })
+    return () => { vivo = false }
+  }, [c?.contrato_pdf_url, c?.archivo_contrato_url])
   const pdfRef = useRef()
 
   const startEdit = () => {
@@ -101,10 +108,9 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
     const path = `contratos/${c.id}/contrato_firmado.pdf`
     const { error: upErr } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
     if (upErr) { setUploadingPDF(false); alert('Error al subir: ' + upErr.message); return }
-    const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(path)
-    const url = urlData.publicUrl
-    await supabase.from('contratos').update({ contrato_pdf_url: url }).eq('id', c.id)
-    setPdfUrl(url)
+    // Se guarda la RUTA, no la URL: las URLs firmadas caducan.
+    await supabase.from('contratos').update({ contrato_pdf_url: path }).eq('id', c.id)
+    setPdfUrl(await urlFirmada('contratos-firmados', path))
     setUploadingPDF(false)
     onUpdated?.()
   }

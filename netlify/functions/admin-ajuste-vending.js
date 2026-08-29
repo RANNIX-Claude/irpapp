@@ -5,7 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const SECRET = process.env.ADMIN_SECRET
+const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co',

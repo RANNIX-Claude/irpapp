@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { FileText, Download, X, ChevronRight, ChevronLeft, AlertCircle, CheckCircle, Upload, Eye, Paperclip } from 'lucide-react'
 import { logAudit } from '../../hooks/useAudit'
-import { supabase } from '../../lib/supabase'
+import { supabase, urlFirmada } from '../../lib/supabase'
 
 const NETLIFY_FN = '/.netlify/functions/generar-documentos'
 
@@ -501,14 +501,13 @@ export default function ElaborarContratoModal({ prospecto, unidad, contrato, onC
     if (!contratoId) return
     setLoadingDocs(true)
     supabase.storage.from('contratos-firmados').list(`contratos/${contratoId}/docs`)
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!data) return
         const urls = {}
-        data.forEach(file => {
+        await Promise.all(data.map(async file => {
           const key = file.name.replace(/\.[^.]+$/, '') // strip extension
-          const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(`contratos/${contratoId}/docs/${file.name}`)
-          urls[key] = urlData.publicUrl
-        })
+          urls[key] = await urlFirmada('contratos-firmados', `contratos/${contratoId}/docs/${file.name}`)
+        }))
         setDocUrls(urls)
         // Auto-check docs que ya tienen archivo (arrendatario y fiador)
         const arrendKeys = Object.keys(urls).filter(k => !k.startsWith('fiador_'))
@@ -530,8 +529,9 @@ export default function ElaborarContratoModal({ prospecto, unidad, contrato, onC
     const path = `contratos/${contratoId}/docs/${key}.${ext}`
     const { error: upErr } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
     if (upErr) { setUploadingDoc(null); alert('Error al subir: ' + upErr.message); return }
-    const { data: urlData } = supabase.storage.from('contratos-firmados').getPublicUrl(path)
-    setDocUrls(prev => ({ ...prev, [key]: urlData.publicUrl }))
+    setDocUrls(prev => ({ ...prev, [key]: null }))
+    const firmada = await urlFirmada('contratos-firmados', path)
+    setDocUrls(prev => ({ ...prev, [key]: firmada }))
     // Auto-marcar checkbox si no estaba
     setDocCheck(prev => ({ ...prev, [key]: true }))
     setUploadingDoc(null)

@@ -1,0 +1,47 @@
+functionsDirectory = "C:\\Users\\asus\\OneDrive\\work\\IRPAPP\\DEv\\netlify\\functions"
+functionsDirectoryOrigin = "config-v1"
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[build]
+publish = "C:\\Users\\asus\\OneDrive\\work\\IRPAPP\\DEv\\dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+functions = "C:\\Users\\asus\\OneDrive\\work\\IRPAPP\\DEv\\netlify\\functions"
+
+[build.environment]
+NODE_VERSION = "20"
+VITE_SUPABASE_URL = "https://kusuoxwzdxfuybvyiakg.supabase.co"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1c3VveHd6ZHhmdXlidnlpYWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTU2NjQsImV4cCI6MjEwMTQ3MTY2NH0.z5doG19A2bYwbBDuMlo5im6s6SLycu38x2Whpv8RGjM"
+VITE_APP_TITLE = "IRP — Inmueble Resource Planning"
+VITE_APP_URL = "https://irpapp.netlify.app"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[functions]
+
+[functions."*"]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
