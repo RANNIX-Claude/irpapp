@@ -581,13 +581,14 @@ function generarHTML({ iniStr, finStr, pensiones, estac, vending, gastos, rentas
         <span class="val">${fmt(totalEfectivo)}</span>
       </div>
 
+      ${totGastosFondo > 5000 ? `
       <table>
         <tbody>
-          <tr><td style="padding:4px 8px;color:#DC2626">Gastos Fondo Revolvente</td><td style="text-align:right;font-weight:700;color:#DC2626;padding:4px 8px">— ${fmt(totGastosFondo)}</td></tr>
-          <tr><td style="padding:4px 8px;font-weight:700;border-top:1px solid #E5E7EB">Diferencia</td><td style="text-align:right;font-weight:800;border-top:1px solid #E5E7EB;padding:4px 8px">${fmt(diferencia)}</td></tr>
+          <tr><td style="padding:4px 8px;color:#DC2626">Déficit Fondo Revolvente</td><td style="text-align:right;font-weight:700;color:#DC2626;padding:4px 8px">— ${fmt(totGastosFondo - 5000)}</td></tr>
+          <tr><td style="padding:4px 8px;font-weight:700;border-top:1px solid #E5E7EB">Diferencia a entregar</td><td style="text-align:right;font-weight:800;border-top:1px solid #E5E7EB;padding:4px 8px;color:#15803D">${fmt(totalEfectivo - (totGastosFondo - 5000))}</td></tr>
           ${residualVending > 0 ? `<tr><td style="padding:4px 8px;font-size:11px;color:#6B7280">Residual Vending Machine</td><td style="text-align:right;font-size:11px;color:#6B7280;padding:4px 8px">${fmt(residualVending)}</td></tr>` : ''}
         </tbody>
-      </table>
+      </table>` : ''}
 
       ${pensiones.some(p => p.nota) ? `<div class="note">${pensiones.filter(p=>p.nota).map(p=>`${p.local_referencia}: ${p.nota}`).join(' · ')}</div>` : ''}
     </div>
