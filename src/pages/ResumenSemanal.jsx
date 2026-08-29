@@ -558,7 +558,7 @@ function generarHTML({ iniStr, finStr, pensiones, estac, parkingData, vending, g
           <tr><td colspan="2" style="padding:4px 8px;font-weight:700">Total Estacionamiento Diario</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px">${fmt(totEstac)}</td></tr>
           ${totParking > 0 && parkingData?.porDia ? `
           <tr class="section-row"><td colspan="4" style="color:#7C3AED">Tickets Sistema Parking (Vie–Jue)</td></tr>
-          ${parkingData.porDia.map(d => `<tr><td style="padding:3px 6px;font-size:11px;padding-left:16px">${d.label}</td><td style="text-align:right;font-size:11px;padding:3px 6px;color:#6B7280">${d.count} tickets</td><td style="text-align:right;font-weight:600;padding:3px 6px;color:#7C3AED">${fmt(d.total)}</td><td></td></tr>`).join('')}
+          ${parkingData.porDia.map(d => `<tr><td style="padding:3px 6px;font-size:11px;padding-left:16px">${labelFecha(d.fecha)}</td><td style="text-align:right;font-size:11px;padding:3px 6px;color:#6B7280">${d.tickets} tickets</td><td style="text-align:right;font-weight:600;padding:3px 6px;color:#7C3AED">${fmt(d.importe)}</td><td></td></tr>`).join('')}
           <tr><td colspan="2" style="padding:4px 8px;font-weight:700;color:#7C3AED">Total Parking</td><td style="text-align:right;font-weight:800;padding:4px 8px;color:#7C3AED">${fmt(totParking)}</td><td></td></tr>
           ` : ''}
 
