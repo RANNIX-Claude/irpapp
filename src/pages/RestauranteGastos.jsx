@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import * as XLSX from 'xlsx'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt  = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
@@ -91,38 +92,107 @@ const SEMANAS_DOM_SAB = getSemanasLunDom()
 
 // ─── Export Excel semanal (formato con totales por día) ─────────────────────
 function exportarReporteSemanal(gastos, semLabel) {
-  // Agrupa por fecha
+  // Agrupa por fecha ordenada
   const porFecha = {}
   gastos.forEach(g => { if (!porFecha[g.fecha]) porFecha[g.fecha] = []; porFecha[g.fecha].push(g) })
   const fechas = Object.keys(porFecha).sort()
 
-  const rows = [
-    [`¡Anda Tú! — ${semLabel}`],
-    ['FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA'],
-  ]
-  let grand = 0
+  // Título legible "SEMANA DEL X AL Y DE MES DE AÑO"
+  const MESES_L = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
+  const d1 = new Date(fechas[0]+'T12:00:00')
+  const d2 = new Date(fechas[fechas.length-1]+'T12:00:00')
+  const tituloSem = `SEMANA DEL ${d1.getDate()} AL ${d2.getDate()} DE ${MESES_L[d2.getMonth()]} DE ${d2.getFullYear()}`
+
+  // Construir filas con numeración
+  const dataRows = []
+  let grand = 0, rowNum = 1
   fechas.forEach(f => {
     const items = porFecha[f]
     const dayTotal = items.reduce((s,g) => s+(parseFloat(g.total)||0), 0)
     grand += dayTotal
     items.forEach((g, idx) => {
-      rows.push([
-        g.fecha, g.proveedor||'—', g.folio||'',
-        g.descripcion || g.grupo_gasto || '',
-        parseFloat(g.total)||0,
-        idx === items.length-1 ? dayTotal : '',
-      ])
+      dataRows.push({
+        n: rowNum++,
+        fecha: g.fecha,
+        proveedor: g.proveedor || '—',
+        factura: g.folio || '',
+        concepto: g.descripcion || g.grupo_gasto || '',
+        total: parseFloat(g.total) || 0,
+        totalDia: idx === items.length - 1 ? dayTotal : null,
+        isLastOfDay: idx === items.length - 1,
+      })
     })
   })
-  rows.push(['','','','','TOTAL SEMANA', grand])
 
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
-  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href = url; a.download = `restaurante_semana_${hoyISO()}.csv`; a.click()
-  URL.revokeObjectURL(url)
-  toast.success('Reporte semanal exportado')
+  // Crear workbook
+  const wb = XLSX.utils.book_new()
+  const ws = {}
+  const R = (r, c) => XLSX.utils.encode_cell({ r, c })
+
+  // Fila 0: Título restaurante
+  ws[R(0,0)] = { v: '¡Anda Tú!', t:'s', s:{ font:{bold:true, sz:14}, alignment:{horizontal:'center'} } }
+  ws[R(0,1)] = { v:'', t:'s' }; ws[R(0,2)] = { v:'', t:'s' }
+  ws[R(0,3)] = { v:'', t:'s' }; ws[R(0,4)] = { v:'', t:'s' }; ws[R(0,5)] = { v:'', t:'s' }
+
+  // Fila 1: Semana
+  const greenFill = { fgColor:{ rgb:'1E7B34' } }
+  const whiteFont = { color:{ rgb:'FFFFFF' }, bold:true, sz:12 }
+  ws[R(1,0)] = { v: tituloSem, t:'s', s:{ fill:greenFill, font:whiteFont, alignment:{horizontal:'center'} } }
+  for (let c=1; c<=5; c++) ws[R(1,c)] = { v:'', t:'s', s:{ fill:greenFill } }
+
+  // Fila 2: Headers
+  const hdrs = ['#','FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA']
+  const yellowFill = { fgColor:{ rgb:'FFC000' } }
+  const hdrFont = { bold:true, sz:10 }
+  hdrs.forEach((h, c) => {
+    ws[R(2,c)] = { v:h, t:'s', s:{ fill:yellowFill, font:hdrFont, alignment:{ horizontal: c>=5?'right':'center', vertical:'center' }, border:{ bottom:{ style:'thin', color:{rgb:'000000'} } } } }
+  })
+
+  // Filas de datos
+  const numFmt = '"$"#,##0.00'
+  dataRows.forEach((row, i) => {
+    const r = i + 3
+    const altFill = i%2===0 ? null : { fgColor:{ rgb:'F2F2F2' } }
+    const cellS = (extra={}) => ({ fill: altFill ? altFill : undefined, alignment:{ vertical:'center' }, ...extra })
+
+    ws[R(r,0)] = { v: row.n,        t:'n', s: cellS({ alignment:{horizontal:'center'} }) }
+    ws[R(r,1)] = { v: row.fecha,    t:'s', s: cellS() }
+    ws[R(r,2)] = { v: row.proveedor,t:'s', s: cellS() }
+    ws[R(r,3)] = { v: row.factura,  t:'s', s: cellS({ font:{sz:9}, alignment:{horizontal:'center'} }) }
+    ws[R(r,4)] = { v: row.concepto, t:'s', s: cellS() }
+    ws[R(r,5)] = { v: row.total,    t:'n', s: cellS({ numFmt, alignment:{horizontal:'right'} }) }
+
+    if (row.totalDia !== null) {
+      const greenDayFill = { fgColor:{ rgb:'C6EFCE' } }
+      ws[R(r,6)] = { v: row.totalDia, t:'n', s:{ fill:greenDayFill, font:{bold:true}, numFmt, alignment:{horizontal:'right'} } }
+    } else {
+      ws[R(r,6)] = { v:'', t:'s', s: cellS() }
+    }
+  })
+
+  // Fila total semana
+  const totalRow = dataRows.length + 3
+  const darkBlueFill = { fgColor:{ rgb:'1A3C5E' } }
+  const goldFont = { color:{ rgb:'E8A020' }, bold:true, sz:12 }
+  for (let c=0; c<=4; c++) {
+    ws[R(totalRow, c)] = { v: c===4 ? tituloSem : '', t:'s', s:{ fill:darkBlueFill, font:{ color:{rgb:'FFFFFF'}, bold:true } } }
+  }
+  ws[R(totalRow,5)] = { v: grand, t:'n', s:{ fill:darkBlueFill, font:goldFont, numFmt, alignment:{horizontal:'right'} } }
+  ws[R(totalRow,6)] = { v: grand, t:'n', s:{ fill:darkBlueFill, font:goldFont, numFmt, alignment:{horizontal:'right'} } }
+
+  // Dimensiones y merge
+  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:totalRow,c:6} })
+  ws['!merges'] = [
+    { s:{r:0,c:0}, e:{r:0,c:6} },
+    { s:{r:1,c:0}, e:{r:1,c:6} },
+  ]
+  ws['!cols'] = [
+    { wch:4 }, { wch:12 }, { wch:28 }, { wch:20 }, { wch:30 }, { wch:12 }, { wch:14 }
+  ]
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Semana')
+  XLSX.writeFile(wb, `restaurante_${tituloSem.replace(/\s+/g,'_')}.xlsx`)
+  toast.success('Reporte Excel generado')
 }
 
 function exportarExcel(gastos) {
@@ -628,7 +698,11 @@ export default function RestauranteGastos() {
                       </td>
                       <td style={{ padding:'7px 10px', textAlign:'center' }} onClick={e => e.stopPropagation()}>
                         {g.ticket_url
-                          ? <button onClick={() => setLightbox(g.ticket_url)} style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:5, padding:'3px 7px', cursor:'pointer', color:'#0A66C2', fontSize:10, fontWeight:700 }}>🖼️</button>
+                          ? <button onClick={() => setLightbox(g.ticket_url)}
+                              title="Ver ticket"
+                              style={{ background:'#0A66C2', border:'none', borderRadius:6, padding:'5px 10px', cursor:'pointer', color:'white', fontSize:12, fontWeight:700, display:'inline-flex', alignItems:'center', gap:4 }}>
+                              🖼️ <span style={{ fontSize:10 }}>Ver</span>
+                            </button>
                           : <span style={{ fontSize:10, color:'#D1D5DB' }}>—</span>}
                       </td>
                       <td style={{ padding:'7px 6px', textAlign:'right' }} onClick={e => e.stopPropagation()}>
