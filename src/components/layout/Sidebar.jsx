@@ -4,7 +4,7 @@ import {
   Wrench, HardHat, Truck, UserCheck, Car,
   Search, BarChart3, Settings, Wallet, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
-  UserPlus, ArrowRightLeft, RotateCcw,
+  UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -46,6 +46,12 @@ const NAV_SECTIONS = [
     ]
   },
   {
+    label: 'RESTAURANTE',
+    items: [
+      { label: 'Gastos', path: '/restaurante/gastos', icon: UtensilsCrossed },
+    ]
+  },
+  {
     label: 'INMUEBLE',
     items: [
       { label: 'Mapa de Locales', path: '/mapa-locales', icon: Map },
@@ -73,9 +79,17 @@ const NAV_SECTIONS = [
   },
 ]
 
+// Rol restaurante: solo ve su sección
+const SECTIONS_RESTAURANTE = ['RESTAURANTE']
+
 export default function Sidebar() {
-  const { sidebarOpen } = useApp()
+  const { sidebarOpen, perfil } = useApp()
   const location = useLocation()
+
+  const esRestaurante = perfil?.rol_id === 'restaurante'
+  const sections = esRestaurante
+    ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
+    : NAV_SECTIONS
 
   return (
     <aside style={{
@@ -88,7 +102,7 @@ export default function Sidebar() {
       borderRight: '1px solid rgba(255,255,255,0.08)',
     }}>
       <nav style={{ padding: '8px 0' }}>
-        {NAV_SECTIONS.map((section, si) => (
+        {sections.map((section, si) => (
           <div key={si}>
             {section.label && sidebarOpen && (
               <div style={{

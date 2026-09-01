@@ -35,6 +35,7 @@ import PortalArrendatario from './pages/PortalArrendatario.jsx'
 import MapaLocales from './pages/MapaLocales.jsx'
 import Ingresos from './pages/Ingresos.jsx'
 import Despachos from './pages/Despachos.jsx'
+import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import './styles/theme.css'
 
 // Roles que NO son admin (van al portal arrendatario/externo)
@@ -70,6 +71,28 @@ function AppLayout() {
       <Routes>
         <Route path="*" element={<PortalArrendatario embedded />} />
       </Routes>
+    )
+  }
+
+  // Rol restaurante → solo puede ver su módulo
+  if (perfil?.rol_id === 'restaurante') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <Header />
+        <Sidebar />
+        <main style={{
+          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginTop: 'var(--header-height)',
+          minHeight: 'calc(100vh - var(--header-height) - 48px)',
+          transition: 'margin-left 0.2s ease',
+        }}>
+          <Routes>
+            <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
+            <Route path="*" element={<Navigate to="/restaurante/gastos" replace />} />
+          </Routes>
+        </main>
+        <Toaster position="top-right" />
+      </div>
     )
   }
 
@@ -109,6 +132,7 @@ function AppLayout() {
           <Route path="/mapa-locales" element={<MapaLocales />} />
           <Route path="/ingresos" element={<Ingresos />} />
           <Route path="/despachos" element={<Despachos />} />
+          <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
