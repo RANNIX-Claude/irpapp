@@ -701,31 +701,42 @@ function ModalCargaGrupo({ onClose, onSaved }) {
   )
 }
 
-// ── Semanas Sáb→Dom (plaza) ────────────────────────────────────────────────
-function getSemanasSabDom(n = 26) {
-  const semanas = []
+// ── Semanas Sáb→Vie (plaza) — misma lógica que ResumenSemanal ─────────────
+const DIAS_GO  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const MESES_GO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+function addDaysGO(iso, n) {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function labelSemana(ini, fin) {
+  const i = new Date(ini + 'T12:00:00')
+  const f = new Date(fin + 'T12:00:00')
+  return `${DIAS_GO[i.getDay()]} ${i.getDate()} ${MESES_GO[i.getMonth()]} — ${DIAS_GO[f.getDay()]} ${f.getDate()} ${MESES_GO[f.getMonth()]} ${f.getFullYear()}`
+}
+
+function generarSemanasGO() {
+  const ORIGEN = '2026-06-27' // primer sábado registrado
   const hoy = new Date()
-  const dow = hoy.getDay() // 0=Dom … 6=Sáb
-  // Inicio: el sábado más reciente (o hoy si es sábado)
-  const diasHastaSab = dow === 6 ? 0 : (dow + 1) % 7 === 0 ? 6 : 7 - (7 - dow) % 7
-  // Simpler: last saturday
-  const lastSat = new Date(hoy)
-  lastSat.setDate(hoy.getDate() - ((dow + 1) % 7 === 0 ? 7 : (dow + 1) % 7))
-  if (dow === 6) lastSat.setDate(hoy.getDate())
-  lastSat.setHours(0, 0, 0, 0)
-  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-  const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-  for (let i = 0; i < n; i++) {
-    const ini = new Date(lastSat); ini.setDate(lastSat.getDate() - i * 7)
-    const fin = new Date(ini); fin.setDate(ini.getDate() + 6)
-    semanas.push({
-      ini: toISO(ini), fin: toISO(fin),
-      label: `Sáb ${ini.getDate()} ${MESES[ini.getMonth()]} — Vie ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`,
-    })
+  const dow = hoy.getDay()
+  const diasHastaSab = dow === 6 ? 0 : dow + 1
+  const sabHoy = new Date(hoy)
+  sabHoy.setDate(sabHoy.getDate() - diasHastaSab)
+  const sabHoyISO = `${sabHoy.getFullYear()}-${String(sabHoy.getMonth()+1).padStart(2,'0')}-${String(sabHoy.getDate()).padStart(2,'0')}`
+  const limite = addDaysGO(sabHoyISO, 4 * 7)
+  const semanas = []
+  let cur = ORIGEN
+  while (cur <= limite) {
+    const fin = addDaysGO(cur, 6)
+    semanas.push({ ini: cur, fin, label: labelSemana(cur, fin) })
+    cur = addDaysGO(cur, 7)
   }
+  semanas.reverse()
   return semanas
 }
-const SEMANAS_SAB_DOM = getSemanasSabDom()
+const SEMANAS_SAB_VIE = generarSemanasGO()
 
 export default function GastosOperativos() {
   useModuleAudit('GASTOS_OPERATIVOS')
@@ -738,7 +749,7 @@ export default function GastosOperativos() {
   const [showProveedores, setShowProveedores] = useState(false)
   const [expanded, setExpanded]   = useState(null)
   const [detalle, setDetalle]     = useState({})
-  const [semSel, setSemSel]       = useState(SEMANAS_SAB_DOM[0])
+  const [semSel, setSemSel]       = useState(SEMANAS_SAB_VIE[0])
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -811,9 +822,9 @@ export default function GastosOperativos() {
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Selector de semana Sáb→Vie */}
-        <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_SAB_DOM.find(s => s.ini === e.target.value))}
+        <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_SAB_VIE.find(s => s.ini === e.target.value))}
           style={{ padding: '7px 10px', border: '2px solid #0A66C2', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#1A3C5E', background: '#EFF6FF', cursor: 'pointer', outline: 'none' }}>
-          {SEMANAS_SAB_DOM.map(s => <option key={s.ini} value={s.ini}>{s.label}</option>)}
+          {SEMANAS_SAB_VIE.map(s => <option key={s.ini} value={s.ini}>{s.label}</option>)}
         </select>
         <div style={{ position: 'relative', flex: '0 0 220px' }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
