@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt  = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
@@ -91,107 +91,160 @@ function getSemanasLunDom(n = 26) {
 const SEMANAS_DOM_SAB = getSemanasLunDom()
 
 // ─── Export Excel semanal (formato con totales por día) ─────────────────────
-function exportarReporteSemanal(gastos, semLabel) {
-  // Agrupa por fecha ordenada
+async function exportarReporteSemanal(gastos, semLabel) {
   const porFecha = {}
   gastos.forEach(g => { if (!porFecha[g.fecha]) porFecha[g.fecha] = []; porFecha[g.fecha].push(g) })
   const fechas = Object.keys(porFecha).sort()
+  if (!fechas.length) { toast.error('Sin datos para exportar'); return }
 
-  // Título legible "SEMANA DEL X AL Y DE MES DE AÑO"
   const MESES_L = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
   const d1 = new Date(fechas[0]+'T12:00:00')
   const d2 = new Date(fechas[fechas.length-1]+'T12:00:00')
   const tituloSem = `SEMANA DEL ${d1.getDate()} AL ${d2.getDate()} DE ${MESES_L[d2.getMonth()]} DE ${d2.getFullYear()}`
 
-  // Construir filas con numeración
-  const dataRows = []
-  let grand = 0, rowNum = 1
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'IRP — RANNIX Consulting'
+  const ws = wb.addWorksheet('Semana')
+
+  // Anchos de columna
+  ws.columns = [
+    { key:'n',       width: 5  },
+    { key:'fecha',   width: 14 },
+    { key:'prov',    width: 30 },
+    { key:'fac',     width: 22 },
+    { key:'conc',    width: 32 },
+    { key:'total',   width: 14 },
+    { key:'totalDia',width: 16 },
+  ]
+
+  // ── Fila 1: Nombre restaurante ──────────────────────────────────────────────
+  const r1 = ws.addRow(['¡Anda Tú!','','','','','',''])
+  ws.mergeCells(`A1:G1`)
+  r1.getCell(1).font      = { name:'Calibri', bold:true, size:14, color:{argb:'FF1A3C5E'} }
+  r1.getCell(1).alignment = { horizontal:'center', vertical:'middle' }
+  r1.height = 22
+
+  // ── Fila 2: Semana (verde oscuro) ───────────────────────────────────────────
+  const r2 = ws.addRow([tituloSem,'','','','','',''])
+  ws.mergeCells(`A2:G2`)
+  const c2 = r2.getCell(1)
+  c2.value     = tituloSem
+  c2.font      = { name:'Calibri', bold:true, size:12, color:{argb:'FFFFFFFF'} }
+  c2.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1E7B34'} }
+  c2.alignment = { horizontal:'center', vertical:'middle' }
+  r2.height    = 20
+
+  // ── Fila 3: Headers (amarillo) ──────────────────────────────────────────────
+  const hdrs = ['#','FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA']
+  const r3 = ws.addRow(hdrs)
+  r3.eachCell(cell => {
+    cell.font      = { name:'Calibri', bold:true, size:10, color:{argb:'FF000000'} }
+    cell.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFFC000'} }
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false }
+    cell.border    = { bottom:{ style:'thin', color:{argb:'FF000000'} } }
+  })
+  r3.height = 16
+
+  // ── Filas de datos ──────────────────────────────────────────────────────────
+  let grand = 0, rowNum = 1, altIdx = 0
+  const numFmt = '"$"#,##0.00'
+  const border = { top:{style:'hair',color:{argb:'FFD1D5DB'}}, bottom:{style:'hair',color:{argb:'FFD1D5DB'}} }
+
   fechas.forEach(f => {
     const items = porFecha[f]
     const dayTotal = items.reduce((s,g) => s+(parseFloat(g.total)||0), 0)
     grand += dayTotal
+
     items.forEach((g, idx) => {
-      dataRows.push({
-        n: rowNum++,
-        fecha: g.fecha,
-        proveedor: g.proveedor || '—',
-        factura: g.folio || '',
-        concepto: g.descripcion || g.grupo_gasto || '',
-        total: parseFloat(g.total) || 0,
-        totalDia: idx === items.length - 1 ? dayTotal : null,
-        isLastOfDay: idx === items.length - 1,
-      })
+      const isLast = idx === items.length - 1
+      const bgArgb = altIdx%2===0 ? 'FFFFFFFF' : 'FFF9FAFB'
+      const row = ws.addRow([
+        rowNum++,
+        g.fecha,
+        g.proveedor || '—',
+        g.folio || '',
+        g.descripcion || g.grupo_gasto || '',
+        parseFloat(g.total) || 0,
+        isLast ? dayTotal : null,
+      ])
+      row.height = 15
+
+      // Celda #
+      const cN = row.getCell(1)
+      cN.font = {name:'Calibri',size:9}; cN.alignment={horizontal:'center',vertical:'middle'}
+      cN.fill = {type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cN.border=border
+
+      // FECHA
+      const cF = row.getCell(2)
+      cF.font={name:'Calibri',size:9}; cF.alignment={horizontal:'center',vertical:'middle'}
+      cF.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cF.border=border
+
+      // PROVEEDOR
+      const cP = row.getCell(3)
+      cP.font={name:'Calibri',bold:true,size:9}; cP.alignment={horizontal:'left',vertical:'middle'}
+      cP.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cP.border=border
+
+      // FACTURA
+      const cFac = row.getCell(4)
+      cFac.font={name:'Calibri',size:8,color:{argb:'FF6B7280'}}; cFac.alignment={horizontal:'left',vertical:'middle',wrapText:false}
+      cFac.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cFac.border=border
+
+      // CONCEPTO
+      const cC = row.getCell(5)
+      cC.font={name:'Calibri',size:9}; cC.alignment={horizontal:'left',vertical:'middle'}
+      cC.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cC.border=border
+
+      // Total
+      const cT = row.getCell(6)
+      cT.numFmt=numFmt; cT.font={name:'Calibri',bold:true,size:9,color:{argb:'FF0A66C2'}}
+      cT.alignment={horizontal:'right',vertical:'middle'}
+      cT.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cT.border=border
+
+      // TOTAL POR DÍA
+      const cD = row.getCell(7)
+      if (isLast) {
+        cD.value=dayTotal; cD.numFmt=numFmt
+        cD.font={name:'Calibri',bold:true,size:10,color:{argb:'FF15803D'}}
+        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}}
+        cD.alignment={horizontal:'right',vertical:'middle'}
+        cD.border={...border, right:{style:'medium',color:{argb:'FF15803D'}}}
+      } else {
+        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cD.border=border
+      }
+
+      altIdx++
     })
   })
 
-  // Crear workbook
-  const wb = XLSX.utils.book_new()
-  const ws = {}
-  const R = (r, c) => XLSX.utils.encode_cell({ r, c })
-
-  // Fila 0: Título restaurante
-  ws[R(0,0)] = { v: '¡Anda Tú!', t:'s', s:{ font:{bold:true, sz:14}, alignment:{horizontal:'center'} } }
-  ws[R(0,1)] = { v:'', t:'s' }; ws[R(0,2)] = { v:'', t:'s' }
-  ws[R(0,3)] = { v:'', t:'s' }; ws[R(0,4)] = { v:'', t:'s' }; ws[R(0,5)] = { v:'', t:'s' }
-
-  // Fila 1: Semana
-  const greenFill = { fgColor:{ rgb:'1E7B34' } }
-  const whiteFont = { color:{ rgb:'FFFFFF' }, bold:true, sz:12 }
-  ws[R(1,0)] = { v: tituloSem, t:'s', s:{ fill:greenFill, font:whiteFont, alignment:{horizontal:'center'} } }
-  for (let c=1; c<=5; c++) ws[R(1,c)] = { v:'', t:'s', s:{ fill:greenFill } }
-
-  // Fila 2: Headers
-  const hdrs = ['#','FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA']
-  const yellowFill = { fgColor:{ rgb:'FFC000' } }
-  const hdrFont = { bold:true, sz:10 }
-  hdrs.forEach((h, c) => {
-    ws[R(2,c)] = { v:h, t:'s', s:{ fill:yellowFill, font:hdrFont, alignment:{ horizontal: c>=5?'right':'center', vertical:'center' }, border:{ bottom:{ style:'thin', color:{rgb:'000000'} } } } }
+  // ── Fila total semana ───────────────────────────────────────────────────────
+  const rT = ws.addRow(['','','','',tituloSem, grand, grand])
+  rT.height = 20
+  ;[1,2,3,4].forEach(c => {
+    const cell = rT.getCell(c)
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
+    cell.font={name:'Calibri',bold:true,color:{argb:'FFFFFFFF'}}
+  })
+  const cTE = rT.getCell(5)
+  cTE.font={name:'Calibri',bold:true,size:10,color:{argb:'FFFFFFFF'}}
+  cTE.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
+  cTE.alignment={horizontal:'right',vertical:'middle'}
+  ;[6,7].forEach(c => {
+    const cell = rT.getCell(c)
+    cell.numFmt=numFmt
+    cell.font={name:'Calibri',bold:true,size:12,color:{argb:'FFE8A020'}}
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
+    cell.alignment={horizontal:'right',vertical:'middle'}
   })
 
-  // Filas de datos
-  const numFmt = '"$"#,##0.00'
-  dataRows.forEach((row, i) => {
-    const r = i + 3
-    const altFill = i%2===0 ? null : { fgColor:{ rgb:'F2F2F2' } }
-    const cellS = (extra={}) => ({ fill: altFill ? altFill : undefined, alignment:{ vertical:'center' }, ...extra })
-
-    ws[R(r,0)] = { v: row.n,        t:'n', s: cellS({ alignment:{horizontal:'center'} }) }
-    ws[R(r,1)] = { v: row.fecha,    t:'s', s: cellS() }
-    ws[R(r,2)] = { v: row.proveedor,t:'s', s: cellS() }
-    ws[R(r,3)] = { v: row.factura,  t:'s', s: cellS({ font:{sz:9}, alignment:{horizontal:'center'} }) }
-    ws[R(r,4)] = { v: row.concepto, t:'s', s: cellS() }
-    ws[R(r,5)] = { v: row.total,    t:'n', s: cellS({ numFmt, alignment:{horizontal:'right'} }) }
-
-    if (row.totalDia !== null) {
-      const greenDayFill = { fgColor:{ rgb:'C6EFCE' } }
-      ws[R(r,6)] = { v: row.totalDia, t:'n', s:{ fill:greenDayFill, font:{bold:true}, numFmt, alignment:{horizontal:'right'} } }
-    } else {
-      ws[R(r,6)] = { v:'', t:'s', s: cellS() }
-    }
-  })
-
-  // Fila total semana
-  const totalRow = dataRows.length + 3
-  const darkBlueFill = { fgColor:{ rgb:'1A3C5E' } }
-  const goldFont = { color:{ rgb:'E8A020' }, bold:true, sz:12 }
-  for (let c=0; c<=4; c++) {
-    ws[R(totalRow, c)] = { v: c===4 ? tituloSem : '', t:'s', s:{ fill:darkBlueFill, font:{ color:{rgb:'FFFFFF'}, bold:true } } }
-  }
-  ws[R(totalRow,5)] = { v: grand, t:'n', s:{ fill:darkBlueFill, font:goldFont, numFmt, alignment:{horizontal:'right'} } }
-  ws[R(totalRow,6)] = { v: grand, t:'n', s:{ fill:darkBlueFill, font:goldFont, numFmt, alignment:{horizontal:'right'} } }
-
-  // Dimensiones y merge
-  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:totalRow,c:6} })
-  ws['!merges'] = [
-    { s:{r:0,c:0}, e:{r:0,c:6} },
-    { s:{r:1,c:0}, e:{r:1,c:6} },
-  ]
-  ws['!cols'] = [
-    { wch:4 }, { wch:12 }, { wch:28 }, { wch:20 }, { wch:30 }, { wch:12 }, { wch:14 }
-  ]
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Semana')
-  XLSX.writeFile(wb, `restaurante_${tituloSem.replace(/\s+/g,'_')}.xlsx`)
+  // ── Generar y descargar ─────────────────────────────────────────────────────
+  const buf  = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = `restaurante_${tituloSem.replace(/\s+/g,'_')}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
   toast.success('Reporte Excel generado')
 }
 
@@ -612,7 +665,7 @@ export default function RestauranteGastos() {
             <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>Corte semanal · Lunes → Domingo · OCR con IA</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-            <button onClick={() => exportarReporteSemanal(filtrados, semSel.label)}
+            <button onClick={() => exportarReporteSemanal(filtrados, semSel.label).catch(e => toast.error('Error al generar Excel'))}
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <FileSpreadsheet size={14}/> Reporte Semanal
             </button>
