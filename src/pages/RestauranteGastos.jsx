@@ -480,8 +480,12 @@ export default function RestauranteGastos() {
               <FileSpreadsheet size={14}/> Exportar Excel
             </button>
             <button onClick={() => setModal('masivo')}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#0A66C2', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              <FileSpreadsheet size={14}/> Ticket individual
+            </button>
+            <button onClick={() => setModal('masivo')}
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              <Images size={14}/> Importar Tickets
+              <Images size={14}/> Carga masiva
             </button>
           </div>
         </div>
