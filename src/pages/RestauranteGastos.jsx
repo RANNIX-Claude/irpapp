@@ -111,44 +111,51 @@ async function exportarReporteSemanal(gastos, semLabel) {
     { key:'n',       width: 5  },
     { key:'fecha',   width: 14 },
     { key:'prov',    width: 30 },
-    { key:'fac',     width: 22 },
-    { key:'conc',    width: 32 },
+    { key:'fac',     width: 28 },
+    { key:'conc',    width: 34 },
     { key:'total',   width: 14 },
     { key:'totalDia',width: 16 },
   ]
 
+  const GREEN_DARK  = 'FF1D6A35'   // verde oscuro headers/semana
+  const GREEN_LIGHT = 'FFC6EFCE'   // verde claro subtotales
+  const WHITE       = 'FFFFFFFF'
+  const numFmt      = '"$"#,##0.00'
+  const dateFmt     = 'DD/MM/YYYY'
+  const borderHair  = { top:{style:'hair',color:{argb:'FFD1D5DB'}}, bottom:{style:'hair',color:{argb:'FFD1D5DB'}} }
+
   // ── Fila 1: Nombre restaurante ──────────────────────────────────────────────
-  const r1 = ws.addRow(['¡Anda Tú!','','','','','',''])
-  ws.mergeCells(`A1:G1`)
-  r1.getCell(1).font      = { name:'Calibri', bold:true, size:14, color:{argb:'FF1A3C5E'} }
-  r1.getCell(1).alignment = { horizontal:'center', vertical:'middle' }
-  r1.height = 22
+  const r1 = ws.addRow(['¡Anda Tú!'])
+  ws.mergeCells('A1:G1')
+  const c1 = r1.getCell(1)
+  c1.font      = { name:'Calibri', bold:true, size:14, color:{argb:'FF1A3C5E'} }
+  c1.alignment = { horizontal:'center', vertical:'middle' }
+  r1.height    = 24
 
   // ── Fila 2: Semana (verde oscuro) ───────────────────────────────────────────
-  const r2 = ws.addRow([tituloSem,'','','','','',''])
-  ws.mergeCells(`A2:G2`)
+  const r2 = ws.addRow([tituloSem])
+  ws.mergeCells('A2:G2')
   const c2 = r2.getCell(1)
-  c2.value     = tituloSem
-  c2.font      = { name:'Calibri', bold:true, size:12, color:{argb:'FFFFFFFF'} }
-  c2.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1E7B34'} }
+  c2.font      = { name:'Calibri', bold:true, size:12, color:{argb:WHITE} }
+  c2.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:GREEN_DARK} }
   c2.alignment = { horizontal:'center', vertical:'middle' }
   r2.height    = 20
 
-  // ── Fila 3: Headers (amarillo) ──────────────────────────────────────────────
-  const hdrs = ['#','FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA']
+  // ── Fila 3: Headers (verde oscuro, texto blanco) ────────────────────────────
+  const hdrs = ['#','FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total $','TOTAL POR DÍA $']
   const r3 = ws.addRow(hdrs)
   r3.eachCell(cell => {
-    cell.font      = { name:'Calibri', bold:true, size:10, color:{argb:'FF000000'} }
-    cell.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFFC000'} }
-    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false }
-    cell.border    = { bottom:{ style:'thin', color:{argb:'FF000000'} } }
+    cell.font      = { name:'Calibri', bold:true, size:10, color:{argb:WHITE} }
+    cell.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:GREEN_DARK} }
+    cell.alignment = { horizontal:'center', vertical:'middle' }
+    cell.border    = { bottom:{style:'thin',color:{argb:WHITE}} }
   })
-  r3.height = 16
+  r3.height = 18
+  // AutoFilter en headers
+  ws.autoFilter = { from:'A3', to:'G3' }
 
   // ── Filas de datos ──────────────────────────────────────────────────────────
-  let grand = 0, rowNum = 1, altIdx = 0
-  const numFmt = '"$"#,##0.00'
-  const border = { top:{style:'hair',color:{argb:'FFD1D5DB'}}, bottom:{style:'hair',color:{argb:'FFD1D5DB'}} }
+  let grand = 0, rowNum = 1
 
   fechas.forEach(f => {
     const items = porFecha[f]
@@ -157,10 +164,14 @@ async function exportarReporteSemanal(gastos, semLabel) {
 
     items.forEach((g, idx) => {
       const isLast = idx === items.length - 1
-      const bgArgb = altIdx%2===0 ? 'FFFFFFFF' : 'FFF9FAFB'
+      const bgArgb = idx%2===0 ? WHITE : 'FFF2F2F2'
+
+      // Convertir fecha YYYY-MM-DD → Date object para formato DD/MM/YYYY
+      const fechaDate = new Date(g.fecha + 'T12:00:00')
+
       const row = ws.addRow([
         rowNum++,
-        g.fecha,
+        fechaDate,
         g.proveedor || '—',
         g.folio || '',
         g.descripcion || g.grupo_gasto || '',
@@ -169,71 +180,66 @@ async function exportarReporteSemanal(gastos, semLabel) {
       ])
       row.height = 15
 
-      // Celda #
+      // # (número de fila)
       const cN = row.getCell(1)
-      cN.font = {name:'Calibri',size:9}; cN.alignment={horizontal:'center',vertical:'middle'}
-      cN.fill = {type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cN.border=border
+      cN.font={name:'Calibri',size:9}; cN.alignment={horizontal:'center',vertical:'middle'}
+      cN.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cN.border=borderHair
 
       // FECHA
       const cF = row.getCell(2)
-      cF.font={name:'Calibri',size:9}; cF.alignment={horizontal:'center',vertical:'middle'}
-      cF.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cF.border=border
+      cF.numFmt=dateFmt; cF.font={name:'Calibri',size:9}; cF.alignment={horizontal:'center',vertical:'middle'}
+      cF.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cF.border=borderHair
 
       // PROVEEDOR
       const cP = row.getCell(3)
       cP.font={name:'Calibri',bold:true,size:9}; cP.alignment={horizontal:'left',vertical:'middle'}
-      cP.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cP.border=border
+      cP.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cP.border=borderHair
 
       // FACTURA
       const cFac = row.getCell(4)
-      cFac.font={name:'Calibri',size:8,color:{argb:'FF6B7280'}}; cFac.alignment={horizontal:'left',vertical:'middle',wrapText:false}
-      cFac.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cFac.border=border
+      cFac.font={name:'Calibri',size:8,color:{argb:'FF6B7280'}}; cFac.alignment={horizontal:'left',vertical:'middle'}
+      cFac.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cFac.border=borderHair
 
       // CONCEPTO
       const cC = row.getCell(5)
       cC.font={name:'Calibri',size:9}; cC.alignment={horizontal:'left',vertical:'middle'}
-      cC.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cC.border=border
+      cC.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cC.border=borderHair
 
-      // Total
+      // Total $
       const cT = row.getCell(6)
-      cT.numFmt=numFmt; cT.font={name:'Calibri',bold:true,size:9,color:{argb:'FF0A66C2'}}
+      cT.numFmt=numFmt; cT.font={name:'Calibri',size:9}
       cT.alignment={horizontal:'right',vertical:'middle'}
-      cT.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cT.border=border
+      cT.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cT.border=borderHair
 
       // TOTAL POR DÍA
       const cD = row.getCell(7)
       if (isLast) {
-        cD.value=dayTotal; cD.numFmt=numFmt
+        cD.numFmt=numFmt
         cD.font={name:'Calibri',bold:true,size:10,color:{argb:'FF15803D'}}
-        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}}
+        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:GREEN_LIGHT}}
         cD.alignment={horizontal:'right',vertical:'middle'}
-        cD.border={...border, right:{style:'medium',color:{argb:'FF15803D'}}}
+        cD.border={...borderHair,right:{style:'medium',color:{argb:'FF15803D'}}}
       } else {
-        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cD.border=border
+        cD.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}}; cD.border=borderHair
       }
-
-      altIdx++
     })
   })
 
   // ── Fila total semana ───────────────────────────────────────────────────────
-  const rT = ws.addRow(['','','','',tituloSem, grand, grand])
+  const rT = ws.addRow([null, null, null, null, null, grand, grand])
   rT.height = 20
-  ;[1,2,3,4].forEach(c => {
+  ;[1,2,3,4,5].forEach(c => {
     const cell = rT.getCell(c)
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
-    cell.font={name:'Calibri',bold:true,color:{argb:'FFFFFFFF'}}
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:GREEN_LIGHT}}
+    cell.border=borderHair
   })
-  const cTE = rT.getCell(5)
-  cTE.font={name:'Calibri',bold:true,size:10,color:{argb:'FFFFFFFF'}}
-  cTE.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
-  cTE.alignment={horizontal:'right',vertical:'middle'}
   ;[6,7].forEach(c => {
     const cell = rT.getCell(c)
     cell.numFmt=numFmt
-    cell.font={name:'Calibri',bold:true,size:12,color:{argb:'FFE8A020'}}
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A3C5E'}}
+    cell.font={name:'Calibri',bold:true,size:12,color:{argb:'FF15803D'}}
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:GREEN_LIGHT}}
     cell.alignment={horizontal:'right',vertical:'middle'}
+    cell.border=borderHair
   })
 
   // ── Generar y descargar ─────────────────────────────────────────────────────
