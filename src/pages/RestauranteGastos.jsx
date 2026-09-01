@@ -570,7 +570,7 @@ function ModalCargaMasiva({ onClose, onSaved }) {
           <Images size={28} color="#16a34a" style={{ margin:'0 auto 8px' }} />
           <div style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>Arrastra imágenes de tickets o haz clic</div>
           <div style={{ fontSize:11, color:'#6B7280', marginTop:4 }}>JPG, PNG, WebP — puedes seleccionar múltiples</div>
-          <input ref={fileRef} type="file" multiple accept="image/*" style={{ display:'none' }} onChange={e => agregarArchivos(e.target.files)} />
+          <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" style={{ display:'none' }} onChange={e => agregarArchivos(e.target.files)} />
         </div>
 
         {/* Lista de tickets */}
@@ -815,7 +815,10 @@ export default function RestauranteGastos() {
                             {g.ticket_url && (
                               <div style={{ flexShrink:0, width:150, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8 }}>
                                 <div style={{ fontSize:10, fontWeight:700, color:'#15803D', marginBottom:4 }}>🖼️ Ticket</div>
-                                <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={() => setLightbox(g.ticket_url)} />
+                                {(g.ticket_url.toLowerCase().includes('.pdf'))
+                                  ? <div onClick={() => setLightbox(g.ticket_url)} style={{ cursor:'pointer', textAlign:'center', padding:'16px 0', fontSize:32 }}>📄<div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>Documento PDF</div></div>
+                                  : <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={() => setLightbox(g.ticket_url)} />
+                                }
                                 <a href={g.ticket_url} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'#0A66C2', display:'block', marginTop:4, textAlign:'center' }}>Ver completo ↗</a>
                               </div>
                             )}
@@ -846,14 +849,30 @@ export default function RestauranteGastos() {
         <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div style={{ position:'fixed', inset:0, zIndex:500, background:'rgba(0,0,0,0.9)', display:'flex', alignItems:'center', justifyContent:'center' }}
-          onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="ticket" style={{ maxWidth:'90vw', maxHeight:'90vh', objectFit:'contain', borderRadius:8 }} />
-          <button onClick={() => setLightbox(null)} style={{ position:'absolute', top:20, right:20, background:'rgba(255,255,255,0.15)', border:'none', borderRadius:50, width:36, height:36, cursor:'pointer', color:'white', fontSize:18 }}>✕</button>
-        </div>
-      )}
+      {/* Lightbox — soporta imagen (jpg/png/webp) y PDF */}
+      {lightbox && (() => {
+        const esPDF = lightbox.toLowerCase().includes('.pdf') || lightbox.includes('application/pdf')
+        return (
+          <div style={{ position:'fixed', inset:0, zIndex:500, background:'rgba(0,0,0,0.92)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}
+            onClick={e => { if (e.target === e.currentTarget) setLightbox(null) }}>
+            {esPDF ? (
+              <iframe src={lightbox} title="Ticket PDF"
+                style={{ width:'88vw', height:'88vh', border:'none', borderRadius:8, background:'white' }} />
+            ) : (
+              <img src={lightbox} alt="ticket"
+                style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:8, boxShadow:'0 8px 40px rgba(0,0,0,0.6)' }} />
+            )}
+            <div style={{ position:'absolute', top:16, right:16, display:'flex', gap:8 }}>
+              <a href={lightbox} target="_blank" rel="noreferrer"
+                style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer', color:'white', fontSize:12, fontWeight:700, textDecoration:'none' }}>
+                ↗ Abrir
+              </a>
+              <button onClick={() => setLightbox(null)}
+                style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:50, width:36, height:36, cursor:'pointer', color:'white', fontSize:18 }}>✕</button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
