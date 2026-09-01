@@ -701,6 +701,32 @@ function ModalCargaGrupo({ onClose, onSaved }) {
   )
 }
 
+// ── Semanas Sáb→Dom (plaza) ────────────────────────────────────────────────
+function getSemanasSabDom(n = 26) {
+  const semanas = []
+  const hoy = new Date()
+  const dow = hoy.getDay() // 0=Dom … 6=Sáb
+  // Inicio: el sábado más reciente (o hoy si es sábado)
+  const diasHastaSab = dow === 6 ? 0 : (dow + 1) % 7 === 0 ? 6 : 7 - (7 - dow) % 7
+  // Simpler: last saturday
+  const lastSat = new Date(hoy)
+  lastSat.setDate(hoy.getDate() - ((dow + 1) % 7 === 0 ? 7 : (dow + 1) % 7))
+  if (dow === 6) lastSat.setDate(hoy.getDate())
+  lastSat.setHours(0, 0, 0, 0)
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  for (let i = 0; i < n; i++) {
+    const ini = new Date(lastSat); ini.setDate(lastSat.getDate() - i * 7)
+    const fin = new Date(ini); fin.setDate(ini.getDate() + 6)
+    semanas.push({
+      ini: toISO(ini), fin: toISO(fin),
+      label: `Sáb ${ini.getDate()} ${MESES[ini.getMonth()]} — Vie ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`,
+    })
+  }
+  return semanas
+}
+const SEMANAS_SAB_DOM = getSemanasSabDom()
+
 export default function GastosOperativos() {
   useModuleAudit('GASTOS_OPERATIVOS')
   const [gastos, setGastos]       = useState([])
@@ -712,18 +738,21 @@ export default function GastosOperativos() {
   const [showProveedores, setShowProveedores] = useState(false)
   const [expanded, setExpanded]   = useState(null)
   const [detalle, setDetalle]     = useState({})
+  const [semSel, setSemSel]       = useState(SEMANAS_SAB_DOM[0])
 
   const cargar = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('gastos_operativos')
       .select('*, cat_proveedores(nombre, categoria)')
-      .order('fecha', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(300)
+      .gte('fecha', semSel.ini)
+      .lte('fecha', semSel.fin)
+      .order('fecha', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(500)
     setGastos(data || [])
     setLoading(false)
-  }, [])
+  }, [semSel])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -781,7 +810,12 @@ export default function GastosOperativos() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '0 0 240px' }}>
+        {/* Selector de semana Sáb→Vie */}
+        <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_SAB_DOM.find(s => s.ini === e.target.value))}
+          style={{ padding: '7px 10px', border: '2px solid #0A66C2', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#1A3C5E', background: '#EFF6FF', cursor: 'pointer', outline: 'none' }}>
+          {SEMANAS_SAB_DOM.map(s => <option key={s.ini} value={s.ini}>{s.label}</option>)}
+        </select>
+        <div style={{ position: 'relative', flex: '0 0 220px' }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar concepto o proveedor…"
             style={{ width: '100%', paddingLeft: 28, padding: '7px 8px 7px 28px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
@@ -800,124 +834,139 @@ export default function GastosOperativos() {
         <div style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 15, color: '#1A3C5E' }}>{fmt(totalFiltrado)}</div>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla agrupada por día */}
       <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Cargando…</div>
         ) : filtrados.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>
             <Receipt size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div>Sin gastos. Usa "+ Nuevo ticket" para agregar.</div>
+            <div>Sin gastos esta semana. Usa "+ Nuevo ticket" para agregar.</div>
           </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
-                {['', 'Fecha', 'Proveedor', 'Grupo', 'Descripción', 'Monto', 'Detalle', ''].map(h => (
-                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map(g => {
-                const isOpen   = expanded === g.id
-                const lineas   = detalle[g.id] || []
-                const sumaD    = lineas.reduce((a, l) => a + parseFloat(l.subtotal || 0), 0)
-                const cuadra   = !g.ticket_total || lineas.length === 0 || Math.abs(sumaD - parseFloat(g.ticket_total)) < 0.02
-                const color    = GRUPO_COLOR[g.grupo_gasto] || '#6B7280'
-                const prvNombre = g.cat_proveedores?.nombre || parseProvNombre(g.proveedor) || '—'
+        ) : (() => {
+          const DIAS_L = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+          const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+          const porFecha = {}
+          filtrados.forEach(g => { if (!porFecha[g.fecha]) porFecha[g.fecha] = []; porFecha[g.fecha].push(g) })
+          const fechasOrdenadas = Object.keys(porFecha).sort()
+          const labelF = iso => { const d = new Date(iso+'T12:00:00'); return `${DIAS_L[d.getDay()]} ${d.getDate()} ${MESES_L[d.getMonth()]}` }
 
-                return (
-                  <>
-                    <tr key={g.id} style={{ borderBottom: isOpen ? 'none' : '1px solid #F3F4F6', background: isOpen ? '#F0FDF4' : 'transparent', cursor: 'pointer' }}
-                      onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = '#F9FAFB' }}
-                      onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent' }}>
-                      <td style={{ padding: '10px 8px 10px 12px', width: 24 }}>
-                        <button onClick={() => toggleExpand(g.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, display: 'flex' }}>
-                          {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                        </button>
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{g.fecha}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#374151' }}>{prvNombre}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: color + '22', color }}>{g.grupo_gasto}</span>
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, color: '#374151', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.descripcion || '—'}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700, color: '#1A3C5E', whiteSpace: 'nowrap' }}>{fmt(g.cantidad)}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {lineas.length > 0
-                          ? <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: cuadra ? '#057642' : '#B24020', fontWeight: 700 }}>
-                              {cuadra ? <Check size={13} /> : <AlertTriangle size={13} />} {lineas.length} líneas
-                            </span>
-                          : <span style={{ fontSize: 12, color: '#9CA3AF' }}>Sin detalle</span>
-                        }
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', gap: 5 }}>
-                          <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding: '4px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 5, cursor: 'pointer' }}><Pencil size={12} /></button>
-                          <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding: '4px 8px', background: '#FEE2E2', color: '#B24020', border: 'none', borderRadius: 5, cursor: 'pointer' }}><Trash2 size={12} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr key={g.id + '-det'} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                        <td colSpan={8} style={{ padding: '0 12px 12px 32px', background: '#F0FDF4' }}>
-                          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                            {/* Tabla artículos */}
-                            <div style={{ flex: 1 }}>
-                              {lineas.length === 0
-                                ? <div style={{ fontSize: 13, color: '#6B7280', padding: '8px 0' }}>Sin detalle — edita para agregar</div>
-                                : <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                                    <thead>
-                                      <tr>{['Producto', 'Categoría', 'Cant.', 'Precio unit.', 'Subtotal'].map(h => (
-                                        <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: 10, color: '#6B7280', fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
-                                      ))}</tr>
-                                    </thead>
-                                    <tbody>
-                                      {lineas.map(l => (
-                                        <tr key={l.id}>
-                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{l.descripcion}</td>
-                                          <td style={{ padding: '4px 8px', color: '#6B7280' }}>{l.categoria || '—'}</td>
-                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{l.cantidad}</td>
-                                          <td style={{ padding: '4px 8px', color: '#374151' }}>{fmt(l.precio_unit)}</td>
-                                          <td style={{ padding: '4px 8px', fontWeight: 700, color: '#057642' }}>{fmt(l.subtotal)}</td>
-                                        </tr>
-                                      ))}
-                                      <tr style={{ borderTop: '1px dashed #BBF7D0' }}>
-                                        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, textAlign: 'right' }}>Total detalle:</td>
-                                        <td style={{ padding: '6px 8px', fontWeight: 800, color: cuadra ? '#057642' : '#B24020' }}>{fmt(sumaD)}</td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                              }
+          return (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+                  {['', 'Fecha', 'Proveedor', 'Grupo', 'Descripción', 'Monto', 'TOTAL DÍA', 'Detalle', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: h==='Monto'||h==='TOTAL DÍA'?'right':'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {fechasOrdenadas.map(fecha => {
+                  const items = porFecha[fecha]
+                  const dayTotal = items.reduce((a,g) => a+(parseFloat(g.cantidad)||0), 0)
+                  return items.map((g, idx) => {
+                    const isOpen = expanded === g.id
+                    const lineas = detalle[g.id] || []
+                    const sumaD  = lineas.reduce((a,l) => a+parseFloat(l.subtotal||0), 0)
+                    const cuadra = !g.ticket_total || lineas.length===0 || Math.abs(sumaD - parseFloat(g.ticket_total)) < 0.02
+                    const color  = GRUPO_COLOR[g.grupo_gasto] || '#6B7280'
+                    const prvNombre = g.cat_proveedores?.nombre || parseProvNombre(g.proveedor) || '—'
+                    return (
+                      <>
+                        <tr key={g.id} style={{ borderBottom: isOpen?'none':'1px solid #F3F4F6', background: isOpen?'#F0FDF4':'transparent', cursor:'pointer', borderLeft: idx===0?'3px solid #0A66C2':'3px solid transparent' }}
+                          onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background='#F9FAFB' }}
+                          onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background=isOpen?'#F0FDF4':'transparent' }}>
+                          <td style={{ padding:'10px 8px 10px 10px', width:24 }}>
+                            <button onClick={() => toggleExpand(g.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF', padding:0, display:'flex' }}>
+                              {isOpen ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}
+                            </button>
+                          </td>
+                          <td style={{ padding:'10px 12px', fontSize:13, color: idx===0?'#374151':'#9CA3AF', fontWeight:idx===0?700:400, whiteSpace:'nowrap' }}>
+                            {idx===0 ? labelF(fecha) : ''}
+                          </td>
+                          <td style={{ padding:'10px 12px', fontSize:13, color:'#374151' }}>{prvNombre}</td>
+                          <td style={{ padding:'10px 12px' }}>
+                            <span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:700, background:color+'22', color }}>{g.grupo_gasto}</span>
+                          </td>
+                          <td style={{ padding:'10px 12px', fontSize:13, color:'#374151', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.descripcion||'—'}</td>
+                          <td style={{ padding:'10px 12px', fontSize:14, fontWeight:700, color:'#1A3C5E', whiteSpace:'nowrap', textAlign:'right' }}>{fmt(g.cantidad)}</td>
+                          <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:'monospace', fontWeight:900, fontSize:13, color:idx===items.length-1?'#0A66C2':'transparent', background:idx===items.length-1?'#EFF6FF':'transparent', whiteSpace:'nowrap' }}>
+                            {idx===items.length-1 ? fmt(dayTotal) : ''}
+                          </td>
+                          <td style={{ padding:'10px 12px' }}>
+                            {lineas.length > 0
+                              ? <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:cuadra?'#057642':'#B24020', fontWeight:700 }}>
+                                  {cuadra?<Check size={13}/>:<AlertTriangle size={13}/>} {lineas.length} líneas
+                                </span>
+                              : <span style={{ fontSize:12, color:'#9CA3AF' }}>Sin detalle</span>}
+                          </td>
+                          <td style={{ padding:'10px 12px' }}>
+                            <div style={{ display:'flex', gap:5 }}>
+                              <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
+                              <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
                             </div>
-                            {/* Imagen del ticket */}
-                            {g.ticket_url && (
-                              <div style={{ flexShrink: 0, width: 180, background: 'white', border: '1.5px solid #BBF7D0', borderRadius: 10, padding: 8, textAlign: 'center' }}>
-                                <div style={{ fontSize: 10, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '.06em' }}>🖼️ Ticket</div>
-                                <img
-                                  src={g.ticket_url}
-                                  alt="Ticket"
-                                  style={{ width: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 6, cursor: 'pointer' }}
-                                  onClick={() => window.open(g.ticket_url, '_blank')}
-                                  title="Clic para abrir en pantalla completa"
-                                />
-                                <a href={g.ticket_url} target="_blank" rel="noopener noreferrer"
-                                  style={{ display: 'block', marginTop: 5, fontSize: 10, color: '#0A66C2' }}>
-                                  Ver completo ↗
-                                </a>
+                          </td>
+                        </tr>
+                        {isOpen && (
+                          <tr key={g.id+'-det'} style={{ borderBottom:'1px solid #F3F4F6' }}>
+                            <td colSpan={9} style={{ padding:'0 12px 12px 32px', background:'#F0FDF4' }}>
+                              <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
+                                <div style={{ flex:1 }}>
+                                  {lineas.length === 0
+                                    ? <div style={{ fontSize:13, color:'#6B7280', padding:'8px 0' }}>Sin detalle — edita para agregar</div>
+                                    : <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                                        <thead>
+                                          <tr>{['Producto','Categoría','Cant.','Precio unit.','Subtotal'].map(h => (
+                                            <th key={h} style={{ padding:'5px 8px', textAlign:'left', fontSize:10, color:'#6B7280', fontWeight:700, textTransform:'uppercase' }}>{h}</th>
+                                          ))}</tr>
+                                        </thead>
+                                        <tbody>
+                                          {lineas.map(l => (
+                                            <tr key={l.id}>
+                                              <td style={{ padding:'4px 8px', color:'#374151' }}>{l.descripcion}</td>
+                                              <td style={{ padding:'4px 8px', color:'#6B7280' }}>{l.categoria||'—'}</td>
+                                              <td style={{ padding:'4px 8px', color:'#374151' }}>{l.cantidad}</td>
+                                              <td style={{ padding:'4px 8px', color:'#374151' }}>{fmt(l.precio_unit)}</td>
+                                              <td style={{ padding:'4px 8px', fontWeight:700, color:'#057642' }}>{fmt(l.subtotal)}</td>
+                                            </tr>
+                                          ))}
+                                          <tr style={{ borderTop:'1px dashed #BBF7D0' }}>
+                                            <td colSpan={4} style={{ padding:'6px 8px', fontWeight:700, textAlign:'right' }}>Total detalle:</td>
+                                            <td style={{ padding:'6px 8px', fontWeight:800, color:cuadra?'#057642':'#B24020' }}>{fmt(sumaD)}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                  }
+                                </div>
+                                {g.ticket_url && (
+                                  <div style={{ flexShrink:0, width:180, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8, textAlign:'center' }}>
+                                    <div style={{ fontSize:10, fontWeight:800, color:'#065F46', textTransform:'uppercase', marginBottom:6, letterSpacing:'.06em' }}>🖼️ Ticket</div>
+                                    <img src={g.ticket_url} alt="Ticket" style={{ width:'100%', maxHeight:240, objectFit:'contain', borderRadius:6, cursor:'pointer' }} onClick={() => window.open(g.ticket_url,'_blank')} title="Clic para abrir en pantalla completa"/>
+                                    <a href={g.ticket_url} target="_blank" rel="noopener noreferrer" style={{ display:'block', marginTop:5, fontSize:10, color:'#0A66C2' }}>Ver completo ↗</a>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ background:'#1A3C5E' }}>
+                  <td colSpan={5} style={{ padding:'10px 12px', color:'white', fontWeight:800, fontSize:12 }}>
+                    TOTAL SEMANA — {semSel.label}
+                  </td>
+                  <td style={{ padding:'10px 12px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
+                  <td style={{ padding:'10px 12px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
+                  <td colSpan={2}/>
+                </tr>
+              </tfoot>
+            </table>
+          )
+        })()}
       </div>
 
       {modal && (
