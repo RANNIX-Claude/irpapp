@@ -83,10 +83,12 @@ const NAV_SECTIONS = [
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
 export default function Sidebar() {
-  const { sidebarOpen, perfil } = useApp()
+  const { sidebarOpen, perfil, user } = useApp()
   const location = useLocation()
 
-  const esRestaurante = perfil?.rol_id === 'restaurante'
+  // Checa perfil de BD y también metadata del JWT como fallback inmediato
+  const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
+  const esRestaurante = rolId === 'restaurante'
   const sections = esRestaurante
     ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
     : NAV_SECTIONS

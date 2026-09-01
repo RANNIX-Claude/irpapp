@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { UtensilsCrossed, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
+import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -479,13 +479,9 @@ export default function RestauranteGastos() {
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <FileSpreadsheet size={14}/> Exportar Excel
             </button>
-            <button onClick={() => setModal('individual')}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#0A66C2', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              <Plus size={14}/> Ticket individual
-            </button>
             <button onClick={() => setModal('masivo')}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#1A3C5E', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              <Images size={14}/> Carga masiva
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              <Images size={14}/> Importar Tickets
             </button>
           </div>
         </div>
@@ -645,9 +641,6 @@ export default function RestauranteGastos() {
 
       {/* Modales */}
       {modal === 'masivo' && (
-        <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
-      )}
-      {modal === 'individual' && (
         <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}
 
