@@ -117,7 +117,7 @@ async function exportarReporteSemanal(gastos, semLabel) {
     { key:'totalDia',width: 16 },
   ]
 
-  const GREEN_DARK  = 'FF1D6A35'   // verde oscuro headers/semana
+  const GREEN_DARK  = 'FF0A66C2'   // azul corporativo headers/semana
   const GREEN_LIGHT = 'FFC6EFCE'   // verde claro subtotales
   const WHITE       = 'FFFFFFFF'
   const numFmt      = '"$"#,##0.00'
