@@ -64,19 +64,77 @@ async function ocrizarTicket(b64, mtype) {
   return data
 }
 
-// ─── Export Excel ──────────────────────────────────────────────────────────────
+// ─── Semanas Dom→Sáb ──────────────────────────────────────────────────────────
+function getSemanasDomSab(n = 26) {
+  const semanas = []
+  const hoy = new Date()
+  const dow  = hoy.getDay() // 0=Dom
+  const ini0 = new Date(hoy)
+  ini0.setDate(hoy.getDate() - dow)
+  ini0.setHours(0,0,0,0)
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  for (let i = 0; i < n; i++) {
+    const ini = new Date(ini0); ini.setDate(ini0.getDate() - i*7)
+    const fin = new Date(ini);  fin.setDate(ini.getDate() + 6)
+    const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    semanas.push({
+      ini: toISO(ini), fin: toISO(fin),
+      label: `Dom ${ini.getDate()} ${MESES[ini.getMonth()]} — Sáb ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`,
+    })
+  }
+  return semanas
+}
+
+const SEMANAS_DOM_SAB = getSemanasDomSab()
+
+// ─── Export Excel semanal (formato con totales por día) ─────────────────────
+function exportarReporteSemanal(gastos, semLabel) {
+  // Agrupa por fecha
+  const porFecha = {}
+  gastos.forEach(g => { if (!porFecha[g.fecha]) porFecha[g.fecha] = []; porFecha[g.fecha].push(g) })
+  const fechas = Object.keys(porFecha).sort()
+
+  const rows = [
+    [`¡Anda Tú! — ${semLabel}`],
+    ['FECHA','PROVEEDOR','FACTURA','CONCEPTO','Total','TOTAL POR DÍA'],
+  ]
+  let grand = 0
+  fechas.forEach(f => {
+    const items = porFecha[f]
+    const dayTotal = items.reduce((s,g) => s+(parseFloat(g.total)||0), 0)
+    grand += dayTotal
+    items.forEach((g, idx) => {
+      rows.push([
+        g.fecha, g.proveedor||'—', g.folio||'',
+        g.descripcion || g.grupo_gasto || '',
+        parseFloat(g.total)||0,
+        idx === items.length-1 ? dayTotal : '',
+      ])
+    })
+  })
+  rows.push(['','','','','TOTAL SEMANA', grand])
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
+  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url; a.download = `restaurante_semana_${hoyISO()}.csv`; a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Reporte semanal exportado')
+}
+
 function exportarExcel(gastos) {
   const rows = [
-    ['Fecha','Proveedor','RFC','Folio','Grupo','Descripción','Subtotal','IVA','Total','Factura','Notas'],
+    ['Fecha','Proveedor','RFC','Folio','Grupo','Descripción','Subtotal','IVA','Total','Factura'],
     ...gastos.map(g => [
-      g.fecha, g.proveedor || '—', g.rfc || '', g.folio || '',
-      g.grupo_gasto || '', g.descripcion || '',
-      g.subtotal ?? '', g.iva ?? '', g.total ?? '',
-      g.tiene_factura ? 'Sí' : 'No', g.notas || '',
+      g.fecha, g.proveedor||'—', g.rfc||'', g.folio||'',
+      g.grupo_gasto||'', g.descripcion||'',
+      g.subtotal??'', g.iva??'', g.total??'',
+      g.tiene_factura?'Sí':'No',
     ])
   ]
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href = url; a.download = `restaurante_gastos_${hoyISO()}.csv`; a.click()
@@ -417,24 +475,22 @@ export default function RestauranteGastos() {
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState('TODOS')
-  const [mesFilter, setMesFilter]   = useState('')
-  const [modal, setModal]           = useState(null) // 'masivo' | 'individual'
-  const [detalle, setDetalle]       = useState(null) // { gasto, lineas }
+  const [semSel, setSemSel]         = useState(SEMANAS_DOM_SAB[0]) // semana actual
+  const [modal, setModal]           = useState(null)
+  const [detalle, setDetalle]       = useState(null)
   const [lightbox, setLightbox]     = useState(null)
-  const [editando, setEditando]     = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('restaurante_gastos').select('*').order('fecha', { ascending:false })
-    if (mesFilter) {
-      const [y, m] = mesFilter.split('-')
-      q = q.eq('mes', parseInt(m)).eq('anio', parseInt(y))
-    }
-    const { data, error } = await q.limit(500)
+    const { data, error } = await supabase
+      .from('restaurante_gastos').select('*')
+      .gte('fecha', semSel.ini).lte('fecha', semSel.fin)
+      .order('fecha', { ascending: true })
+      .limit(500)
     if (error) toast.error(error.message)
     setGastos(data || [])
     setLoading(false)
-  }, [mesFilter])
+  }, [semSel])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -460,183 +516,190 @@ export default function RestauranteGastos() {
 
   const totalFiltrado = filtrados.reduce((a,g) => a + (parseFloat(g.total)||0), 0)
 
-  const S = {
-    header: { padding:'18px 24px 14px', borderBottom:'1px solid #E5E7EB', background:'white' },
-    pageTitle: { fontWeight:900, fontSize:20, color:'#1A3C5E', display:'flex', alignItems:'center', gap:8 },
+  // Agrupar por fecha para la vista de tabla
+  const porFecha = {}
+  filtrados.forEach(g => { if (!porFecha[g.fecha]) porFecha[g.fecha] = []; porFecha[g.fecha].push(g) })
+  const fechasOrdenadas = Object.keys(porFecha).sort()
+
+  const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+  const labelFecha = (iso) => {
+    const d = new Date(iso+'T12:00:00')
+    return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES_L[d.getMonth()]}`
   }
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column', background:'#F8FAFC' }}>
       {/* Header */}
-      <div style={S.header}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
+      <div style={{ padding:'14px 24px 12px', borderBottom:'1px solid #E5E7EB', background:'white' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
           <div>
-            <div style={S.pageTitle}><UtensilsCrossed size={20} color="#15803D"/> Restaurante — Gastos</div>
-            <div style={{ fontSize:12, color:'#6B7280', marginTop:3 }}>Registro y seguimiento de gastos operativos del restaurante · OCR con IA</div>
+            <div style={{ fontWeight:900, fontSize:18, color:'#1A3C5E', display:'flex', alignItems:'center', gap:8 }}>
+              <UtensilsCrossed size={18} color="#15803D"/> Restaurante — Gastos
+            </div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>Corte semanal · Domingo → Sábado · OCR con IA</div>
           </div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <button onClick={() => exportarExcel(filtrados)}
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+            <button onClick={() => exportarReporteSemanal(filtrados, semSel.label)}
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
-              <FileSpreadsheet size={14}/> Exportar Excel
+              <FileSpreadsheet size={14}/> Reporte Semanal
             </button>
             <button onClick={() => setModal('masivo')}
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#0A66C2', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <FileSpreadsheet size={14}/> Ticket individual
             </button>
             <button onClick={() => setModal('masivo')}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#1A3C5E', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <Images size={14}/> Carga masiva
             </button>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div style={{ display:'flex', gap:10, marginTop:14, flexWrap:'wrap', alignItems:'center' }}>
+        {/* Selector de semana + filtros */}
+        <div style={{ display:'flex', gap:10, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
+          {/* Selector semana */}
+          <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_DOM_SAB.find(s => s.ini === e.target.value))}
+            style={{ padding:'7px 12px', border:'2px solid #15803D', borderRadius:8, fontSize:12, fontWeight:700, color:'#15803D', outline:'none', background:'white', cursor:'pointer', minWidth:280 }}>
+            {SEMANAS_DOM_SAB.map(s => (
+              <option key={s.ini} value={s.ini}>{s.label}</option>
+            ))}
+          </select>
           <div style={{ position:'relative' }}>
             <Search size={13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, grupo, folio…"
-              style={{ paddingLeft:28, padding:'7px 10px 7px 28px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, width:240, outline:'none', boxSizing:'border-box' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, folio…"
+              style={{ paddingLeft:28, padding:'7px 10px 7px 28px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, width:200, outline:'none', boxSizing:'border-box' }} />
           </div>
-          <input type="month" value={mesFilter} onChange={e => setMesFilter(e.target.value)}
-            style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, outline:'none' }} />
           <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)}
             style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, outline:'none', background:'white' }}>
             <option value="TODOS">Todos los grupos</option>
             {GRUPOS_RESTAURANTE.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
-          {(search||filtroGrupo!=='TODOS'||mesFilter) && (
-            <button onClick={() => { setSearch(''); setFiltroGrupo('TODOS'); setMesFilter('') }}
-              style={{ padding:'6px 12px', background:'#F3F4F6', border:'none', borderRadius:7, fontSize:12, cursor:'pointer', color:'#6B7280' }}>
-              Limpiar filtros
-            </button>
-          )}
-          <div style={{ marginLeft:'auto', fontSize:13, fontWeight:700, color:'#15803D', fontFamily:'monospace' }}>
-            Total: {fmt(totalFiltrado)} ({filtrados.length} registros)
+          <div style={{ marginLeft:'auto', fontSize:13, fontWeight:800, color:'#15803D', fontFamily:'monospace' }}>
+            TOTAL SEMANA: {fmt(totalFiltrado)} · {filtrados.length} gastos
           </div>
         </div>
       </div>
 
-      {/* Tabla */}
-      <div style={{ flex:1, overflowY:'auto', padding:'0' }}>
+      {/* Tabla agrupada por día */}
+      <div style={{ flex:1, overflowY:'auto' }}>
         {loading ? (
           <div style={{ textAlign:'center', padding:60, color:'#9CA3AF', fontSize:14 }}>Cargando…</div>
         ) : filtrados.length === 0 ? (
           <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
             <UtensilsCrossed size={40} style={{ margin:'0 auto 12px', opacity:0.3 }} />
-            <div style={{ fontSize:14, fontWeight:600 }}>Sin gastos registrados</div>
+            <div style={{ fontSize:14, fontWeight:600 }}>Sin gastos esta semana</div>
             <div style={{ fontSize:12, marginTop:4 }}>Usa "Ticket individual" o "Carga masiva" para agregar gastos</div>
           </div>
         ) : (
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
             <thead style={{ position:'sticky', top:0, zIndex:10 }}>
               <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }}>
-                {['Fecha','Proveedor','Folio','Grupo','Total','Ticket','Factura',''].map((h,i) => (
-                  <th key={h+i} style={{ padding:'9px 10px', textAlign:i>=4&&i!==6?'right':i===6?'center':'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                {['Fecha','Proveedor','Factura / Folio','Concepto / Grupo','Total','TOTAL DÍA','Ticket',''].map((h,i) => (
+                  <th key={h+i} style={{ padding:'9px 10px', textAlign:i>=4?'right':i===6?'center':'left', fontSize:10, fontWeight:700, color:'#6B7280', textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((g, i) => (
-                <>
-                  <tr key={g.id} onClick={() => abrirDetalle(detalle?.gasto?.id===g.id ? null : g)}
-                    style={{ borderBottom:'1px solid #F3F4F6', background:detalle?.gasto?.id===g.id?'#F0FDF4':i%2===0?'white':'#FAFAFA', cursor:'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background='#F0FDF4'}
-                    onMouseLeave={e => e.currentTarget.style.background=detalle?.gasto?.id===g.id?'#F0FDF4':i%2===0?'white':'#FAFAFA'}>
-                    <td style={{ padding:'7px 10px', color:'#6B7280', whiteSpace:'nowrap' }}>{g.fecha?.slice(5).replace('-','/')}</td>
-                    <td style={{ padding:'7px 10px', fontWeight:600, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.proveedor||'—'}</td>
-                    <td style={{ padding:'7px 10px', color:'#6B7280', fontFamily:'monospace', fontSize:11 }}>{g.folio||'—'}</td>
-                    <td style={{ padding:'7px 10px' }}>
-                      {g.grupo_gasto && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10, background:(GRUPO_COLOR[g.grupo_gasto]||'#6B7280')+'18', color:GRUPO_COLOR[g.grupo_gasto]||'#6B7280', whiteSpace:'nowrap' }}>
-                          {g.grupo_gasto}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding:'7px 10px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#0A66C2' }}>{fmt(g.total)}</td>
-                    <td style={{ padding:'7px 10px', textAlign:'right' }} onClick={e => e.stopPropagation()}>
-                      {g.ticket_url
-                        ? <button onClick={() => setLightbox(g.ticket_url)}
-                            style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:5, padding:'3px 7px', cursor:'pointer', color:'#0A66C2', fontSize:10, fontWeight:700 }}>🖼️</button>
-                        : <span style={{ fontSize:10, color:'#D1D5DB' }}>—</span>}
-                    </td>
-                    <td style={{ padding:'7px 10px', textAlign:'center' }}>
-                      {g.tiene_factura ? <span style={{ color:'#057642', fontSize:13 }}>✓</span> : <span style={{ color:'#D1D5DB', fontSize:11 }}>—</span>}
-                    </td>
-                    <td style={{ padding:'7px 10px', textAlign:'right' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => eliminar(g)} style={{ background:'#FEF2F2', border:'none', borderRadius:5, padding:'4px 7px', cursor:'pointer', color:'#B24020' }}><Trash2 size={12}/></button>
-                    </td>
-                  </tr>
-                  {/* Detalle expandido */}
-                  {detalle?.gasto?.id === g.id && (
-                    <tr key={`det-${g.id}`}>
-                      <td colSpan={8} style={{ padding:'12px 16px', background:'#F0FDF4', borderBottom:'2px solid #86EFAC' }}>
-                        <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
-                          {/* Info del gasto */}
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:11, fontWeight:800, color:'#15803D', marginBottom:8, textTransform:'uppercase' }}>Detalle del gasto</div>
-                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'4px 16px', fontSize:11, marginBottom:10 }}>
-                              <div><span style={{ color:'#9CA3AF' }}>Proveedor: </span><strong>{g.proveedor||'—'}</strong></div>
-                              <div><span style={{ color:'#9CA3AF' }}>RFC: </span><span style={{ fontFamily:'monospace' }}>{g.rfc||'—'}</span></div>
-                              <div><span style={{ color:'#9CA3AF' }}>Razón social: </span>{g.razon_social||'—'}</div>
-                              <div><span style={{ color:'#9CA3AF' }}>Subtotal: </span><span style={{ fontFamily:'monospace' }}>{g.subtotal!=null?fmt(g.subtotal):'—'}</span></div>
-                              <div><span style={{ color:'#9CA3AF' }}>IVA: </span><span style={{ fontFamily:'monospace' }}>{g.iva!=null?fmt(g.iva):'—'}</span></div>
-                              <div><span style={{ color:'#9CA3AF' }}>Total: </span><strong style={{ fontFamily:'monospace', color:'#15803D' }}>{fmt(g.total)}</strong></div>
-                            </div>
-                            {/* Artículos */}
-                            {detalle.lineas.length > 0 && (
-                              <div style={{ overflowX:'auto' }}>
-                                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-                                  <thead>
-                                    <tr style={{ background:'#DCFCE7' }}>
-                                      {['SKU','Descripción','Cant.','Precio unit.','Subtotal','Impuesto'].map((h,idx2) => (
-                                        <th key={h} style={{ padding:'5px 8px', textAlign:idx2>1?'right':'left', fontSize:10, fontWeight:700, color:'#15803D' }}>{h}</th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {detalle.lineas.map((l, li) => (
-                                      <tr key={li} style={{ borderTop:'1px solid #BBF7D0', background:li%2===0?'white':'#F0FDF4' }}>
-                                        <td style={{ padding:'4px 8px', fontFamily:'monospace', fontSize:10, color:'#9CA3AF' }}>{l.sku||'—'}</td>
-                                        <td style={{ padding:'4px 8px', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.descripcion}</td>
-                                        <td style={{ padding:'4px 8px', textAlign:'right' }}>{l.cantidad}</td>
-                                        <td style={{ padding:'4px 8px', textAlign:'right', fontFamily:'monospace' }}>{fmt2(l.precio_unit)}</td>
-                                        <td style={{ padding:'4px 8px', textAlign:'right', fontFamily:'monospace', fontWeight:700 }}>{fmt2(l.subtotal_linea)}</td>
-                                        <td style={{ padding:'4px 8px', textAlign:'right' }}>
-                                          {l.tasa_impuesto?<span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3, background:'#DBEAFE', color:'#1D4ED8' }}>{l.tasa_impuesto}</span>:'—'}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                            {detalle.lineas.length === 0 && <div style={{ fontSize:11, color:'#9CA3AF', fontStyle:'italic' }}>Sin detalle de artículos</div>}
-                          </div>
-                          {/* Imagen del ticket */}
-                          {g.ticket_url && (
-                            <div style={{ flexShrink:0, width:160, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8 }}>
-                              <div style={{ fontSize:10, fontWeight:700, color:'#15803D', marginBottom:4 }}>🖼️ Ticket</div>
-                              <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:220, objectFit:'contain', cursor:'pointer', borderRadius:6 }}
-                                onClick={() => setLightbox(g.ticket_url)} />
-                              <a href={g.ticket_url} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'#0A66C2', display:'block', marginTop:4, textAlign:'center' }}>Ver completo ↗</a>
-                            </div>
-                          )}
-                        </div>
+              {fechasOrdenadas.map(fecha => {
+                const items = porFecha[fecha]
+                const dayTotal = items.reduce((s,g) => s+(parseFloat(g.total)||0), 0)
+                return items.map((g, idx) => (
+                  <>
+                    <tr key={g.id} onClick={() => abrirDetalle(detalle?.gasto?.id===g.id ? null : g)}
+                      style={{ borderBottom:'1px solid #F3F4F6', background: detalle?.gasto?.id===g.id ? '#F0FDF4' : idx%2===0 ? 'white' : '#FAFAFA', cursor:'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background='#F0FDF4'}
+                      onMouseLeave={e => e.currentTarget.style.background=detalle?.gasto?.id===g.id?'#F0FDF4':idx%2===0?'white':'#FAFAFA'}>
+                      {/* Fecha — solo en la primera fila del día */}
+                      <td style={{ padding:'7px 10px', color:'#374151', fontWeight: idx===0?700:400, fontSize:idx===0?12:11, whiteSpace:'nowrap', borderLeft: idx===0?'3px solid #15803D':'3px solid transparent' }}>
+                        {idx===0 ? labelFecha(fecha) : ''}
+                      </td>
+                      <td style={{ padding:'7px 10px', fontWeight:600, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.proveedor||'—'}</td>
+                      <td style={{ padding:'7px 10px', color:'#6B7280', fontFamily:'monospace', fontSize:11, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.folio||'—'}</td>
+                      <td style={{ padding:'7px 10px', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {g.grupo_gasto && <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:8, background:(GRUPO_COLOR[g.grupo_gasto]||'#6B7280')+'18', color:GRUPO_COLOR[g.grupo_gasto]||'#6B7280' }}>{g.grupo_gasto}</span>}
+                        {g.descripcion && <span style={{ fontSize:11, color:'#6B7280', marginLeft:4 }}>{g.descripcion}</span>}
+                      </td>
+                      <td style={{ padding:'7px 10px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#0A66C2' }}>{fmt(g.total)}</td>
+                      {/* Total del día — solo en la última fila del día */}
+                      <td style={{ padding:'7px 12px', textAlign:'right', fontFamily:'monospace', fontWeight:900, fontSize:13, color: idx===items.length-1?'#15803D':'transparent', background: idx===items.length-1?'#F0FDF4':'transparent', borderRight: idx===items.length-1?'3px solid #15803D':'none', whiteSpace:'nowrap' }}>
+                        {idx===items.length-1 ? fmt(dayTotal) : ''}
+                      </td>
+                      <td style={{ padding:'7px 10px', textAlign:'center' }} onClick={e => e.stopPropagation()}>
+                        {g.ticket_url
+                          ? <button onClick={() => setLightbox(g.ticket_url)} style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:5, padding:'3px 7px', cursor:'pointer', color:'#0A66C2', fontSize:10, fontWeight:700 }}>🖼️</button>
+                          : <span style={{ fontSize:10, color:'#D1D5DB' }}>—</span>}
+                      </td>
+                      <td style={{ padding:'7px 6px', textAlign:'right' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => eliminar(g)} style={{ background:'#FEF2F2', border:'none', borderRadius:5, padding:'4px 6px', cursor:'pointer', color:'#B24020' }}><Trash2 size={12}/></button>
                       </td>
                     </tr>
-                  )}
-                </>
-              ))}
+                    {/* Detalle expandido */}
+                    {detalle?.gasto?.id === g.id && (
+                      <tr key={`det-${g.id}`}>
+                        <td colSpan={8} style={{ padding:'12px 16px', background:'#F0FDF4', borderBottom:'2px solid #86EFAC' }}>
+                          <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
+                            <div style={{ flex:1 }}>
+                              <div style={{ fontSize:11, fontWeight:800, color:'#15803D', marginBottom:8 }}>DETALLE DEL GASTO</div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'4px 16px', fontSize:11, marginBottom:10 }}>
+                                <div><span style={{ color:'#9CA3AF' }}>Proveedor: </span><strong>{g.proveedor||'—'}</strong></div>
+                                <div><span style={{ color:'#9CA3AF' }}>RFC: </span><span style={{ fontFamily:'monospace' }}>{g.rfc||'—'}</span></div>
+                                <div><span style={{ color:'#9CA3AF' }}>Razón social: </span>{g.razon_social||'—'}</div>
+                                <div><span style={{ color:'#9CA3AF' }}>Subtotal: </span><span style={{ fontFamily:'monospace' }}>{g.subtotal!=null?fmt(g.subtotal):'—'}</span></div>
+                                <div><span style={{ color:'#9CA3AF' }}>IVA: </span><span style={{ fontFamily:'monospace' }}>{g.iva!=null?fmt(g.iva):'—'}</span></div>
+                                <div><span style={{ color:'#9CA3AF' }}>Total: </span><strong style={{ fontFamily:'monospace', color:'#15803D' }}>{fmt(g.total)}</strong></div>
+                              </div>
+                              {detalle.lineas.length > 0 && (
+                                <div style={{ overflowX:'auto' }}>
+                                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                                    <thead>
+                                      <tr style={{ background:'#DCFCE7' }}>
+                                        {['SKU','Descripción','Cant.','P/U','Subtotal','Imp.'].map((h,hx) => (
+                                          <th key={h} style={{ padding:'5px 8px', textAlign:hx>1?'right':'left', fontSize:10, fontWeight:700, color:'#15803D' }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {detalle.lineas.map((l,li) => (
+                                        <tr key={li} style={{ borderTop:'1px solid #BBF7D0', background:li%2===0?'white':'#F0FDF4' }}>
+                                          <td style={{ padding:'4px 8px', fontFamily:'monospace', fontSize:10, color:'#9CA3AF' }}>{l.sku||'—'}</td>
+                                          <td style={{ padding:'4px 8px', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.descripcion}</td>
+                                          <td style={{ padding:'4px 8px', textAlign:'right' }}>{l.cantidad}</td>
+                                          <td style={{ padding:'4px 8px', textAlign:'right', fontFamily:'monospace' }}>{fmt2(l.precio_unit)}</td>
+                                          <td style={{ padding:'4px 8px', textAlign:'right', fontFamily:'monospace', fontWeight:700 }}>{fmt2(l.subtotal_linea)}</td>
+                                          <td style={{ padding:'4px 8px', textAlign:'right' }}>
+                                            {l.tasa_impuesto?<span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3, background:'#DBEAFE', color:'#1D4ED8' }}>{l.tasa_impuesto}</span>:'—'}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                              {detalle.lineas.length===0 && <div style={{ fontSize:11, color:'#9CA3AF', fontStyle:'italic' }}>Sin detalle de artículos</div>}
+                            </div>
+                            {g.ticket_url && (
+                              <div style={{ flexShrink:0, width:150, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8 }}>
+                                <div style={{ fontSize:10, fontWeight:700, color:'#15803D', marginBottom:4 }}>🖼️ Ticket</div>
+                                <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={() => setLightbox(g.ticket_url)} />
+                                <a href={g.ticket_url} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'#0A66C2', display:'block', marginTop:4, textAlign:'center' }}>Ver completo ↗</a>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ))
+              })}
             </tbody>
             <tfoot>
               <tr style={{ background:'#1A3C5E' }}>
-                <td colSpan={4} style={{ padding:'10px', color:'white', fontWeight:800, fontSize:12, textTransform:'uppercase' }}>
-                  Total ({filtrados.length} gastos)
+                <td colSpan={4} style={{ padding:'10px 12px', color:'white', fontWeight:800, fontSize:12, textTransform:'uppercase' }}>
+                  TOTAL SEMANA — {semSel.label}
                 </td>
-                <td style={{ padding:'10px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:16, fontFamily:'monospace' }}>
-                  {fmt(totalFiltrado)}
-                </td>
-                <td colSpan={3}/>
+                <td style={{ padding:'10px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
+                <td style={{ padding:'10px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
+                <td colSpan={2}/>
               </tr>
             </tfoot>
           </table>
