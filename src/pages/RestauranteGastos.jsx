@@ -64,28 +64,30 @@ async function ocrizarTicket(b64, mtype) {
   return data
 }
 
-// ─── Semanas Dom→Sáb ──────────────────────────────────────────────────────────
-function getSemanasDomSab(n = 26) {
+// ─── Semanas Lun→Dom (restaurante) ───────────────────────────────────────────
+function getSemanasLunDom(n = 26) {
   const semanas = []
   const hoy = new Date()
-  const dow  = hoy.getDay() // 0=Dom
-  const ini0 = new Date(hoy)
-  ini0.setDate(hoy.getDate() - dow)
-  ini0.setHours(0,0,0,0)
+  const dow  = hoy.getDay() // 0=Dom … 6=Sáb
+  // Días desde el lunes más reciente: lun=0, mar=1 … dom=6
+  const diasDesLun = dow === 0 ? 6 : dow - 1
+  const lun0 = new Date(hoy)
+  lun0.setDate(hoy.getDate() - diasDesLun)
+  lun0.setHours(0,0,0,0)
   const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   for (let i = 0; i < n; i++) {
-    const ini = new Date(ini0); ini.setDate(ini0.getDate() - i*7)
-    const fin = new Date(ini);  fin.setDate(ini.getDate() + 6)
-    const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const ini = new Date(lun0); ini.setDate(lun0.getDate() - i*7)
+    const fin = new Date(ini);  fin.setDate(ini.getDate() + 6) // domingo
     semanas.push({
       ini: toISO(ini), fin: toISO(fin),
-      label: `Dom ${ini.getDate()} ${MESES[ini.getMonth()]} — Sáb ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`,
+      label: `Lun ${ini.getDate()} ${MESES[ini.getMonth()]} — Dom ${fin.getDate()} ${MESES[fin.getMonth()]} ${fin.getFullYear()}`,
     })
   }
   return semanas
 }
 
-const SEMANAS_DOM_SAB = getSemanasDomSab()
+const SEMANAS_DOM_SAB = getSemanasLunDom()
 
 // ─── Export Excel semanal (formato con totales por día) ─────────────────────
 function exportarReporteSemanal(gastos, semLabel) {
@@ -537,7 +539,7 @@ export default function RestauranteGastos() {
             <div style={{ fontWeight:900, fontSize:18, color:'#1A3C5E', display:'flex', alignItems:'center', gap:8 }}>
               <UtensilsCrossed size={18} color="#15803D"/> Restaurante — Gastos
             </div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>Corte semanal · Domingo → Sábado · OCR con IA</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>Corte semanal · Lunes → Domingo · OCR con IA</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
             <button onClick={() => exportarReporteSemanal(filtrados, semSel.label)}
