@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
-import TicketModal from '../components/ui/TicketModal'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt  = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
@@ -649,14 +648,7 @@ export default function RestauranteGastos() {
         <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}
       {modal === 'individual' && (
-        <TicketModal
-          tabla="restaurante_gastos"
-          tablaDetalle="restaurante_gasto_detalle"
-          storagePrefix="restaurante"
-          gruposLista={GRUPOS_RESTAURANTE}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); cargar() }}
-        />
+        <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}
 
       {/* Lightbox */}
