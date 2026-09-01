@@ -9,21 +9,28 @@ export function AppProvider({ children }) {
   const [loading, setLoading]   = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  // Carga el perfil + rol desde irp_usuarios
-  const cargarPerfil = async (userId) => {
+  // Carga el perfil + rol desde irp_usuarios; fallback a user_metadata del JWT
+  const cargarPerfil = async (userId, userMeta) => {
     const { data } = await supabase
       .from('irp_usuarios')
       .select('rol_id, nombre, apellido, activo')
       .eq('id', userId)
       .single()
-    setPerfil(data || null)
+    if (data) {
+      setPerfil(data)
+    } else if (userMeta?.rol_id) {
+      // Fallback: rol embebido en raw_user_meta_data del token
+      setPerfil({ rol_id: userMeta.rol_id, nombre: userMeta.nombre || '', apellido: '', activo: true })
+    } else {
+      setPerfil(null)
+    }
   }
 
   useEffect(() => {
     // Sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) cargarPerfil(session.user.id)
+      if (session?.user) cargarPerfil(session.user.id, session.user.user_metadata)
       setLoading(false)
     })
 
@@ -31,7 +38,7 @@ export function AppProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        cargarPerfil(session.user.id)
+        cargarPerfil(session.user.id, session.user.user_metadata)
       } else {
         setPerfil(null)
       }
