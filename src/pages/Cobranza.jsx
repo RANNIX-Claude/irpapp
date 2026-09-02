@@ -216,39 +216,36 @@ function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura
   )
 }
 
-// ── Modal de pagos: historial + agregar nuevo ─────────────────────────
+// ── Modal de pago único por cobro ────────────────────────────────────
 const OCR_FN = '/.netlify/functions/extraer-documento'
 
 function PagosModal({ cobro, onClose, onSaved }) {
-  const [ingresos, setIngresos] = useState([])
+  // Un cobro tiene un solo registro de pago (ingreso). Lo cargamos y lo editamos.
+  const [ingreso, setIngreso] = useState(null)   // el único ingreso de este cobro
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(cobro.estatus !== 'PAGADO')
-  const [subiendoFactura, setSubiendoFactura] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
   const [ocrMsg, setOcrMsg] = useState(null)
   const [leyendoOCR, setLeyendoOCR] = useState(false)
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
-  const [marcandoPagado, setMarcandoPagado] = useState(false)
-  const [ocrMontoTotal, setOcrMontoTotal] = useState(null)  // total leído del comprobante (referencia)
+  const [subiendoCFDI, setSubiendoCFDI] = useState(null)
   const compFileRef = useRef()
-  const urlCompRef = useRef()
+  const pdfRef = useRef()
+  const xmlRef = useRef()
 
-  const FORM_INIT = {
-    tipo_concepto: 'RENTA',
+  const [form, setForm] = useState({
     fecha_pago: new Date().toISOString().split('T')[0],
-    monto: '',
+    monto: String(cobro.monto_total || ''),
     forma_pago: 'TRANSFERENCIA',
     referencia: '',
     factura_numero: '',
     factura_serie: '',
     nota: '',
-  }
-  const [form, setForm] = useState(FORM_INIT)
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState(null)
+  })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // OCR automático al adjuntar comprobante → pre-llena fecha, monto, referencia
+  // OCR al adjuntar imagen → pre-llena fecha, referencia, forma_pago (no el monto)
   const adjuntarYOCR = async (file) => {
     if (!file) return
     setComprobanteFile(file)
@@ -258,35 +255,27 @@ function PagosModal({ cobro, onClose, onSaved }) {
       const b64 = await new Promise((res, rej) => {
         const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
       })
-      const resp = await fetch('/.netlify/functions/extraer-documento', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const resp = await fetch(OCR_FN, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ image_base64: b64, media_type: file.type, tipo_doc: 'COMPROBANTE_PAGO' }),
       })
       const j = await resp.json()
       if (!resp.ok || !j.datos) throw new Error(j.error || 'Sin datos')
       const d = j.datos
       const formaMap = { transferencia:'TRANSFERENCIA', spei:'TRANSFERENCIA', deposito:'DEPOSITO', 'depósito':'DEPOSITO', efectivo:'EFECTIVO', cheque:'CHEQUE' }
-      if (d.monto) setOcrMontoTotal(parseFloat(d.monto))
       setForm(f => ({
         ...f,
         fecha_pago: d.fecha_pago || d.fecha || f.fecha_pago,
-        // monto: NO se auto-llena — el operador decide qué porción asignar a este cobro
         referencia: d.referencia || d.folio || d.numero_operacion || f.referencia,
         forma_pago: formaMap[(d.forma_pago||'').toLowerCase()] || f.forma_pago,
         nota:       [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.nota,
       }))
-      setOcrMsg({ ok: true, txt: `✓ Datos leídos — ingresa el monto de ${d.monto ? `este cobro (total en imagen: ${fmt(d.monto)})` : 'este cobro'}` })
+      const totalImagen = d.monto ? fmt(d.monto) : null
+      setOcrMsg({ ok: true, txt: `✓ Datos leídos${totalImagen ? ` — total en imagen: ${totalImagen}` : ''} — verifica el monto de esta renta` })
     } catch {
-      setOcrMsg({ ok: false, txt: '⚠ No se pudieron leer los datos — llena manualmente' })
+      setOcrMsg({ ok: false, txt: '⚠ No se pudo leer el comprobante — llena manualmente' })
     } finally { setLeyendoOCR(false) }
   }
-
-  // Solo ingresos tipo RENTA reducen el pendiente del cobro
-  const totalRenta = ingresos.filter(p => p.tipo_concepto === 'RENTA' || !p.tipo_concepto).reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
-  const totalSanciones = ingresos.filter(p => p.tipo_concepto !== 'RENTA' && p.tipo_concepto).reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
-  const pendiente = Math.max(0, (parseFloat(cobro.monto_total) || 0) - totalRenta)
-  const pct = cobro.monto_total > 0 ? Math.min(100, (totalRenta / parseFloat(cobro.monto_total)) * 100) : 0
 
   useEffect(() => { cargar() }, [cobro.id])
 
@@ -294,14 +283,25 @@ function PagosModal({ cobro, onClose, onSaved }) {
     setLoading(true)
     const { data } = await supabase
       .from('ingresos')
-      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, comprobante_url, nota, creado_por, created_at')
+      .select('id, fecha, importe, forma_pago, referencia_banco, tipo_concepto, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, comprobante_url, nota, created_at')
       .eq('cobro_id', cobro.id)
-      .order('fecha', { ascending: false })
-    setIngresos(data ?? [])
-    // Auto-mostrar el comprobante más reciente si no hay uno nuevo adjunto
-    if (!comprobanteFile) {
-      const conComp = (data ?? []).find(p => p.comprobante_url)
-      if (conComp) setComprobantePreview(conComp.comprobante_url)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setIngreso(data || null)
+    // Poblar formulario si ya hay un registro guardado
+    if (data) {
+      setForm(f => ({
+        ...f,
+        fecha_pago:     data.fecha     || f.fecha_pago,
+        monto:          data.importe   ? String(data.importe) : f.monto,
+        forma_pago:     data.forma_pago || f.forma_pago,
+        referencia:     data.referencia_banco || '',
+        factura_numero: data.factura_numero   || '',
+        factura_serie:  data.factura_serie    || '',
+        nota:           data.nota             || '',
+      }))
+      if (!comprobanteFile && data.comprobante_url) setComprobantePreview(data.comprobante_url)
     }
     setLoading(false)
   }
@@ -309,346 +309,276 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const guardar = async (e) => {
     e.preventDefault()
     if (!form.monto || parseFloat(form.monto) <= 0) { setErr('El monto debe ser mayor a 0'); return }
-    // Validar diferencia de monto vs renta programada
-    if (form.tipo_concepto === 'RENTA') {
-      const montoCapturado = parseFloat(form.monto)
-      const rentaProgramada = parseFloat(cobro.monto_total) || 0
-      const diff = Math.abs(montoCapturado - rentaProgramada)
-      if (diff > 0.01) {
-        const mayor = montoCapturado > rentaProgramada
-        const msg = `⚠ Diferencia detectada\n\nRenta programada: ${fmt(rentaProgramada)}\nMonto capturado:  ${fmt(montoCapturado)}\nDiferencia:       ${mayor ? '+' : '-'}${fmt(diff)}\n\n${mayor ? 'El pago es MAYOR a la renta (puede incluir otros conceptos).' : 'El pago es MENOR a la renta (quedará como PARCIAL).'}\n\n¿Confirmar de todos modos?`
-        if (!window.confirm(msg)) return
-      }
-    }
     setSaving(true); setErr(null)
     try {
       const monto = parseFloat(form.monto)
-
-      // 1. Insertar ingreso vinculado al cobro
-      const _dt = new Date(form.fecha_pago + 'T12:00:00')
       const _MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-      const { error: errIng } = await supabase.from('ingresos').insert({
-        cobro_id:        cobro.id,
-        fecha:           form.fecha_pago,
-        mes:             cobro.mes || _MESES[_dt.getMonth()],
-        anio:            cobro.anio || _dt.getFullYear(),
-        importe:         monto,
-        tipo:            form.tipo_concepto === 'RENTA' ? 'RENTA' : 'SANCION',
-        tipo_concepto:   form.tipo_concepto,
-        origen:          form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA BBVA',
-        forma_pago:      form.forma_pago,
-        referencia_banco: form.referencia || null,
-        concepto_origen: `${form.tipo_concepto} ${cobro.mes}/${cobro.anio}`,
-        propietario:     cobro.arrendatario_nombre || null,
-        id_contrato:     cobro.referencia_pago || null,
-        factura_numero:  form.factura_numero || null,
-        factura_serie:   form.factura_serie  || null,
-        nota:            form.nota || null,
-      })
-      if (errIng) throw errIng
+      const _dt = new Date(form.fecha_pago + 'T12:00:00')
 
-      // 1b. Subir comprobante si hay archivo seleccionado
-      if (comprobanteFile) {
-        const { data: ingData } = await supabase.from('ingresos')
-          .select('id').eq('cobro_id', cobro.id).order('created_at', { ascending: false }).limit(1).single()
-        if (ingData?.id) {
-          const ext = comprobanteFile.name.split('.').pop() || 'jpg'
-          const path = `comprobantes/${cobro.referencia_pago}/${ingData.id}/comp.${ext}`
-          const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, comprobanteFile, { upsert: true })
-          if (!upErr) {
-            const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
-            await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingData.id)
-          }
+      let ingresoId = ingreso?.id
+      if (ingresoId) {
+        // Actualizar el ingreso existente
+        const { error } = await supabase.from('ingresos').update({
+          fecha:            form.fecha_pago,
+          importe:          monto,
+          forma_pago:       form.forma_pago,
+          referencia_banco: form.referencia || null,
+          factura_numero:   form.factura_numero || null,
+          factura_serie:    form.factura_serie  || null,
+          nota:             form.nota || null,
+        }).eq('id', ingresoId)
+        if (error) throw error
+      } else {
+        // Crear el primer (y único) ingreso para este cobro
+        const { data: nuevo, error } = await supabase.from('ingresos').insert({
+          cobro_id:         cobro.id,
+          fecha:            form.fecha_pago,
+          mes:              cobro.mes || _MESES[_dt.getMonth()],
+          anio:             cobro.anio || _dt.getFullYear(),
+          importe:          monto,
+          tipo:             'RENTA',
+          tipo_concepto:    'RENTA',
+          origen:           form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA BBVA',
+          forma_pago:       form.forma_pago,
+          referencia_banco: form.referencia || null,
+          concepto_origen:  `RENTA ${cobro.mes}/${cobro.anio}`,
+          propietario:      cobro.arrendatario_nombre || null,
+          id_contrato:      cobro.referencia_pago     || null,
+          factura_numero:   form.factura_numero || null,
+          factura_serie:    form.factura_serie  || null,
+          nota:             form.nota || null,
+        }).select('id').single()
+        if (error) throw error
+        ingresoId = nuevo.id
+      }
+
+      // Subir comprobante si se adjuntó nuevo archivo
+      if (comprobanteFile && ingresoId) {
+        const ext = comprobanteFile.name.split('.').pop() || 'jpg'
+        const path = `comprobantes/${cobro.referencia_pago}/${ingresoId}/comp.${ext}`
+        const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, comprobanteFile, { upsert: true })
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+          await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingresoId)
+          setComprobantePreview(urlData.publicUrl)
         }
       }
 
-      // 2. Recalcular estatus del cobro (solo pagos RENTA reducen el pendiente)
-      if (form.tipo_concepto === 'RENTA') {
-        const nuevoPagado = totalRenta + monto
-        const nuevoEstatus = nuevoPagado >= parseFloat(cobro.monto_total)
-          ? 'PAGADO'
-          : nuevoPagado > 0 ? 'PARCIAL' : 'PENDIENTE'
-        await supabase.from('cobros').update({
-          monto_pagado:    nuevoPagado,
-          estatus:         nuevoEstatus,
-          fecha_pago_real: form.fecha_pago,
-        }).eq('id', cobro.id)
-      }
+      // Actualizar estatus y monto en cobros
+      const nuevoEstatus = monto >= parseFloat(cobro.monto_total) ? 'PAGADO' : 'PARCIAL'
+      await supabase.from('cobros').update({
+        monto_pagado:    monto,
+        estatus:         nuevoEstatus,
+        fecha_pago_real: form.fecha_pago,
+      }).eq('id', cobro.id)
 
-      setForm(FORM_INIT)
-      setComprobanteFile(null); setComprobantePreview(null)
+      setComprobanteFile(null)
       await cargar()
       onSaved()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
   }
 
-  const eliminar = async (ingresoId) => {
-    if (!window.confirm('¿Eliminar este movimiento? El estatus del cobro se recalculará.')) return
-    const { error } = await supabase.from('ingresos').delete().eq('id', ingresoId)
-    if (error) { alert(error.message); return }
-    await cargar(); onSaved()
-  }
-
-  const marcarPagado = async () => {
-    if (!window.confirm('¿Marcar este cobro como PAGADO? Se usará la fecha de hoy y el monto total programado.')) return
-    setMarcandoPagado(true)
-    const hoy = new Date().toISOString().split('T')[0]
-    const { error } = await supabase.from('cobros').update({
-      estatus:         'PAGADO',
-      monto_pagado:    parseFloat(cobro.monto_total) || 0,
-      fecha_pago_real: hoy,
-    }).eq('id', cobro.id)
-    setMarcandoPagado(false)
-    if (error) { alert(error.message); return }
-    await cargar()
-    onSaved()
-  }
-
-  const subirComprobante = async (ingresoId, file) => {
-    const key = `${ingresoId}_comp`
-    setSubiendoFactura(key)
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `comprobantes/${cobro.referencia_pago}/${ingresoId}/comp.${ext}`
-    const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, file, { upsert: true })
-    if (upErr) { alert('Error al subir: ' + upErr.message); setSubiendoFactura(null); return }
-    const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
-    await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingresoId)
-    setSubiendoFactura(null)
-    await cargar()
-  }
-
-  const subirFactura = async (ingresoId, tipo, file) => {
-    if (!file) return
-    const key = `${ingresoId}_${tipo}`
-    setSubiendoFactura(key)
+  const subirCFDI = async (tipo, file) => {
+    if (!file || !ingreso?.id) return
+    const key = `${tipo}`
+    setSubiendoCFDI(key)
     const ext = tipo === 'pdf' ? 'pdf' : 'xml'
-    const path = `facturas-cfdi/${cobro.referencia_pago}/${ingresoId}/${tipo}.${ext}`
+    const path = `facturas-cfdi/${cobro.referencia_pago}/${ingreso.id}/${tipo}.${ext}`
     const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, file, { upsert: true })
-    if (upErr) { alert('Error al subir: ' + upErr.message); setSubiendoFactura(null); return }
+    if (upErr) { alert('Error al subir: ' + upErr.message); setSubiendoCFDI(null); return }
     const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
     const col = tipo === 'pdf' ? 'factura_pdf_url' : 'factura_xml_url'
-    await supabase.from('ingresos').update({ [col]: urlData.publicUrl }).eq('id', ingresoId)
-    setSubiendoFactura(null)
+    await supabase.from('ingresos').update({ [col]: urlData.publicUrl }).eq('id', ingreso.id)
+    setSubiendoCFDI(null)
     await cargar()
   }
 
   const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
   const lbl = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }
   const colorEst = ESTATUS_COLOR[cobro.estatus] || 'var(--color-warning)'
-  const esSancion = form.tipo_concepto !== 'RENTA'
+  const esVencidoModal = cobro.estatus !== 'PAGADO' && cobro.fecha_limite_pago && new Date(cobro.fecha_limite_pago) < new Date()
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '980px', maxHeight: '94vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {/* ── Header ── */}
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Movimientos del cobro</div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Registro de pago</div>
             <div style={{ fontSize: '17px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'monospace', marginTop: '2px' }}>{cobro.referencia_pago}</div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-light)', marginTop: '2px' }}>{cobro.arrendatario_nombre} · {MES_NOMBRES[cobro.mes]} {cobro.anio}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>{cobro.arrendatario_nombre} · {MES_NOMBRES[cobro.mes]} {cobro.anio}</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: colorEst, padding: '2px 8px', background: colorEst + '18', borderRadius: 6 }}>{cobro.estatus}</span>
+              <span style={{ fontSize: '13px', fontWeight: 800 }}>{fmt(cobro.monto_total)}</span>
+            </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={20} /></button>
         </div>
 
-        {/* Barra de progreso renta */}
-        <div style={{ padding: '14px 22px', background: '#F9FAFB', borderBottom: '1px solid #F3F4F6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-light)', fontWeight: 600 }}>Renta programada</span>
-            <span style={{ fontSize: '14px', fontWeight: 800 }}>{fmt(cobro.monto_total)}</span>
+        {/* Alerta vencido */}
+        {esVencidoModal && (
+          <div style={{ margin: '0', padding: '8px 22px', background: '#FEE2E2', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={14} color="#B24020" />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#B24020' }}>COBRO VENCIDO desde {cobro.fecha_limite_pago} — registra el pago y genera moratoria si aplica</span>
           </div>
-          <div style={{ height: '7px', background: '#E5E7EB', borderRadius: '8px', overflow: 'hidden', marginBottom: '5px' }}>
-            <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', borderRadius: '8px', transition: 'width 0.4s' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', fontWeight: 700 }}>
-              Renta cobrada: {fmt(totalRenta)} ({pct.toFixed(0)}%)
-            </span>
-            {pendiente > 0
-              ? <span style={{ fontSize: '12px', color: 'var(--color-warning)', fontWeight: 700 }}>Pendiente: {fmt(pendiente)}</span>
-              : <span style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 700 }}>✓ Liquidado</span>
-            }
-          </div>
-          {totalSanciones > 0 && (
-            <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600 }}>
-              + Sanciones/Recargos cobrados: {fmt(totalSanciones)}
-            </div>
-          )}
-          {/* Alerta moratoria — cobro vencido sin pagar */}
-          {cobro.estatus !== 'PAGADO' && cobro.fecha_limite_pago && new Date(cobro.fecha_limite_pago) < new Date() && (
-            <div style={{ marginTop: '8px', padding: '8px 12px', background: '#FEE2E2', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle size={15} color="#B24020" />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: '#B24020' }}>COBRO VENCIDO — {cobro.fecha_limite_pago}</div>
-                <div style={{ fontSize: '11px', color: '#92400E' }}>Registra un cargo de moratoria usando Tipo: Recargo</div>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Cuerpo — dos columnas: izquierda datos, derecha imagen */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: comprobantePreview ? '1fr 1fr' : '1fr', minHeight: 0 }}>
+        {/* ── Cuerpo: dos columnas ── */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: comprobantePreview ? '420px 1fr' : '1fr', minHeight: 0, overflow: 'hidden' }}>
 
-          {/* ── Columna izquierda: historial + formulario ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', borderRight: comprobantePreview ? '1px solid #E5E7EB' : 'none' }}>
-
-            {/* Botón rápido Marcar PAGADO — cuando hay ingresos pero el cobro no está liquidado */}
-            {!loading && ingresos.length > 0 && cobro.estatus !== 'PAGADO' && (
-              <div style={{ padding: '10px 20px 0' }}>
-                <button onClick={marcarPagado} disabled={marcandoPagado}
-                  style={{ width: '100%', padding: '13px', background: marcandoPagado ? '#9CA3AF' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: marcandoPagado ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 8px rgba(5,118,66,0.3)' }}>
-                  {marcandoPagado ? '⏳ Marcando...' : '✓ Marcar como PAGADO'}
-                </button>
-              </div>
-            )}
-
-            {/* Historial */}
-            <div style={{ flex: 1, padding: '12px 20px' }}>
-              {loading
-                ? <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-light)' }}>Cargando movimientos...</div>
-                : ingresos.length === 0
-                  ? <div style={{ textAlign: 'center', padding: '28px', color: 'var(--color-text-light)', fontSize: '13px' }}>Sin movimientos registrados</div>
-                  : ingresos.map((p, i) => (
-                      <IngresoRow
-                        key={p.id} p={p} idx={i} total={ingresos.length}
-                        onEliminar={eliminar}
-                        onSubirFactura={subirFactura}
-                        onSubirComprobante={subirComprobante}
-                        subiendoFactura={subiendoFactura}
-                      />
-                    ))
-              }
-            </div>
-
-            {/* Formulario */}
-            {showForm && (
-              <div style={{ padding: '12px 20px 14px', borderTop: '1px solid #E5E7EB', background: esSancion ? '#FFF8F0' : '#F9FAFB' }}>
+          {/* ── Columna izquierda: formulario único ── */}
+          <div style={{ overflowY: 'auto', padding: '18px 22px', borderRight: comprobantePreview ? '1px solid #E5E7EB' : 'none' }}>
+            {loading
+              ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-light)' }}>Cargando...</div>
+              : (
                 <form onSubmit={guardar}>
-                  {err && <div style={{ padding: '6px 10px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '8px' }}>{err}</div>}
+                  {err && <div style={{ padding: '6px 10px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '10px' }}>{err}</div>}
                   {ocrMsg && (
-                    <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    <div style={{ marginBottom: '10px', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
                       color: ocrMsg.ok === true ? '#057642' : ocrMsg.ok === false ? '#B24020' : '#92400E',
                       background: ocrMsg.ok === true ? '#D1FAE5' : ocrMsg.ok === false ? '#FEE2E2' : '#FEF3C7' }}>
                       {ocrMsg.txt}
                     </div>
                   )}
 
-                  {/* Tipo */}
-                  <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginRight: '4px', whiteSpace:'nowrap' }}>Tipo:</span>
-                    {[['RENTA','Renta'],['SANCION','Sanción'],['RECARGO','Recargo'],['CUOTA_MANT','Mant.']].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => set('tipo_concepto', v)} style={{
-                        padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                        border: `1.5px solid ${(TIPO_CONCEPTO_META[v]||{}).color || '#E5E7EB'}`,
-                        background: form.tipo_concepto === v ? (TIPO_CONCEPTO_META[v]?.color || '#E5E7EB') : 'white',
-                        color: form.tipo_concepto === v ? 'white' : (TIPO_CONCEPTO_META[v]?.color || '#6B7280'),
-                      }}>{l}</button>
-                    ))}
-                  </div>
-
                   {/* Fecha + Monto */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '4px' }}>
-                    <div><label style={lbl}>Fecha</label><input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required /></div>
-                    <div><label style={lbl}>Monto *</label><input type="number" value={form.monto} onChange={e => set('monto', e.target.value)} placeholder={!esSancion && pendiente > 0 ? String(pendiente) : '0.00'} style={{ ...inp, fontWeight: 700 }} step="0.01" required /></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div><label style={lbl}>Fecha de pago</label>
+                      <input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required
+                        disabled={cobro.estatus === 'PAGADO'} />
+                    </div>
+                    <div><label style={lbl}>Monto pagado *</label>
+                      <input type="number" value={form.monto} onChange={e => set('monto', e.target.value)}
+                        placeholder={String(cobro.monto_total || '')} style={{ ...inp, fontWeight: 800, fontSize: '15px' }}
+                        step="0.01" required disabled={cobro.estatus === 'PAGADO'} />
+                    </div>
                   </div>
 
-                  {/* Alerta monto */}
-                  {!esSancion && form.monto && parseFloat(form.monto) > 0 && (() => {
-                    const cap = parseFloat(form.monto), prog = parseFloat(cobro.monto_total) || 0, diff = cap - prog
-                    if (Math.abs(diff) < 0.01) return <div style={{ marginBottom:'8px', padding:'5px 10px', borderRadius:6, fontSize:11, fontWeight:700, color:'#057642', background:'#D1FAE5' }}>✓ Monto coincide con la renta programada ({fmt(prog)})</div>
-                    const esMayor = diff > 0
-                    return <div style={{ marginBottom:'8px', padding:'6px 10px', borderRadius:6, fontSize:11, fontWeight:700, color: esMayor?'#92400E':'#B24020', background: esMayor?'#FEF3C7':'#FEE2E2' }}>
-                      {esMayor ? '⚠' : '🔴'} {esMayor ? `Pago MAYOR en ${fmt(diff)} vs renta (${fmt(prog)})` : `Pago MENOR en ${fmt(Math.abs(diff))} — quedará PARCIAL`}
-                    </div>
-                  })()}
-
-                  {/* Forma + Ref */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                  {/* Forma + Referencia */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                     <div><label style={lbl}>Forma de pago</label>
-                      <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)} style={inp}>
+                      <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)} style={inp}
+                        disabled={cobro.estatus === 'PAGADO'}>
                         {['TRANSFERENCIA','DEPOSITO','EFECTIVO','CHEQUE'].map(v => <option key={v}>{v}</option>)}
                       </select>
                     </div>
-                    <div><label style={lbl}>Ref. bancaria / No. Op.</label><input type="text" value={form.referencia} onChange={e => set('referencia', e.target.value)} placeholder="TRF20260801..." style={inp} /></div>
+                    <div><label style={lbl}>No. operación / Ref.</label>
+                      <input type="text" value={form.referencia} onChange={e => set('referencia', e.target.value)}
+                        placeholder="TRF20260901..." style={inp} disabled={cobro.estatus === 'PAGADO'} />
+                    </div>
                   </div>
 
-                  {/* CFDI + Nota */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '60px 110px 1fr', gap: '8px', marginBottom: '10px' }}>
-                    <div><label style={lbl}>Serie</label><input type="text" value={form.factura_serie} onChange={e => set('factura_serie', e.target.value)} placeholder="A" style={inp} /></div>
-                    <div><label style={lbl}>Folio CFDI</label><input type="text" value={form.factura_numero} onChange={e => set('factura_numero', e.target.value)} placeholder="2151" style={inp} /></div>
-                    <div><label style={lbl}>Nota</label><input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} /></div>
+                  {/* Nota */}
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={lbl}>Nota</label>
+                    <input type="text" value={form.nota} onChange={e => set('nota', e.target.value)}
+                      placeholder="Observaciones, depósito cubre Ene+Feb, etc." style={inp}
+                      disabled={cobro.estatus === 'PAGADO'} />
                   </div>
 
-                  {/* Comprobante — botón adjuntar solo cuando no hay archivo nuevo ni guardado */}
-                  {!comprobanteFile && !comprobantePreview && (
-                    <div style={{ marginBottom: '10px' }}>
+                  {/* Comprobante de pago */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={lbl}>Comprobante de pago (depósito / transferencia)</label>
+                    {!comprobanteFile && !comprobantePreview && (
                       <button type="button" onClick={() => compFileRef.current?.click()} disabled={leyendoOCR}
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: '#F9FAFB', border: '2px dashed #0A66C2', borderRadius: '8px', fontSize: '12px', color: '#0A66C2', cursor: 'pointer', fontWeight: 700, width: '100%', justifyContent: 'center' }}>
-                        <Image size={15} /> {leyendoOCR ? '⏳ Leyendo con IA…' : '📎 Adjuntar comprobante — se leerá automáticamente'}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', background: '#F9FAFB', border: '2px dashed #0A66C2', borderRadius: '8px', fontSize: '12px', color: '#0A66C2', cursor: 'pointer', fontWeight: 700, width: '100%', justifyContent: 'center' }}>
+                        <Image size={15} /> {leyendoOCR ? '⏳ Leyendo con IA…' : '📎 Adjuntar imagen o PDF — IA leerá los datos'}
                       </button>
-                    </div>
-                  )}
-                  {comprobantePreview && !comprobanteFile && (
-                    <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#EFF6FF', borderRadius: 8, border: '1.5px solid #BFDBFE' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1D4ED8', flex: 1 }}>🖼 Comprobante guardado — visible a la derecha</span>
-                      <button type="button" onClick={() => compFileRef.current?.click()}
-                        style={{ fontSize: '11px', color: 'var(--color-primary)', background: 'none', border: '1px solid #BFDBFE', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontWeight: 700 }}>
-                        Cambiar
-                      </button>
-                    </div>
-                  )}
-                  {comprobanteFile && (
-                    <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#F0FDF4', borderRadius: 8, border: '1.5px solid #BBF7D0' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile.name}</span>
-                      <button type="button"
-                        onClick={() => {
-                          setComprobanteFile(null); setOcrMsg(null); setOcrMontoTotal(null)
-                          const conComp = ingresos.find(p => p.comprobante_url)
-                          setComprobantePreview(conComp ? conComp.comprobante_url : null)
-                        }}
-                        style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
-                        ✕ Quitar
-                      </button>
-                    </div>
-                  )}
-                  <input ref={compFileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button type="submit" disabled={saving} style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : esSancion ? 'var(--color-danger)' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
-                      {saving ? 'Guardando...' : esSancion ? '⚠ Registrar sanción' : '✓ Confirmar pago'}
-                    </button>
-                    <button type="button" onClick={() => { setErr(null); setOcrMsg(null); setForm(FORM_INIT); setComprobanteFile(null); setComprobantePreview(null); if (cobro.estatus === 'PAGADO') setShowForm(false) }}
-                      style={{ padding: '11px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Limpiar</button>
+                    )}
+                    {comprobantePreview && !comprobanteFile && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#EFF6FF', borderRadius: 8, border: '1.5px solid #BFDBFE' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#1D4ED8', flex: 1 }}>🖼 Comprobante guardado — visible a la derecha</span>
+                        <button type="button" onClick={() => compFileRef.current?.click()}
+                          style={{ fontSize: '11px', color: 'var(--color-primary)', background: 'none', border: '1px solid #BFDBFE', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontWeight: 700 }}>
+                          Cambiar
+                        </button>
+                      </div>
+                    )}
+                    {comprobanteFile && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#F0FDF4', borderRadius: 8, border: '1.5px solid #BBF7D0' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile.name}</span>
+                        <button type="button" onClick={() => { setComprobanteFile(null); setOcrMsg(null); setComprobantePreview(ingreso?.comprobante_url || null) }}
+                          style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕ Quitar</button>
+                      </div>
+                    )}
+                    <input ref={compFileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
                   </div>
-                </form>
-              </div>
-            )}
 
-            {!showForm && cobro.estatus === 'PAGADO' && (
-              <div style={{ borderTop: '1px solid #E5E7EB', padding: '12px 20px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setShowForm(true); setOcrMsg(null) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 14px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
-                  <Plus size={13} /> Agregar movimiento
-                </button>
-              </div>
-            )}
+                  {/* Factura CFDI */}
+                  <div style={{ marginBottom: '14px', padding: '12px', background: '#F9FAFB', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Factura CFDI</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '8px', marginBottom: '8px' }}>
+                      <div><label style={lbl}>Serie</label>
+                        <input type="text" value={form.factura_serie} onChange={e => set('factura_serie', e.target.value)} placeholder="A" style={inp} disabled={cobro.estatus === 'PAGADO'} />
+                      </div>
+                      <div><label style={lbl}>Folio</label>
+                        <input type="text" value={form.factura_numero} onChange={e => set('factura_numero', e.target.value)} placeholder="2151" style={inp} disabled={cobro.estatus === 'PAGADO'} />
+                      </div>
+                    </div>
+                    {/* Botones subir PDF / XML — solo si ya hay ingreso guardado */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {ingreso?.factura_pdf_url
+                        ? <a href={ingreso.factura_pdf_url} target="_blank" rel="noreferrer"
+                            style={{ padding: '7px 0', textAlign: 'center', background: '#EFF6FF', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#1D4ED8', textDecoration: 'none' }}>
+                            📄 Ver PDF
+                          </a>
+                        : <button type="button" onClick={() => pdfRef.current?.click()} disabled={subiendoCFDI === 'pdf' || !ingreso?.id}
+                            style={{ padding: '7px', background: ingreso?.id ? '#F3F4F6' : '#FAFAFA', border: `1.5px dashed ${ingreso?.id ? '#9CA3AF' : '#E5E7EB'}`, borderRadius: 7, fontSize: 11, fontWeight: 700, color: ingreso?.id ? '#374151' : '#D1D5DB', cursor: ingreso?.id ? 'pointer' : 'default' }}>
+                            {subiendoCFDI === 'pdf' ? '⏳ Subiendo...' : '📄 Subir PDF'}
+                          </button>
+                      }
+                      {ingreso?.factura_xml_url
+                        ? <a href={ingreso.factura_xml_url} target="_blank" rel="noreferrer"
+                            style={{ padding: '7px 0', textAlign: 'center', background: '#F0FDF4', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#15803D', textDecoration: 'none' }}>
+                            📋 Ver XML
+                          </a>
+                        : <button type="button" onClick={() => xmlRef.current?.click()} disabled={subiendoCFDI === 'xml' || !ingreso?.id}
+                            style={{ padding: '7px', background: ingreso?.id ? '#F3F4F6' : '#FAFAFA', border: `1.5px dashed ${ingreso?.id ? '#9CA3AF' : '#E5E7EB'}`, borderRadius: 7, fontSize: 11, fontWeight: 700, color: ingreso?.id ? '#374151' : '#D1D5DB', cursor: ingreso?.id ? 'pointer' : 'default' }}>
+                            {subiendoCFDI === 'xml' ? '⏳ Subiendo...' : '📋 Subir XML'}
+                          </button>
+                      }
+                    </div>
+                    {!ingreso?.id && (
+                      <div style={{ marginTop: '6px', fontSize: '10px', color: '#9CA3AF', textAlign: 'center' }}>
+                        Guarda el pago primero para habilitar la carga del CFDI
+                      </div>
+                    )}
+                    <input ref={pdfRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) subirCFDI('pdf', f); e.target.value = '' }} />
+                    <input ref={xmlRef} type="file" accept=".xml,text/xml,application/xml" style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) subirCFDI('xml', f); e.target.value = '' }} />
+                  </div>
+
+                  {/* Botón confirmar */}
+                  {cobro.estatus !== 'PAGADO' && (
+                    <button type="submit" disabled={saving}
+                      style={{ width: '100%', padding: '13px', background: saving ? '#9CA3AF' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: saving ? 'default' : 'pointer', boxShadow: '0 2px 8px rgba(5,118,66,0.25)' }}>
+                      {saving ? '⏳ Guardando...' : ingreso ? '✓ Actualizar pago' : '✓ Confirmar pago'}
+                    </button>
+                  )}
+                  {cobro.estatus === 'PAGADO' && (
+                    <div style={{ padding: '12px', background: '#D1FAE5', borderRadius: 10, textAlign: 'center', fontSize: 13, fontWeight: 800, color: '#057642' }}>
+                      ✓ Cobro liquidado el {ingreso?.fecha || cobro.fecha_pago_real}
+                    </div>
+                  )}
+                </form>
+              )
+            }
           </div>
 
-          {/* ── Columna derecha: imagen grande del comprobante ── */}
+          {/* ── Columna derecha: comprobante grande ── */}
           {comprobantePreview && (
-            <div style={{ background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderRadius: '0 16px 16px 0', overflow: 'hidden', minHeight: '400px' }}>
-              {comprobantePreview.match(/\.pdf$/i) || comprobanteFile?.type === 'application/pdf' ? (
-                <iframe src={comprobantePreview} title="Comprobante PDF"
-                  style={{ width: '100%', height: '100%', border: 'none', minHeight: '500px' }} />
-              ) : (
-                <img src={comprobantePreview} alt="Comprobante de pago"
-                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
-              )}
+            <div style={{ background: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', borderRadius: '0 16px 16px 0' }}>
+              {comprobantePreview.match(/\.pdf($|\?)/i)
+                ? <iframe src={comprobantePreview} title="Comprobante" style={{ width: '100%', height: '100%', border: 'none' }} />
+                : <img src={comprobantePreview} alt="Comprobante de pago" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+              }
               {leyendoOCR && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, fontWeight: 700, gap: 10 }}>
-                  <div style={{ fontSize: 32 }}>⏳</div>
-                  Leyendo datos con IA…
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, fontWeight: 700, gap: 10 }}>
+                  <div style={{ fontSize: 36 }}>⏳</div>
+                  Leyendo con IA…
                 </div>
               )}
             </div>
