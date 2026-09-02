@@ -82,11 +82,42 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       })
   }, [form.contrato_id])
 
-  const onFileChange = (e) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setCompFile(f)
-    setCompPreview(URL.createObjectURL(f))
+  const [leyendoOCR, setLeyendoOCR] = useState(false)
+  const [ocrData, setOcrData] = useState(null)
+  const [ocrMsg, setOcrMsg] = useState(null)
+
+  const adjuntarYOCR = async (file) => {
+    if (!file) return
+    setCompFile(file)
+    setCompPreview(URL.createObjectURL(file))
+    setLeyendoOCR(true)
+    setOcrData(null)
+    setOcrMsg({ ok: null, txt: 'Leyendo comprobante con IA…' })
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
+      })
+      const resp = await fetch('/.netlify/functions/extraer-documento', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ image_base64: b64, media_type: file.type, tipo_doc: 'COMPROBANTE_PAGO' }),
+      })
+      const j = await resp.json()
+      if (!resp.ok || !j.datos) throw new Error(j.error || 'Sin datos')
+      const d = j.datos
+      const formaMap = { transferencia: 'TRANSFERENCIA BBVA', spei: 'TRANSFERENCIA BBVA', deposito: 'DEPOSITO', 'depósito': 'DEPOSITO', efectivo: 'EFECTIVO', cheque: 'CHEQUE' }
+      setForm(f => ({
+        ...f,
+        fecha:           d.fecha_pago || d.fecha || f.fecha,
+        importe:         d.monto ? String(d.monto) : f.importe,
+        referencia_banco: d.referencia || d.folio || d.numero_operacion || f.referencia_banco,
+        origen:          formaMap[(d.forma_pago || '').toLowerCase()] || f.origen,
+        concepto_origen: [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.concepto_origen,
+      }))
+      setOcrData(d)
+      setOcrMsg({ ok: true, txt: 'Datos extraídos — verifica y corrige si es necesario' })
+    } catch {
+      setOcrMsg({ ok: false, txt: 'No se pudo leer el comprobante — llena manualmente' })
+    } finally { setLeyendoOCR(false) }
   }
 
   const guardar = async () => {
@@ -163,6 +194,64 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
         </div>
 
         <div style={{ flex:1, overflowY:'auto', padding:'18px 22px' }}>
+
+          {/* ── 1. Comprobante con OCR ── */}
+          <div style={{ marginBottom:'14px' }}>
+            <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', display:'block', marginBottom:'6px' }}>1. Comprobante de pago (OCR automático)</label>
+            <input type="file" ref={fileRef} accept="image/*,application/pdf" capture="environment" style={{ display:'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
+            {!compFile ? (
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={leyendoOCR}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'12px', background:'#EFF6FF', border:'2px dashed #0A66C2', borderRadius:'10px', fontSize:'13px', color:'#0A66C2', cursor:'pointer', fontWeight:700, width:'100%', justifyContent:'center' }}>
+                <Image size={16} /> {leyendoOCR ? 'Leyendo con IA…' : 'Adjuntar ficha o transferencia — IA extrae los datos'}
+              </button>
+            ) : (
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 12px', background:'#F0FDF4', borderRadius:'8px', border:'1.5px solid #BBF7D0' }}>
+                <span style={{ fontSize:'12px', fontWeight:700, color:'#15803D', flex:1 }}>✓ {compFile.name}</span>
+                <button type="button" onClick={() => { setCompFile(null); setCompPreview(null); setOcrMsg(null); setOcrData(null) }}
+                  style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>✕ Quitar</button>
+              </div>
+            )}
+          </div>
+
+          {/* Panel validación OCR */}
+          {ocrMsg && (
+            <div style={{ marginBottom:'12px', padding:'10px 12px', borderRadius:'8px', fontSize:'12px',
+              border:`1px solid ${ocrMsg.ok === true ? '#BBF7D0' : ocrMsg.ok === false ? '#FECACA' : '#FDE68A'}`,
+              background: ocrMsg.ok === true ? '#F0FDF4' : ocrMsg.ok === false ? '#FEF2F2' : '#FFFBEB' }}>
+              <div style={{ fontWeight:700, color: ocrMsg.ok === true ? '#057642' : ocrMsg.ok === false ? '#B24020' : '#92400E', marginBottom: ocrData ? '8px' : 0 }}>
+                {ocrMsg.ok === true ? '✓' : ocrMsg.ok === false ? '✗' : '⟳'} {ocrMsg.txt}
+              </div>
+              {ocrData && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 16px' }}>
+                  {[
+                    ['Banco origen', ocrData.banco],
+                    ['No. cuenta / CLABE', ocrData.cuenta || ocrData.clabe],
+                    ['Monto en imagen', ocrData.monto ? fmt(ocrData.monto) : null],
+                    ['Fecha', ocrData.fecha_pago || ocrData.fecha],
+                    ['Referencia', ocrData.referencia || ocrData.folio || ocrData.numero_operacion],
+                    ['Concepto', ocrData.concepto],
+                  ].filter(([, v]) => v).map(([k, v]) => (
+                    <div key={k}>
+                      <span style={{ fontSize:'10px', color:'#6B7280', textTransform:'uppercase', fontWeight:700 }}>{k}</span>
+                      <div style={{ fontSize:'12px', fontWeight:600, color:'#111827' }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {compPreview && (
+            <div style={{ marginBottom:'12px' }}>
+              <img src={compPreview} alt="comprobante" style={{ width:'100%', maxHeight:'140px', objectFit:'contain', borderRadius:'8px', border:'1px solid #E5E7EB', background:'#F9FAFB' }} />
+            </div>
+          )}
+
+          <div style={{ borderTop:'1px solid #F3F4F6', paddingTop:'12px', marginBottom:'12px' }}>
+            <span style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>2. Datos del depósito</span>
+          </div>
+
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 18px' }}>
 
             {/* Contrato */}
@@ -181,7 +270,12 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 
             {/* Importe recibido */}
             <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Importe recibido *</label>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>
+                Importe recibido *
+                {ocrData?.monto && Math.abs(parseFloat(form.importe) - ocrData.monto) > 1 && (
+                  <span style={{ marginLeft:6, color:'#D97706', fontSize:'10px' }}>⚠ imagen: {fmt(ocrData.monto)}</span>
+                )}
+              </label>
               <div style={{ marginTop:'4px' }}>{inp('importe','number','0.00')}</div>
             </div>
 
@@ -284,27 +378,6 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                 )}
               </div>
             )}
-
-            {/* Comprobante */}
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Comprobante de depósito</label>
-              <input type="file" ref={fileRef} accept="image/*,application/pdf" style={{ display:'none' }} onChange={onFileChange} />
-              <div style={{ marginTop:'6px', display:'flex', alignItems:'center', gap:'10px' }}>
-                <button type="button" onClick={() => fileRef.current?.click()}
-                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1px dashed #9CA3AF', borderRadius:'8px', background:'#F9FAFB', fontSize:'13px', cursor:'pointer', color:'#374151' }}>
-                  <Upload size={14} /> Subir imagen
-                </button>
-                {compFile && <span style={{ fontSize:'12px', color:'#6B7280' }}>{compFile.name}</span>}
-              </div>
-              {compPreview && compPreview.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
-                <img src={compPreview} alt="comprobante" style={{ marginTop:'8px', maxHeight:'120px', borderRadius:'6px', border:'1px solid #E5E7EB', objectFit:'cover' }} />
-              )}
-              {compPreview && !compFile && (
-                <div style={{ marginTop:'6px', fontSize:'12px', color:'#6B7280', display:'flex', alignItems:'center', gap:'4px' }}>
-                  <Image size={12} /> Comprobante existente guardado
-                </div>
-              )}
-            </div>
 
             {/* Nota */}
             <div style={{ gridColumn:'1/-1' }}>
