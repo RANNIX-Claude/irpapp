@@ -277,9 +277,9 @@ function PagosModal({ cobro, onClose, onSaved }) {
     } finally { setLeyendoOCR(false) }
   }
 
-  useEffect(() => { cargar() }, [cobro.id])
+  useEffect(() => { cargar(null) }, [cobro.id])
 
-  const cargar = async () => {
+  const cargar = async (fileActivo) => {
     setLoading(true)
     const { data } = await supabase
       .from('ingresos')
@@ -289,7 +289,6 @@ function PagosModal({ cobro, onClose, onSaved }) {
       .limit(1)
       .maybeSingle()
     setIngreso(data || null)
-    // Poblar formulario si ya hay un registro guardado
     if (data) {
       setForm(f => ({
         ...f,
@@ -301,7 +300,8 @@ function PagosModal({ cobro, onClose, onSaved }) {
         factura_serie:  data.factura_serie    || '',
         nota:           data.nota             || '',
       }))
-      if (!comprobanteFile && data.comprobante_url) setComprobantePreview(data.comprobante_url)
+      // Mostrar comprobante guardado solo si no hay archivo nuevo activo
+      if (!fileActivo && data.comprobante_url) setComprobantePreview(data.comprobante_url)
     }
     setLoading(false)
   }
@@ -365,15 +365,17 @@ function PagosModal({ cobro, onClose, onSaved }) {
       }
 
       // Actualizar estatus y monto en cobros
-      const nuevoEstatus = monto >= parseFloat(cobro.monto_total) ? 'PAGADO' : 'PARCIAL'
-      await supabase.from('cobros').update({
+      const rentaTotal = parseFloat(cobro.monto_total) || 0
+      const nuevoEstatus = rentaTotal > 0 && monto >= rentaTotal - 0.01 ? 'PAGADO' : 'PARCIAL'
+      const { error: errCobro } = await supabase.from('cobros').update({
         monto_pagado:    monto,
         estatus:         nuevoEstatus,
         fecha_pago_real: form.fecha_pago,
       }).eq('id', cobro.id)
+      if (errCobro) throw errCobro
 
       setComprobanteFile(null)
-      await cargar()
+      await cargar(null)   // null = sin archivo activo → muestra comprobante guardado
       onSaved()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
   }
@@ -390,7 +392,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
     const col = tipo === 'pdf' ? 'factura_pdf_url' : 'factura_xml_url'
     await supabase.from('ingresos').update({ [col]: urlData.publicUrl }).eq('id', ingreso.id)
     setSubiendoCFDI(null)
-    await cargar()
+    await cargar(null)
   }
 
   const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
