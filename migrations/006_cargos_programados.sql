@@ -28,7 +28,7 @@ UPDATE public.ingresos SET importe_total = importe WHERE importe_total IS NULL;
 -- TABLA: aplicaciones_pago (pivot N:N)
 CREATE TABLE IF NOT EXISTS public.aplicaciones_pago (
   id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  ingreso_id         UUID NOT NULL REFERENCES public.ingresos(id) ON DELETE CASCADE,
+  ingreso_id         BIGINT NOT NULL REFERENCES public.ingresos(id) ON DELETE CASCADE,
   cargo_id           UUID NOT NULL REFERENCES public.cargos_programados(id) ON DELETE CASCADE,
   importe_aplicado   NUMERIC(14,2) NOT NULL CHECK (importe_aplicado > 0),
   fecha_aplicacion   DATE DEFAULT CURRENT_DATE,

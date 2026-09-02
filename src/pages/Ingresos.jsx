@@ -67,14 +67,13 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   useEffect(() => {
     if (!form.contrato_id) { setCargos([]); setDist({}); return }
     setLoadingCargos(true)
-    supabase.from('cargos_programados')
-      .select('id, tipo, mes, anio, importe_cargo, saldo, estado')
+    supabase.from('prp_cartera')
+      .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
       .eq('contrato_id', form.contrato_id)
       .in('estado', ['PENDIENTE', 'PARCIAL'])
-      .order('anio').order('mes').order('tipo')
+      .order('periodo_anio').order('periodo_mes').order('concepto')
       .then(({ data }) => {
         setCargos(data || [])
-        // Pre-distribuir: poner saldo de cada cargo como sugerencia
         const d = {}
         ;(data || []).forEach(c => { d[c.id] = '' })
         setDist(d)
@@ -127,7 +126,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     setSaving(true); setErr(null)
     const [fAnio, fMes] = form.fecha ? form.fecha.split('-').map(Number) : [form.anio, form.mes]
     // Tipo principal = el concepto con mayor distribución, o el seleccionado
-    const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.tipo)
+    const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.concepto)
     const tipoPrincipal = tiposPrincipales[0] || form.tipo
     const payload = {
       fecha:           form.fecha || null,
@@ -347,12 +346,12 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                               {activo ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                             </span>
                             <div>
-                              <div style={{ fontSize:'13px', fontWeight:600, color: TIPO_COLOR[c.tipo] || '#374151' }}>{c.tipo}</div>
+                              <div style={{ fontSize:'13px', fontWeight:600, color: TIPO_COLOR[c.concepto] || '#374151' }}>{c.concepto}</div>
                               <div style={{ fontSize:'10px', color:'#9CA3AF' }}>{c.estado}</div>
                             </div>
                           </div>
                           {/* Periodo */}
-                          <span style={{ fontSize:'12px', color:'#6B7280' }}>{MESES[c.mes]}/{c.anio}</span>
+                          <span style={{ fontSize:'12px', color:'#6B7280' }}>{MESES[c.periodo_mes]}/{c.periodo_anio}</span>
                           {/* Saldo */}
                           <span style={{ fontSize:'13px', fontWeight:600, color:'#374151', textAlign:'right' }}>{fmt(c.saldo)}</span>
                           {/* Input importe a aplicar */}
