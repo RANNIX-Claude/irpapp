@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image } from 'lucide-react'
+import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image, CheckCircle2, Circle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
@@ -42,11 +42,19 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [contratos, setContratos] = useState([])
+  const [cargos, setCargos] = useState([])          // cargos pendientes del contrato seleccionado
+  const [dist, setDist] = useState({})              // { cargo_id: importe_a_aplicar }
+  const [loadingCargos, setLoadingCargos] = useState(false)
   const [compFile, setCompFile] = useState(null)
   const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
   const fileRef = useRef()
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Totales de distribución
+  const totalDist = Object.values(dist).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+  const importeTotal = parseFloat(form.importe) || 0
+  const saldoLibre = importeTotal - totalDist
 
   useEffect(() => {
     supabase.from('prp_contratos')
@@ -54,6 +62,25 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       .order('arrendatario_nombre')
       .then(({ data }) => setContratos(data || []))
   }, [])
+
+  // Al cambiar contrato, cargar cargos pendientes
+  useEffect(() => {
+    if (!form.contrato_id) { setCargos([]); setDist({}); return }
+    setLoadingCargos(true)
+    supabase.from('cargos_programados')
+      .select('id, tipo, mes, anio, importe_cargo, saldo, estado')
+      .eq('contrato_id', form.contrato_id)
+      .in('estado', ['PENDIENTE', 'PARCIAL'])
+      .order('anio').order('mes').order('tipo')
+      .then(({ data }) => {
+        setCargos(data || [])
+        // Pre-distribuir: poner saldo de cada cargo como sugerencia
+        const d = {}
+        ;(data || []).forEach(c => { d[c.id] = '' })
+        setDist(d)
+        setLoadingCargos(false)
+      })
+  }, [form.contrato_id])
 
   const onFileChange = (e) => {
     const f = e.target.files?.[0]
@@ -64,18 +91,21 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 
   const guardar = async () => {
     if (!form.contrato_id) { setErr('Selecciona el contrato'); return }
-    if (!form.tipo) { setErr('Selecciona el tipo'); return }
-    if (!form.mes || !form.anio) { setErr('Mes y año son obligatorios'); return }
+    if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a 0'); return }
+    if (saldoLibre < -0.01) { setErr(`El total distribuido ($${totalDist.toLocaleString('es-MX')}) excede el importe recibido`); return }
     setSaving(true); setErr(null)
     const [fAnio, fMes] = form.fecha ? form.fecha.split('-').map(Number) : [form.anio, form.mes]
+    // Tipo principal = el concepto con mayor distribución, o el seleccionado
+    const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.tipo)
+    const tipoPrincipal = tiposPrincipales[0] || form.tipo
     const payload = {
       fecha:           form.fecha || null,
       contrato_id:     form.contrato_id || null,
-      tipo:            form.tipo,
-      mes:             parseInt(form.mes),
-      anio:            parseInt(form.anio),
+      tipo:            tipoPrincipal,
+      mes:             fMes || parseInt(form.mes),
+      anio:            fAnio || parseInt(form.anio),
       factura:         form.factura || null,
-      importe:         form.importe ? parseFloat(form.importe) : null,
+      importe:         parseFloat(form.importe),
       origen:          form.origen || null,
       concepto_origen: form.concepto_origen || null,
       nota:            form.nota || null,
@@ -88,6 +118,16 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       ;({ error, data } = await supabase.from('ingresos').insert(payload).select('id').single())
     }
     if (error) { setSaving(false); setErr(error.message); return }
+
+    // Insertar aplicaciones_pago para cada cargo con importe > 0
+    const ingresoId = ingreso?.id || data?.id
+    const aplicaciones = Object.entries(dist)
+      .filter(([, v]) => parseFloat(v) > 0)
+      .map(([cargo_id, v]) => ({ cargo_id, ingreso_id: ingresoId, importe_aplicado: parseFloat(v) }))
+    if (aplicaciones.length > 0) {
+      const { error: apErr } = await supabase.from('aplicaciones_pago').upsert(aplicaciones, { onConflict: 'cargo_id,ingreso_id' })
+      if (apErr) { setSaving(false); setErr('Ingreso guardado pero error al aplicar cargos: ' + apErr.message); return }
+    }
 
     // Upload comprobante si se seleccionó
     const ingresoId = ingreso?.id || data?.id
@@ -140,44 +180,22 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               </select>
             </div>
 
-            {/* Tipo */}
+            {/* Importe recibido */}
             <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Tipo *</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-                style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', marginTop:'4px' }}>
-                {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-            {/* Mes / Año */}
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Mes *</label>
-              <select value={form.mes} onChange={e => set('mes', e.target.value)}
-                style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', marginTop:'4px' }}>
-                {MESES.slice(1).map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Año *</label>
-              {inp('anio','number','2026')}
-            </div>
-
-            {/* Importe */}
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Importe</label>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Importe recibido *</label>
               <div style={{ marginTop:'4px' }}>{inp('importe','number','0.00')}</div>
-            </div>
-
-            {/* Factura */}
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>No. Factura</label>
-              <div style={{ marginTop:'4px' }}>{inp('factura','text','2195')}</div>
             </div>
 
             {/* Fecha */}
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Fecha pago</label>
               <div style={{ marginTop:'4px' }}>{inp('fecha','date')}</div>
+            </div>
+
+            {/* Factura */}
+            <div>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>No. Factura</label>
+              <div style={{ marginTop:'4px' }}>{inp('factura','text','2195')}</div>
             </div>
 
             {/* Origen */}
@@ -197,6 +215,76 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Concepto origen</label>
               <div style={{ marginTop:'4px' }}>{inp('concepto_origen','text','RENTA JUL26')}</div>
             </div>
+
+            {/* ─── Distribución del pago ─── */}
+            {form.contrato_id && (
+              <div style={{ gridColumn:'1/-1', marginTop:'4px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' }}>
+                  <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>
+                    Distribución del pago (cargos pendientes)
+                  </label>
+                  {importeTotal > 0 && (
+                    <span style={{ fontSize:'12px', fontWeight:600, color: saldoLibre < -0.01 ? 'var(--color-danger)' : saldoLibre > 0.01 ? '#D97706' : 'var(--color-success)' }}>
+                      {saldoLibre < -0.01 ? `Excede ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
+                    </span>
+                  )}
+                </div>
+
+                {loadingCargos ? (
+                  <div style={{ fontSize:'13px', color:'#6B7280', padding:'10px 0' }}>Cargando cargos...</div>
+                ) : cargos.length === 0 ? (
+                  <div style={{ fontSize:'13px', color:'#6B7280', padding:'10px 12px', background:'#F9FAFB', borderRadius:'8px', border:'1px solid #E5E7EB' }}>
+                    Sin cargos pendientes para este contrato
+                  </div>
+                ) : (
+                  <div style={{ border:'1px solid #E5E7EB', borderRadius:'8px', overflow:'hidden' }}>
+                    {/* Header */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 110px', gap:'8px', padding:'7px 12px', background:'#F3F4F6', fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>
+                      <span>Concepto</span><span>Período</span><span style={{ textAlign:'right' }}>Saldo</span><span style={{ textAlign:'right' }}>Aplicar</span>
+                    </div>
+                    {cargos.map((c, i) => {
+                      const aplicando = parseFloat(dist[c.id]) || 0
+                      const activo = aplicando > 0
+                      return (
+                        <div key={c.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 110px', gap:'8px', padding:'8px 12px', alignItems:'center', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none', background: activo ? '#F0FDF4' : 'white', transition:'background 0.15s' }}>
+                          {/* Concepto con palomita */}
+                          <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                            <span onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(c.saldo, Math.max(0, importeTotal - totalDist + aplicando))) }))
+                              style={{ cursor:'pointer', color: activo ? 'var(--color-success)' : '#D1D5DB', flexShrink:0 }}>
+                              {activo ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                            </span>
+                            <div>
+                              <div style={{ fontSize:'13px', fontWeight:600, color: TIPO_COLOR[c.tipo] || '#374151' }}>{c.tipo}</div>
+                              <div style={{ fontSize:'10px', color:'#9CA3AF' }}>{c.estado}</div>
+                            </div>
+                          </div>
+                          {/* Periodo */}
+                          <span style={{ fontSize:'12px', color:'#6B7280' }}>{MESES[c.mes]}/{c.anio}</span>
+                          {/* Saldo */}
+                          <span style={{ fontSize:'13px', fontWeight:600, color:'#374151', textAlign:'right' }}>{fmt(c.saldo)}</span>
+                          {/* Input importe a aplicar */}
+                          <input
+                            type="number" min="0" max={c.saldo} step="0.01"
+                            value={dist[c.id] ?? ''}
+                            placeholder="0.00"
+                            onChange={e => setDist(d => ({ ...d, [c.id]: e.target.value }))}
+                            style={{ width:'100%', padding:'5px 8px', border:`1px solid ${activo ? 'var(--color-success)' : '#D1D5DB'}`, borderRadius:'6px', fontSize:'13px', textAlign:'right', boxSizing:'border-box', background: activo ? '#F0FDF4' : 'white' }}
+                          />
+                        </div>
+                      )
+                    })}
+                    {/* Totales */}
+                    {importeTotal > 0 && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 110px', gap:'8px', padding:'8px 12px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
+                        <span style={{ fontSize:'12px', fontWeight:700, color:'#374151', gridColumn:'1/3' }}>Total recibido</span>
+                        <span style={{ fontSize:'13px', fontWeight:700, color:'#374151', textAlign:'right' }}>{fmt(importeTotal)}</span>
+                        <span style={{ fontSize:'13px', fontWeight:700, color: saldoLibre < -0.01 ? 'var(--color-danger)' : 'var(--color-success)', textAlign:'right' }}>{fmt(totalDist)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Comprobante */}
             <div style={{ gridColumn:'1/-1' }}>
