@@ -50,6 +50,9 @@ function EstadoBadge({ estado }) {
 // ── Modal: Registrar Ingreso ─────────────────────────────────────────────────
 const OCR_FN = '/.netlify/functions/extraer-documento'
 
+const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const TIPO_CLR = { RENTA: '#057642', SANCION: '#B24020', AGUA: '#0284C7', OTRO: '#6B7280' }
+
 function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
   const compRef = useRef()
   const [form, setForm] = useState({
@@ -64,15 +67,43 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
   const [leyendoOCR, setLeyendoOCR] = useState(false)
+  const [ocrData, setOcrData] = useState(null)   // datos crudos del OCR para panel de validación
   const [ocrMsg, setOcrMsg] = useState(null)
+  const [cargos, setCargos] = useState([])
+  const [dist, setDist] = useState({})            // { cargo_id: importe_string }
+  const [loadingCargos, setLoadingCargos] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
+
+  // Totales distribución
+  const importeTotal = parseFloat(form.importe_total) || 0
+  const totalDist = Object.values(dist).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+  const saldoLibre = importeTotal - totalDist
+
+  // Cargar cargos pendientes al cambiar contrato
+  useEffect(() => {
+    if (!form.contrato_id) { setCargos([]); setDist({}); return }
+    setLoadingCargos(true)
+    supabase.from('cargos_programados')
+      .select('id, tipo, mes, anio, importe_cargo, saldo, estado')
+      .eq('contrato_id', form.contrato_id)
+      .in('estado', ['PENDIENTE', 'PARCIAL'])
+      .order('anio').order('mes').order('tipo')
+      .then(({ data }) => {
+        setCargos(data || [])
+        const d = {}
+        ;(data || []).forEach(c => { d[c.id] = '' })
+        setDist(d)
+        setLoadingCargos(false)
+      })
+  }, [form.contrato_id])
 
   const adjuntarYOCR = async (file) => {
     if (!file) return
     setComprobanteFile(file)
     setComprobantePreview(URL.createObjectURL(file))
     setLeyendoOCR(true)
+    setOcrData(null)
     setOcrMsg({ ok: null, txt: 'Leyendo comprobante con IA…' })
     try {
       const b64 = await new Promise((res, rej) => {
@@ -88,13 +119,14 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
       const formaMap = { transferencia: 'TRANSFERENCIA', spei: 'TRANSFERENCIA', deposito: 'DEPOSITO', 'depósito': 'DEPOSITO', efectivo: 'EFECTIVO', cheque: 'CHEQUE' }
       setForm(f => ({
         ...f,
-        fecha: d.fecha_pago || d.fecha || f.fecha,
+        fecha:            d.fecha_pago || d.fecha || f.fecha,
+        importe_total:    d.monto ? String(d.monto) : f.importe_total,   // ← auto-rellena monto
         referencia_banco: d.referencia || d.folio || d.numero_operacion || f.referencia_banco,
-        forma_pago: formaMap[(d.forma_pago || '').toLowerCase()] || f.forma_pago,
-        nota: [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.nota,
+        forma_pago:       formaMap[(d.forma_pago || '').toLowerCase()] || f.forma_pago,
+        nota:             [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.nota,
       }))
-      const totalImg = d.monto ? fmt(d.monto) : null
-      setOcrMsg({ ok: true, txt: `Datos leídos${totalImg ? ` — total en imagen: ${totalImg}` : ''} — verifica el monto` })
+      setOcrData(d)
+      setOcrMsg({ ok: true, txt: 'Datos extraídos — verifica y corrige si es necesario' })
     } catch {
       setOcrMsg({ ok: false, txt: 'No se pudo leer el comprobante — llena manualmente' })
     } finally { setLeyendoOCR(false) }
@@ -104,25 +136,38 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
     e.preventDefault()
     if (!form.contrato_id) { setErr('Selecciona un contrato'); return }
     if (!form.importe_total || parseFloat(form.importe_total) <= 0) { setErr('El monto debe ser mayor a 0'); return }
+    if (saldoLibre < -0.01) { setErr(`La distribución (${fmt(totalDist)}) excede el monto recibido`); return }
     setSaving(true); setErr(null)
     try {
-      const [fAnio, fMes, fDia] = form.fecha.split('-').map(Number)
+      const [fAnio, fMes] = form.fecha.split('-').map(Number)
+      const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.tipo)
       const { data: ing, error } = await supabase.from('ingresos').insert({
-        contrato_id:     form.contrato_id,
-        fecha:           form.fecha,
-        mes:             fMes,
-        anio:            fAnio,
-        importe:         parseFloat(form.importe_total),
-        importe_total:   parseFloat(form.importe_total),
-        forma_pago:      form.forma_pago,
+        contrato_id:      form.contrato_id,
+        fecha:            form.fecha,
+        mes:              fMes,
+        anio:             fAnio,
+        importe:          parseFloat(form.importe_total),
+        importe_total:    parseFloat(form.importe_total),
+        forma_pago:       form.forma_pago,
         referencia_banco: form.referencia_banco || null,
-        nota:            form.nota || null,
-        tipo:            'RENTA',
-        tipo_concepto:   'RENTA',
-        origen:          form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA',
+        nota:             form.nota || null,
+        tipo:             tiposPrincipales[0] || 'RENTA',
+        tipo_concepto:    tiposPrincipales[0] || 'RENTA',
+        origen:           form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA',
       }).select('id').single()
       if (error) throw error
 
+      // Aplicaciones de pago
+      const aplicaciones = Object.entries(dist)
+        .filter(([, v]) => parseFloat(v) > 0)
+        .map(([cargo_id, v]) => ({ cargo_id, ingreso_id: ing.id, importe_aplicado: parseFloat(v) }))
+      if (aplicaciones.length > 0) {
+        const { error: apErr } = await supabase.from('aplicaciones_pago')
+          .upsert(aplicaciones, { onConflict: 'cargo_id,ingreso_id' })
+        if (apErr) throw new Error('Ingreso guardado pero error al aplicar cargos: ' + apErr.message)
+      }
+
+      // Upload comprobante
       if (comprobanteFile && ing?.id) {
         const ext = comprobanteFile.name.split('.').pop() || 'jpg'
         const path = `comprobantes/${ing.id}/comp.${ext}`
@@ -132,7 +177,6 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
           await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ing.id)
         }
       }
-
       onSaved()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
   }
@@ -142,7 +186,7 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '560px', maxHeight: '94vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '620px', maxHeight: '94vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '16px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Nuevo Ingreso</div>
@@ -154,13 +198,63 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
         <div style={{ overflowY: 'auto', padding: '18px 22px' }}>
           <form onSubmit={guardar}>
             {err && <div style={{ padding: '6px 10px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '12px', marginBottom: '10px' }}>{err}</div>}
+
+            {/* ── Comprobante primero — OCR llena los campos ── */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={lbl}>1. Comprobante de pago (OCR automático)</label>
+              {!comprobanteFile ? (
+                <button type="button" onClick={() => compRef.current?.click()} disabled={leyendoOCR}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px', background: '#EFF6FF', border: '2px dashed #0A66C2', borderRadius: '10px', fontSize: '13px', color: '#0A66C2', cursor: 'pointer', fontWeight: 700, width: '100%', justifyContent: 'center' }}>
+                  <Image size={16} /> {leyendoOCR ? 'Leyendo con IA…' : 'Adjuntar ficha o transferencia — IA extrae los datos'}
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#F0FDF4', borderRadius: 8, border: '1.5px solid #BBF7D0' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile.name}</span>
+                  <button type="button" onClick={() => { setComprobanteFile(null); setComprobantePreview(null); setOcrMsg(null); setOcrData(null) }}
+                    style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕ Quitar</button>
+                </div>
+              )}
+              <input ref={compRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
+            </div>
+
+            {/* Panel de validación OCR */}
             {ocrMsg && (
-              <div style={{ marginBottom: '10px', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                color: ocrMsg.ok === true ? '#057642' : ocrMsg.ok === false ? '#B24020' : '#92400E',
-                background: ocrMsg.ok === true ? '#D1FAE5' : ocrMsg.ok === false ? '#FEE2E2' : '#FEF3C7' }}>
-                {ocrMsg.txt}
+              <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: 8, fontSize: 12,
+                border: `1px solid ${ocrMsg.ok === true ? '#BBF7D0' : ocrMsg.ok === false ? '#FECACA' : '#FDE68A'}`,
+                background: ocrMsg.ok === true ? '#F0FDF4' : ocrMsg.ok === false ? '#FEF2F2' : '#FFFBEB' }}>
+                <div style={{ fontWeight: 700, color: ocrMsg.ok === true ? '#057642' : ocrMsg.ok === false ? '#B24020' : '#92400E', marginBottom: ocrData ? '8px' : 0 }}>
+                  {ocrMsg.ok === true ? '✓' : ocrMsg.ok === false ? '✗' : '⟳'} {ocrMsg.txt}
+                </div>
+                {ocrData && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
+                    {[
+                      ['Banco origen', ocrData.banco],
+                      ['No. cuenta / CLABE', ocrData.cuenta || ocrData.clabe],
+                      ['Monto en imagen', ocrData.monto ? fmt(ocrData.monto) : null],
+                      ['Fecha', ocrData.fecha_pago || ocrData.fecha],
+                      ['Referencia', ocrData.referencia || ocrData.folio || ocrData.numero_operacion],
+                      ['Concepto', ocrData.concepto],
+                    ].filter(([, v]) => v).map(([k, v]) => (
+                      <div key={k}>
+                        <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>{k}</span>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
+
+            {comprobantePreview && (
+              <div style={{ marginBottom: '12px' }}>
+                <img src={comprobantePreview} alt="Comprobante" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: '#F9FAFB' }} />
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: '14px', marginBottom: '10px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', marginBottom: '10px' }}>2. Datos del depósito</div>
+            </div>
 
             <div style={{ marginBottom: '10px' }}>
               <label style={lbl}>Contrato *</label>
@@ -178,8 +272,13 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
                 <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} style={inp} required />
               </div>
               <div>
-                <label style={lbl}>Monto total *</label>
-                <input type="number" value={form.importe_total} onChange={e => set('importe_total', e.target.value)} placeholder="37234.00" style={{ ...inp, fontWeight: 800, fontSize: '15px' }} step="0.01" required />
+                <label style={lbl}>
+                  Monto total *
+                  {ocrData?.monto && Math.abs(parseFloat(form.importe_total) - ocrData.monto) > 1 && (
+                    <span style={{ marginLeft: 6, color: '#D97706', fontSize: '10px' }}>⚠ imagen: {fmt(ocrData.monto)}</span>
+                  )}
+                </label>
+                <input type="number" value={form.importe_total} onChange={e => set('importe_total', e.target.value)} placeholder="37234.00" style={{ ...inp, fontWeight: 800, fontSize: '15px', borderColor: ocrData?.monto && Math.abs(parseFloat(form.importe_total) - ocrData.monto) > 1 ? '#F59E0B' : '#E5E7EB' }} step="0.01" required />
               </div>
             </div>
 
@@ -196,38 +295,71 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
               </div>
             </div>
 
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: '14px' }}>
               <label style={lbl}>Notas</label>
               <input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Cubre Ago+Sep 2026, etc." style={inp} />
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={lbl}>Comprobante de pago</label>
-              {!comprobanteFile ? (
-                <button type="button" onClick={() => compRef.current?.click()} disabled={leyendoOCR}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', background: '#F9FAFB', border: '2px dashed #0A66C2', borderRadius: '8px', fontSize: '12px', color: '#0A66C2', cursor: 'pointer', fontWeight: 700, width: '100%', justifyContent: 'center' }}>
-                  <Image size={15} /> {leyendoOCR ? 'Leyendo con IA…' : 'Adjuntar imagen — IA leerá los datos'}
-                </button>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#F0FDF4', borderRadius: 8, border: '1.5px solid #BBF7D0' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile.name}</span>
-                  <button type="button" onClick={() => { setComprobanteFile(null); setComprobantePreview(null); setOcrMsg(null) }}
-                    style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+            {/* ── Distribución del pago ── */}
+            {form.contrato_id && (
+              <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: '14px', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase' }}>3. Distribución del pago</div>
+                  {importeTotal > 0 && (
+                    <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', borderRadius: 20,
+                      color: saldoLibre < -0.01 ? '#B24020' : saldoLibre > 0.01 ? '#92400E' : '#057642',
+                      background: saldoLibre < -0.01 ? '#FEE2E2' : saldoLibre > 0.01 ? '#FEF3C7' : '#D1FAE5' }}>
+                      {saldoLibre < -0.01 ? `Excede ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
+                    </span>
+                  )}
                 </div>
-              )}
-              <input ref={compRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
-                onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
-            </div>
-
-            {comprobantePreview && (
-              <div style={{ marginBottom: '14px' }}>
-                <img src={comprobantePreview} alt="Comprobante" style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '10px', border: '2px solid #E5E7EB', background: '#F9FAFB' }} />
+                {loadingCargos ? (
+                  <div style={{ fontSize: '13px', color: '#9CA3AF', textAlign: 'center', padding: '10px' }}>Cargando adeudos…</div>
+                ) : cargos.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: '#6B7280', padding: '10px 14px', background: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                    Sin cargos pendientes para este contrato
+                  </div>
+                ) : (
+                  <div style={{ border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 110px', gap: '8px', padding: '7px 12px', background: '#F3F4F6', fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>
+                      <span>Concepto</span><span>Período</span><span style={{ textAlign: 'right' }}>Saldo</span><span style={{ textAlign: 'right' }}>Aplicar $</span>
+                    </div>
+                    {cargos.map((c, i) => {
+                      const aplicando = parseFloat(dist[c.id]) || 0
+                      const activo = aplicando > 0
+                      return (
+                        <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 110px', gap: '8px', padding: '8px 12px', alignItems: 'center', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none', background: activo ? '#F0FDF4' : 'white' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                            onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(c.saldo, Math.max(0, importeTotal - totalDist + aplicando))) }))}>
+                            <span style={{ color: activo ? '#057642' : '#D1D5DB', fontSize: '16px', lineHeight: 1 }}>{activo ? '●' : '○'}</span>
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: TIPO_CLR[c.tipo] || '#374151' }}>{c.tipo}</div>
+                              <div style={{ fontSize: '10px', color: '#9CA3AF' }}>{c.estado}</div>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#6B7280' }}>{MESES_C[c.mes]}/{String(c.anio).slice(2)}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 600, textAlign: 'right', color: '#374151' }}>{fmt(c.saldo)}</span>
+                          <input type="number" min="0" max={c.saldo} step="0.01" value={dist[c.id] ?? ''} placeholder="0.00"
+                            onChange={e => setDist(d => ({ ...d, [c.id]: e.target.value }))}
+                            style={{ ...inp, padding: '5px 8px', textAlign: 'right', border: `1.5px solid ${activo ? '#86EFAC' : '#E5E7EB'}`, background: activo ? '#F0FDF4' : 'white' }} />
+                        </div>
+                      )
+                    })}
+                    {importeTotal > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 110px', gap: '8px', padding: '8px 12px', borderTop: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, gridColumn: '1/3', color: '#374151' }}>Total recibido</span>
+                        <span style={{ fontSize: '13px', fontWeight: 800, textAlign: 'right', color: '#374151' }}>{fmt(importeTotal)}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 800, textAlign: 'right', color: saldoLibre < -0.01 ? '#B24020' : '#057642' }}>{fmt(totalDist)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             <button type="submit" disabled={saving}
               style={{ width: '100%', padding: '13px', background: saving ? '#9CA3AF' : 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: saving ? 'default' : 'pointer' }}>
-              {saving ? 'Guardando…' : '+ Registrar Ingreso'}
+              {saving ? 'Guardando…' : '✓ Confirmar Pago'}
             </button>
           </form>
         </div>
