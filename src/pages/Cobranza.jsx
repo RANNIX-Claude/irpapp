@@ -67,10 +67,15 @@ function CobroRow({ c, onSelect, onExpediente }) {
           ? <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 600 }}>{c.fecha_pago_real}</div>
           : <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>—</div>}
       </td>
-      <td style={{ padding: '12px 16px', minWidth: '120px' }}>
+      <td style={{ padding: '12px 16px', minWidth: '140px' }}>
         <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: colorEstatus + '20', color: colorEstatus, marginBottom: '4px' }}>
           {c.estatus}
         </span>
+        {vencida && (
+          <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-danger)', marginTop: '2px' }}>
+            ⚠ Vencida — genera moratoria
+          </div>
+        )}
         {c.estatus === 'PARCIAL' && (
           <div style={{ height: '4px', background: '#E5E7EB', borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: '#7C3AED', borderRadius: '4px', transition: 'width 0.3s' }} />
@@ -523,6 +528,16 @@ function PagosModal({ cobro, onClose, onSaved }) {
               + Sanciones/Recargos cobrados: {fmt(totalSanciones)}
             </div>
           )}
+          {/* Alerta moratoria — cobro vencido sin pagar */}
+          {cobro.estatus !== 'PAGADO' && cobro.fecha_limite_pago && new Date(cobro.fecha_limite_pago) < new Date() && (
+            <div style={{ marginTop: '8px', padding: '8px 12px', background: '#FEE2E2', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle size={15} color="#B24020" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#B24020' }}>COBRO VENCIDO — {cobro.fecha_limite_pago}</div>
+                <div style={{ fontSize: '11px', color: '#92400E' }}>Registra un cargo de moratoria usando Tipo: Recargo</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Historial */}
@@ -780,12 +795,22 @@ function ReporteCobranza({ lista, mesFiltro, anioFiltro }) {
       .select('importe, tipo, tipo_concepto, origen, fecha')
       .not('cobro_id', 'is', null)
       .then(({ data }) => setIngresosData(data || []))
-  }, [])
+  }, [mesFiltro, anioFiltro])
 
-  // Filtrar por mes/año si hay filtro activo
+  const hoyR = new Date(); hoyR.setHours(0,0,0,0)
+  const esVencidoR = c => !['PAGADO','CANCELADO'].includes(c.estatus) && new Date(c.fecha_limite_pago) < hoyR
+
+  // PAGADO se filtra por fecha_pago_real; vencidos siempre entran; resto por mes programado
   const base = mesFiltro === 0
     ? lista
-    : lista.filter(c => c.mes === mesFiltro && c.anio === anioFiltro)
+    : lista.filter(c => {
+        if (c.estatus === 'PAGADO') {
+          const fp = c.fecha_pago_real ? new Date(c.fecha_pago_real) : null
+          return fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
+        }
+        if (esVencidoR(c)) return true
+        return c.mes === mesFiltro && c.anio === anioFiltro
+      })
 
   // ── KPIs por estatus ──
   const grupos = {
@@ -797,9 +822,14 @@ function ReporteCobranza({ lista, mesFiltro, anioFiltro }) {
   const sum = arr => arr.reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
   const sumPagado = arr => arr.reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
 
-  // ── Ingresos por tipo (de tabla ingresos) ──
-  const ingRentas    = ingresosData.filter(r => r.tipo_concepto === 'RENTA' || r.tipo === 'RENTA')
-  const ingSanciones = ingresosData.filter(r => ['SANCION','RECARGO','CUOTA_MANT'].includes(r.tipo_concepto) || r.tipo === 'SANCION')
+  // ── Ingresos por tipo — filtrados por período ──
+  const ingPeriodo = mesFiltro === 0 ? ingresosData : ingresosData.filter(r => {
+    if (!r.fecha) return false
+    const d = new Date(r.fecha)
+    return d.getMonth() + 1 === mesFiltro && d.getFullYear() === anioFiltro
+  })
+  const ingRentas    = ingPeriodo.filter(r => r.tipo_concepto === 'RENTA' || r.tipo === 'RENTA')
+  const ingSanciones = ingPeriodo.filter(r => ['SANCION','RECARGO','CUOTA_MANT'].includes(r.tipo_concepto) || r.tipo === 'SANCION')
   const sumIng = arr => arr.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
 
   const KPIS_EST = [
@@ -1003,14 +1033,42 @@ export default function Cobranza() {
   })
 
   const lista = data ?? []
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+
+  // Un cobro "vencido" es PENDIENTE/PARCIAL cuya fecha_limite_pago ya pasó
+  const esVencido = c => !['PAGADO','CANCELADO'].includes(c.estatus) && new Date(c.fecha_limite_pago) < hoy
 
   const filtrados = lista.filter(c => {
     const q = search.toLowerCase()
     const matchQ = !q || (c.arrendatario_nombre || '').toLowerCase().includes(q)
       || (c.referencia_pago || '').toLowerCase().includes(q)
       || (c.unidad_numero || '').toLowerCase().includes(q)
-    const matchEst = filtroEstatus === 'Todos' || c.estatus === filtroEstatus
-    const matchMes = mesFiltro === 0 || (c.mes === mesFiltro && c.anio === anioFiltro)
+    const matchEst = filtroEstatus === 'Todos'
+      || (filtroEstatus === 'EN_MORA' && (c.estatus === 'EN_MORA' || esVencido(c)))
+      || (filtroEstatus === 'PENDIENTE' && c.estatus === 'PENDIENTE' && !esVencido(c))
+      || (filtroEstatus === 'PAGADO' && c.estatus === 'PAGADO')
+
+    // Lógica de período:
+    // • PAGADO: se muestra si fecha_pago_real cae en el período seleccionado
+    // • Vencidos (cualquier mes): siempre aparecen en el filtro vigente
+    // • Resto: mes/anio del cobro coincide con el filtro
+    let matchMes
+    if (mesFiltro === 0) {
+      matchMes = true
+    } else if (c.estatus === 'PAGADO' || c.estatus === 'PARCIAL') {
+      // Pagados: por fecha real de pago
+      const fp = c.fecha_pago_real ? new Date(c.fecha_pago_real) : null
+      const porFechaPago = fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
+      // Parciales también aparecen si son del mes programado
+      const porMesProg = c.mes === mesFiltro && c.anio === anioFiltro
+      matchMes = porFechaPago || porMesProg
+    } else if (esVencido(c)) {
+      // Cartera vencida siempre visible cuando hay filtro activo
+      matchMes = true
+    } else {
+      matchMes = c.mes === mesFiltro && c.anio === anioFiltro
+    }
+
     return matchQ && matchEst && matchMes
   }).sort((a, b) => {
     let va, vb
@@ -1022,11 +1080,24 @@ export default function Cobranza() {
     return 0
   })
 
-  const pagados = lista.filter(c => c.estatus === 'PAGADO').length
-  const pendientes = lista.filter(c => c.estatus === 'PENDIENTE').length
-  const mora = lista.filter(c => c.estatus === 'EN_MORA').length
-  const totalCobrado = lista.filter(c => c.estatus === 'PAGADO').reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
-  const totalPendiente = lista.filter(c => c.estatus !== 'PAGADO').reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
+  // KPIs congruentes con el período seleccionado
+  const inPeriodo = c => {
+    if (mesFiltro === 0) return true
+    if (c.estatus === 'PAGADO') {
+      const fp = c.fecha_pago_real ? new Date(c.fecha_pago_real) : null
+      return fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
+    }
+    return c.mes === mesFiltro && c.anio === anioFiltro
+  }
+  const listaPeriodo = lista.filter(inPeriodo)
+  // Cartera vencida: cobros PENDIENTE/PARCIAL cuya fecha_limite_pago ya pasó (cualquier período)
+  const cartVencida = lista.filter(c => esVencido(c))
+
+  const pagados    = listaPeriodo.filter(c => c.estatus === 'PAGADO').length
+  const pendientes = listaPeriodo.filter(c => c.estatus === 'PENDIENTE' && !esVencido(c)).length
+  const mora       = cartVencida.length
+  const totalCobrado   = listaPeriodo.filter(c => c.estatus === 'PAGADO').reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
+  const totalPendiente = listaPeriodo.filter(c => c.estatus !== 'PAGADO').reduce((a, b) => a + (parseFloat(b.monto_total) || 0), 0)
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
@@ -1053,10 +1124,10 @@ export default function Cobranza() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Pagados" value={pagados} icon={CheckCircle} color="var(--color-success)" />
-        <KPICard title="Pendientes" value={pendientes} icon={Clock} color="var(--color-warning)" />
-        <KPICard title="En Mora" value={mora} icon={AlertTriangle} color="var(--color-danger)" />
-        <KPICard title="Total Cobrado" value={`$${(totalCobrado/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-primary)" />
+        <KPICard title={mesFiltro === 0 ? 'Pagados' : `Pagados ${MES_NOMBRES[mesFiltro]}`} value={pagados} icon={CheckCircle} color="var(--color-success)" />
+        <KPICard title="Vigentes" value={pendientes} icon={Clock} color="var(--color-warning)" />
+        <KPICard title="Cartera Vencida" value={mora} icon={AlertTriangle} color="var(--color-danger)" />
+        <KPICard title={mesFiltro === 0 ? 'Total Cobrado' : `Cobrado ${MES_NOMBRES[mesFiltro]}`} value={`$${(totalCobrado/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-primary)" />
         <KPICard title="Por Cobrar" value={`$${(totalPendiente/1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
       </div>
 
@@ -1080,13 +1151,18 @@ export default function Cobranza() {
           {[2025, 2026, 2027].map(y => <option key={y}>{y}</option>)}
         </select>
         <div style={{ display: 'flex', gap: '6px' }}>
-          {['Todos', 'PENDIENTE', 'PAGADO', 'EN_MORA'].map(e => (
-            <button key={e} onClick={() => setFiltroEstatus(e)} style={{
+          {[
+            { key: 'Todos', label: 'Todos' },
+            { key: 'PENDIENTE', label: '⏳ Vigentes' },
+            { key: 'EN_MORA', label: '🔴 Vencidos' },
+            { key: 'PAGADO', label: '✅ Pagados' },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => setFiltroEstatus(key)} style={{
               padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-              borderColor: filtroEstatus === e ? 'var(--color-primary)' : '#E5E7EB',
-              background: filtroEstatus === e ? 'var(--color-primary)' : 'white',
-              color: filtroEstatus === e ? 'white' : 'var(--color-text-light)',
-            }}>{e}</button>
+              borderColor: filtroEstatus === key ? 'var(--color-primary)' : '#E5E7EB',
+              background: filtroEstatus === key ? 'var(--color-primary)' : 'white',
+              color: filtroEstatus === key ? 'white' : 'var(--color-text-light)',
+            }}>{label}</button>
           ))}
         </div>
       </div>
