@@ -117,7 +117,7 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
         forma_pago:      form.forma_pago,
         referencia_banco: form.referencia_banco || null,
         nota:            form.nota || null,
-        tipo:            'DEPOSITO',
+        tipo:            'RENTA',
         tipo_concepto:   'RENTA',
         origen:          form.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA',
       }).select('id').single()
