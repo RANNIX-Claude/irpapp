@@ -228,6 +228,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const [leyendoOCR, setLeyendoOCR] = useState(false)
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
+  const [marcandoPagado, setMarcandoPagado] = useState(false)
   const compFileRef = useRef()
 
   const FORM_INIT = {
@@ -380,6 +381,21 @@ function PagosModal({ cobro, onClose, onSaved }) {
     await cargar(); onSaved()
   }
 
+  const marcarPagado = async () => {
+    if (!window.confirm('¿Marcar este cobro como PAGADO? Se usará la fecha de hoy y el monto total programado.')) return
+    setMarcandoPagado(true)
+    const hoy = new Date().toISOString().split('T')[0]
+    const { error } = await supabase.from('cobros').update({
+      estatus:         'PAGADO',
+      monto_pagado:    parseFloat(cobro.monto_total) || 0,
+      fecha_pago_real: hoy,
+    }).eq('id', cobro.id)
+    setMarcandoPagado(false)
+    if (error) { alert(error.message); return }
+    await cargar()
+    onSaved()
+  }
+
   const subirComprobante = async (ingresoId, file) => {
     const key = `${ingresoId}_comp`
     setSubiendoFactura(key)
@@ -467,6 +483,16 @@ function PagosModal({ cobro, onClose, onSaved }) {
 
           {/* ── Columna izquierda: historial + formulario ── */}
           <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', borderRight: comprobantePreview ? '1px solid #E5E7EB' : 'none' }}>
+
+            {/* Botón rápido Marcar PAGADO — cuando hay ingresos pero el cobro no está liquidado */}
+            {!loading && ingresos.length > 0 && cobro.estatus !== 'PAGADO' && (
+              <div style={{ padding: '10px 20px 0' }}>
+                <button onClick={marcarPagado} disabled={marcandoPagado}
+                  style={{ width: '100%', padding: '13px', background: marcandoPagado ? '#9CA3AF' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: marcandoPagado ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 8px rgba(5,118,66,0.3)' }}>
+                  {marcandoPagado ? '⏳ Marcando...' : '✓ Marcar como PAGADO'}
+                </button>
+              </div>
+            )}
 
             {/* Historial */}
             <div style={{ flex: 1, padding: '12px 20px' }}>
