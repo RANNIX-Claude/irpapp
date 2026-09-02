@@ -312,6 +312,17 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const guardar = async (e) => {
     e.preventDefault()
     if (!form.monto || parseFloat(form.monto) <= 0) { setErr('El monto debe ser mayor a 0'); return }
+    // Validar diferencia de monto vs renta programada
+    if (form.tipo_concepto === 'RENTA') {
+      const montoCapturado = parseFloat(form.monto)
+      const rentaProgramada = parseFloat(cobro.monto_total) || 0
+      const diff = Math.abs(montoCapturado - rentaProgramada)
+      if (diff > 0.01) {
+        const mayor = montoCapturado > rentaProgramada
+        const msg = `⚠ Diferencia detectada\n\nRenta programada: ${fmt(rentaProgramada)}\nMonto capturado:  ${fmt(montoCapturado)}\nDiferencia:       ${mayor ? '+' : '-'}${fmt(diff)}\n\n${mayor ? 'El pago es MAYOR a la renta (puede incluir otros conceptos).' : 'El pago es MENOR a la renta (quedará como PARCIAL).'}\n\n¿Confirmar de todos modos?`
+        if (!window.confirm(msg)) return
+      }
+    }
     setSaving(true); setErr(null)
     try {
       const monto = parseFloat(form.monto)
@@ -378,6 +389,13 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const confirmarPagoRapido = async () => {
     const monto = parseFloat(quickMonto) || parseFloat(cobro.monto_total) || 0
     if (!monto) { alert('Ingresa el monto del pago'); return }
+    const prog = parseFloat(cobro.monto_total) || 0
+    const diff = monto - prog
+    if (Math.abs(diff) > 0.01) {
+      const esMayor = diff > 0
+      const msg = `⚠ Diferencia detectada\n\nRenta programada: ${fmt(prog)}\nMonto capturado:  ${fmt(monto)}\nDiferencia:       ${esMayor ? '+' : '-'}${fmt(Math.abs(diff))}\n\n${esMayor ? 'El pago es MAYOR (puede incluir otros conceptos).' : 'El pago es MENOR (quedará como PARCIAL).'}\n\n¿Confirmar de todos modos?`
+      if (!window.confirm(msg)) return
+    }
     setSaving(true)
     try {
       const _dt = new Date(quickFecha + 'T12:00:00')
@@ -545,10 +563,29 @@ function PagosModal({ cobro, onClose, onSaved }) {
               </div>
 
               {/* Fila 2: fecha + monto */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '4px' }}>
                 <div><label style={lbl}>Fecha</label><input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp} required /></div>
                 <div><label style={lbl}>Monto *</label><input type="number" value={form.monto} onChange={e => set('monto', e.target.value)} placeholder={!esSancion && pendiente > 0 ? String(pendiente) : '0.00'} style={{ ...inp, fontWeight: 700 }} step="0.01" required autoFocus /></div>
               </div>
+              {/* Alerta diferencia de monto */}
+              {!esSancion && form.monto && parseFloat(form.monto) > 0 && (() => {
+                const cap = parseFloat(form.monto)
+                const prog = parseFloat(cobro.monto_total) || 0
+                const diff = cap - prog
+                if (Math.abs(diff) < 0.01) return <div style={{ marginBottom:'8px', padding:'5px 10px', borderRadius:6, fontSize:11, fontWeight:700, color:'#057642', background:'#D1FAE5' }}>✓ Monto coincide con la renta programada ({fmt(prog)})</div>
+                const esMayor = diff > 0
+                return (
+                  <div style={{ marginBottom:'8px', padding:'6px 10px', borderRadius:6, fontSize:11, fontWeight:700, color: esMayor ? '#92400E' : '#B24020', background: esMayor ? '#FEF3C7' : '#FEE2E2', display:'flex', gap:8, alignItems:'center' }}>
+                    <span style={{ fontSize:14 }}>{esMayor ? '⚠' : '🔴'}</span>
+                    <span>
+                      {esMayor
+                        ? `Pago MAYOR en ${fmt(diff)} vs renta programada (${fmt(prog)}). Puede incluir otros conceptos.`
+                        : `Pago MENOR en ${fmt(Math.abs(diff))} vs renta programada (${fmt(prog)}). Quedará como PARCIAL.`}
+                    </span>
+                  </div>
+                )
+              })()}
+
 
               {/* Fila 3: forma + ref */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
@@ -645,7 +682,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
                 </div>
 
                 {/* Fecha + Monto + Referencia */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '6px' }}>
                   <div>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Fecha pago</div>
                     <input type="date" value={quickFecha} onChange={e => setQuickFecha(e.target.value)}
@@ -655,7 +692,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Monto *</div>
                     <input type="number" value={quickMonto} onChange={e => setQuickMonto(e.target.value)}
                       placeholder={String(cobro.monto_total || '')}
-                      style={{ width: '100%', padding: '7px 8px', border: '1.5px solid #D1D5DB', borderRadius: 6, fontSize: 12, fontWeight: 700, boxSizing: 'border-box' }} step="0.01" />
+                      style={{ width: '100%', padding: '7px 8px', border: `1.5px solid ${quickMonto && Math.abs(parseFloat(quickMonto) - parseFloat(cobro.monto_total||0)) > 0.01 ? '#F59E0B' : '#D1D5DB'}`, borderRadius: 6, fontSize: 12, fontWeight: 700, boxSizing: 'border-box' }} step="0.01" />
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Referencia</div>
@@ -664,6 +701,22 @@ function PagosModal({ cobro, onClose, onSaved }) {
                       style={{ width: '100%', padding: '7px 8px', border: '1.5px solid #D1D5DB', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }} />
                   </div>
                 </div>
+                {/* Alerta diferencia monto quick pay */}
+                {quickMonto && (() => {
+                  const cap = parseFloat(quickMonto) || 0
+                  const prog = parseFloat(cobro.monto_total) || 0
+                  const diff = cap - prog
+                  if (Math.abs(diff) < 0.01) return null
+                  const esMayor = diff > 0
+                  return (
+                    <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: esMayor ? '#92400E' : '#B24020', background: esMayor ? '#FEF3C7' : '#FEE2E2' }}>
+                      {esMayor ? '⚠' : '🔴'} {esMayor
+                        ? `Pago MAYOR en ${fmt(diff)} vs renta programada (${fmt(prog)})`
+                        : `Pago MENOR en ${fmt(Math.abs(diff))} — quedará como PARCIAL`}
+                      {' · Se pedirá confirmación'}
+                    </div>
+                  )
+                })()}
 
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={confirmarPagoRapido} disabled={saving}
