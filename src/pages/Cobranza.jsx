@@ -291,7 +291,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
     setLoading(true)
     const { data } = await supabase
       .from('ingresos')
-      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, nota, creado_por, created_at')
+      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, comprobante_url, nota, creado_por, created_at')
       .eq('cobro_id', cobro.id)
       .order('fecha', { ascending: false })
     setIngresos(data ?? [])
