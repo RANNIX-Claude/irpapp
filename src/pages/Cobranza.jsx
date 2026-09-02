@@ -1,6 +1,6 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef } from 'react'
-import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, X, ExternalLink, Plus, CreditCard, Trash2, Upload, FileText, AlertCircle, BarChart2, Printer } from 'lucide-react'
+import { DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, Download, X, ExternalLink, Plus, CreditCard, Trash2, Upload, FileText, AlertCircle, BarChart2, Printer, Image } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
@@ -100,10 +100,12 @@ function TipoBadge({ tipo }) {
 }
 
 // ── Fila de ingreso en historial ─────────────────────────────────────
-function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura }) {
-  const pdfRef = useRef()
-  const xmlRef = useRef()
+function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura, onSubirComprobante }) {
+  const pdfRef  = useRef()
+  const xmlRef  = useRef()
+  const compRef = useRef()
   const meta = TIPO_CONCEPTO_META[p.tipo_concepto] || TIPO_CONCEPTO_META.OTRO
+  const [lightbox, setLightbox] = useState(null)
 
   return (
     <div style={{ padding: '12px 0', borderBottom: idx < total - 1 ? '1px solid #F3F4F6' : 'none' }}>
@@ -135,33 +137,77 @@ function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura
             {p.origen}{p.concepto_origen ? ` · ${p.concepto_origen}` : ''}
             {p.nota && <span style={{ fontStyle: 'italic' }}> — {p.nota}</span>}
           </div>
-          {/* Documentos CFDI */}
-          <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-            {p.factura_pdf_url
-              ? <a href={p.factura_pdf_url} target="_blank" rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, textDecoration: 'none', background: '#FEE2E2', padding: '3px 8px', borderRadius: '6px' }}>
-                  <FileText size={11} /> PDF
-                </a>
-              : <button onClick={() => pdfRef.current?.click()} disabled={subiendoFactura === p.id + '_pdf'}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Upload size={11} /> {subiendoFactura === p.id + '_pdf' ? 'Subiendo…' : 'PDF factura'}
-                </button>
-            }
-            {p.factura_xml_url
-              ? <a href={p.factura_xml_url} target="_blank" rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, textDecoration: 'none', background: '#D1FAE5', padding: '3px 8px', borderRadius: '6px' }}>
-                  <FileText size={11} /> XML
-                </a>
-              : <button onClick={() => xmlRef.current?.click()} disabled={subiendoFactura === p.id + '_xml'}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Upload size={11} /> {subiendoFactura === p.id + '_xml' ? 'Subiendo…' : 'XML CFDI'}
-                </button>
-            }
-            <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'pdf', e.target.files?.[0])} />
-            <input ref={xmlRef} type="file" accept=".xml" style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'xml', e.target.files?.[0])} />
+
+          {/* Comprobante de pago + Documentos CFDI */}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+
+            {/* Comprobante imagen */}
+            {p.comprobante_url ? (
+              <button onClick={() => setLightbox(p.comprobante_url)}
+                style={{ padding: 0, border: '2px solid #0A66C2', borderRadius: '8px', cursor: 'pointer', background: 'none', overflow: 'hidden', width: '52px', height: '52px', flexShrink: 0 }}
+                title="Ver comprobante de pago">
+                <img src={p.comprobante_url} alt="comprobante"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </button>
+            ) : (
+              <button onClick={() => compRef.current?.click()} disabled={subiendoFactura === p.id + '_comp'}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', width: '52px', height: '52px', fontSize: '10px', color: '#9CA3AF', background: '#F9FAFB', border: '1.5px dashed #D1D5DB', borderRadius: '8px', cursor: 'pointer', flexShrink: 0 }}>
+                <Image size={14} color="#9CA3AF" />
+                {subiendoFactura === p.id + '_comp' ? '…' : 'Foto'}
+              </button>
+            )}
+
+            {/* CFDI docs */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {p.factura_pdf_url
+                ? <a href={p.factura_pdf_url} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, textDecoration: 'none', background: '#FEE2E2', padding: '3px 8px', borderRadius: '6px' }}>
+                    <FileText size={11} /> PDF
+                  </a>
+                : <button onClick={() => pdfRef.current?.click()} disabled={subiendoFactura === p.id + '_pdf'}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                    <Upload size={11} /> {subiendoFactura === p.id + '_pdf' ? 'Subiendo…' : 'PDF factura'}
+                  </button>
+              }
+              {p.factura_xml_url
+                ? <a href={p.factura_xml_url} target="_blank" rel="noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, textDecoration: 'none', background: '#D1FAE5', padding: '3px 8px', borderRadius: '6px' }}>
+                    <FileText size={11} /> XML
+                  </a>
+                : <button onClick={() => xmlRef.current?.click()} disabled={subiendoFactura === p.id + '_xml'}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                    <Upload size={11} /> {subiendoFactura === p.id + '_xml' ? 'Subiendo…' : 'XML CFDI'}
+                  </button>
+              }
+            </div>
           </div>
+
+          <input ref={pdfRef}  type="file" accept=".pdf"  style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'pdf', e.target.files?.[0])} />
+          <input ref={xmlRef}  type="file" accept=".xml"  style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'xml', e.target.files?.[0])} />
+          <input ref={compRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) onSubirComprobante(p.id, f); e.target.value = '' }} />
         </div>
       </div>
+
+      {/* Lightbox comprobante */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={lightbox} alt="comprobante"
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()} />
+          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
+            <a href={lightbox} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+              style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.15)', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+              ↗ Abrir
+            </a>
+            <button onClick={() => setLightbox(null)}
+              style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -176,7 +222,10 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const [subiendoFactura, setSubiendoFactura] = useState(null)
   const [leyendoOCR, setLeyendoOCR] = useState(false)
   const [ocrMsg, setOcrMsg] = useState(null)
-  const compFileRef = useRef()
+  const [comprobanteFile, setComprobanteFile] = useState(null)
+  const [comprobantePreview, setComprobantePreview] = useState(null)
+  const compFileRef  = useRef()
+  const adjFileRef   = useRef()
 
   const FORM_INIT = {
     tipo_concepto: 'RENTA',
@@ -196,6 +245,8 @@ function PagosModal({ cobro, onClose, onSaved }) {
   // OCR de comprobante bancario → prellena el formulario
   const leerComprobante = async (file) => {
     if (!file) return
+    setComprobanteFile(file)
+    setComprobantePreview(URL.createObjectURL(file))
     setLeyendoOCR(true); setOcrMsg(null)
     try {
       const b64 = await new Promise((res, rej) => {
@@ -246,7 +297,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
     setLoading(true)
     const { data } = await supabase
       .from('ingresos')
-      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, nota, creado_por, created_at')
+      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, comprobante_url, nota, creado_por, created_at')
       .eq('cobro_id', cobro.id)
       .order('fecha', { ascending: false })
     setIngresos(data ?? [])
@@ -283,6 +334,21 @@ function PagosModal({ cobro, onClose, onSaved }) {
       })
       if (errIng) throw errIng
 
+      // 1b. Subir comprobante si hay archivo seleccionado
+      if (comprobanteFile) {
+        const { data: ingData } = await supabase.from('ingresos')
+          .select('id').eq('cobro_id', cobro.id).order('created_at', { ascending: false }).limit(1).single()
+        if (ingData?.id) {
+          const ext = comprobanteFile.name.split('.').pop() || 'jpg'
+          const path = `comprobantes/${cobro.referencia_pago}/${ingData.id}/comp.${ext}`
+          const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, comprobanteFile, { upsert: true })
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+            await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingData.id)
+          }
+        }
+      }
+
       // 2. Recalcular estatus del cobro (solo pagos RENTA reducen el pendiente)
       if (form.tipo_concepto === 'RENTA') {
         const nuevoPagado = totalRenta + monto
@@ -298,6 +364,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
 
       setShowForm(false)
       setForm(FORM_INIT)
+      setComprobanteFile(null); setComprobantePreview(null)
       await cargar()
       onSaved()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
@@ -308,6 +375,19 @@ function PagosModal({ cobro, onClose, onSaved }) {
     const { error } = await supabase.from('ingresos').delete().eq('id', ingresoId)
     if (error) { alert(error.message); return }
     await cargar(); onSaved()
+  }
+
+  const subirComprobante = async (ingresoId, file) => {
+    const key = `${ingresoId}_comp`
+    setSubiendoFactura(key)
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `comprobantes/${cobro.referencia_pago}/${ingresoId}/comp.${ext}`
+    const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, file, { upsert: true })
+    if (upErr) { alert('Error al subir: ' + upErr.message); setSubiendoFactura(null); return }
+    const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+    await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingresoId)
+    setSubiendoFactura(null)
+    await cargar()
   }
 
   const subirFactura = async (ingresoId, tipo, file) => {
@@ -380,6 +460,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
                     key={p.id} p={p} idx={i} total={ingresos.length}
                     onEliminar={eliminar}
                     onSubirFactura={subirFactura}
+                    onSubirComprobante={subirComprobante}
                     subiendoFactura={subiendoFactura}
                   />
                 ))
@@ -429,11 +510,42 @@ function PagosModal({ cobro, onClose, onSaved }) {
                 <div><label style={lbl}>Nota</label><input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} /></div>
               </div>
 
+              {/* Comprobante adjunto al movimiento */}
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Comprobante de pago</div>
+                {comprobantePreview ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <img src={comprobantePreview} alt="comprobante"
+                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '2px solid #0A66C2', cursor: 'pointer', flexShrink: 0 }}
+                      onClick={() => window.open(comprobantePreview, '_blank')} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 700 }}>✓ Imagen lista para adjuntar</div>
+                      <div style={{ fontSize: '10px', color: '#6B7280', marginTop: 2 }}>{comprobanteFile?.name}</div>
+                      <button type="button" onClick={() => { setComprobanteFile(null); setComprobantePreview(null) }}
+                        style={{ marginTop: 4, fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
+                        ✕ Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => adjFileRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#F9FAFB', border: '1.5px dashed #D1D5DB', borderRadius: '8px', fontSize: '12px', color: '#6B7280', cursor: 'pointer', fontWeight: 600 }}>
+                    <Image size={14} /> Adjuntar foto del comprobante (opcional)
+                  </button>
+                )}
+                <input ref={adjFileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
+                  onChange={e => {
+                    const f = e.target.files?.[0]
+                    if (f) { setComprobanteFile(f); setComprobantePreview(URL.createObjectURL(f)) }
+                    e.target.value = ''
+                  }} />
+              </div>
+
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px', background: saving ? '#9CA3AF' : esSancion ? 'var(--color-danger)' : 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
                   {saving ? 'Guardando...' : esSancion ? '⚠ Registrar sanción' : '✓ Confirmar pago'}
                 </button>
-                <button type="button" onClick={() => { setShowForm(false); setErr(null); setForm(FORM_INIT) }} style={{ padding: '10px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
+                <button type="button" onClick={() => { setShowForm(false); setErr(null); setForm(FORM_INIT); setComprobanteFile(null); setComprobantePreview(null) }} style={{ padding: '10px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
               </div>
             </form>
           </div>

@@ -36,6 +36,11 @@ async function fileToB64(file) {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const dataUrl = ev.target.result
+      // PDFs: devolver base64 directo sin conversión canvas
+      if (file.type === 'application/pdf') {
+        resolve({ b64: dataUrl.split(',')[1], mtype: 'application/pdf', preview: null })
+        return
+      }
       if (!SUPPORTED_IMG.includes(file.type)) {
         const img = new Image()
         img.onload = () => {
@@ -88,7 +93,10 @@ function getSemanasLunDom(n = 26) {
   return semanas
 }
 
-const SEMANAS_DOM_SAB = getSemanasLunDom()
+const SEMANAS_DOM_SAB = [
+  { ini: 'TODOS', fin: 'TODOS', label: 'Todos los registros' },
+  ...getSemanasLunDom(),
+]
 
 // ─── Export Excel semanal (formato con totales por día) ─────────────────────
 async function exportarReporteSemanal(gastos, semLabel) {
@@ -407,15 +415,7 @@ function TicketCard({ t, idx, setForm, quitar }) {
           )}
 
           {/* Datos del gasto */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px 10px' }}>
-            <div>
-              <label style={{ fontSize:10, fontWeight:800, color:'#374151' }}>Grupo * <span style={{ color:'#EF4444' }}>requerido</span></label>
-              <select value={t.form.grupo_gasto||''} onChange={e => setForm(t.id,'grupo_gasto',e.target.value)}
-                style={{ width:'100%', padding:'5px 8px', border:t.form.grupo_gasto?'1.5px solid #E5E7EB':'2px solid #FCA5A5', borderRadius:6, fontSize:12, boxSizing:'border-box', background:'white' }}>
-                <option value="">— Seleccionar grupo —</option>
-                {GRUPOS_RESTAURANTE.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'6px 10px' }}>
             <div>
               <label style={{ fontSize:10, fontWeight:700, color:'#374151' }}>Descripción / Concepto</label>
               <input value={t.form.descripcion||''} onChange={e => setForm(t.id,'descripcion',e.target.value)} placeholder="Opcional"
@@ -489,8 +489,6 @@ function ModalCargaMasiva({ onClose, onSaved }) {
 
   const guardarTodos = async () => {
     const pendientes = tickets.filter(t => t.estado==='listo' || t.estado==='error_guardar')
-    const sinGrupo   = pendientes.filter(t => !t.form.grupo_gasto)
-    if (sinGrupo.length) { toast.error(`${sinGrupo.length} ticket(s) sin grupo asignado`); return }
     setSaving(true)
     for (const t of pendientes) {
       try {
@@ -499,11 +497,13 @@ function ModalCargaMasiva({ onClose, onSaved }) {
         // Subir imagen
         let ticket_url = null
         if (t.b64 && t.mtype) {
-          const ext  = t.mtype.split('/')[1] || 'jpg'
+          const ext  = t.mtype === 'application/pdf' ? 'pdf' : (t.mtype.split('/')[1] || 'jpg')
           const path = `restaurante/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
           const buf  = Uint8Array.from(atob(t.b64), c => c.charCodeAt(0))
           const { error: upErr } = await supabase.storage.from('tickets-gastos').upload(path, buf, { contentType:t.mtype })
-          if (!upErr) {
+          if (upErr) {
+            toast.error(`Error al subir imagen: ${upErr.message}`)
+          } else {
             const { data: urlData } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
             ticket_url = urlData?.publicUrl || null
           }
@@ -605,19 +605,18 @@ export default function RestauranteGastos() {
   const [gastos, setGastos]         = useState([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
-  const [filtroGrupo, setFiltroGrupo] = useState('TODOS')
-  const [semSel, setSemSel]         = useState(SEMANAS_DOM_SAB[0]) // semana actual
+  const [semSel, setSemSel]         = useState(SEMANAS_DOM_SAB[1]) // semana actual (índice 1: primera semana real)
   const [modal, setModal]           = useState(null)
   const [detalle, setDetalle]       = useState(null)
   const [lightbox, setLightbox]     = useState(null)
+  const [subiendoTicket, setSubiendoTicket] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('restaurante_gastos').select('*')
-      .gte('fecha', semSel.ini).lte('fecha', semSel.fin)
-      .order('fecha', { ascending: true })
-      .limit(500)
+    let q = supabase.from('restaurante_gastos').select('*').order('fecha', { ascending: true })
+    if (semSel.ini !== 'TODOS') q = q.gte('fecha', semSel.ini).lte('fecha', semSel.fin)
+    q = q.limit(1000)
+    const { data, error } = await q
     if (error) toast.error(error.message)
     setGastos(data || [])
     setLoading(false)
@@ -638,11 +637,29 @@ export default function RestauranteGastos() {
     else { toast.success('Gasto eliminado'); cargar() }
   }
 
+  const subirTicketRetro = async (gastoId, file) => {
+    if (!file) return
+    setSubiendoTicket(gastoId)
+    try {
+      const img = await fileToB64(file)
+      if (!img) { toast.error('No se pudo leer el archivo'); return }
+      const ext  = img.mtype === 'application/pdf' ? 'pdf' : (img.mtype.split('/')[1] || 'jpg')
+      const path = `restaurante/${gastoId}-retro-${Date.now()}.${ext}`
+      const buf  = Uint8Array.from(atob(img.b64), c => c.charCodeAt(0))
+      const { error: upErr } = await supabase.storage.from('tickets-gastos').upload(path, buf, { contentType: img.mtype, upsert: true })
+      if (upErr) { toast.error(`Error al subir: ${upErr.message}`); return }
+      const { data: urlData } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
+      const ticket_url = urlData?.publicUrl
+      await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
+      toast.success('Ticket adjuntado')
+      cargar()
+    } finally { setSubiendoTicket(null) }
+  }
+
   const filtrados = gastos.filter(g => {
     const q = search.toLowerCase()
-    const matchQ = !q || (g.proveedor||'').toLowerCase().includes(q) || (g.grupo_gasto||'').toLowerCase().includes(q) || (g.descripcion||'').toLowerCase().includes(q) || (g.folio||'').toLowerCase().includes(q)
-    const matchG = filtroGrupo === 'TODOS' || g.grupo_gasto === filtroGrupo
-    return matchQ && matchG
+    const matchQ = !q || (g.proveedor||'').toLowerCase().includes(q) || (g.descripcion||'').toLowerCase().includes(q) || (g.folio||'').toLowerCase().includes(q)
+    return matchQ
   })
 
   const totalFiltrado = filtrados.reduce((a,g) => a + (parseFloat(g.total)||0), 0)
@@ -689,7 +706,7 @@ export default function RestauranteGastos() {
         {/* Selector de semana + filtros */}
         <div style={{ display:'flex', gap:10, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
           {/* Selector semana */}
-          <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_DOM_SAB.find(s => s.ini === e.target.value))}
+          <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_DOM_SAB.find(s => s.ini === e.target.value) || SEMANAS_DOM_SAB[0])}
             style={{ padding:'7px 12px', border:'2px solid #15803D', borderRadius:8, fontSize:12, fontWeight:700, color:'#15803D', outline:'none', background:'white', cursor:'pointer', minWidth:280 }}>
             {SEMANAS_DOM_SAB.map(s => (
               <option key={s.ini} value={s.ini}>{s.label}</option>
@@ -700,13 +717,8 @@ export default function RestauranteGastos() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, folio…"
               style={{ paddingLeft:28, padding:'7px 10px 7px 28px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, width:200, outline:'none', boxSizing:'border-box' }} />
           </div>
-          <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)}
-            style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, outline:'none', background:'white' }}>
-            <option value="TODOS">Todos los grupos</option>
-            {GRUPOS_RESTAURANTE.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
           <div style={{ marginLeft:'auto', fontSize:13, fontWeight:800, color:'#15803D', fontFamily:'monospace' }}>
-            TOTAL SEMANA: {fmt(totalFiltrado)} · {filtrados.length} gastos
+            {semSel.ini === 'TODOS' ? 'TOTAL GENERAL' : 'TOTAL SEMANA'}: {fmt(totalFiltrado)} · {filtrados.length} gastos
           </div>
         </div>
       </div>
@@ -762,7 +774,22 @@ export default function RestauranteGastos() {
                               style={{ background:'#0A66C2', border:'none', borderRadius:6, padding:'5px 10px', cursor:'pointer', color:'white', fontSize:12, fontWeight:700, display:'inline-flex', alignItems:'center', gap:4 }}>
                               🖼️ <span style={{ fontSize:10 }}>Ver</span>
                             </button>
-                          : <span style={{ fontSize:10, color:'#D1D5DB' }}>—</span>}
+                          : (() => {
+                              const inputId = `tk-${g.id}`
+                              return (
+                                <>
+                                  <label htmlFor={inputId}
+                                    title="Adjuntar imagen del ticket"
+                                    style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'4px 8px', background:'#F3F4F6', border:'1.5px dashed #D1D5DB', borderRadius:6, cursor: subiendoTicket===g.id ? 'default':'pointer', fontSize:10, color: subiendoTicket===g.id ? '#9CA3AF':'#6B7280', fontWeight:600 }}>
+                                    {subiendoTicket===g.id ? '⏳' : '📎'} {subiendoTicket===g.id ? '…' : 'Foto'}
+                                  </label>
+                                  <input id={inputId} type="file" accept="image/*,application/pdf" capture="environment"
+                                    style={{ display:'none' }} disabled={subiendoTicket===g.id}
+                                    onChange={e => { const f=e.target.files?.[0]; if(f) subirTicketRetro(g.id,f); e.target.value='' }} />
+                                </>
+                              )
+                            })()
+                        }
                       </td>
                       <td style={{ padding:'7px 6px', textAlign:'right' }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => eliminar(g)} style={{ background:'#FEF2F2', border:'none', borderRadius:5, padding:'4px 6px', cursor:'pointer', color:'#B24020' }}><Trash2 size={12}/></button>
@@ -833,7 +860,7 @@ export default function RestauranteGastos() {
             <tfoot>
               <tr style={{ background:'#1A3C5E' }}>
                 <td colSpan={4} style={{ padding:'10px 12px', color:'white', fontWeight:800, fontSize:12, textTransform:'uppercase' }}>
-                  TOTAL SEMANA — {semSel.label}
+                  {semSel.ini === 'TODOS' ? 'TOTAL GENERAL — Todos los registros' : `TOTAL SEMANA — ${semSel.label}`}
                 </td>
                 <td style={{ padding:'10px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
                 <td style={{ padding:'10px', textAlign:'right', color:'#E8A020', fontWeight:900, fontSize:15, fontFamily:'monospace' }}>{fmt(totalFiltrado)}</td>
