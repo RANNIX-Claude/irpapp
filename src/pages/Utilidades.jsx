@@ -126,7 +126,7 @@ function FilterMenu({ col, data, filter, onChange, onClose, anchorRect }) {
       key={type + value}
       onClick={() => apply(type, value)}
       style={{
-        width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'none',
+        width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none',
         cursor: 'pointer', fontSize: 12, color: '#374151',
         fontWeight: filter?.type === type ? 700 : 400,
         background: filter?.type === type ? '#EFF6FF' : 'none',

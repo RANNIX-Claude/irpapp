@@ -130,7 +130,6 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     }
 
     // Upload comprobante si se seleccionó
-    const ingresoId = ingreso?.id || data?.id
     if (compFile && ingresoId) {
       const ext = compFile.name.split('.').pop() || 'jpg'
       const path = `comprobantes/${ingresoId}/comp.${ext}`
@@ -249,7 +248,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                         <div key={c.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 110px', gap:'8px', padding:'8px 12px', alignItems:'center', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none', background: activo ? '#F0FDF4' : 'white', transition:'background 0.15s' }}>
                           {/* Concepto con palomita */}
                           <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-                            <span onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(c.saldo, Math.max(0, importeTotal - totalDist + aplicando))) }))
+                            <span onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(c.saldo, Math.max(0, importeTotal - totalDist + aplicando))) }))}
                               style={{ cursor:'pointer', color: activo ? 'var(--color-success)' : '#D1D5DB', flexShrink:0 }}>
                               {activo ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                             </span>
