@@ -48,12 +48,10 @@ const PROCESO_OPTS = [
 ]
 
 const ESTATUS_OPTS = [
-  { val: 'VIGENTE',               label: 'Vigente',               color: '#057642', bg: '#ECFDF5' },
-  { val: 'VENCIDO',               label: 'Vencido',               color: '#B24020', bg: '#FEF2F2' },
-  { val: 'TERMINADO',             label: 'Terminado',             color: '#374151', bg: '#F3F4F6' },
-  { val: 'TERMINACION_ANTICIPADA',label: 'Terminación anticipada',color: '#92400E', bg: '#FEF3C7' },
-  { val: 'RESCISION',             label: 'Rescisión',             color: '#7C3AED', bg: '#F5F3FF' },
-  { val: 'CANCELADO',             label: 'Cancelado',             color: '#6B7280', bg: '#F9FAFB' },
+  { val: 'VIGENTE',   label: 'Vigente',   color: '#057642', bg: '#ECFDF5' },
+  { val: 'VENCIDO',   label: 'Vencido',   color: '#B24020', bg: '#FEF2F2' },
+  { val: 'RENOVADO',  label: 'Renovado',  color: '#0A66C2', bg: '#EBF4FF' },
+  { val: 'RESCISION', label: 'Rescisión', color: '#7C3AED', bg: '#F5F3FF' },
 ]
 
 function EstatusBadge({ c, onChange }) {
@@ -952,8 +950,8 @@ function ModalCancelar({ contrato: c, onClose, onDone }) {
     if (!motivo.trim()) { setError('El motivo de cancelación es requerido.'); return }
     setSaving(true); setError(null)
     const { error: err } = await supabase.from('contratos').update({
-      estatus: 'CANCELADO',
-      notas: `[CANCELADO ${new Date().toLocaleDateString('es-MX')}] ${motivo.trim()}${c.notas ? '\n' + c.notas : ''}`,
+      estatus: 'RESCISION',
+      notas: `[RESCISION ${new Date().toLocaleDateString('es-MX')}] ${motivo.trim()}${c.notas ? '\n' + c.notas : ''}`,
     }).eq('id', c.id)
     setSaving(false)
     if (err) { setError(err.message); return }
@@ -1130,13 +1128,13 @@ export default function Contratos() {
   const lista = data ?? []
 
   // Conteos para KPIs y filtros
-  const cntActivos     = lista.filter(c => !['TERMINADO','TERMINACION_ANTICIPADA','CANCELADO'].includes(c.estado_id)).length
+  const cntActivos     = lista.filter(c => !['VENCIDO','RESCISION','RENOVADO'].includes(c.estado_id)).length
   const cntVigentes    = lista.filter(c => c.estado_id === 'VIGENTE' && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento)).length
   const cntPorVencer   = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
   const cntVencidos    = lista.filter(c => c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO').length
   const cntRenovacion  = lista.filter(c => c.estatus_proceso === 'EN_RENOVACION').length
   const cntRescision   = lista.filter(c => c.estado_id === 'RESCISION').length
-  const cntCancelados  = lista.filter(c => c.estado_id === 'CANCELADO').length
+  const cntCancelados  = lista.filter(c => c.estado_id === 'RESCISION').length
   const rentaTotal     = lista.filter(c => c.estado_id === 'VIGENTE').reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
   const conPDF         = lista.filter(c => c.archivo_contrato_url).length
 
@@ -1147,7 +1145,7 @@ export default function Contratos() {
     { id: 'VENCIDO',       label: 'Vencidos',        cnt: cntVencidos,     color: 'var(--color-danger)' },
     { id: 'EN_RENOVACION', label: 'En renovación',   cnt: cntRenovacion,   color: '#7C3AED' },
     { id: 'RESCISION',     label: 'Rescisión',       cnt: cntRescision,    color: '#9CA3AF' },
-    { id: 'CANCELADO',     label: 'Cancelados',      cnt: cntCancelados,   color: '#9CA3AF' },
+    { id: 'RESCISION',     label: 'Rescisión',       cnt: cntCancelados,   color: '#7C3AED' },
   ].filter(f => f.id === 'Todos' || f.id === 'VIGENTE' || f.id === 'POR_VENCER' || f.id === 'VENCIDO' || f.cnt > 0)
 
   const SORTS = [
@@ -1169,7 +1167,7 @@ export default function Contratos() {
         || (c.locales_referencia || '').toLowerCase().includes(q)
         || (c.locales_display || '').toLowerCase().includes(q)
       const matchE = filtroEst === 'Todos'
-        || (filtroEst === 'ACTIVOS'    && !['TERMINADO','TERMINACION_ANTICIPADA','CANCELADO'].includes(c.estado_id))
+        || (filtroEst === 'ACTIVOS'    && !['VENCIDO','RESCISION','RENOVADO'].includes(c.estado_id))
         || (filtroEst === 'POR_VENCER' && ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento))
         || (filtroEst === 'VENCIDO'    && (c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO'))
         || (filtroEst === 'VIGENTE'    && c.estado_id === 'VIGENTE'  && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento))
