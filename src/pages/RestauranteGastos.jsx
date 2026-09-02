@@ -652,6 +652,7 @@ export default function RestauranteGastos() {
       const ticket_url = urlData?.publicUrl
       await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
       toast.success('Ticket adjuntado')
+      setLightbox(ticket_url)   // abrir lightbox inmediatamente
       cargar()
     } finally { setSubiendoTicket(null) }
   }
@@ -846,7 +847,7 @@ export default function RestauranteGastos() {
                                   ? <div onClick={() => setLightbox(g.ticket_url)} style={{ cursor:'pointer', textAlign:'center', padding:'16px 0', fontSize:32 }}>📄<div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>Documento PDF</div></div>
                                   : <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={() => setLightbox(g.ticket_url)} />
                                 }
-                                <a href={g.ticket_url} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'#0A66C2', display:'block', marginTop:4, textAlign:'center' }}>Ver completo ↗</a>
+                                <button onClick={() => setLightbox(g.ticket_url)} style={{ width:'100%', marginTop:4, padding:'3px 0', background:'#EFF6FF', border:'none', borderRadius:4, fontSize:10, color:'#0A66C2', cursor:'pointer', fontWeight:700 }}>🔍 Ampliar</button>
                               </div>
                             )}
                           </div>
@@ -876,27 +877,23 @@ export default function RestauranteGastos() {
         <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}
 
-      {/* Lightbox — soporta imagen (jpg/png/webp) y PDF */}
+      {/* Lightbox — visualización inline, sin descarga */}
       {lightbox && (() => {
         const esPDF = lightbox.toLowerCase().includes('.pdf') || lightbox.includes('application/pdf')
         return (
-          <div style={{ position:'fixed', inset:0, zIndex:500, background:'rgba(0,0,0,0.92)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}
+          <div style={{ position:'fixed', inset:0, zIndex:500, background:'rgba(0,0,0,0.95)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}
             onClick={e => { if (e.target === e.currentTarget) setLightbox(null) }}>
             {esPDF ? (
               <iframe src={lightbox} title="Ticket PDF"
-                style={{ width:'88vw', height:'88vh', border:'none', borderRadius:8, background:'white' }} />
+                style={{ width:'92vw', height:'92vh', border:'none', borderRadius:10, background:'white' }} />
             ) : (
               <img src={lightbox} alt="ticket"
-                style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:8, boxShadow:'0 8px 40px rgba(0,0,0,0.6)' }} />
+                style={{ maxWidth:'94vw', maxHeight:'94vh', objectFit:'contain', borderRadius:10, boxShadow:'0 12px 60px rgba(0,0,0,0.7)', display:'block' }} />
             )}
-            <div style={{ position:'absolute', top:16, right:16, display:'flex', gap:8 }}>
-              <a href={lightbox} target="_blank" rel="noreferrer"
-                style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer', color:'white', fontSize:12, fontWeight:700, textDecoration:'none' }}>
-                ↗ Abrir
-              </a>
-              <button onClick={() => setLightbox(null)}
-                style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:50, width:36, height:36, cursor:'pointer', color:'white', fontSize:18 }}>✕</button>
-            </div>
+            <button onClick={() => setLightbox(null)}
+              style={{ position:'absolute', top:14, right:14, background:'rgba(255,255,255,0.18)', border:'none', borderRadius:'50%', width:40, height:40, cursor:'pointer', color:'white', fontSize:20, fontWeight:700, lineHeight:'40px' }}>
+              ✕
+            </button>
           </div>
         )
       })()}
