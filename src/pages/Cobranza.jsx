@@ -224,8 +224,13 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const [ocrMsg, setOcrMsg] = useState(null)
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
+  const [showQuickPay, setShowQuickPay] = useState(false)
+  const [quickFecha, setQuickFecha]     = useState(new Date().toISOString().split('T')[0])
+  const [quickMonto, setQuickMonto]     = useState('')
+  const [quickRef, setQuickRef]         = useState('')
   const compFileRef  = useRef()
   const adjFileRef   = useRef()
+  const quickFileRef = useRef()
 
   const FORM_INIT = {
     tipo_concepto: 'RENTA',
@@ -368,6 +373,59 @@ function PagosModal({ cobro, onClose, onSaved }) {
       await cargar()
       onSaved()
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
+  }
+
+  const confirmarPagoRapido = async () => {
+    const monto = parseFloat(quickMonto) || parseFloat(cobro.monto_total) || 0
+    if (!monto) { alert('Ingresa el monto del pago'); return }
+    setSaving(true)
+    try {
+      const _dt = new Date(quickFecha + 'T12:00:00')
+      const _MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+      // 1. Insertar ingreso tipo RENTA
+      const { data: ingData, error: errIng } = await supabase.from('ingresos').insert({
+        cobro_id:        cobro.id,
+        fecha:           quickFecha,
+        mes:             cobro.mes || _MESES[_dt.getMonth()],
+        anio:            cobro.anio || _dt.getFullYear(),
+        importe:         monto,
+        tipo:            'RENTA',
+        tipo_concepto:   'RENTA',
+        origen:          'TRANSFERENCIA BBVA',
+        referencia_banco: quickRef || null,
+        concepto_origen: `RENTA ${cobro.mes}/${cobro.anio}`,
+        propietario:     cobro.arrendatario_nombre || null,
+        id_contrato:     cobro.referencia_pago || null,
+      }).select('id').single()
+      if (errIng) throw errIng
+
+      // 2. Subir comprobante si hay imagen
+      if (comprobanteFile && ingData?.id) {
+        const ext = comprobanteFile.name.split('.').pop() || 'jpg'
+        const path = `comprobantes/${cobro.referencia_pago}/${ingData.id}/comp.${ext}`
+        const buf  = await comprobanteFile.arrayBuffer()
+        const { error: upErr } = await supabase.storage.from('facturas-cfdi')
+          .upload(path, buf, { contentType: comprobanteFile.type, upsert: true })
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+          await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingData.id)
+        }
+      }
+
+      // 3. Actualizar estatus del cobro
+      const nuevoEstatus = monto >= parseFloat(cobro.monto_total) ? 'PAGADO' : 'PARCIAL'
+      await supabase.from('cobros').update({
+        monto_pagado: monto,
+        estatus:      nuevoEstatus,
+        fecha_pago:   quickFecha,
+      }).eq('id', cobro.id)
+
+      setShowQuickPay(false)
+      setComprobanteFile(null); setComprobantePreview(null)
+      setQuickMonto(''); setQuickRef('')
+      await cargar()
+      onSaved()
+    } catch (e) { alert(e.message) } finally { setSaving(false) }
   }
 
   const eliminar = async (ingresoId) => {
@@ -553,39 +611,105 @@ function PagosModal({ cobro, onClose, onSaved }) {
 
         {/* Footer */}
         {!showForm && (
-          <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB' }}>
-            {/* Mensaje OCR */}
-            {ocrMsg && (
-              <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: ocrMsg.ok ? '#057642' : '#B24020', background: ocrMsg.ok ? '#D1FAE5' : '#FEE2E2' }}>
-                {ocrMsg.txt}
+          <div style={{ borderTop: '1px solid #E5E7EB' }}>
+
+            {/* Panel Pago Rápido */}
+            {showQuickPay ? (
+              <div style={{ padding: '14px 22px', background: '#F0FDF4' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#15803D', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  ✓ Confirmar pago — {cobro.arrendatario_nombre}
+                </div>
+
+                {/* Comprobante de pago (imagen) */}
+                <div style={{ marginBottom: '10px' }}>
+                  {comprobantePreview ? (
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '8px', background: 'white', borderRadius: '8px', border: '1.5px solid #BBF7D0' }}>
+                      <img src={comprobantePreview} alt="comprobante"
+                        style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid #D1D5DB', cursor:'pointer' }}
+                        onClick={() => window.open(comprobantePreview, '_blank')} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#15803D' }}>✓ Comprobante adjunto</div>
+                        <div style={{ fontSize: '10px', color: '#6B7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>{comprobanteFile?.name}</div>
+                      </div>
+                      <button type="button" onClick={() => { setComprobanteFile(null); setComprobantePreview(null) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, padding: '4px' }}>✕</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => quickFileRef.current?.click()}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'white', border: '2px dashed #86EFAC', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#15803D', fontWeight: 700 }}>
+                      <Image size={18} /> Adjuntar foto del comprobante de pago
+                    </button>
+                  )}
+                  <input ref={quickFileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setComprobanteFile(f); setComprobantePreview(URL.createObjectURL(f)) }; e.target.value = '' }} />
+                </div>
+
+                {/* Fecha + Monto + Referencia */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Fecha pago</div>
+                    <input type="date" value={quickFecha} onChange={e => setQuickFecha(e.target.value)}
+                      style={{ width: '100%', padding: '7px 8px', border: '1.5px solid #D1D5DB', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Monto *</div>
+                    <input type="number" value={quickMonto} onChange={e => setQuickMonto(e.target.value)}
+                      placeholder={String(cobro.monto_total || '')}
+                      style={{ width: '100%', padding: '7px 8px', border: '1.5px solid #D1D5DB', borderRadius: 6, fontSize: 12, fontWeight: 700, boxSizing: 'border-box' }} step="0.01" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>Referencia</div>
+                    <input type="text" value={quickRef} onChange={e => setQuickRef(e.target.value)}
+                      placeholder="No. operación"
+                      style={{ width: '100%', padding: '7px 8px', border: '1.5px solid #D1D5DB', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={confirmarPagoRapido} disabled={saving}
+                    style={{ flex: 1, padding: '11px', background: saving ? '#9CA3AF' : '#15803D', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: saving ? 'default' : 'pointer' }}>
+                    {saving ? 'Guardando…' : '✓ Confirmar pago y cambiar a PAGADO'}
+                  </button>
+                  <button type="button"
+                    onClick={() => { setShowQuickPay(false); setComprobanteFile(null); setComprobantePreview(null); setQuickMonto(''); setQuickRef('') }}
+                    style={{ padding: '11px 14px', background: '#F3F4F6', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '12px 22px' }}>
+                {ocrMsg && (
+                  <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: ocrMsg.ok ? '#057642' : '#B24020', background: ocrMsg.ok ? '#D1FAE5' : '#FEE2E2' }}>
+                    {ocrMsg.txt}
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: colorEst + '20', color: colorEst }}>{cobro.estatus}</span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* PAGO RÁPIDO — acción principal */}
+                    {cobro.estatus !== 'PAGADO' && (
+                      <button onClick={() => { setShowQuickPay(true); setQuickMonto(String(cobro.monto_total || '')) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: '#15803D', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 2px 6px rgba(21,128,61,0.3)' }}>
+                        💳 Registrar pago
+                      </button>
+                    )}
+                    {/* OCR comprobante */}
+                    <button disabled={leyendoOCR} onClick={() => compFileRef.current?.click()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', background: leyendoOCR ? '#9CA3AF' : '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '11px', cursor: leyendoOCR ? 'default' : 'pointer' }}
+                      title="Leer comprobante con IA y pre-llenar el formulario">
+                      {leyendoOCR ? '⏳ Leyendo…' : '🔍 OCR'}
+                    </button>
+                    <button onClick={() => { setShowForm(true); setOcrMsg(null) }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}>
+                      <Plus size={13} /> Manual
+                    </button>
+                  </div>
+                </div>
+                <input ref={compFileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) leerComprobante(f); e.target.value = '' }} />
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: colorEst + '20', color: colorEst }}>{cobro.estatus}</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {/* Botón OCR comprobante */}
-                <button
-                  disabled={leyendoOCR}
-                  onClick={() => compFileRef.current?.click()}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: leyendoOCR ? '#9CA3AF' : '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: leyendoOCR ? 'default' : 'pointer' }}
-                  title="Sube foto del comprobante bancario para leer datos con IA"
-                >
-                  {leyendoOCR ? '⏳ Leyendo…' : '📷 Leer comprobante'}
-                </button>
-                <button onClick={() => { setShowForm(true); setOcrMsg(null) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
-                  <Plus size={14} /> Agregar manual
-                </button>
-              </div>
-            </div>
-            {/* Input oculto — capture=environment activa cámara en móvil */}
-            <input
-              ref={compFileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) leerComprobante(f); e.target.value = '' }}
-            />
           </div>
         )}
       </div>
