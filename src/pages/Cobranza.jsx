@@ -258,7 +258,7 @@ function PagosModal({ cobro, onClose, onSaved }) {
     setLoading(true)
     const { data } = await supabase
       .from('ingresos')
-      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, comprobante_url, nota, creado_por, created_at')
+      .select('id, fecha, importe, tipo_concepto, origen, concepto_origen, factura_numero, factura_serie, factura_pdf_url, factura_xml_url, nota, creado_por, created_at')
       .eq('cobro_id', cobro.id)
       .order('fecha', { ascending: false })
     setIngresos(data ?? [])
@@ -328,9 +328,9 @@ function PagosModal({ cobro, onClose, onSaved }) {
           ? 'PAGADO'
           : nuevoPagado > 0 ? 'PARCIAL' : 'PENDIENTE'
         await supabase.from('cobros').update({
-          monto_pagado: nuevoPagado,
-          estatus:      nuevoEstatus,
-          fecha_pago:   form.fecha_pago,
+          monto_pagado:    nuevoPagado,
+          estatus:         nuevoEstatus,
+          fecha_pago_real: form.fecha_pago,
         }).eq('id', cobro.id)
       }
 
