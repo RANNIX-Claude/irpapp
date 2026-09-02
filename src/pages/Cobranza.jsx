@@ -581,15 +581,15 @@ function ReporteCobranza({ lista, mesFiltro, anioFiltro }) {
   const hoyR = new Date(); hoyR.setHours(0,0,0,0)
   const esVencidoR = c => !['PAGADO','CANCELADO'].includes(c.estatus) && new Date(c.fecha_limite_pago) < hoyR
 
-  // PAGADO se filtra por fecha_pago_real; vencidos siempre entran; resto por mes programado
+  // PAGADO se filtra por fecha_pago_real; resto por mes programado
   const base = mesFiltro === 0
     ? lista
     : lista.filter(c => {
         if (c.estatus === 'PAGADO') {
           const fp = c.fecha_pago_real ? new Date(c.fecha_pago_real) : null
-          return fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
+          const porFecha = fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
+          return porFecha || (c.mes === mesFiltro && c.anio === anioFiltro)
         }
-        if (esVencidoR(c)) return true
         return c.mes === mesFiltro && c.anio === anioFiltro
       })
 
@@ -830,22 +830,17 @@ export default function Cobranza() {
       || (filtroEstatus === 'PAGADO' && c.estatus === 'PAGADO')
 
     // Lógica de período:
-    // • PAGADO: se muestra si fecha_pago_real cae en el período seleccionado
-    // • Vencidos (cualquier mes): siempre aparecen en el filtro vigente
-    // • Resto: mes/anio del cobro coincide con el filtro
+    // • mesFiltro === 0 → Todos los registros (universo completo)
+    // • PAGADO: aparece si fecha_pago_real cae en el período O si su mes programado coincide
+    // • Resto: mes/anio programado del cobro coincide con el filtro
     let matchMes
     if (mesFiltro === 0) {
       matchMes = true
-    } else if (c.estatus === 'PAGADO' || c.estatus === 'PARCIAL') {
-      // Pagados: por fecha real de pago
+    } else if (c.estatus === 'PAGADO') {
       const fp = c.fecha_pago_real ? new Date(c.fecha_pago_real) : null
       const porFechaPago = fp && fp.getMonth() + 1 === mesFiltro && fp.getFullYear() === anioFiltro
-      // Parciales también aparecen si son del mes programado
-      const porMesProg = c.mes === mesFiltro && c.anio === anioFiltro
+      const porMesProg  = c.mes === mesFiltro && c.anio === anioFiltro
       matchMes = porFechaPago || porMesProg
-    } else if (esVencido(c)) {
-      // Cartera vencida siempre visible cuando hay filtro activo
-      matchMes = true
     } else {
       matchMes = c.mes === mesFiltro && c.anio === anioFiltro
     }
@@ -923,8 +918,8 @@ export default function Cobranza() {
             style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
         </div>
         <select value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))}
-          style={{ padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px' }}>
-          <option value={0}>Todos los meses</option>
+          style={{ padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', fontWeight: mesFiltro === 0 ? 700 : 400 }}>
+          <option value={0}>— Todos los meses —</option>
           {MES_NOMBRES.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m} {anioFiltro}</option>)}
         </select>
         <select value={anioFiltro} onChange={e => setAnioFiltro(parseInt(e.target.value))}
