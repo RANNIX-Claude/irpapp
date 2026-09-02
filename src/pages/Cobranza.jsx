@@ -924,33 +924,35 @@ export default function Cobranza() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title={mesFiltro === 0 ? 'Pagados' : `Pagados ${MES_NOMBRES[mesFiltro]}`} value={pagados} icon={CheckCircle} color="var(--color-success)" />
-        <KPICard title="Vigentes" value={pendientes} icon={Clock} color="var(--color-warning)" />
-        <KPICard title="Cartera Vencida" value={mora} icon={AlertTriangle} color="var(--color-danger)" />
-        <KPICard title={mesFiltro === 0 ? 'Total Cobrado' : `Cobrado ${MES_NOMBRES[mesFiltro]}`} value={`$${(totalCobrado/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-primary)" />
-        <KPICard title="Por Cobrar" value={`$${(totalPendiente/1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
-      </div>
-
       {tab === 'reporte' && (
         <ReporteCobranza lista={lista} mesFiltro={mesFiltro} anioFiltro={anioFiltro} />
       )}
 
-      {tab === 'cobros' && <><div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {tab === 'cobros' && <><div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Búsqueda */}
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar arrendatario, referencia, unidad..."
             style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
         </div>
-        <select value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))}
-          style={{ padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', fontWeight: mesFiltro === 0 ? 700 : 400 }}>
-          <option value={0}>— Todos los meses —</option>
-          {MES_NOMBRES.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m} {anioFiltro}</option>)}
+
+        {/* Selector período combinado mes+año */}
+        <select
+          value={mesFiltro === 0 ? '0-0' : `${mesFiltro}-${anioFiltro}`}
+          onChange={e => {
+            const [m, y] = e.target.value.split('-').map(Number)
+            setMesFiltro(m); setAnioFiltro(y || anioFiltro)
+          }}
+          style={{ padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', fontWeight: mesFiltro === 0 ? 700 : 400, minWidth: '140px' }}>
+          <option value="0-0">Todos los períodos</option>
+          {[2025, 2026, 2027].flatMap(y =>
+            MES_NOMBRES.slice(1).map((m, i) => (
+              <option key={`${i+1}-${y}`} value={`${i+1}-${y}`}>{m} {y}</option>
+            ))
+          )}
         </select>
-        <select value={anioFiltro} onChange={e => setAnioFiltro(parseInt(e.target.value))}
-          style={{ padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px' }}>
-          {[2025, 2026, 2027].map(y => <option key={y}>{y}</option>)}
-        </select>
+
+        {/* Filtro estatus */}
         <div style={{ display: 'flex', gap: '6px' }}>
           {[
             { key: 'Todos', label: 'Todos' },
@@ -966,6 +968,15 @@ export default function Cobranza() {
             }}>{label}</button>
           ))}
         </div>
+      </div>
+
+      {/* KPIs — debajo de los filtros, reflejan el período seleccionado */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '16px' }}>
+        <KPICard title={mesFiltro === 0 ? 'Pagados' : `Pagados ${MES_NOMBRES[mesFiltro]}`} value={pagados} icon={CheckCircle} color="var(--color-success)" />
+        <KPICard title="Vigentes" value={pendientes} icon={Clock} color="var(--color-warning)" />
+        <KPICard title="Cartera Vencida" value={mora} icon={AlertTriangle} color="var(--color-danger)" />
+        <KPICard title={mesFiltro === 0 ? 'Total Cobrado' : `Cobrado ${MES_NOMBRES[mesFiltro]}`} value={`$${(totalCobrado/1000).toFixed(0)}K`} icon={TrendingUp} color="var(--color-primary)" />
+        <KPICard title="Por Cobrar" value={`$${(totalPendiente/1000).toFixed(0)}K`} icon={DollarSign} color="var(--color-secondary)" />
       </div>
 
       <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
