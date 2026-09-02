@@ -489,7 +489,7 @@ export default function Cobranza() {
       setLoadingIng(true)
       const { data: ings } = await supabase
         .from('ingresos')
-        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, contrato_id, created_at')
+        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, id_contrato, contrato_id, created_at')
         .order('fecha', { ascending: false })
         .limit(200)
 
