@@ -229,7 +229,9 @@ function PagosModal({ cobro, onClose, onSaved }) {
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [comprobantePreview, setComprobantePreview] = useState(null)
   const [marcandoPagado, setMarcandoPagado] = useState(false)
+  const [ocrMontoTotal, setOcrMontoTotal] = useState(null)  // total leído del comprobante (referencia)
   const compFileRef = useRef()
+  const urlCompRef = useRef()
 
   const FORM_INIT = {
     tipo_concepto: 'RENTA',
@@ -265,15 +267,16 @@ function PagosModal({ cobro, onClose, onSaved }) {
       if (!resp.ok || !j.datos) throw new Error(j.error || 'Sin datos')
       const d = j.datos
       const formaMap = { transferencia:'TRANSFERENCIA', spei:'TRANSFERENCIA', deposito:'DEPOSITO', 'depósito':'DEPOSITO', efectivo:'EFECTIVO', cheque:'CHEQUE' }
+      if (d.monto) setOcrMontoTotal(parseFloat(d.monto))
       setForm(f => ({
         ...f,
         fecha_pago: d.fecha_pago || d.fecha || f.fecha_pago,
-        monto:      d.monto ? String(d.monto) : f.monto,
+        // monto: NO se auto-llena — el operador decide qué porción asignar a este cobro
         referencia: d.referencia || d.folio || d.numero_operacion || f.referencia,
         forma_pago: formaMap[(d.forma_pago||'').toLowerCase()] || f.forma_pago,
         nota:       [d.concepto, d.banco ? `Desde: ${d.banco}` : ''].filter(Boolean).join(' · ') || f.nota,
       }))
-      setOcrMsg({ ok: true, txt: `✓ Datos leídos automáticamente — revisa y confirma` })
+      setOcrMsg({ ok: true, txt: `✓ Datos leídos — ingresa el monto de ${d.monto ? `este cobro (total en imagen: ${fmt(d.monto)})` : 'este cobro'}` })
     } catch {
       setOcrMsg({ ok: false, txt: '⚠ No se pudieron leer los datos — llena manualmente' })
     } finally { setLeyendoOCR(false) }
@@ -295,6 +298,11 @@ function PagosModal({ cobro, onClose, onSaved }) {
       .eq('cobro_id', cobro.id)
       .order('fecha', { ascending: false })
     setIngresos(data ?? [])
+    // Auto-mostrar el comprobante más reciente si no hay uno nuevo adjunto
+    if (!comprobanteFile) {
+      const conComp = (data ?? []).find(p => p.comprobante_url)
+      if (conComp) setComprobantePreview(conComp.comprobante_url)
+    }
     setLoading(false)
   }
 
@@ -571,8 +579,8 @@ function PagosModal({ cobro, onClose, onSaved }) {
                     <div><label style={lbl}>Nota</label><input type="text" value={form.nota} onChange={e => set('nota', e.target.value)} placeholder="Observaciones..." style={inp} /></div>
                   </div>
 
-                  {/* Comprobante — solo botón adjuntar (la imagen va a la derecha) */}
-                  {!comprobantePreview && (
+                  {/* Comprobante — botón adjuntar solo cuando no hay archivo nuevo ni guardado */}
+                  {!comprobanteFile && !comprobantePreview && (
                     <div style={{ marginBottom: '10px' }}>
                       <button type="button" onClick={() => compFileRef.current?.click()} disabled={leyendoOCR}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: '#F9FAFB', border: '2px dashed #0A66C2', borderRadius: '8px', fontSize: '12px', color: '#0A66C2', cursor: 'pointer', fontWeight: 700, width: '100%', justifyContent: 'center' }}>
@@ -580,11 +588,27 @@ function PagosModal({ cobro, onClose, onSaved }) {
                       </button>
                     </div>
                   )}
-                  {comprobantePreview && (
+                  {comprobantePreview && !comprobanteFile && (
+                    <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#EFF6FF', borderRadius: 8, border: '1.5px solid #BFDBFE' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1D4ED8', flex: 1 }}>🖼 Comprobante guardado — visible a la derecha</span>
+                      <button type="button" onClick={() => compFileRef.current?.click()}
+                        style={{ fontSize: '11px', color: 'var(--color-primary)', background: 'none', border: '1px solid #BFDBFE', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontWeight: 700 }}>
+                        Cambiar
+                      </button>
+                    </div>
+                  )}
+                  {comprobanteFile && (
                     <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#F0FDF4', borderRadius: 8, border: '1.5px solid #BBF7D0' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile?.name}</span>
-                      <button type="button" onClick={() => { setComprobanteFile(null); setComprobantePreview(null); setOcrMsg(null) }}
-                        style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>✕ Quitar</button>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#15803D', flex: 1 }}>✓ {comprobanteFile.name}</span>
+                      <button type="button"
+                        onClick={() => {
+                          setComprobanteFile(null); setOcrMsg(null); setOcrMontoTotal(null)
+                          const conComp = ingresos.find(p => p.comprobante_url)
+                          setComprobantePreview(conComp ? conComp.comprobante_url : null)
+                        }}
+                        style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                        ✕ Quitar
+                      </button>
                     </div>
                   )}
                   <input ref={compFileRef} type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }}
