@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image, CheckCircle2, Circle } from 'lucide-react'
+import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image, CheckCircle2, Circle, Eye, FileText, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
@@ -407,6 +407,7 @@ export default function Ingresos() {
   const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1)
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
   const [modalData, setModalData] = useState(null)
+  const [verDetalle, setVerDetalle] = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -507,7 +508,7 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha','Contrato','Local','Tipo','Propietario','Factura','Importe','Nota'].map(h => (
+                      {['Fecha','Contrato','Tipo','Docs','Importe','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: h === 'Importe' ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
@@ -515,34 +516,53 @@ export default function Ingresos() {
                   </thead>
                   <tbody>
                     {filtrados.map(r => (
-                      <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6', opacity: r.es_principal ? 1 : 0.55 }}
+                      <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, fontFamily:'monospace', color:'var(--color-primary)' }}>{r.id_contrato}</td>
                         <td style={{ padding:'10px 14px', fontSize:'12px' }}>
-                          <span style={{ fontWeight:700 }}>{r.local_id}</span>
-                          {!r.es_principal && <span style={{ fontSize:'10px', color:'#9CA3AF', marginLeft:'4px' }}>secundario</span>}
+                          <div style={{ fontWeight:700, color:'var(--color-primary)', fontFamily:'monospace' }}>{r.folio || r.id_contrato || '—'}</div>
+                          <div style={{ fontSize:'11px', color:'#6B7280' }}>{r.arrendatario_nombre || r.propietario || ''}</div>
                         </td>
                         <td style={{ padding:'10px 14px' }}>
                           <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'10px', background: (TIPO_COLOR[r.tipo] || '#6B7280') + '18', color: TIPO_COLOR[r.tipo] || '#6B7280' }}>{r.tipo}</span>
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', maxWidth:'180px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.propietario || '—'}</td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', fontFamily:'monospace' }}>{r.factura || '—'}</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight: r.es_principal ? 700 : 400, fontSize:'13px', color: r.es_principal && r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
-                          {r.es_principal ? fmt(r.importe) : '—'}
+                        {/* Docs: factura + comprobante */}
+                        <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                            {r.factura
+                              ? <span title={`Factura: ${r.factura}`} style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:600, color:'#0A66C2', background:'#EFF6FF', padding:'2px 7px', borderRadius:'10px' }}>
+                                  <FileText size={11} /> {r.factura}
+                                </span>
+                              : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin factura"><FileText size={13} /></span>
+                            }
+                            {r.comprobante_url
+                              ? <a href={r.comprobante_url} target="_blank" rel="noreferrer" title="Ver comprobante"
+                                  style={{ display:'inline-flex', alignItems:'center', color:'#057642', background:'#D1FAE5', padding:'3px 6px', borderRadius:'8px' }} onClick={e => e.stopPropagation()}>
+                                  <Paperclip size={12} />
+                                </a>
+                              : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin comprobante"><Paperclip size={13} /></span>
+                            }
+                          </div>
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, fontSize:'13px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
+                          {fmt(r.importe)}
+                        </td>
+                        <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'180px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                         <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                          <button onClick={e => { e.stopPropagation(); setModalData(r) }} style={{ marginRight:'4px', padding:'5px 7px', background:'#F3F4F6', color:'#374151', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Pencil size={13} /></button>
-                          <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} style={{ padding:'5px 7px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Trash2 size={13} /></button>
+                          <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
+                            style={{ marginRight:'4px', padding:'5px 7px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Eye size={13} /></button>
+                          <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
+                            style={{ marginRight:'4px', padding:'5px 7px', background:'#F3F4F6', color:'#374151', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Pencil size={13} /></button>
+                          <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
+                            style={{ padding:'5px 7px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Trash2 size={13} /></button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
+                      <td colSpan={4} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
                       <td /><td />
                     </tr>
@@ -558,6 +578,55 @@ export default function Ingresos() {
           onClose={() => setModalData(null)}
           onSaved={() => { setRefreshKey(k => k+1); setModalData(null) }}
         />
+      )}
+
+      {/* Modal Ver Detalle */}
+      {verDetalle && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+          onClick={() => setVerDetalle(null)}>
+          <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'480px', overflow:'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding:'16px 22px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:700, fontSize:'15px' }}>Detalle del Ingreso</div>
+              <button onClick={() => setVerDetalle(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
+            </div>
+            <div style={{ padding:'20px 22px' }}>
+              {[
+                ['Contrato', verDetalle.folio || verDetalle.id_contrato],
+                ['Arrendatario', verDetalle.arrendatario_nombre || verDetalle.propietario],
+                ['Fecha', verDetalle.fecha?.slice(0,10)],
+                ['Período', `${MESES[verDetalle.mes]} ${verDetalle.anio}`],
+                ['Tipo', verDetalle.tipo],
+                ['Importe', fmt(verDetalle.importe)],
+                ['Forma de pago', verDetalle.origen || verDetalle.forma_pago],
+                ['Factura', verDetalle.factura],
+                ['Referencia banco', verDetalle.referencia_banco],
+                ['Nota', verDetalle.nota],
+              ].filter(([,v]) => v).map(([k, v]) => (
+                <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid #F3F4F6', fontSize:'13px' }}>
+                  <span style={{ color:'#6B7280', fontWeight:600 }}>{k}</span>
+                  <span style={{ fontWeight:700, color:'#111827', textAlign:'right', maxWidth:'60%' }}>{v}</span>
+                </div>
+              ))}
+              {verDetalle.comprobante_url && (
+                <div style={{ marginTop:'14px' }}>
+                  <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'8px' }}>Comprobante</div>
+                  <img src={verDetalle.comprobante_url} alt="comprobante" style={{ width:'100%', maxHeight:'200px', objectFit:'contain', borderRadius:'8px', border:'1px solid #E5E7EB' }} />
+                </div>
+              )}
+              <div style={{ marginTop:'16px', display:'flex', gap:'8px', justifyContent:'flex-end' }}>
+                <button onClick={() => { setVerDetalle(null); setModalData(verDetalle) }}
+                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+                  <Pencil size={13} /> Editar
+                </button>
+                <button onClick={() => setVerDetalle(null)}
+                  style={{ padding:'8px 16px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
