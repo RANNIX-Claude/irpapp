@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2 } from 'lucide-react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
@@ -13,20 +13,9 @@ const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger
 
 function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('es-MX', { minimumFractionDigits: 0 }) : '—' }
 
-const LOCALES_OPCIONES = [
-  'L01','L02','L03','L04','L05','L06','L07','L08','L09','L09_1',
-  'L10','L11','L12','L13','L14','L15','L16','L17','L18','L19',
-  'L20','L21','L22','L23','L24','L25','L26','L27','L28',
-  'L29','L30','L31','L32','L33','L34','L35','L36','L37','L38','L39',
-]
-
 const BLANK = {
   fecha: new Date().toISOString().slice(0,10),
-  id_contrato: '',
-  local_id: '',
-  locales_contrato: '',
-  es_principal: true,
-  propietario: '',
+  contrato_id: '',
   tipo: 'RENTA',
   mes: new Date().getMonth() + 1,
   anio: new Date().getFullYear(),
@@ -39,72 +28,87 @@ const BLANK = {
 
 function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const [form, setForm] = useState(ingreso ? {
-    fecha:            ingreso.fecha ? ingreso.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
-    id_contrato:      ingreso.id_contrato || '',
-    local_id:         ingreso.local_id || '',
-    locales_contrato: ingreso.locales_contrato || '',
-    es_principal:     ingreso.es_principal ?? true,
-    propietario:      ingreso.propietario || '',
-    tipo:             ingreso.tipo || 'RENTA',
-    mes:              ingreso.mes || new Date().getMonth() + 1,
-    anio:             ingreso.anio || new Date().getFullYear(),
-    factura:          ingreso.factura || '',
-    importe:          ingreso.importe != null ? String(ingreso.importe) : '',
-    origen:           ingreso.origen || 'TRANSFERENCIA BBVA',
-    concepto_origen:  ingreso.concepto_origen || '',
-    nota:             ingreso.nota || '',
+    fecha:           ingreso.fecha ? ingreso.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
+    contrato_id:     ingreso.contrato_id || '',
+    tipo:            ingreso.tipo || 'RENTA',
+    mes:             ingreso.mes || new Date().getMonth() + 1,
+    anio:            ingreso.anio || new Date().getFullYear(),
+    factura:         ingreso.factura || '',
+    importe:         ingreso.importe != null ? String(ingreso.importe) : '',
+    origen:          ingreso.origen || 'TRANSFERENCIA BBVA',
+    concepto_origen: ingreso.concepto_origen || '',
+    nota:            ingreso.nota || '',
   } : BLANK)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
+  const [contratos, setContratos] = useState([])
+  const [compFile, setCompFile] = useState(null)
+  const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
+  const fileRef = useRef()
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // Auto-deriva id_contrato de locales_contrato (ordena, menor primero)
-  const derivarContrato = (locales) => {
-    if (!locales) return ''
-    const parts = locales.split(/[|,;\s]+/).filter(Boolean).sort()
-    return parts.join('-')
+  useEffect(() => {
+    supabase.from('prp_contratos')
+      .select('id, folio, arrendatario_nombre, locales_display')
+      .order('arrendatario_nombre')
+      .then(({ data }) => setContratos(data || []))
+  }, [])
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setCompFile(f)
+    setCompPreview(URL.createObjectURL(f))
   }
 
   const guardar = async () => {
-    if (!form.local_id) { setErr('Selecciona el local'); return }
+    if (!form.contrato_id) { setErr('Selecciona el contrato'); return }
     if (!form.tipo) { setErr('Selecciona el tipo'); return }
     if (!form.mes || !form.anio) { setErr('Mes y año son obligatorios'); return }
     setSaving(true); setErr(null)
+    const [fAnio, fMes] = form.fecha ? form.fecha.split('-').map(Number) : [form.anio, form.mes]
     const payload = {
-      fecha:            form.fecha || null,
-      id_contrato:      form.id_contrato || form.local_id,
-      local_id:         form.local_id,
-      locales_contrato: form.locales_contrato || form.local_id,
-      es_principal:     form.es_principal,
-      propietario:      form.propietario || null,
-      tipo:             form.tipo,
-      mes:              parseInt(form.mes),
-      anio:             parseInt(form.anio),
-      factura:          form.factura || null,
-      importe:          form.importe ? parseFloat(form.importe) : null,
-      origen:           form.origen || null,
-      concepto_origen:  form.concepto_origen || null,
-      nota:             form.nota || null,
+      fecha:           form.fecha || null,
+      contrato_id:     form.contrato_id || null,
+      tipo:            form.tipo,
+      mes:             parseInt(form.mes),
+      anio:            parseInt(form.anio),
+      factura:         form.factura || null,
+      importe:         form.importe ? parseFloat(form.importe) : null,
+      origen:          form.origen || null,
+      concepto_origen: form.concepto_origen || null,
+      nota:            form.nota || null,
     }
-    let error
+    let error, data
     if (ingreso) {
       ;({ error } = await supabase.from('ingresos').update(payload).eq('id', ingreso.id))
+      data = ingreso
     } else {
-      ;({ error } = await supabase.from('ingresos').insert(payload))
+      ;({ error, data } = await supabase.from('ingresos').insert(payload).select('id').single())
     }
+    if (error) { setSaving(false); setErr(error.message); return }
+
+    // Upload comprobante si se seleccionó
+    const ingresoId = ingreso?.id || data?.id
+    if (compFile && ingresoId) {
+      const ext = compFile.name.split('.').pop() || 'jpg'
+      const path = `comprobantes/${ingresoId}/comp.${ext}`
+      const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, compFile, { upsert: true })
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
+        await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingresoId)
+      }
+    }
+
     setSaving(false)
-    if (error) { setErr(error.message); return }
     onSaved()
     onClose()
   }
 
   const inp = (k, type='text', placeholder='') => (
     <input type={type} value={form[k]} placeholder={placeholder}
-      onChange={e => {
-        set(k, e.target.value)
-        if (k === 'locales_contrato') set('id_contrato', derivarContrato(e.target.value))
-      }}
+      onChange={e => set(k, e.target.value)}
       style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', boxSizing:'border-box' }} />
   )
 
@@ -122,13 +126,17 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
         <div style={{ flex:1, overflowY:'auto', padding:'18px 22px' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 18px' }}>
 
-            {/* Local */}
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Local *</label>
-              <select value={form.local_id} onChange={e => { set('local_id', e.target.value); if (!form.locales_contrato) set('locales_contrato', e.target.value); if (!form.id_contrato) set('id_contrato', e.target.value) }}
+            {/* Contrato */}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Contrato *</label>
+              <select value={form.contrato_id} onChange={e => set('contrato_id', e.target.value)}
                 style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', marginTop:'4px' }}>
-                <option value="">Seleccionar...</option>
-                {LOCALES_OPCIONES.map(l => <option key={l} value={l}>{l}</option>)}
+                <option value="">Seleccionar contrato...</option>
+                {contratos.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.folio} — {c.arrendatario_nombre}{c.locales_display ? ` (${c.locales_display})` : ''}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -172,21 +180,6 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               <div style={{ marginTop:'4px' }}>{inp('fecha','date')}</div>
             </div>
 
-            {/* Propietario */}
-            <div>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Propietario / Razón Social</label>
-              <div style={{ marginTop:'4px' }}>{inp('propietario','text','ALFREDO BRAVO MENDIOLA')}</div>
-            </div>
-
-            {/* Locales del contrato */}
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>
-                Locales del contrato (si son varios, separados por |)
-              </label>
-              <div style={{ marginTop:'4px' }}>{inp('locales_contrato','text','L31|L32')}</div>
-              {form.id_contrato && <div style={{ fontSize:'11px', color:'var(--color-text-light)', marginTop:'3px' }}>ID Contrato: <strong>{form.id_contrato}</strong></div>}
-            </div>
-
             {/* Origen */}
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Origen</label>
@@ -205,14 +198,25 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               <div style={{ marginTop:'4px' }}>{inp('concepto_origen','text','RENTA JUL26')}</div>
             </div>
 
-            {/* Es principal */}
-            <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:'8px' }}>
-              <input type="checkbox" id="es_principal" checked={form.es_principal}
-                onChange={e => set('es_principal', e.target.checked)}
-                style={{ width:'16px', height:'16px', cursor:'pointer' }} />
-              <label htmlFor="es_principal" style={{ fontSize:'13px', cursor:'pointer' }}>
-                Es el local principal del contrato (donde se registra el importe)
-              </label>
+            {/* Comprobante */}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Comprobante de depósito</label>
+              <input type="file" ref={fileRef} accept="image/*,application/pdf" style={{ display:'none' }} onChange={onFileChange} />
+              <div style={{ marginTop:'6px', display:'flex', alignItems:'center', gap:'10px' }}>
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1px dashed #9CA3AF', borderRadius:'8px', background:'#F9FAFB', fontSize:'13px', cursor:'pointer', color:'#374151' }}>
+                  <Upload size={14} /> Subir imagen
+                </button>
+                {compFile && <span style={{ fontSize:'12px', color:'#6B7280' }}>{compFile.name}</span>}
+              </div>
+              {compPreview && compPreview.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+                <img src={compPreview} alt="comprobante" style={{ marginTop:'8px', maxHeight:'120px', borderRadius:'6px', border:'1px solid #E5E7EB', objectFit:'cover' }} />
+              )}
+              {compPreview && !compFile && (
+                <div style={{ marginTop:'6px', fontSize:'12px', color:'#6B7280', display:'flex', alignItems:'center', gap:'4px' }}>
+                  <Image size={12} /> Comprobante existente guardado
+                </div>
+              )}
             </div>
 
             {/* Nota */}
