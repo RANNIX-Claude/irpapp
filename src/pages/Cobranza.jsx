@@ -143,49 +143,48 @@ function IngresoRow({ p, idx, total, onEliminar, onSubirFactura, subiendoFactura
             {p.nota && <span style={{ fontStyle: 'italic' }}> — {p.nota}</span>}
           </div>
 
-          {/* Comprobante de pago + Documentos CFDI */}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-
-            {/* Comprobante imagen */}
-            {p.comprobante_url ? (
-              <button onClick={() => setLightbox(p.comprobante_url)}
-                style={{ padding: 0, border: '2px solid #0A66C2', borderRadius: '8px', cursor: 'pointer', background: 'none', overflow: 'hidden', width: '52px', height: '52px', flexShrink: 0 }}
-                title="Ver comprobante de pago">
-                <img src={p.comprobante_url} alt="comprobante"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              </button>
-            ) : (
+          {/* Documentos CFDI */}
+          <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {p.factura_pdf_url
+              ? <a href={p.factura_pdf_url} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, textDecoration: 'none', background: '#FEE2E2', padding: '3px 8px', borderRadius: '6px' }}>
+                  <FileText size={11} /> PDF
+                </a>
+              : <button onClick={() => pdfRef.current?.click()} disabled={subiendoFactura === p.id + '_pdf'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                  <Upload size={11} /> {subiendoFactura === p.id + '_pdf' ? 'Subiendo…' : 'PDF factura'}
+                </button>
+            }
+            {p.factura_xml_url
+              ? <a href={p.factura_xml_url} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, textDecoration: 'none', background: '#D1FAE5', padding: '3px 8px', borderRadius: '6px' }}>
+                  <FileText size={11} /> XML
+                </a>
+              : <button onClick={() => xmlRef.current?.click()} disabled={subiendoFactura === p.id + '_xml'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                  <Upload size={11} /> {subiendoFactura === p.id + '_xml' ? 'Subiendo…' : 'XML CFDI'}
+                </button>
+            }
+            {/* Botón adjuntar comprobante si no hay */}
+            {!p.comprobante_url && (
               <button onClick={() => compRef.current?.click()} disabled={subiendoFactura === p.id + '_comp'}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', width: '52px', height: '52px', fontSize: '10px', color: '#9CA3AF', background: '#F9FAFB', border: '1.5px dashed #D1D5DB', borderRadius: '8px', cursor: 'pointer', flexShrink: 0 }}>
-                <Image size={14} color="#9CA3AF" />
-                {subiendoFactura === p.id + '_comp' ? '…' : 'Foto'}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6B7280', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
+                <Image size={11} /> {subiendoFactura === p.id + '_comp' ? 'Subiendo…' : 'Adjuntar comprobante'}
               </button>
             )}
-
-            {/* CFDI docs */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {p.factura_pdf_url
-                ? <a href={p.factura_pdf_url} target="_blank" rel="noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, textDecoration: 'none', background: '#FEE2E2', padding: '3px 8px', borderRadius: '6px' }}>
-                    <FileText size={11} /> PDF
-                  </a>
-                : <button onClick={() => pdfRef.current?.click()} disabled={subiendoFactura === p.id + '_pdf'}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
-                    <Upload size={11} /> {subiendoFactura === p.id + '_pdf' ? 'Subiendo…' : 'PDF factura'}
-                  </button>
-              }
-              {p.factura_xml_url
-                ? <a href={p.factura_xml_url} target="_blank" rel="noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--color-success)', fontWeight: 600, textDecoration: 'none', background: '#D1FAE5', padding: '3px 8px', borderRadius: '6px' }}>
-                    <FileText size={11} /> XML
-                  </a>
-                : <button onClick={() => xmlRef.current?.click()} disabled={subiendoFactura === p.id + '_xml'}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9CA3AF', background: '#F3F4F6', border: '1px dashed #D1D5DB', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer' }}>
-                    <Upload size={11} /> {subiendoFactura === p.id + '_xml' ? 'Subiendo…' : 'XML CFDI'}
-                  </button>
-              }
-            </div>
           </div>
+
+          {/* Imagen comprobante — visible inline, grande */}
+          {p.comprobante_url && (
+            <div style={{ marginTop: '10px' }}>
+              <img src={p.comprobante_url} alt="Comprobante de pago"
+                onClick={() => setLightbox(p.comprobante_url)}
+                style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', borderRadius: '10px', border: '2px solid #E5E7EB', cursor: 'zoom-in', display: 'block', background: '#F9FAFB' }} />
+              <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px', textAlign: 'center' }}>
+                Clic para ampliar
+              </div>
+            </div>
+          )}
 
           <input ref={pdfRef}  type="file" accept=".pdf"  style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'pdf', e.target.files?.[0])} />
           <input ref={xmlRef}  type="file" accept=".xml"  style={{ display: 'none' }} onChange={e => onSubirFactura(p.id, 'xml', e.target.files?.[0])} />
