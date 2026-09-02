@@ -106,12 +106,12 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
     if (!form.importe_total || parseFloat(form.importe_total) <= 0) { setErr('El monto debe ser mayor a 0'); return }
     setSaving(true); setErr(null)
     try {
-      const fechaObj = new Date(form.fecha)
+      const [fAnio, fMes, fDia] = form.fecha.split('-').map(Number)
       const { data: ing, error } = await supabase.from('ingresos').insert({
         contrato_id:     form.contrato_id,
         fecha:           form.fecha,
-        mes:             fechaObj.getMonth() + 1,
-        anio:            fechaObj.getFullYear(),
+        mes:             fMes,
+        anio:            fAnio,
         importe:         parseFloat(form.importe_total),
         importe_total:   parseFloat(form.importe_total),
         forma_pago:      form.forma_pago,
