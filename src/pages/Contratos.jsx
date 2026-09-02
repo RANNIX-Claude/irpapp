@@ -6,7 +6,7 @@ import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
-  Grid, AlignJustify
+  Grid, AlignJustify, Printer
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -1130,6 +1130,7 @@ export default function Contratos() {
   const lista = data ?? []
 
   // Conteos para KPIs y filtros
+  const cntActivos     = lista.filter(c => !['TERMINADO','TERMINACION_ANTICIPADA','CANCELADO'].includes(c.estado_id)).length
   const cntVigentes    = lista.filter(c => c.estado_id === 'VIGENTE' && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento)).length
   const cntPorVencer   = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
   const cntVencidos    = lista.filter(c => c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO').length
@@ -1168,11 +1169,12 @@ export default function Contratos() {
         || (c.locales_referencia || '').toLowerCase().includes(q)
         || (c.locales_display || '').toLowerCase().includes(q)
       const matchE = filtroEst === 'Todos'
+        || (filtroEst === 'ACTIVOS'    && !['TERMINADO','TERMINACION_ANTICIPADA','CANCELADO'].includes(c.estado_id))
         || (filtroEst === 'POR_VENCER' && ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento))
         || (filtroEst === 'VENCIDO'    && (c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO'))
         || (filtroEst === 'VIGENTE'    && c.estado_id === 'VIGENTE'  && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento))
         || (filtroEst === 'EN_RENOVACION' && c.estatus_proceso === 'EN_RENOVACION')
-        || (!['POR_VENCER','VENCIDO','VIGENTE','EN_RENOVACION'].includes(filtroEst) && c.estado_id === filtroEst)
+        || (!['ACTIVOS','POR_VENCER','VENCIDO','VIGENTE','EN_RENOVACION'].includes(filtroEst) && c.estado_id === filtroEst)
       const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
       const matchVencAno = !filtroVencAno || (c.fecha_fin && c.fecha_fin.startsWith(filtroVencAno))
       const matchVencMes = !filtroVencMes || (c.fecha_fin && c.fecha_fin.startsWith(filtroVencMes))
@@ -1215,6 +1217,21 @@ export default function Contratos() {
               {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
+          <button onClick={() => {
+            const cols = ['folio','arrendatario_nombre','inmueble_nombre','locales_display','fecha_inicio','fecha_fin','renta_mensual','estado_id']
+            const head = ['Folio','Arrendatario','Inmueble','Locales','Inicio','Fin','Renta','Estatus']
+            const rows = filtrados.map(c => cols.map(k => c[k] ?? '').join(','))
+            const csv = [head.join(','), ...rows].join('\n')
+            const a = document.createElement('a')
+            a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
+            a.download = 'contratos.csv'
+            a.click()
+          }} title="Exportar CSV" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            <Download size={15} /> Excel
+          </button>
+          <button onClick={() => window.print()} title="Imprimir" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            <Printer size={15} /> Imprimir
+          </button>
           <button onClick={() => setShowNuevo(true)} style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: 'var(--color-primary)', color: 'white', border: 'none',
@@ -1226,35 +1243,7 @@ export default function Contratos() {
       </div>
 
       {/* KPIs + filtros: solo en vista lista */}
-      {!vistaAnual && <>{/* KPIs — clickeables para filtrar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '20px' }}>
-        {[
-          { title: 'Vigentes',        value: cntVigentes,  icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
-          { title: 'Vencidos',        value: cntVencidos,  icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
-          { title: 'Por vencer',      value: cntPorVencer, icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
-          { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: 'var(--color-primary)', filtro: null },
-          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,      icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
-        ].map(k => (
-          <div key={k.title} onClick={() => k.filtro && setFiltroEst(f => f === k.filtro ? 'Todos' : k.filtro)}
-            style={{
-              background: 'white', borderRadius: '10px', border: `2px solid ${filtroEst === k.filtro ? k.color : '#E5E7EB'}`,
-              padding: '16px', cursor: k.filtro ? 'pointer' : 'default',
-              boxShadow: filtroEst === k.filtro ? `0 0 0 3px ${k.color}22` : 'none',
-              transition: 'all 0.15s',
-            }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.title}</span>
-              <k.icon size={16} color={k.color} />
-            </div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
-            {k.filtro && <div style={{ fontSize: '10px', color: filtroEst === k.filtro ? k.color : '#9CA3AF', marginTop: '4px', fontWeight: 600 }}>
-              {filtroEst === k.filtro ? '● Filtro activo' : 'Clic para filtrar'}
-            </div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Filtros de estado */}
+      {!vistaAnual && <>{/* Filtros de estado — primero */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         {FILTROS.map(f => {
           const activo = filtroEst === f.id
@@ -1339,7 +1328,40 @@ export default function Contratos() {
         </div>
       </div>
 
-      </>}
+      {/* KPIs — clickeables para filtrar — debajo de filtros */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '14px', marginBottom: '20px' }}>
+        {[
+          { title: 'Todos activos',   value: cntActivos,   icon: FileText,     color: 'var(--color-primary)', filtro: 'ACTIVOS' },
+          { title: 'Vigentes',        value: cntVigentes,  icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
+          { title: 'Vencidos',        value: cntVencidos,  icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
+          { title: 'Por vencer',      value: cntPorVencer, icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
+          { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: '#7C3AED', filtro: null },
+          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,      icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
+        ].map(k => (
+          <div key={k.title} onClick={() => {
+            if (!k.filtro) return
+            if (k.filtro === 'ACTIVOS') setFiltroEst(f => f === 'ACTIVOS' ? 'Todos' : 'ACTIVOS')
+            else setFiltroEst(f => f === k.filtro ? 'Todos' : k.filtro)
+          }}
+            style={{
+              background: 'white', borderRadius: '10px', border: `2px solid ${filtroEst === k.filtro ? k.color : '#E5E7EB'}`,
+              padding: '16px', cursor: k.filtro ? 'pointer' : 'default',
+              boxShadow: filtroEst === k.filtro ? `0 0 0 3px ${k.color}22` : 'none',
+              transition: 'all 0.15s',
+            }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.title}</span>
+              <k.icon size={16} color={k.color} />
+            </div>
+            <div style={{ fontSize: '26px', fontWeight: 800, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
+            {k.filtro && <div style={{ fontSize: '10px', color: filtroEst === k.filtro ? k.color : '#9CA3AF', marginTop: '4px', fontWeight: 600 }}>
+              {filtroEst === k.filtro ? '● Filtro activo' : 'Clic para filtrar'}
+            </div>}
+          </div>
+        ))}
+      </div>
+
+</>}
 
       {/* Vista Anual / Tabla */}
       {vistaAnual ? (
