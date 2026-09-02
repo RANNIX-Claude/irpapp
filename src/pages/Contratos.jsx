@@ -233,7 +233,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     setEditForm({
       arr_nombre:                 arr?.nombre    ?? '',
       arr_apellidos:              arr?.apellidos ?? '',
-      estatus:                    c.estatus      ?? 'VIGENTE',
+      estatus:                    ['VIGENTE','VENCIDO','RENOVADO','RESCISION'].includes(c.estatus) ? c.estatus : 'VIGENTE',
       estatus_proceso:            c.estatus_proceso ?? 'EN_EJECUCION',
       renta_mensual:              c.renta_mensual ?? '',
       deposito_garantia:          c.deposito_garantia ?? '',
@@ -259,8 +259,9 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const guardarEdit = async () => {
     setSavingEdit(true); setEditErr(null)
     // Columnas reales de public.contratos (dia_pago y penalizacion_pct son los nombres en tabla)
+    const ESTATUS_VALIDOS = ['VIGENTE','VENCIDO','RENOVADO','RESCISION']
     const payload = {
-      estatus:          editForm.estatus          || null,
+      estatus:          ESTATUS_VALIDOS.includes(editForm.estatus) ? editForm.estatus : 'VIGENTE',
       estatus_proceso:  editForm.estatus_proceso  || null,
       renta_mensual:    editForm.renta_mensual    ? parseFloat(editForm.renta_mensual)    : null,
       deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
