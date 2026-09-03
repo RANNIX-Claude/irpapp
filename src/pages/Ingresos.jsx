@@ -454,6 +454,7 @@ export default function Ingresos() {
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1)
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
+  const [filtroModo, setFiltroModo] = useState('periodo') // 'periodo' | 'fecha_pago'
   const [modalData, setModalData] = useState(null)
   const [verDetalle, setVerDetalle] = useState(null)
   const [detalleAplicaciones, setDetalleAplicaciones] = useState([])
@@ -471,9 +472,20 @@ export default function Ingresos() {
       || (r.local_id || '').toLowerCase().includes(q)
       || (r.factura || '').toLowerCase().includes(q)
     const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
-    const matchM = r.mes === filtroMes && r.anio === filtroAnio
+    let matchM
+    if (filtroModo === 'fecha_pago') {
+      // Filtrar por mes/año de la fecha real de pago (campo fecha)
+      if (!r.fecha) { matchM = false }
+      else {
+        const d = new Date(r.fecha)
+        matchM = d.getMonth() + 1 === filtroMes && d.getFullYear() === filtroAnio
+      }
+    } else {
+      // Filtrar por período de renta (mes/anio del ingreso)
+      matchM = r.mes === filtroMes && r.anio === filtroAnio
+    }
     return matchQ && matchT && matchM
-  }), [lista, search, filtroTipo, filtroMes, filtroAnio])
+  }), [lista, search, filtroTipo, filtroMes, filtroAnio, filtroModo])
 
   const soloImportes = filtrados.filter(r => r.es_principal && r.importe != null)
   const totalMes = soloImportes.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
@@ -496,7 +508,7 @@ export default function Ingresos() {
         <div>
           <h1 style={{ fontSize:'22px', fontWeight:700, margin:'0 0 4px' }}>Ingresos</h1>
           <p style={{ fontSize:'13px', color:'var(--color-text-light)', margin:0 }}>
-            {MESES[filtroMes]} {filtroAnio} · {filtrados.filter(r => r.es_principal).length} contratos con pago
+            {filtroModo === 'fecha_pago' ? 'Fecha de pago' : 'Período de renta'}: {MESES[filtroMes]} {filtroAnio} · {filtrados.filter(r => r.es_principal).length} contratos con pago
           </p>
         </div>
         <button onClick={() => setModalData('nuevo')} style={{
@@ -510,7 +522,7 @@ export default function Ingresos() {
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'14px', marginBottom:'24px' }}>
-        <KPICard title={`Total ${MESES[filtroMes]} ${filtroAnio}`} value={`$${(totalMes/1000).toFixed(1)}K`} icon={TrendingUp} color="var(--color-primary)" />
+        <KPICard title={`${filtroModo === 'fecha_pago' ? 'Pago' : 'Período'} ${MESES[filtroMes]} ${filtroAnio}`} value={`$${(totalMes/1000).toFixed(1)}K`} icon={TrendingUp} color="var(--color-primary)" />
         <KPICard title="Rentas"      value={`$${(totalRenta/1000).toFixed(1)}K`}      icon={DollarSign}   color="var(--color-success)" />
         <KPICard title="Sanciones"   value={`$${(totalSanciones/1000).toFixed(1)}K`}  icon={AlertCircle}  color="var(--color-danger)" />
         <KPICard title="Registros"   value={filtrados.filter(r => r.es_principal).length} icon={Calendar} color="var(--color-secondary)" />
@@ -518,6 +530,24 @@ export default function Ingresos() {
 
       {/* Filtros */}
       <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap', alignItems:'center' }}>
+
+        {/* Toggle Fecha pago / Período renta */}
+        <div style={{ display:'flex', background:'#F3F4F6', borderRadius:'8px', padding:'3px', gap:'2px' }}>
+          {[
+            { key:'periodo',    label:'Período de renta' },
+            { key:'fecha_pago', label:'Fecha de pago'    },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => setFiltroModo(key)} style={{
+              padding:'5px 11px', borderRadius:'6px', fontSize:'12px', fontWeight:700,
+              border:'none', cursor:'pointer',
+              background: filtroModo === key ? 'white' : 'transparent',
+              color:      filtroModo === key ? 'var(--color-primary)' : '#6B7280',
+              boxShadow:  filtroModo === key ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+              transition: 'all 0.15s',
+            }}>{label}</button>
+          ))}
+        </div>
+
         {/* Mes/Año */}
         <select value={filtroMes} onChange={e => setFiltroMes(parseInt(e.target.value))}
           style={{ padding:'8px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'13px' }}>
@@ -557,7 +587,7 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha','Contrato','Tipo','Docs','Importe','Nota'].map(h => (
+                      {['Fecha pago','Período','Contrato','Tipo','Docs','Importe','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: h === 'Importe' ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
@@ -569,6 +599,11 @@ export default function Ingresos() {
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
+                        <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>
+                          <span style={{ fontWeight:600, color: r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
+                            {MESES[r.mes]}/{r.anio}
+                          </span>
+                        </td>
                         <td style={{ padding:'10px 14px', fontSize:'12px', minWidth:'180px' }}>
                           {r.folio || r.arrendatario_nombre ? (
                             <>
@@ -621,7 +656,7 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={4} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
+                      <td colSpan={5} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
                       <td /><td />
                     </tr>
