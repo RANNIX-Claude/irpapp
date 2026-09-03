@@ -60,6 +60,7 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
     puesto: '', area: '', departamento: '',
     salario_diario: '', email: '', celular: '',
     tipo_contrato: 'TEMPORAL_3SEM', fecha_fin_contrato: '',
+    horario_trabajo: '', dia_descanso: '', forma_pago: 'TRANSFERENCIA',
   })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -85,6 +86,9 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
       p_email: form.email || null, p_celular: form.celular || null,
       p_tipo_contrato: form.tipo_contrato || null,
       p_fecha_fin_contrato: form.fecha_fin_contrato || null,
+      p_horario_trabajo: form.horario_trabajo || null,
+      p_dia_descanso: form.dia_descanso || null,
+      p_forma_pago: form.forma_pago || 'TRANSFERENCIA',
     })
     setSaving(false)
     if (error) return toast.error(error.message)
@@ -133,6 +137,26 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
           <F label="NSS (IMSS)">{inp('nss', { placeholder:'Número de Seguridad Social' })}</F>
           <F label="Email">{inp('email', { type:'email' })}</F>
           <F label="Celular">{inp('celular')}</F>
+          <F label="Horario de trabajo" span>
+            <input value={form.horario_trabajo} onChange={e => set('horario_trabajo', e.target.value)}
+              placeholder="Ej: Lunes a Sábado 8-16 hrs"
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="Día de descanso">
+            <select value={form.dia_descanso} onChange={e => set('dia_descanso', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+              <option value="">— Seleccionar —</option>
+              {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo','Sin descanso','-'].map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </F>
+          <F label="Forma de pago">
+            <select value={form.forma_pago} onChange={e => set('forma_pago', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="MIXTO">Mixto (Transfer + Efectivo)</option>
+            </select>
+          </F>
           <div style={{ gridColumn: '1 / -1', background: '#F0F7FF', borderRadius: 8, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, alignItems: 'end' }}>
             <F label="Tipo de Contrato">
               <select value={form.tipo_contrato} onChange={e => set('tipo_contrato',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
@@ -241,6 +265,9 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
               ['Antigüedad', emp.dias_antiguedad != null ? Math.floor(emp.dias_antiguedad / 365) + ' años, ' + (Math.floor(emp.dias_antiguedad / 30) % 12) + ' meses' : null],
               ['Salario mensual', emp.salario_mensual ? fmt$(emp.salario_mensual) : null],
               ['Salario diario', emp.salario_diario ? fmt$(emp.salario_diario) : null],
+              ['Horario', emp.horario_trabajo],
+              ['Día de descanso', emp.dia_descanso],
+              ['Forma de pago', emp.forma_pago === 'TRANSFERENCIA' ? 'Transferencia' : emp.forma_pago === 'EFECTIVO' ? 'Efectivo' : emp.forma_pago === 'MIXTO' ? 'Mixto' : emp.forma_pago],
               ['Email', emp.email], ['Celular', emp.celular],
               ['RFC', emp.rfc], ['CURP', emp.curp], ['NSS', emp.nss],
               ['Tipo contrato', emp.tipo_contrato_nombre],
@@ -334,7 +361,7 @@ function TabEmpleados({ onNuevo }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                  {['Empleado','# Emp','Puesto / Área','Salario Mensual','Tipo Contrato','Vencimiento','Estado'].map(h => (
+                  {['Empleado','# Emp','Puesto / Área','Horario','Descanso','Forma Pago','Salario Mensual','Tipo Contrato','Vencimiento','Estado'].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--color-text-light)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.5px' }}>{h}</th>
                   ))}
                 </tr>
@@ -358,6 +385,19 @@ function TabEmpleados({ onNuevo }) {
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ fontWeight: 500 }}>{e.puesto}</div>
                       <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{e.area ?? '—'}</div>
+                    </td>
+                    <td style={{ padding: '11px 14px', fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-light)' }} title={e.horario_trabajo}>
+                      {e.horario_trabajo ?? '—'}
+                    </td>
+                    <td style={{ padding: '11px 14px', fontSize: 12 }}>
+                      {e.dia_descanso ?? '—'}
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 12, fontWeight: 600,
+                        background: e.forma_pago === 'TRANSFERENCIA' ? '#EFF6FF' : e.forma_pago === 'EFECTIVO' ? '#F0FDF4' : '#FFFBEB',
+                        color: e.forma_pago === 'TRANSFERENCIA' ? '#1D4ED8' : e.forma_pago === 'EFECTIVO' ? '#166534' : '#92400E' }}>
+                        {e.forma_pago === 'TRANSFERENCIA' ? '🏦 Transfer' : e.forma_pago === 'EFECTIVO' ? '💵 Efectivo' : e.forma_pago === 'MIXTO' ? '↕ Mixto' : e.forma_pago ?? '—'}
+                      </span>
                     </td>
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ fontWeight: 700, fontSize: 14 }}>{e.salario_mensual ? fmt$(e.salario_mensual) : '—'}</div>
