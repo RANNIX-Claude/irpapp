@@ -456,6 +456,7 @@ export default function Ingresos() {
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
   const [modalData, setModalData] = useState(null)
   const [verDetalle, setVerDetalle] = useState(null)
+  const [detalleAplicaciones, setDetalleAplicaciones] = useState([])
   const [confirmDel, setConfirmDel] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -638,92 +639,131 @@ export default function Ingresos() {
         />
       )}
 
-      {/* Modal Ver Detalle — formato visual tipo formulario */}
-      {verDetalle && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
-          onClick={() => setVerDetalle(null)}>
-          <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'560px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
-            onClick={e => e.stopPropagation()}>
+      {/* Modal Ver Detalle — visual completo */}
+      {verDetalle && (() => {
+        // Cargar aplicaciones al abrir
+        if (verDetalle.id && detalleAplicaciones._ingresoId !== verDetalle.id) {
+          supabase.from('aplicaciones_pago')
+            .select('importe_aplicado, cargo:cargo_id(concepto, periodo_mes, periodo_anio)')
+            .eq('ingreso_id', verDetalle.id)
+            .then(({ data }) => setDetalleAplicaciones(Object.assign(data || [], { _ingresoId: verDetalle.id })))
+        }
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+            onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }}>
+            <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'520px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+              onClick={e => e.stopPropagation()}>
 
-            {/* Header */}
-            <div style={{ padding:'16px 22px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
-              <div>
-                <div style={{ fontWeight:700, fontSize:'15px' }}>Ingreso registrado</div>
-                <div style={{ fontSize:'12px', opacity:0.85 }}>{verDetalle.folio || ''}{verDetalle.arrendatario_nombre ? ` · ${verDetalle.arrendatario_nombre}` : ''}</div>
-              </div>
-              <button onClick={() => setVerDetalle(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
-            </div>
-
-            <div style={{ flex:1, overflowY:'auto', padding:'18px 22px' }}>
-
-              {/* Imagen del comprobante — prominente */}
-              {verDetalle.comprobante_url ? (
-                <div style={{ marginBottom:'16px' }}>
-                  <div style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', marginBottom:'8px', display:'flex', alignItems:'center', gap:'6px' }}>
-                    <Paperclip size={12} /> Comprobante de pago
-                  </div>
-                  <a href={verDetalle.comprobante_url} target="_blank" rel="noreferrer">
-                    <img src={verDetalle.comprobante_url} alt="comprobante"
-                      style={{ width:'100%', maxHeight:'260px', objectFit:'contain', borderRadius:'10px', border:'1px solid #E5E7EB', background:'#F9FAFB', cursor:'zoom-in' }} />
-                  </a>
-                </div>
-              ) : (
-                <div style={{ marginBottom:'16px', padding:'14px', background:'#F9FAFB', borderRadius:'10px', border:'1.5px dashed #D1D5DB', textAlign:'center', fontSize:'12px', color:'#9CA3AF' }}>
-                  <Paperclip size={16} style={{ marginBottom:'4px', display:'block', margin:'0 auto 4px' }} />
-                  Sin comprobante adjunto
-                </div>
-              )}
-
-              {/* Importe destacado */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0', marginBottom:'16px' }}>
+              {/* Header */}
+              <div style={{ padding:'14px 20px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
                 <div>
-                  <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Importe recibido</div>
-                  <div style={{ fontSize:'26px', fontWeight:800, color:'var(--color-success)' }}>{fmt(verDetalle.importe)}</div>
-                </div>
-                <div style={{ textAlign:'right' }}>
-                  <span style={{ fontSize:'12px', fontWeight:600, padding:'3px 10px', borderRadius:'10px', background: (TIPO_COLOR[verDetalle.tipo] || '#6B7280') + '20', color: TIPO_COLOR[verDetalle.tipo] || '#6B7280' }}>{verDetalle.tipo}</span>
-                  <div style={{ fontSize:'12px', color:'#6B7280', marginTop:'4px' }}>{MESES[verDetalle.mes]} {verDetalle.anio}</div>
-                </div>
-              </div>
-
-              {/* Grid de datos */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px', marginBottom:'14px' }}>
-                {[
-                  ['Fecha de pago', verDetalle.fecha?.slice(0,10)],
-                  ['Forma de pago', verDetalle.origen],
-                  ['Local', verDetalle.locales_display],
-                  ['Factura', verDetalle.factura],
-                  ['Concepto origen', verDetalle.concepto_origen],
-                  ['Referencia banco', verDetalle.referencia_banco],
-                ].filter(([,v]) => v).map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize:'10px', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', marginBottom:'2px' }}>{k}</div>
-                    <div style={{ fontSize:'13px', fontWeight:600, color:'#111827' }}>{v}</div>
+                  <div style={{ fontWeight:700, fontSize:'14px' }}>Ingreso registrado</div>
+                  <div style={{ fontSize:'11px', opacity:0.85 }}>
+                    {verDetalle.locales_display ? `${verDetalle.locales_display} · ` : ''}{verDetalle.arrendatario_nombre || verDetalle.folio || ''}
                   </div>
-                ))}
+                </div>
+                <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
               </div>
 
-              {verDetalle.nota && (
-                <div style={{ padding:'10px 14px', background:'#FFFBEB', borderRadius:'8px', border:'1px solid #FDE68A', fontSize:'13px', color:'#92400E' }}>
-                  <span style={{ fontWeight:700 }}>Nota: </span>{verDetalle.nota}
-                </div>
-              )}
-            </div>
+              <div style={{ flex:1, overflowY:'auto', padding:'16px 20px' }}>
 
-            {/* Footer */}
-            <div style={{ padding:'14px 22px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'8px', justifyContent:'flex-end', flexShrink:0 }}>
-              <button onClick={() => { setVerDetalle(null); setModalData(verDetalle) }}
-                style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-                <Pencil size={13} /> Editar
-              </button>
-              <button onClick={() => setVerDetalle(null)}
-                style={{ padding:'9px 20px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>
-                Cerrar
-              </button>
+                {/* ── BLOQUE 1: Local + Importe + Fecha ── */}
+                <div style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:'10px', alignItems:'center', padding:'14px 16px', background:'#F0FDF4', borderRadius:'12px', border:'1px solid #BBF7D0', marginBottom:'14px' }}>
+                  {/* Local badge */}
+                  <div style={{ textAlign:'center' }}>
+                    {verDetalle.locales_display && (
+                      <span style={{ display:'block', fontSize:'13px', fontWeight:800, color:'#0A66C2', background:'#EFF6FF', padding:'4px 10px', borderRadius:'10px' }}>{verDetalle.locales_display}</span>
+                    )}
+                    <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'8px', background: (TIPO_COLOR[verDetalle.tipo]||'#6B7280')+'18', color: TIPO_COLOR[verDetalle.tipo]||'#6B7280', marginTop:'4px', display:'inline-block' }}>{verDetalle.tipo}</span>
+                  </div>
+                  {/* Importe */}
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Importe</div>
+                    <div style={{ fontSize:'28px', fontWeight:800, color:'var(--color-success)', lineHeight:1.1 }}>{fmt(verDetalle.importe)}</div>
+                    <div style={{ fontSize:'11px', color:'#6B7280' }}>{MESES[verDetalle.mes]} {verDetalle.anio}</div>
+                  </div>
+                  {/* Fecha */}
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:'10px', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase' }}>Fecha pago</div>
+                    <div style={{ fontSize:'13px', fontWeight:700, color:'#111827' }}>{verDetalle.fecha?.slice(0,10)}</div>
+                    {verDetalle.origen && <div style={{ fontSize:'10px', color:'#6B7280', marginTop:'2px' }}>{verDetalle.origen}</div>}
+                  </div>
+                </div>
+
+                {/* ── BLOQUE 2: Distribución aplicada ── */}
+                {detalleAplicaciones.length > 0 && (
+                  <div style={{ marginBottom:'14px' }}>
+                    <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'6px' }}>Distribución del depósito</div>
+                    <div style={{ border:'1px solid #E5E7EB', borderRadius:'8px', overflow:'hidden' }}>
+                      {detalleAplicaciones.map((a, i) => (
+                        <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none', background:'white' }}>
+                          <div>
+                            <span style={{ fontSize:'12px', fontWeight:700, color: TIPO_COLOR[a.cargo?.concepto] || '#374151' }}>{a.cargo?.concepto || '—'}</span>
+                            {a.cargo?.periodo_mes && <span style={{ fontSize:'10px', color:'#9CA3AF', marginLeft:'6px' }}>{MESES[a.cargo.periodo_mes]}/{a.cargo.periodo_anio}</span>}
+                          </div>
+                          <span style={{ fontSize:'13px', fontWeight:700, color:'var(--color-success)' }}>{fmt(a.importe_aplicado)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 12px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
+                        <span style={{ fontSize:'12px', fontWeight:700, color:'#374151' }}>Total aplicado</span>
+                        <span style={{ fontSize:'13px', fontWeight:800, color:'var(--color-primary)' }}>
+                          {fmt(detalleAplicaciones.reduce((s, a) => s + (parseFloat(a.importe_aplicado)||0), 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── BLOQUE 3: Imagen comprobante ── */}
+                <div style={{ marginBottom:'14px' }}>
+                  <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'6px', display:'flex', alignItems:'center', gap:'5px' }}>
+                    <Paperclip size={11} /> Comprobante
+                  </div>
+                  {verDetalle.comprobante_url
+                    ? <img src={verDetalle.comprobante_url} alt="comprobante"
+                        style={{ width:'100%', borderRadius:'10px', border:'1px solid #E5E7EB', display:'block' }} />
+                    : <div style={{ padding:'16px', background:'#F9FAFB', borderRadius:'10px', border:'1.5px dashed #D1D5DB', textAlign:'center', fontSize:'12px', color:'#9CA3AF' }}>
+                        Sin comprobante adjunto
+                      </div>
+                  }
+                </div>
+
+                {/* ── BLOQUE 4: Otros datos ── */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 16px' }}>
+                  {[
+                    ['Factura', verDetalle.factura],
+                    ['Concepto', verDetalle.concepto_origen],
+                    ['Folio contrato', verDetalle.folio],
+                  ].filter(([,v]) => v).map(([k, v]) => (
+                    <div key={k}>
+                      <div style={{ fontSize:'10px', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase' }}>{k}</div>
+                      <div style={{ fontSize:'12px', fontWeight:600, color:'#111827' }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {verDetalle.nota && (
+                  <div style={{ marginTop:'12px', padding:'10px 14px', background:'#FFFBEB', borderRadius:'8px', border:'1px solid #FDE68A', fontSize:'13px', color:'#92400E' }}>
+                    <span style={{ fontWeight:700 }}>Nota: </span>{verDetalle.nota}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding:'12px 20px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'8px', justifyContent:'flex-end', flexShrink:0 }}>
+                <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]); setModalData(verDetalle) }}
+                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+                  <Pencil size={13} /> Editar
+                </button>
+                <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }}
+                  style={{ padding:'8px 18px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
           <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'400px', width:'100%' }} onClick={e => e.stopPropagation()}>
