@@ -568,9 +568,19 @@ export default function Ingresos() {
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px' }}>
-                          <div style={{ fontWeight:700, color:'var(--color-primary)', fontFamily:'monospace' }}>{r.folio || r.id_contrato || '—'}</div>
-                          <div style={{ fontSize:'11px', color:'#6B7280' }}>{r.arrendatario_nombre || r.propietario || ''}</div>
+                        <td style={{ padding:'10px 14px', fontSize:'12px', minWidth:'180px' }}>
+                          {r.folio || r.arrendatario_nombre ? (
+                            <>
+                              {r.locales_display && (
+                                <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'1px 7px', borderRadius:'8px', marginBottom:'3px' }}>{r.locales_display}</span>
+                              )}
+                              <div style={{ fontWeight:600, color:'#111827', fontSize:'12px', lineHeight:'1.3' }}>{r.arrendatario_nombre || r.propietario || '—'}</div>
+                              {r.folio && <div style={{ fontSize:'10px', color:'#9CA3AF', fontFamily:'monospace' }}>{r.folio}</div>}
+                            </>
+                          ) : (
+                            <span style={{ fontSize:'11px', color:'#D97706', background:'#FEF3C7', padding:'2px 8px', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}
+                              onClick={e => { e.stopPropagation(); setModalData(r) }}>Sin contrato — Editar</span>
+                          )}
                         </td>
                         <td style={{ padding:'10px 14px' }}>
                           <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'10px', background: (TIPO_COLOR[r.tipo] || '#6B7280') + '18', color: TIPO_COLOR[r.tipo] || '#6B7280' }}>{r.tipo}</span>
