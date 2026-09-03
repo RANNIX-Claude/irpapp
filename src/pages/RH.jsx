@@ -241,9 +241,170 @@ function RenovarContratoModal({ empleado, onClose, onSaved }) {
   )
 }
 
+// ── Modal Editar Empleado ───────────────────────────────────────────────────
+const DIAS_DESCANSO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo','Sin descanso','-']
+
+function EditarEmpleadoModal({ emp, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    nombre:          emp.nombre          || '',
+    apellido_pat:    emp.apellido_pat     || '',
+    apellido_mat:    emp.apellido_mat     || '',
+    sexo:            emp.sexo             || 'M',
+    rfc:             emp.rfc              || '',
+    curp:            emp.curp             || '',
+    nss:             emp.nss              || '',
+    fecha_nacimiento: emp.fecha_nacimiento || '',
+    fecha_ingreso:   emp.fecha_ingreso    || '',
+    puesto:          emp.puesto           || '',
+    area:            emp.area             || '',
+    departamento:    emp.departamento     || '',
+    salario_diario:  emp.salario_diario   || '',
+    email:           emp.email            || '',
+    celular:         emp.celular          || '',
+    notas:           emp.notas            || '',
+    horario_trabajo: emp.horario_trabajo  || '',
+    dia_descanso:    emp.dia_descanso     || '',
+    forma_pago:      emp.forma_pago       || 'TRANSFERENCIA',
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.nombre || !form.apellido_pat) return toast.error('Nombre y apellido son obligatorios')
+    setSaving(true)
+    const { error } = await supabase
+      .from('rh_empleados')
+      .update({
+        nombre:          form.nombre.toUpperCase(),
+        apellido_pat:    form.apellido_pat.toUpperCase(),
+        apellido_mat:    form.apellido_mat.toUpperCase() || null,
+        sexo:            form.sexo,
+        rfc:             form.rfc.toUpperCase()  || null,
+        curp:            form.curp.toUpperCase() || null,
+        nss:             form.nss               || null,
+        fecha_nacimiento: form.fecha_nacimiento  || null,
+        fecha_ingreso:   form.fecha_ingreso      || null,
+        puesto:          form.puesto             || null,
+        area:            form.area               || null,
+        departamento:    form.departamento       || null,
+        salario_diario:  parseFloat(form.salario_diario) || null,
+        email:           form.email              || null,
+        celular:         form.celular            || null,
+        notas:           form.notas              || null,
+        horario_trabajo: form.horario_trabajo    || null,
+        dia_descanso:    form.dia_descanso       || null,
+        forma_pago:      form.forma_pago         || 'TRANSFERENCIA',
+      })
+      .eq('id', emp.id)
+    setSaving(false)
+    if (error) return toast.error(error.message)
+    toast.success('Empleado actualizado')
+    onSaved()
+    onClose()
+  }
+
+  const inp = (k, extra = {}) => (
+    <input value={form[k]} onChange={e => set(k, e.target.value)}
+      style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }}
+      {...extra} />
+  )
+  const sel = (k, opts) => (
+    <select value={form[k]} onChange={e => set(k, e.target.value)}
+      style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>
+      {opts}
+    </select>
+  )
+  const F = ({ label, children, span }) => (
+    <div style={span ? { gridColumn:'1 / -1' } : {}}>
+      <label style={{ display:'block',fontSize:11,fontWeight:700,color:'var(--color-text-light)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.5px' }}>{label}</label>
+      {children}
+    </div>
+  )
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20 }} onClick={onClose}>
+      <div style={{ background:'white',borderRadius:14,width:700,maxWidth:'96vw',maxHeight:'92vh',overflow:'auto',boxShadow:'0 20px 60px rgba(0,0,0,.25)' }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding:'18px 24px',borderBottom:'1px solid #E5E7EB',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,background:'white',zIndex:1 }}>
+          <h2 style={{ margin:0,fontSize:17,fontWeight:700,display:'flex',alignItems:'center',gap:8 }}>
+            <Edit2 size={17} color="var(--color-primary)" /> Modificar Empleado — {emp.nombre_completo}
+          </h2>
+          <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding:'20px 24px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14 }}>
+          {/* Datos personales */}
+          <F label="Nombre(s)"><input required value={form.nombre} onChange={e => set('nombre',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
+          <F label="Apellido Paterno"><input required value={form.apellido_pat} onChange={e => set('apellido_pat',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
+          <F label="Apellido Materno">{inp('apellido_mat')}</F>
+          <F label="Sexo">{sel('sexo', [<option key="M" value="M">Masculino</option>, <option key="F" value="F">Femenino</option>])}</F>
+          <F label="Fecha nacimiento">{inp('fecha_nacimiento', { type:'date' })}</F>
+          <F label="Fecha ingreso">{inp('fecha_ingreso', { type:'date' })}</F>
+
+          {/* Puesto */}
+          <F label="Puesto">{inp('puesto')}</F>
+          <F label="Área">{inp('area')}</F>
+          <F label="Departamento" span>{inp('departamento')}</F>
+
+          {/* Salario */}
+          <F label="Salario diario ($)">
+            <input required type="number" step="0.01" value={form.salario_diario}
+              onChange={e => set('salario_diario', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="RFC">{inp('rfc', { placeholder:'RFC', style:{ fontFamily:'monospace',textTransform:'uppercase' } })}</F>
+          <F label="CURP">{inp('curp', { placeholder:'CURP', style:{ fontFamily:'monospace',textTransform:'uppercase' } })}</F>
+          <F label="NSS (IMSS)">{inp('nss')}</F>
+          <F label="Email">{inp('email', { type:'email' })}</F>
+          <F label="Celular">{inp('celular')}</F>
+
+          {/* Nuevos campos */}
+          <F label="Horario de trabajo" span>
+            <input value={form.horario_trabajo} onChange={e => set('horario_trabajo', e.target.value)}
+              placeholder="Ej: Lunes a Sábado 8-16 hrs"
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="Día de descanso">
+            {sel('dia_descanso', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...DIAS_DESCANSO.map(d => <option key={d} value={d}>{d}</option>),
+            ])}
+          </F>
+          <F label="Forma de pago">
+            {sel('forma_pago', [
+              <option key="T" value="TRANSFERENCIA">Transferencia</option>,
+              <option key="E" value="EFECTIVO">Efectivo</option>,
+              <option key="M" value="MIXTO">Mixto (Transfer + Efectivo)</option>,
+            ])}
+          </F>
+
+          {/* Notas */}
+          <F label="Notas" span>
+            <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box',resize:'vertical' }} />
+          </F>
+
+          {/* Botones */}
+          <div style={{ gridColumn:'1 / -1',display:'flex',gap:10,paddingTop:4 }}>
+            <button type="button" onClick={onClose}
+              style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'var(--color-primary)',color:'white',cursor:'pointer',fontWeight:700,fontSize:14,opacity:saving?.7:1 }}>
+              {saving ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Detalle de empleado ─────────────────────────────────────────────────────
 function DetalleEmpleado({ emp, onClose, onRefresh }) {
-  const [subModal, setSubModal] = useState(null) // 'renovar'
+  const [subModal, setSubModal] = useState(null) // 'renovar' | 'editar'
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
@@ -285,6 +446,10 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
             {[['Historial Salarial', null], ['Asistencias', null], ['Documentos', null], ['Incidencias', null]].map(([a]) => (
               <button key={a} style={{ padding: '7px 12px', background: '#F3F4F6', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-light)' }}>{a}</button>
             ))}
+            <button onClick={() => setSubModal('editar')}
+              style={{ padding: '7px 12px', background: '#FFF7ED', border: '1.5px solid #E8A020', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#92400E', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Edit2 size={13} /> Modificar
+            </button>
             <button onClick={() => setSubModal('renovar')}
               style={{ padding: '7px 12px', background: '#EFF6FF', border: '1.5px solid #0A66C2', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#0A66C2', display: 'flex', alignItems: 'center', gap: 5 }}>
               <RefreshCw size={13} /> Renovar Contrato
@@ -294,6 +459,9 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
       </div>
       {subModal === 'renovar' && (
         <RenovarContratoModal empleado={emp} onClose={() => setSubModal(null)} onSaved={() => { onRefresh(); setSubModal(null) }} />
+      )}
+      {subModal === 'editar' && (
+        <EditarEmpleadoModal emp={emp} onClose={() => setSubModal(null)} onSaved={onRefresh} />
       )}
     </div>
   )
