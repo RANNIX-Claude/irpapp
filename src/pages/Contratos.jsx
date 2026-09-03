@@ -1112,13 +1112,15 @@ export default function Contratos() {
   const [generandoFolios, setGenerandoFolios] = useState(false)
 
   // Genera folio IWOL-L{locales}-{año} para contratos sin folio estándar
+  const ESTATUS_VALIDOS = ['VIGENTE', 'VENCIDO', 'RENOVADO', 'RESCISION']
   const generarFolios = async () => {
     const sinFolio = lista.filter(c => !c.folio || !c.folio.startsWith('IWOL-'))
     if (sinFolio.length === 0) { alert('Todos los contratos ya tienen folio IWOL.'); return }
     setGenerandoFolios(true)
     let ok = 0, err = 0
+    // Construir folios generados en este lote para controlar unicidad
+    const foliosEnLote = {}
     for (const c of sinFolio) {
-      // Extraer números de local de locales_display o locales_referencia
       const locStr = c.locales_display || c.locales_referencia || c.unidad_numero || ''
       const nums = [...locStr.matchAll(/\d+/g)].map(m => m[0])
       const locCode = nums.length > 0
@@ -1126,15 +1128,22 @@ export default function Contratos() {
         : (c.id || '').slice(0, 4).toUpperCase()
       const anio = c.fecha_inicio ? c.fecha_inicio.slice(0, 4) : new Date().getFullYear()
       const baseF = `IWOL-L${locCode}-${anio}`
-      // Verificar unicidad — agregar sufijo si ya existe
-      const existing = lista.filter(x => x.id !== c.id && (x.folio || '').startsWith(baseF))
-      const folio = existing.length > 0 ? `${baseF}-${existing.length + 1}` : baseF
-      const { error } = await supabase.from('contratos').update({ folio, updated_at: new Date().toISOString() }).eq('id', c.id)
+      // Unicidad: revisar en lista existente Y en el lote actual
+      const enLista = lista.filter(x => x.id !== c.id && (x.folio || '').startsWith(baseF)).length
+      const enLote  = foliosEnLote[baseF] || 0
+      const sufijo  = enLista + enLote
+      const folio   = sufijo > 0 ? `${baseF}-${sufijo + 1}` : baseF
+      foliosEnLote[baseF] = enLote + 1
+      // Normalizar estatus si es valor legacy (el check constraint valida toda la fila)
+      const estatus = ESTATUS_VALIDOS.includes(c.estatus) ? c.estatus : 'VIGENTE'
+      const { error } = await supabase.from('contratos')
+        .update({ folio, estatus, updated_at: new Date().toISOString() })
+        .eq('id', c.id)
       if (error) err++; else ok++
     }
     setGenerandoFolios(false)
     setRefreshKey(k => k + 1)
-    alert(`Folios generados: ${ok} actualizados${err > 0 ? `, ${err} errores` : ''}`)
+    alert(`Folios generados: ${ok} actualizados${err > 0 ? `, ${err} con error` : ''}`)
   }
 
   // ?filtro=POR_VENCER viene del link "Renovaciones" del sidebar
