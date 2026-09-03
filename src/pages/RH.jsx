@@ -8,6 +8,7 @@ import {
   DollarSign, Send, Eye, ChevronUp, Printer, AlertCircle
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -1837,40 +1838,126 @@ function TabNominaIWOL() {
     [empId]: { ...(prev[empId] || {}), [k]: v },
   }))
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'IRP — RANNIX Consulting'
+    const sheetName = labelSemana(semana.lunes, semana.domingo).substring(0, 31)
+    const ws = wb.addWorksheet(sheetName)
+
+    // Formato monetario idéntico al archivo original
+    const MONEY = '_-"$"* #,##0.00_-;\\-"$"* #,##0.00_-;_-"$"* "-"??_-;_-@_-'
+
+    // Anchos de columna (en caracteres, igual al original)
+    const COL_W = [4, 34.88, 21.33, 17.44, 12.88, 17.88, 26.55, 14, 18.44, 21.44, 22.33, 21.33, 14.88]
+    COL_W.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+
+    // Borde fino para todas las celdas de datos
+    const thinBorder = {
+      top:    { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      left:   { style: 'thin', color: { argb: 'FF000000' } },
+      right:  { style: 'thin', color: { argb: 'FF000000' } },
+    }
+
+    // ── Fila 1: vacía ──────────────────────────────────────────────────
+
+    // ── Fila 2: título fusionado A2:M2 ─────────────────────────────────
+    ws.mergeCells('A2:M2')
     const titulo = `NÓMINA PLAZA IWOL DEL ${labelSemana(semana.lunes, semana.domingo).toUpperCase()}`
-    const headers = ['No.','NOMBRE DEL TRABAJADOR','HORARIO','DESCANSO','FALTAS','PERCEPCIÓN','COMPLEMENTO DE PAGO DE NOMINA','VACACIONES','PRIMA VACACIONAL','DIA FESTIVO','TOTAL PERCEPCIONES','TRANFERENCIA','EFECTIVO']
-    const rows = renglones.map(r => [
-      r.no, r.nombre, r.horario, r.descanso, r.faltas,
-      r.percepcion, r.complemento || null, r.vacaciones || null, r.prima_vac || null, r.dia_festivo || null,
-      r.total_percepciones, r.transferencia || null, r.efectivo || null,
-    ])
-    const totRow = [null, null, null, null, 'TOTALES:',
+    const tCell = ws.getCell('A2')
+    tCell.value = titulo
+    tCell.font  = { bold: true, size: 12, name: 'Calibri' }
+    tCell.alignment = { horizontal: 'center', vertical: 'middle' }
+    ws.getRow(2).height = 22
+
+    // ── Fila 3: vacía ──────────────────────────────────────────────────
+
+    // ── Fila 4: encabezados ────────────────────────────────────────────
+    const HDRS = [
+      'No.', 'NOMBRE DEL TRABAJADOR', 'HORARIO', 'DESCANSO', 'FALTAS',
+      'PERCEPCIÓN', 'COMPLEMENTO DE PAGO DE NOMINA', 'VACACIONES',
+      'PRIMA VACACIONAL', 'DIA FESTIVO', 'TOTAL PERCEPCIONES', 'TRANFERENCIA', 'EFECTIVO',
+    ]
+    const hRow = ws.getRow(4)
+    hRow.height = 30
+    HDRS.forEach((h, i) => {
+      const c = hRow.getCell(i + 1)
+      c.value = h
+      c.font  = { bold: true, size: 10, name: 'Calibri' }
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      c.border = thinBorder
+      // Fondo gris claro en encabezados (toque visual)
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
+    })
+
+    // ── Filas 5+: empleados ────────────────────────────────────────────
+    renglones.forEach((r, idx) => {
+      const rowNum = 5 + idx
+      const row = ws.getRow(rowNum)
+      row.height = 18
+      // Alternar fondo blanco / azul muy claro
+      const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFEBF3FB'
+
+      const vals = [
+        r.no,
+        r.nombre,
+        r.horario,
+        r.descanso,
+        r.faltas,
+        r.percepcion,
+        r.complemento  || null,
+        r.vacaciones   || null,
+        r.prima_vac    || null,
+        r.dia_festivo  || null,
+        r.total_percepciones,
+        r.transferencia || null,
+        r.efectivo      || null,
+      ]
+      vals.forEach((v, i) => {
+        const c = row.getCell(i + 1)
+        c.value = v === 0 && i >= 5 ? 0 : (v || null)  // mantener 0 en columnas dinero
+        c.border = thinBorder
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
+        // Alineación
+        c.alignment = {
+          horizontal: [0, 3, 4].includes(i) ? 'center' : i === 1 ? 'left' : i >= 5 ? 'right' : 'left',
+          vertical: 'middle',
+          wrapText: i === 2,   // horario puede ser largo
+        }
+        // Formato monetario en columnas F–M (índices 5–12)
+        if (i >= 5) c.numFmt = MONEY
+      })
+    })
+
+    // ── Fila totales ───────────────────────────────────────────────────
+    const totRowNum = 5 + renglones.length
+    const totRow = ws.getRow(totRowNum)
+    totRow.height = 18
+    ;[null, null, null, null, 'TOTALES:',
       totales.percepcion, null, null, null, null,
       totales.total_percepciones, totales.transferencia, totales.efectivo,
-    ]
+    ].forEach((v, i) => {
+      const c = totRow.getCell(i + 1)
+      c.value = v
+      c.border = thinBorder
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
+      c.font = { bold: true, size: 10, name: 'Calibri' }
+      c.alignment = {
+        horizontal: i === 4 ? 'right' : i >= 5 ? 'right' : 'center',
+        vertical: 'middle',
+      }
+      if (i >= 5) c.numFmt = MONEY
+    })
 
-    const ws_data = [
-      [titulo],
-      [],
-      headers,
-      ...rows,
-      totRow,
-    ]
-
-    const ws = XLSX.utils.aoa_to_sheet(ws_data)
-
-    // Estilos básicos de ancho de columna
-    ws['!cols'] = [
-      { wch: 4 }, { wch: 34 }, { wch: 36 }, { wch: 12 },
-      { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 12 },
-      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 12 },
-    ]
-
-    const wb = XLSX.utils.book_new()
-    const sheetName = labelSemana(semana.lunes, semana.domingo).substring(0, 31)
-    XLSX.utils.book_append_sheet(wb, ws, sheetName)
-    XLSX.writeFile(wb, `Nomina_IWOL_${semana.lunes}.xlsx`)
+    // ── Generar y descargar ────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `Nomina_IWOL_${semana.lunes}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
     toast.success('Excel generado correctamente')
   }
 
