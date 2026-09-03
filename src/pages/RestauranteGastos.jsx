@@ -432,6 +432,150 @@ function TicketCard({ t, idx, setForm, quitar }) {
   )
 }
 
+// ─── Modal captura manual ─────────────────────────────────────────────────────
+function ModalTicketIndividual({ onClose, onSaved }) {
+  const hoy = hoyISO()
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    fecha: hoy, proveedor: '', razon_social: '', rfc: '', folio: '',
+    subtotal: '', iva: '', total: '', grupo_gasto: 'Otros', descripcion: '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Calcular total automático si subtotal + iva cambian
+  const calcTotal = (sub, iv) => {
+    const s = parseFloat(sub) || 0
+    const i = parseFloat(iv) || 0
+    if (s > 0) set('total', (s + i).toFixed(2))
+  }
+
+  const guardar = async () => {
+    if (!form.proveedor) { toast.error('Ingresa el nombre del proveedor'); return }
+    if (!form.total)     { toast.error('Ingresa el total'); return }
+    setSaving(true)
+    try {
+      const dt = new Date(form.fecha + 'T12:00:00')
+      const { error } = await supabase.from('restaurante_gastos').insert({
+        fecha: form.fecha,
+        mes: dt.getMonth() + 1,
+        anio: dt.getFullYear(),
+        proveedor: form.proveedor || null,
+        razon_social: form.razon_social || null,
+        rfc: form.rfc || null,
+        folio: form.folio || null,
+        subtotal: form.subtotal ? parseFloat(form.subtotal) : null,
+        iva: form.iva ? parseFloat(form.iva) : null,
+        total: parseFloat(form.total),
+        grupo_gasto: form.grupo_gasto,
+        descripcion: form.descripcion || null,
+      })
+      if (error) throw error
+      toast.success('Gasto guardado')
+      onSaved()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inp = { border:'1px solid #D1D5DB', borderRadius:7, padding:'8px 10px', fontSize:13, width:'100%', outline:'none', boxSizing:'border-box' }
+  const lbl = { fontSize:11, fontWeight:700, color:'#6B7280', display:'block', marginBottom:3 }
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.5)' }}>
+      <div style={{ background:'white', borderRadius:14, width:'min(540px,96vw)', boxShadow:'0 25px 60px rgba(0,0,0,0.25)', display:'flex', flexDirection:'column', maxHeight:'90vh', overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 22px', borderBottom:'1px solid #E5E7EB', background:'#EFF6FF' }}>
+          <div>
+            <div style={{ fontWeight:800, fontSize:15, color:'#1D4ED8' }}>📋 Ticket Individual</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>Captura manual de gasto de restaurante</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#9CA3AF' }}><X size={20}/></button>
+        </div>
+
+        {/* Cuerpo */}
+        <div style={{ overflowY:'auto', padding:'20px 22px', display:'flex', flexDirection:'column', gap:14 }}>
+          {/* Fecha */}
+          <div>
+            <label style={lbl}>Fecha *</label>
+            <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} style={inp} />
+          </div>
+
+          {/* Proveedor */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div>
+              <label style={lbl}>Proveedor / Nombre comercial *</label>
+              <input value={form.proveedor} onChange={e => set('proveedor', e.target.value)} placeholder="Ej. Costco" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Razón social</label>
+              <input value={form.razon_social} onChange={e => set('razon_social', e.target.value)} placeholder="Ej. Costco de México S.A." style={inp} />
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div>
+              <label style={lbl}>RFC</label>
+              <input value={form.rfc} onChange={e => set('rfc', e.target.value.toUpperCase())} placeholder="Ej. CME910715UB9" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Folio / Factura</label>
+              <input value={form.folio} onChange={e => set('folio', e.target.value)} placeholder="Ej. A-001234" style={inp} />
+            </div>
+          </div>
+
+          {/* Montos */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            <div>
+              <label style={lbl}>Subtotal</label>
+              <input type="number" step="0.01" value={form.subtotal}
+                onChange={e => { set('subtotal', e.target.value); calcTotal(e.target.value, form.iva) }}
+                placeholder="0.00" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>IVA</label>
+              <input type="number" step="0.01" value={form.iva}
+                onChange={e => { set('iva', e.target.value); calcTotal(form.subtotal, e.target.value) }}
+                placeholder="0.00" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Total *</label>
+              <input type="number" step="0.01" value={form.total}
+                onChange={e => set('total', e.target.value)}
+                placeholder="0.00" style={{ ...inp, fontWeight:700, borderColor:'#0A66C2' }} />
+            </div>
+          </div>
+
+          {/* Grupo */}
+          <div>
+            <label style={lbl}>Grupo / Categoría</label>
+            <select value={form.grupo_gasto} onChange={e => set('grupo_gasto', e.target.value)} style={inp}>
+              {GRUPOS_RESTAURANTE.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <label style={lbl}>Descripción / Concepto</label>
+            <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)}
+              placeholder="Ej. Compra semanal ingredientes" style={inp} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop:'1px solid #E5E7EB', padding:'14px 22px', display:'flex', justifyContent:'flex-end', gap:10, background:'#F9FAFB' }}>
+          <button onClick={onClose} style={{ padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving}
+            style={{ padding:'9px 20px', background:saving?'#9CA3AF':'#0A66C2', color:'white', border:'none', borderRadius:8, fontSize:13, fontWeight:800, cursor:saving?'not-allowed':'pointer' }}>
+            {saving ? 'Guardando…' : 'Guardar gasto'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Modal carga masiva ───────────────────────────────────────────────────────
 function ModalCargaMasiva({ onClose, onSaved }) {
   const hoy = hoyISO()
@@ -494,18 +638,26 @@ function ModalCargaMasiva({ onClose, onSaved }) {
       try {
         const fecha = t.form.fecha || hoy
         const dt = new Date(fecha + 'T12:00:00')
-        // Subir imagen
+        // Subir imagen via Netlify Function (service_role key server-side)
         let ticket_url = null
         if (t.b64 && t.mtype) {
           const ext  = t.mtype === 'application/pdf' ? 'pdf' : (t.mtype.split('/')[1] || 'jpg')
-          const path = `restaurante/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-          const buf  = Uint8Array.from(atob(t.b64), c => c.charCodeAt(0))
-          const { error: upErr } = await supabase.storage.from('tickets-gastos').upload(path, buf, { contentType:t.mtype })
-          if (upErr) {
-            toast.error(`Error al subir imagen: ${upErr.message}`)
-          } else {
-            const { data: urlData } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
-            ticket_url = urlData?.publicUrl || null
+          const filePath = `restaurante/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+          try {
+            const upResp = await fetch('/.netlify/functions/subir-comprobante', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bucket: 'tickets-gastos', path: filePath, file_base64: t.b64, mime_type: t.mtype }),
+            })
+            if (upResp.ok) {
+              const upData = await upResp.json()
+              ticket_url = upData.url || null
+            } else {
+              const upData = await upResp.json().catch(() => ({}))
+              toast.error(`Error al subir imagen: ${upData.error || upResp.status}`)
+            }
+          } catch (e) {
+            toast.error(`Error al subir imagen: ${e.message}`)
           }
         }
         // Insertar gasto
@@ -605,24 +757,39 @@ export default function RestauranteGastos() {
   const [gastos, setGastos]         = useState([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
-  const [semSel, setSemSel]         = useState(SEMANAS_DOM_SAB[1]) // semana actual (índice 1: primera semana real)
+  const [semSel, setSemSel]         = useState(SEMANAS_DOM_SAB[0]) // default: todos
+  const [fechaIni, setFechaIni]     = useState('')
+  const [fechaFin, setFechaFin]     = useState('')
+  const [proveedorFil, setProveedorFil] = useState('')
   const [modal, setModal]           = useState(null)
   const [detalle, setDetalle]       = useState(null)
   const [lightbox, setLightbox]     = useState(null)
   const [subiendoTicket, setSubiendoTicket] = useState(null)
+  const [artIds, setArtIds]         = useState(null) // IDs de gastos que tienen el artículo buscado
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('restaurante_gastos').select('*').order('fecha', { ascending: true })
-    if (semSel.ini !== 'TODOS') q = q.gte('fecha', semSel.ini).lte('fecha', semSel.fin)
-    q = q.limit(1000)
+    let q = supabase.from('restaurante_gastos').select('*').order('fecha', { ascending: false })
+    if (fechaIni) q = q.gte('fecha', fechaIni)
+    if (fechaFin) q = q.lte('fecha', fechaFin)
+    q = q.limit(2000)
     const { data, error } = await q
     if (error) toast.error(error.message)
     setGastos(data || [])
     setLoading(false)
-  }, [semSel])
+  }, [fechaIni, fechaFin])
+
+  // Búsqueda en artículos (restaurante_gasto_detalle)
+  const buscarArticulo = useCallback(async (term) => {
+    if (!term.trim()) { setArtIds(null); return }
+    const { data } = await supabase.from('restaurante_gasto_detalle')
+      .select('gasto_id')
+      .ilike('descripcion', `%${term}%`)
+    setArtIds(data ? data.map(d => d.gasto_id) : [])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => { buscarArticulo(search) }, [search, buscarArticulo])
 
   const abrirDetalle = async (g) => {
     setDetalle({ gasto: g, lineas: [] })
@@ -644,12 +811,13 @@ export default function RestauranteGastos() {
       const img = await fileToB64(file)
       if (!img) { toast.error('No se pudo leer el archivo'); return }
       const ext  = img.mtype === 'application/pdf' ? 'pdf' : (img.mtype.split('/')[1] || 'jpg')
-      const path = `restaurante/${gastoId}-retro-${Date.now()}.${ext}`
-      const buf  = Uint8Array.from(atob(img.b64), c => c.charCodeAt(0))
-      const { error: upErr } = await supabase.storage.from('tickets-gastos').upload(path, buf, { contentType: img.mtype, upsert: true })
-      if (upErr) { toast.error(`Error al subir: ${upErr.message}`); return }
-      const { data: urlData } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
-      const ticket_url = urlData?.publicUrl
+      const filePath = `restaurante/${gastoId}-retro-${Date.now()}.${ext}`
+      const upResp = await fetch('/.netlify/functions/subir-comprobante', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bucket: 'tickets-gastos', path: filePath, file_base64: img.b64, mime_type: img.mtype }),
+      })
+      if (!upResp.ok) { const e = await upResp.json().catch(() => ({})); toast.error(`Error al subir: ${e.error || upResp.status}`); return }
+      const { url: ticket_url } = await upResp.json()
       await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
       toast.success('Ticket adjuntado')
       setLightbox(ticket_url)   // abrir lightbox inmediatamente
@@ -657,10 +825,23 @@ export default function RestauranteGastos() {
     } finally { setSubiendoTicket(null) }
   }
 
+  // Proveedores únicos para el filtro
+  const proveedores = [...new Set(gastos.map(g => g.proveedor).filter(Boolean))].sort()
+
   const filtrados = gastos.filter(g => {
     const q = search.toLowerCase()
-    const matchQ = !q || (g.proveedor||'').toLowerCase().includes(q) || (g.descripcion||'').toLowerCase().includes(q) || (g.folio||'').toLowerCase().includes(q)
-    return matchQ
+    // Filtro proveedor dropdown
+    if (proveedorFil && g.proveedor !== proveedorFil) return false
+    // Búsqueda texto: proveedor, folio, descripción o artículo (via artIds)
+    if (q) {
+      const matchTexto = (g.proveedor||'').toLowerCase().includes(q)
+        || (g.descripcion||'').toLowerCase().includes(q)
+        || (g.folio||'').toLowerCase().includes(q)
+        || (g.rfc||'').toLowerCase().includes(q)
+      const matchArt = artIds !== null && artIds.includes(g.id)
+      if (!matchTexto && !matchArt) return false
+    }
+    return true
   })
 
   const totalFiltrado = filtrados.reduce((a,g) => a + (parseFloat(g.total)||0), 0)
@@ -693,7 +874,7 @@ export default function RestauranteGastos() {
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#15803D', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <FileSpreadsheet size={14}/> Reporte Semanal
             </button>
-            <button onClick={() => setModal('masivo')}
+            <button onClick={() => setModal('individual')}
               style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'#0A66C2', color:'white', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer' }}>
               <FileSpreadsheet size={14}/> Ticket individual
             </button>
@@ -704,22 +885,43 @@ export default function RestauranteGastos() {
           </div>
         </div>
 
-        {/* Selector de semana + filtros */}
-        <div style={{ display:'flex', gap:10, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
-          {/* Selector semana */}
-          <select value={semSel.ini} onChange={e => setSemSel(SEMANAS_DOM_SAB.find(s => s.ini === e.target.value) || SEMANAS_DOM_SAB[0])}
-            style={{ padding:'7px 12px', border:'2px solid #15803D', borderRadius:8, fontSize:12, fontWeight:700, color:'#15803D', outline:'none', background:'white', cursor:'pointer', minWidth:280 }}>
-            {SEMANAS_DOM_SAB.map(s => (
-              <option key={s.ini} value={s.ini}>{s.label}</option>
-            ))}
+        {/* Filtros */}
+        <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
+          {/* Rango fecha */}
+          <input type="date" value={fechaIni} onChange={e => setFechaIni(e.target.value)}
+            title="Fecha desde"
+            style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:7, fontSize:12, outline:'none', color: fechaIni ? '#1A3C5E':'#9CA3AF' }} />
+          <span style={{ fontSize:11, color:'#9CA3AF' }}>—</span>
+          <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
+            title="Fecha hasta"
+            style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:7, fontSize:12, outline:'none', color: fechaFin ? '#1A3C5E':'#9CA3AF' }} />
+          {(fechaIni || fechaFin) && (
+            <button onClick={() => { setFechaIni(''); setFechaFin('') }}
+              style={{ padding:'5px 9px', background:'#FEE2E2', color:'#DC2626', border:'none', borderRadius:6, fontSize:11, fontWeight:700, cursor:'pointer' }}>✕ Limpiar</button>
+          )}
+
+          {/* Proveedor */}
+          <select value={proveedorFil} onChange={e => setProveedorFil(e.target.value)}
+            style={{ padding:'7px 10px', border:'1.5px solid #D1D5DB', borderRadius:7, fontSize:12, outline:'none', maxWidth:200, color: proveedorFil?'#1A3C5E':'#9CA3AF' }}>
+            <option value="">Todos los proveedores</option>
+            {proveedores.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+
+          {/* Búsqueda texto + artículos */}
           <div style={{ position:'relative' }}>
             <Search size={13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, folio…"
-              style={{ paddingLeft:28, padding:'7px 10px 7px 28px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, width:200, outline:'none', boxSizing:'border-box' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar proveedor, folio, artículo…"
+              style={{ paddingLeft:28, padding:'7px 10px 7px 28px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:12, width:220, outline:'none', boxSizing:'border-box' }} />
           </div>
+          {search && artIds !== null && (
+            <span style={{ fontSize:11, color:'#0A66C2', fontWeight:700 }}>
+              {artIds.length} gasto(s) con ese artículo
+            </span>
+          )}
+
           <div style={{ marginLeft:'auto', fontSize:13, fontWeight:800, color:'#15803D', fontFamily:'monospace' }}>
-            {semSel.ini === 'TODOS' ? 'TOTAL GENERAL' : 'TOTAL SEMANA'}: {fmt(totalFiltrado)} · {filtrados.length} gastos
+            TOTAL: {fmt(totalFiltrado)} · {filtrados.length} registros
           </div>
         </div>
       </div>
@@ -731,7 +933,7 @@ export default function RestauranteGastos() {
         ) : filtrados.length === 0 ? (
           <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
             <UtensilsCrossed size={40} style={{ margin:'0 auto 12px', opacity:0.3 }} />
-            <div style={{ fontSize:14, fontWeight:600 }}>Sin gastos esta semana</div>
+            <div style={{ fontSize:14, fontWeight:600 }}>Sin gastos en el período seleccionado</div>
             <div style={{ fontSize:12, marginTop:4 }}>Usa "Ticket individual" o "Carga masiva" para agregar gastos</div>
           </div>
         ) : (
@@ -873,6 +1075,9 @@ export default function RestauranteGastos() {
       </div>
 
       {/* Modales */}
+      {modal === 'individual' && (
+        <ModalTicketIndividual onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
+      )}
       {modal === 'masivo' && (
         <ModalCargaMasiva onClose={() => setModal(null)} onSaved={() => { setModal(null); cargar() }} />
       )}

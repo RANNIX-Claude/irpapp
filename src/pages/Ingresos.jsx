@@ -169,14 +169,25 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       if (apErr) { setSaving(false); setErr('Ingreso guardado pero error al aplicar cargos: ' + apErr.message); return }
     }
 
-    // Upload comprobante si se seleccionó
+    // Upload comprobante via Netlify Function (usa service_role key server-side)
     if (compFile && ingresoId) {
-      const ext = compFile.name.split('.').pop() || 'jpg'
-      const path = `comprobantes/${ingresoId}/comp.${ext}`
-      const { error: upErr } = await supabase.storage.from('facturas-cfdi').upload(path, compFile, { upsert: true })
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('facturas-cfdi').getPublicUrl(path)
-        await supabase.from('ingresos').update({ comprobante_url: urlData.publicUrl }).eq('id', ingresoId)
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(compFile)
+        })
+        const ext = compFile.name.split('.').pop() || 'jpg'
+        const filePath = `comprobantes/${ingresoId}/comp.${ext}`
+        const resp = await fetch('/.netlify/functions/subir-comprobante', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket: 'facturas-cfdi', path: filePath, file_base64: b64, mime_type: compFile.type || 'image/jpeg', ingreso_id: ingresoId }),
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          toast.error('Error al subir comprobante: ' + (j.error || resp.status))
+        }
+      } catch (e) {
+        toast.error('Error al subir comprobante: ' + e.message)
       }
     }
 
