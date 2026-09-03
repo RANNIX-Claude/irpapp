@@ -1471,7 +1471,13 @@ function getLunes(d) {
   dt.setDate(dt.getDate() + diff)
   return dt
 }
-function fmtDate(d) { return d.toISOString().split('T')[0] }
+function fmtDate(d) {
+  // Usa fecha LOCAL (no UTC) para evitar el desfase de zona horaria
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 function addDays(d, n) { const dt = new Date(d); dt.setDate(dt.getDate() + n); return dt }
 
 function generarSemanas(n = 12) {
@@ -1494,7 +1500,7 @@ function labelSemana(lunes, domingo) {
 
 // ── Modal: Nueva Incidencia ──────────────────────────────────────────────────
 function NuevaIncidenciaModal({ empleados, onClose, onSaved }) {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fmtDate(new Date())
   const [form, setForm] = useState({ empleado_id: '', fecha: hoy, tipo: 'INASISTENCIA', descripcion: '' })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
