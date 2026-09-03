@@ -42,9 +42,11 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [contratos, setContratos] = useState([])
-  const [cargos, setCargos] = useState([])          // cargos pendientes del contrato seleccionado
-  const [dist, setDist] = useState({})              // { cargo_id: importe_a_aplicar }
+  const [cargos, setCargos] = useState([])
+  const [dist, setDist] = useState({})
   const [loadingCargos, setLoadingCargos] = useState(false)
+  const [contratoSearch, setContratoSearch] = useState('')
+  const [contratoOpen, setContratoOpen] = useState(false)
   const [compFile, setCompFile] = useState(null)
   const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
   const fileRef = useRef()
@@ -59,8 +61,16 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   useEffect(() => {
     supabase.from('prp_contratos')
       .select('id, folio, arrendatario_nombre, locales_display')
-      .order('arrendatario_nombre')
-      .then(({ data }) => setContratos(data || []))
+      .order('locales_display', { ascending: true, nullsFirst: false })
+      .then(({ data }) => {
+        // Ordenar: primero los que tienen local, luego el resto por nombre
+        const sorted = (data || []).sort((a, b) => {
+          if (a.locales_display && !b.locales_display) return -1
+          if (!a.locales_display && b.locales_display) return 1
+          return (a.locales_display || a.arrendatario_nombre || '').localeCompare(b.locales_display || b.arrendatario_nombre || '')
+        })
+        setContratos(sorted)
+      })
   }, [])
 
   // Al cambiar contrato, cargar cargos pendientes
@@ -253,18 +263,57 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 18px' }}>
 
-            {/* Contrato */}
-            <div style={{ gridColumn:'1/-1' }}>
+            {/* Contrato — buscador filtrable */}
+            <div style={{ gridColumn:'1/-1', position:'relative' }}>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Contrato *</label>
-              <select value={form.contrato_id} onChange={e => set('contrato_id', e.target.value)}
-                style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', marginTop:'4px' }}>
-                <option value="">Seleccionar contrato...</option>
-                {contratos.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.folio} — {c.arrendatario_nombre}{c.locales_display ? ` (${c.locales_display})` : ''}
-                  </option>
-                ))}
-              </select>
+              {(() => {
+                const sel = contratos.find(c => c.id === form.contrato_id)
+                const q = contratoSearch.toLowerCase()
+                const filtrados = contratos.filter(c => {
+                  if (!q) return true
+                  return (c.locales_display || '').toLowerCase().includes(q)
+                    || (c.arrendatario_nombre || '').toLowerCase().includes(q)
+                    || (c.folio || '').toLowerCase().includes(q)
+                })
+                const label = c => {
+                  const loc = c.locales_display ? `${c.locales_display} — ` : ''
+                  return `${loc}${c.arrendatario_nombre || ''}${c.folio ? ` (${c.folio})` : ''}`
+                }
+                return (
+                  <div style={{ marginTop:'4px' }}>
+                    <input
+                      value={contratoSearch || (sel ? label(sel) : '')}
+                      onFocus={() => { setContratoSearch(''); setContratoOpen(true) }}
+                      onBlur={() => setTimeout(() => setContratoOpen(false), 180)}
+                      onChange={e => { setContratoSearch(e.target.value); setContratoOpen(true); if (!e.target.value) set('contrato_id', '') }}
+                      placeholder="Buscar por local (L14) o nombre..."
+                      style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', boxSizing:'border-box' }}
+                    />
+                    {contratoOpen && (
+                      <div style={{ position:'absolute', zIndex:300, top:'100%', left:0, right:0, background:'white', border:'1px solid #D1D5DB', borderRadius:'8px', maxHeight:'220px', overflowY:'auto', boxShadow:'0 4px 16px rgba(0,0,0,0.13)', marginTop:'2px' }}>
+                        {filtrados.length === 0
+                          ? <div style={{ padding:'10px 14px', fontSize:'12px', color:'#9CA3AF' }}>Sin coincidencias</div>
+                          : filtrados.map(c => (
+                            <div key={c.id}
+                              onMouseDown={() => { set('contrato_id', c.id); setContratoSearch(''); setContratoOpen(false) }}
+                              style={{ padding:'9px 14px', fontSize:'13px', cursor:'pointer', borderBottom:'1px solid #F3F4F6',
+                                background: c.id === form.contrato_id ? '#EFF6FF' : 'white',
+                                color: c.id === form.contrato_id ? '#0A66C2' : '#111827' }}
+                              onMouseEnter={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='#F9FAFB' }}
+                              onMouseLeave={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='white' }}>
+                              {c.locales_display && (
+                                <span style={{ fontWeight:700, color:'#0A66C2', marginRight:'6px' }}>{c.locales_display}</span>
+                              )}
+                              {c.arrendatario_nombre}
+                              {c.folio && <span style={{ fontSize:'11px', color:'#9CA3AF', marginLeft:'6px' }}>({c.folio})</span>}
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Importe recibido */}
