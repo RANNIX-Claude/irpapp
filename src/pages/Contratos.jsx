@@ -1109,6 +1109,33 @@ export default function Contratos() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [showNuevo, setShowNuevo] = useState(false)
+  const [generandoFolios, setGenerandoFolios] = useState(false)
+
+  // Genera folio IWOL-L{locales}-{año} para contratos sin folio estándar
+  const generarFolios = async () => {
+    const sinFolio = lista.filter(c => !c.folio || !c.folio.startsWith('IWOL-'))
+    if (sinFolio.length === 0) { alert('Todos los contratos ya tienen folio IWOL.'); return }
+    setGenerandoFolios(true)
+    let ok = 0, err = 0
+    for (const c of sinFolio) {
+      // Extraer números de local de locales_display o locales_referencia
+      const locStr = c.locales_display || c.locales_referencia || c.unidad_numero || ''
+      const nums = [...locStr.matchAll(/\d+/g)].map(m => m[0])
+      const locCode = nums.length > 0
+        ? nums.map(n => n.padStart(2, '0')).join('')
+        : (c.id || '').slice(0, 4).toUpperCase()
+      const anio = c.fecha_inicio ? c.fecha_inicio.slice(0, 4) : new Date().getFullYear()
+      const baseF = `IWOL-L${locCode}-${anio}`
+      // Verificar unicidad — agregar sufijo si ya existe
+      const existing = lista.filter(x => x.id !== c.id && (x.folio || '').startsWith(baseF))
+      const folio = existing.length > 0 ? `${baseF}-${existing.length + 1}` : baseF
+      const { error } = await supabase.from('contratos').update({ folio, updated_at: new Date().toISOString() }).eq('id', c.id)
+      if (error) err++; else ok++
+    }
+    setGenerandoFolios(false)
+    setRefreshKey(k => k + 1)
+    alert(`Folios generados: ${ok} actualizados${err > 0 ? `, ${err} errores` : ''}`)
+  }
 
   // ?filtro=POR_VENCER viene del link "Renovaciones" del sidebar
   useEffect(() => {
@@ -1216,6 +1243,10 @@ export default function Contratos() {
               {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
+          <button onClick={generarFolios} disabled={generandoFolios} title="Genera folio IWOL-LXX-YYYY para contratos sin folio"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #7C3AED', borderRadius: '8px', background: generandoFolios ? '#F5F3FF' : 'white', color: '#7C3AED', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            <Wand2 size={15} /> {generandoFolios ? 'Generando...' : 'Generar Folios'}
+          </button>
           <button onClick={() => {
             const cols = ['folio','arrendatario_nombre','inmueble_nombre','locales_display','fecha_inicio','fecha_fin','renta_mensual','estado_id']
             const head = ['Folio','Arrendatario','Inmueble','Locales','Inicio','Fin','Renta','Estatus']
