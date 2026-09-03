@@ -251,6 +251,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
       fiador_nombre:              c.fiador_nombre ?? '',
       fiador_rfc:                 c.fiador_rfc ?? '',
       fiador_domicilio:           c.fiador_domicilio ?? '',
+      folio:                      c.folio ?? '',
     })
     setEditErr(null)
     setEditMode(true)
@@ -261,6 +262,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     // Columnas reales de public.contratos (dia_pago y penalizacion_pct son los nombres en tabla)
     const ESTATUS_VALIDOS = ['VIGENTE','VENCIDO','RENOVADO','RESCISION']
     const payload = {
+      numero_contrato: editForm.folio || null,
       estatus:          ESTATUS_VALIDOS.includes(editForm.estatus) ? editForm.estatus : 'VIGENTE',
       estatus_proceso:  editForm.estatus_proceso  || null,
       renta_mensual:    editForm.renta_mensual    ? parseFloat(editForm.renta_mensual)    : null,
@@ -455,6 +457,16 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                             style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
                         </div>
                       </div>
+                    </div>
+
+                    {/* Folio del contrato */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Folio contrato <span style={{ fontWeight: 400, textTransform: 'none', color: '#9CA3AF' }}>(ej. IWOL-L08-2025)</span>
+                      </div>
+                      <input value={editForm.folio} onChange={e => setEditForm(f => ({ ...f, folio: e.target.value }))}
+                        placeholder="IWOL-L08-2025"
+                        style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #7C3AED', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'monospace', fontWeight: 700, color: '#5B21B6' }} />
                     </div>
 
                     {/* Estatus del contrato */}
