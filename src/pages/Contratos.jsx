@@ -1137,7 +1137,7 @@ export default function Contratos() {
       // Normalizar estatus si es valor legacy (el check constraint valida toda la fila)
       const estatus = ESTATUS_VALIDOS.includes(c.estatus) ? c.estatus : 'VIGENTE'
       const { error } = await supabase.from('contratos')
-        .update({ folio, estatus, updated_at: new Date().toISOString() })
+        .update({ numero_contrato: folio, estatus, updated_at: new Date().toISOString() })
         .eq('id', c.id)
       if (error) err++; else ok++
     }
