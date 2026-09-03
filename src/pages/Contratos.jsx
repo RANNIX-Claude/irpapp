@@ -1484,8 +1484,25 @@ export default function Contratos() {
               </button>
               <button disabled={deleting} onClick={async () => {
                 setDeleting(true)
-                await supabase.from('contratos_locales').delete().eq('contrato_id', confirmDelete.id)
-                await supabase.from('contratos').delete().eq('id', confirmDelete.id)
+                const cid = confirmDelete.id
+                // 1. Obtener cargos del contrato para limpiar aplicaciones
+                const { data: cargos } = await supabase.from('cargos_programados').select('id').eq('contrato_id', cid)
+                const cargoIds = (cargos || []).map(c => c.id)
+                if (cargoIds.length > 0) {
+                  await supabase.from('aplicaciones_pago').delete().in('cargo_id', cargoIds)
+                }
+                // 2. Aplicaciones ligadas a ingresos del contrato
+                const { data: ings } = await supabase.from('ingresos').select('id').eq('contrato_id', cid)
+                const ingIds = (ings || []).map(i => i.id)
+                if (ingIds.length > 0) {
+                  await supabase.from('aplicaciones_pago').delete().in('ingreso_id', ingIds)
+                  await supabase.from('ingresos').delete().in('id', ingIds)
+                }
+                // 3. Cargos programados e ingresos del contrato
+                await supabase.from('cargos_programados').delete().eq('contrato_id', cid)
+                // 4. Locales y contrato
+                await supabase.from('contratos_locales').delete().eq('contrato_id', cid)
+                await supabase.from('contratos').delete().eq('id', cid)
                 setDeleting(false)
                 setConfirmDelete(null)
                 setRefreshKey(k => k + 1)
