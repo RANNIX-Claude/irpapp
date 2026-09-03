@@ -5,8 +5,9 @@ import {
   UserCheck, Download, X, ChevronRight, Briefcase, FileText,
   UserPlus, Link, Calendar, Phone, Mail, ArrowRight, RefreshCw,
   Upload, Filter, MoreVertical, ChevronDown, Edit2, Save,
-  DollarSign, Send, Eye, ChevronUp, Printer
+  DollarSign, Send, Eye, ChevronUp, Printer, AlertCircle
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -1462,10 +1463,476 @@ function TabNomina() {
   )
 }
 
+// ── Helpers semanas ─────────────────────────────────────────────────────────
+function getLunes(d) {
+  const dt = new Date(d)
+  const day = dt.getDay() // 0=dom
+  const diff = (day === 0 ? -6 : 1 - day)
+  dt.setDate(dt.getDate() + diff)
+  return dt
+}
+function fmtDate(d) { return d.toISOString().split('T')[0] }
+function addDays(d, n) { const dt = new Date(d); dt.setDate(dt.getDate() + n); return dt }
+
+function generarSemanas(n = 12) {
+  const semanas = []
+  let lunes = getLunes(new Date())
+  for (let i = 0; i < n; i++) {
+    const domingo = addDays(lunes, 6)
+    semanas.push({ lunes: fmtDate(lunes), domingo: fmtDate(domingo) })
+    lunes = addDays(lunes, -7)
+  }
+  return semanas
+}
+
+const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+function labelSemana(lunes, domingo) {
+  const l = new Date(lunes + 'T12:00:00')
+  const d = new Date(domingo + 'T12:00:00')
+  return `${l.getDate()} al ${d.getDate()} de ${MESES_ES[d.getMonth()]} ${d.getFullYear()}`
+}
+
+// ── Modal: Nueva Incidencia ──────────────────────────────────────────────────
+function NuevaIncidenciaModal({ empleados, onClose, onSaved }) {
+  const hoy = new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({ empleado_id: '', fecha: hoy, tipo: 'INASISTENCIA', descripcion: '' })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const TIPOS = [
+    { id: 'INASISTENCIA',      label: 'Inasistencia',           afecta: true  },
+    { id: 'RETARDO',           label: 'Retardo',                afecta: false },
+    { id: 'PERMISO_SIN_GOCE', label: 'Permiso sin goce',       afecta: true  },
+    { id: 'PERMISO_CON_GOCE', label: 'Permiso con goce',       afecta: false },
+    { id: 'VACACIONES',        label: 'Vacaciones',             afecta: false },
+    { id: 'INCAPACIDAD',       label: 'Incapacidad',            afecta: false },
+  ]
+
+  const guardar = async () => {
+    if (!form.empleado_id || !form.fecha || !form.tipo) return toast.error('Empleado, fecha y tipo son obligatorios')
+    const tipo = TIPOS.find(t => t.id === form.tipo)
+    // Calcular lunes de la semana
+    const lunes = fmtDate(getLunes(form.fecha))
+    setSaving(true)
+    const { error } = await supabase.from('rh_incidencias').insert({
+      empleado_id: form.empleado_id,
+      fecha: form.fecha,
+      tipo: form.tipo,
+      descripcion: form.descripcion || null,
+      afecta_nomina: tipo?.afecta ?? true,
+      semana_inicio: lunes,
+      created_by: 'USUARIO',
+    })
+    setSaving(false)
+    if (error) {
+      if (error.code === '23505') return toast.error('Ya existe esa incidencia para este empleado y fecha')
+      return toast.error(error.message)
+    }
+    toast.success('Incidencia registrada')
+    onSaved()
+  }
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20 }} onClick={onClose}>
+      <div style={{ background:'white',borderRadius:14,width:480,maxWidth:'95vw',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+          <h3 style={{ margin:0,fontSize:16,fontWeight:700,display:'flex',alignItems:'center',gap:8 }}>
+            <AlertCircle size={18} color="var(--color-warning)" /> Nueva Incidencia
+          </h3>
+          <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={18} /></button>
+        </div>
+        <div style={{ display:'grid',gap:14 }}>
+          <div>
+            <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>Empleado</label>
+            <select value={form.empleado_id} onChange={e => set('empleado_id', e.target.value)}
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:13,background:'white' }}>
+              <option value="">Seleccionar empleado…</option>
+              {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre_completo}</option>)}
+            </select>
+          </div>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+            <div>
+              <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>Fecha</label>
+              <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)}
+                style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:13,boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>Tipo</label>
+              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
+                style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:13,background:'white' }}>
+                {TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize:11,fontWeight:700,color:'var(--color-text-light)',display:'block',marginBottom:4,textTransform:'uppercase' }}>Descripción (opcional)</label>
+            <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)}
+              placeholder="Ej: Faltó sin avisar"
+              style={{ width:'100%',padding:'9px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:13,boxSizing:'border-box' }} />
+          </div>
+          {TIPOS.find(t => t.id === form.tipo)?.afecta && (
+            <div style={{ background:'#FEF3C7',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#92400E',display:'flex',alignItems:'center',gap:6 }}>
+              <AlertTriangle size={14} /> Esta incidencia descuenta del salario en nómina
+            </div>
+          )}
+        </div>
+        <div style={{ display:'flex',gap:10,marginTop:20 }}>
+          <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'var(--color-warning)',color:'white',cursor:'pointer',fontWeight:700,opacity:saving?.6:1 }}>
+            {saving ? 'Guardando…' : 'Registrar incidencia'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tab Incidencias ──────────────────────────────────────────────────────────
+function TabIncidencias() {
+  const SEMANAS = generarSemanas(16)
+  const [semanaIdx, setSemanaIdx] = useState(0)
+  const [showModal, setShowModal] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
+  const { data: incidencias, loading } = usePRP('prp_incidencias', {
+    filters: [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]],
+    order: { col: 'fecha' },
+    refreshKey,
+  })
+
+  const semana = SEMANAS[semanaIdx]
+  const lista = incidencias ?? []
+  const total_inasistencias = lista.filter(i => i.afecta_nomina).length
+
+  const TIPO_COLOR = {
+    INASISTENCIA:      ['#FEE2E2','#991B1B'],
+    RETARDO:           ['#FEF3C7','#92400E'],
+    PERMISO_SIN_GOCE: ['#FEE2E2','#92400E'],
+    PERMISO_CON_GOCE: ['#DBEAFE','#1D4ED8'],
+    VACACIONES:        ['#D1FAE5','#065F46'],
+    INCAPACIDAD:       ['#F3F4F6','#374151'],
+  }
+  const TIPO_LABEL = {
+    INASISTENCIA:      'Inasistencia',
+    RETARDO:           'Retardo',
+    PERMISO_SIN_GOCE: 'Permiso s/goce',
+    PERMISO_CON_GOCE: 'Permiso c/goce',
+    VACACIONES:        'Vacaciones',
+    INCAPACIDAD:       'Incapacidad',
+  }
+
+  const eliminar = async (id) => {
+    const { error } = await supabase.from('rh_incidencias').delete().eq('id', id)
+    if (error) return toast.error(error.message)
+    toast.success('Incidencia eliminada')
+    setRefreshKey(k => k+1)
+  }
+
+  return (
+    <div>
+      {/* Selector de semana */}
+      <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20,flexWrap:'wrap' }}>
+        <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'4px 4px 4px 12px' }}>
+          <Calendar size={14} color="var(--color-primary)" />
+          <span style={{ fontSize:13,fontWeight:600 }}>Semana:</span>
+          <select value={semanaIdx} onChange={e => setSemanaIdx(+e.target.value)}
+            style={{ border:'none',background:'transparent',fontSize:13,fontWeight:600,color:'var(--color-primary)',cursor:'pointer',padding:'6px 8px',outline:'none' }}>
+            {SEMANAS.map((s, i) => (
+              <option key={s.lunes} value={i}>{labelSemana(s.lunes, s.domingo)}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ fontSize:12,color:'var(--color-text-light)' }}>
+          {semana.lunes} → {semana.domingo}
+        </div>
+        <div style={{ marginLeft:'auto' }}>
+          <button onClick={() => setShowModal(true)}
+            style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'var(--color-warning)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+            <Plus size={14} /> Nueva Incidencia
+          </button>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:20 }}>
+        {[
+          [lista.length, 'Total incidencias', '#6B7280'],
+          [total_inasistencias, 'Afectan nómina', '#B24020'],
+          [lista.filter(i=>!i.afecta_nomina).length, 'Sin descuento', '#057642'],
+        ].map(([v,t,c]) => (
+          <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase',marginBottom:4 }}>{t}</div>
+            <div style={{ fontSize:24,fontWeight:700,color:c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>Cargando…</div>
+      ) : lista.length === 0 ? (
+        <div style={{ textAlign:'center',padding:60,background:'white',borderRadius:10,border:'1px solid #E5E7EB' }}>
+          <CheckCircle size={36} color="#057642" style={{ display:'block',margin:'0 auto 12px',opacity:.4 }} />
+          <p style={{ margin:0,fontWeight:600,color:'#374151' }}>Sin incidencias esta semana</p>
+          <p style={{ margin:'6px 0 0',fontSize:12,color:'#9CA3AF' }}>Registra inasistencias o incidencias con el botón de arriba</p>
+        </div>
+      ) : (
+        <div style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
+          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+            <thead>
+              <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
+                {['Fecha','Empleado','Puesto','Tipo','Descripción','Descuenta',''].map(h => (
+                  <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map(inc => {
+                const [bg, fg] = TIPO_COLOR[inc.tipo] || ['#F3F4F6','#374151']
+                return (
+                  <tr key={inc.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
+                    <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{inc.fecha}</td>
+                    <td style={{ padding:'11px 14px',fontWeight:600 }}>{inc.nombre_completo}</td>
+                    <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{inc.puesto}</td>
+                    <td style={{ padding:'11px 14px' }}>
+                      <span style={{ padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:700,background:bg,color:fg }}>
+                        {TIPO_LABEL[inc.tipo] || inc.tipo}
+                      </span>
+                    </td>
+                    <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{inc.descripcion || '—'}</td>
+                    <td style={{ padding:'11px 14px' }}>
+                      {inc.afecta_nomina
+                        ? <span style={{ color:'#991B1B',fontWeight:700,fontSize:12 }}>Sí</span>
+                        : <span style={{ color:'#057642',fontSize:12 }}>No</span>}
+                    </td>
+                    <td style={{ padding:'11px 14px' }}>
+                      <button onClick={() => eliminar(inc.id)}
+                        style={{ padding:'3px 8px',border:'1.5px solid #FEE2E2',borderRadius:6,background:'white',color:'#B24020',cursor:'pointer',fontSize:11,fontWeight:600 }}>
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <NuevaIncidenciaModal
+          empleados={(empleados ?? []).filter(e => e.estado_id === 'ACTIVO')}
+          onClose={() => setShowModal(false)}
+          onSaved={() => { setRefreshKey(k => k+1); setShowModal(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Tab Nómina Semanal IWOL ─────────────────────────────────────────────────
+function TabNominaIWOL() {
+  const SEMANAS = generarSemanas(16)
+  const [semanaIdx, setSemanaIdx] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { data: empleados } = usePRP('prp_empleados', { order: { col: 'nombre_completo' } })
+  const { data: incidencias } = usePRP('prp_incidencias', {
+    filters: [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]],
+    refreshKey,
+  })
+  // Ajustes manuales: { [empleadoId]: { complemento, vacaciones, prima_vac, dia_festivo, transferencia } }
+  const [ajustes, setAjustes] = useState({})
+  const semana = SEMANAS[semanaIdx]
+
+  const activos = (empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
+  const incs = incidencias ?? []
+
+  // Calcular renglones
+  const renglones = activos.map((emp, idx) => {
+    const faltas = incs.filter(i => i.empleado_id === emp.id && i.afecta_nomina).length
+    const salDia = parseFloat(emp.salario_diario) || 0
+    const percepcion = Math.round(salDia * 7 * 100) / 100
+    const descuento = Math.round(salDia * faltas * 100) / 100
+    const aj = ajustes[emp.id] || {}
+    const complemento   = parseFloat(aj.complemento  || 0)
+    const vacaciones    = parseFloat(aj.vacaciones    || 0)
+    const prima_vac     = parseFloat(aj.prima_vac     || 0)
+    const dia_festivo   = parseFloat(aj.dia_festivo   || 0)
+    const totalPerc     = percepcion - descuento + complemento + vacaciones + prima_vac + dia_festivo
+    const transferencia = parseFloat(aj.transferencia !== undefined ? aj.transferencia : totalPerc)
+    const efectivo      = Math.round((totalPerc - transferencia) * 100) / 100
+    return {
+      no: idx + 1,
+      empleado_id: emp.id,
+      nombre: emp.nombre_completo,
+      horario: emp.horario_trabajo || '—',
+      descanso: emp.dia_descanso || '—',
+      faltas,
+      percepcion,
+      descuento,
+      complemento,
+      vacaciones,
+      prima_vac,
+      dia_festivo,
+      total_percepciones: totalPerc,
+      transferencia,
+      efectivo,
+    }
+  })
+
+  const totales = {
+    percepcion:         renglones.reduce((s, r) => s + r.percepcion, 0),
+    total_percepciones: renglones.reduce((s, r) => s + r.total_percepciones, 0),
+    transferencia:      renglones.reduce((s, r) => s + r.transferencia, 0),
+    efectivo:           renglones.reduce((s, r) => s + r.efectivo, 0),
+  }
+
+  const setAj = (empId, k, v) => setAjustes(prev => ({
+    ...prev,
+    [empId]: { ...(prev[empId] || {}), [k]: v },
+  }))
+
+  const exportarExcel = () => {
+    const titulo = `NÓMINA PLAZA IWOL DEL ${labelSemana(semana.lunes, semana.domingo).toUpperCase()}`
+    const headers = ['No.','NOMBRE DEL TRABAJADOR','HORARIO','DESCANSO','FALTAS','PERCEPCIÓN','COMPLEMENTO DE PAGO DE NOMINA','VACACIONES','PRIMA VACACIONAL','DIA FESTIVO','TOTAL PERCEPCIONES','TRANFERENCIA','EFECTIVO']
+    const rows = renglones.map(r => [
+      r.no, r.nombre, r.horario, r.descanso, r.faltas,
+      r.percepcion, r.complemento || null, r.vacaciones || null, r.prima_vac || null, r.dia_festivo || null,
+      r.total_percepciones, r.transferencia || null, r.efectivo || null,
+    ])
+    const totRow = [null, null, null, null, 'TOTALES:',
+      totales.percepcion, null, null, null, null,
+      totales.total_percepciones, totales.transferencia, totales.efectivo,
+    ]
+
+    const ws_data = [
+      [titulo],
+      [],
+      headers,
+      ...rows,
+      totRow,
+    ]
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data)
+
+    // Estilos básicos de ancho de columna
+    ws['!cols'] = [
+      { wch: 4 }, { wch: 34 }, { wch: 36 }, { wch: 12 },
+      { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 12 },
+    ]
+
+    const wb = XLSX.utils.book_new()
+    const sheetName = labelSemana(semana.lunes, semana.domingo).substring(0, 31)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.writeFile(wb, `Nomina_IWOL_${semana.lunes}.xlsx`)
+    toast.success('Excel generado correctamente')
+  }
+
+  const INP = ({ value, onChange }) => (
+    <input
+      type="number" step="0.01" min="0"
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+      style={{ width:72,padding:'4px 6px',border:'1px solid #E5E7EB',borderRadius:5,fontSize:12,textAlign:'right' }}
+    />
+  )
+
+  return (
+    <div>
+      {/* Selector semana + acciones */}
+      <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20,flexWrap:'wrap' }}>
+        <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'4px 4px 4px 12px' }}>
+          <Calendar size={14} color="var(--color-primary)" />
+          <span style={{ fontSize:13,fontWeight:600 }}>Semana:</span>
+          <select value={semanaIdx} onChange={e => { setSemanaIdx(+e.target.value); setAjustes({}) }}
+            style={{ border:'none',background:'transparent',fontSize:13,fontWeight:600,color:'var(--color-primary)',cursor:'pointer',padding:'6px 8px',outline:'none' }}>
+            {SEMANAS.map((s, i) => (
+              <option key={s.lunes} value={i}>{labelSemana(s.lunes, s.domingo)}</option>
+            ))}
+          </select>
+        </div>
+        <span style={{ fontSize:12,color:'var(--color-text-light)' }}>{semana.lunes} al {semana.domingo}</span>
+        <div style={{ marginLeft:'auto',display:'flex',gap:8 }}>
+          <button onClick={() => setRefreshKey(k => k+1)}
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'8px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:'white' }}>
+            <RefreshCw size={13} /> Actualizar
+          </button>
+          <button onClick={exportarExcel}
+            style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'#057642',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+            <Download size={14} /> Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      {/* Totales rápidos */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
+        {[
+          [activos.length, 'Empleados', '#0A66C2'],
+          [incs.filter(i => i.afecta_nomina).length, 'Inasistencias', '#B24020'],
+          ['$'+totales.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}), 'Total a pagar', '#057642'],
+          ['$'+totales.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2}), 'Transferencia', '#0A66C2'],
+        ].map(([v,t,c]) => (
+          <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase',marginBottom:4 }}>{t}</div>
+            <div style={{ fontSize:20,fontWeight:700,color:c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabla nómina */}
+      <div style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
+            <thead>
+              <tr style={{ background:'#1A3C5E',color:'white' }}>
+                {['No.','Nombre del Trabajador','Horario','Descanso','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (
+                  <th key={h} style={{ padding:'10px 12px',textAlign:'left',fontWeight:600,fontSize:11,whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {renglones.map((r, i) => (
+                <tr key={r.empleado_id} style={{ borderBottom:'1px solid #F3F4F6',background:i%2===0?'white':'#FAFAFA' }}>
+                  <td style={{ padding:'10px 12px',color:'#9CA3AF',fontSize:11 }}>{r.no}</td>
+                  <td style={{ padding:'10px 12px',fontWeight:600 }}>{r.nombre}</td>
+                  <td style={{ padding:'10px 12px',fontSize:11,color:'#6B7280',maxWidth:180 }}>{r.horario}</td>
+                  <td style={{ padding:'10px 12px',fontSize:11 }}>{r.descanso}</td>
+                  <td style={{ padding:'10px 12px',textAlign:'center',fontWeight:700,color:r.faltas>0?'#B24020':'#374151' }}>{r.faltas}</td>
+                  <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:600,color:'#374151' }}>${r.percepcion.toLocaleString('es-MX')}</td>
+                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.complemento} onChange={v => setAj(r.empleado_id,'complemento',v)} /></td>
+                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.vacaciones} onChange={v => setAj(r.empleado_id,'vacaciones',v)} /></td>
+                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.prima_vac} onChange={v => setAj(r.empleado_id,'prima_vac',v)} /></td>
+                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.dia_festivo} onChange={v => setAj(r.empleado_id,'dia_festivo',v)} /></td>
+                  <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#057642' }}>${r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.transferencia !== undefined ? ajustes[r.empleado_id].transferencia : r.total_percepciones} onChange={v => setAj(r.empleado_id,'transferencia',v)} /></td>
+                  <td style={{ padding:'10px 12px',textAlign:'right',color:'#374151' }}>{r.efectivo > 0 ? '$'+r.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
+                </tr>
+              ))}
+              {/* Totales */}
+              <tr style={{ background:'#1A3C5E',color:'white',fontWeight:700 }}>
+                <td colSpan={4} style={{ padding:'10px 12px' }}></td>
+                <td style={{ padding:'10px 12px',textAlign:'center' }}>TOTALES:</td>
+                <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.percepcion.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                <td colSpan={4}></td>
+                <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding:'10px 14px',fontSize:11,color:'#9CA3AF',borderTop:'1px solid #F3F4F6' }}>
+          Complemento, Vacaciones, Prima Vacacional y Día Festivo son ajustes manuales · Transferencia editable (el resto va en Efectivo)
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ────────────────────────────────────────────────────────
 export default function RH() {
   useModuleAudit('RH')
-  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Nómina']
+  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Incidencias', 'Nómina', 'Nómina IWOL']
   const [tab, setTab] = useState('Empleados')
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -1499,7 +1966,9 @@ export default function RH() {
       {tab === 'Empleados'     && <TabEmpleados onNuevo={() => setShowNuevo(true)} />}
       {tab === 'Reclutamiento' && <TabReclutamiento />}
       {tab === 'Asistencia'    && <TabAsistencia />}
+      {tab === 'Incidencias'   && <TabIncidencias />}
       {tab === 'Nómina'        && <TabNomina />}
+      {tab === 'Nómina IWOL'   && <TabNominaIWOL />}
 
       {showNuevo && (
         <NuevoEmpleadoModal onClose={() => setShowNuevo(false)} onCreated={() => setRefreshKey(k => k+1)} />
