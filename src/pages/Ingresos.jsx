@@ -571,11 +571,11 @@ export default function Ingresos() {
                         <td style={{ padding:'10px 14px', fontSize:'12px', minWidth:'180px' }}>
                           {r.folio || r.arrendatario_nombre ? (
                             <>
-                              {r.locales_display && (
+                              {r.locales_display && r.locales_display !== '—' && (
                                 <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'1px 7px', borderRadius:'8px', marginBottom:'3px' }}>{r.locales_display}</span>
                               )}
                               <div style={{ fontWeight:600, color:'#111827', fontSize:'12px', lineHeight:'1.3' }}>{r.arrendatario_nombre || r.propietario || '—'}</div>
-                              {r.folio && <div style={{ fontSize:'10px', color:'#9CA3AF', fontFamily:'monospace' }}>{r.folio}</div>}
+                              {r.folio && r.folio !== '—' && <div style={{ fontSize:'10px', color:'#9CA3AF', fontFamily:'monospace' }}>{r.folio}</div>}
                             </>
                           ) : (
                             <span style={{ fontSize:'11px', color:'#D97706', background:'#FEF3C7', padding:'2px 8px', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}
