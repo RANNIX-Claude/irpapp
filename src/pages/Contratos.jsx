@@ -225,14 +225,14 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
       supabase.from('cat_locales').select('id_local, numero_local, superficie_m2').order('numero_local'),
       supabase.from('contratos_locales').select('local_id, renta_asignada').eq('contrato_id', c.id),
       c.arrendatario_id
-        ? supabase.from('arrendatarios').select('nombre, apellidos').eq('id', c.arrendatario_id).single()
+        ? supabase.from('arrendatarios').select('locatario, nombre_negocio').eq('id', c.arrendatario_id).single()
         : Promise.resolve({ data: null }),
     ])
     setLocalesDisp(todos ?? [])
     setLocalesSel((actuales ?? []).map(l => l.local_id))
     setEditForm({
-      arr_nombre:                 arr?.nombre    ?? '',
-      arr_apellidos:              arr?.apellidos ?? '',
+      arr_locatario:              arr?.locatario      ?? c.arrendatario_nombre ?? '',
+      arr_nombre_negocio:         arr?.nombre_negocio ?? c.nombre_negocio      ?? '',
       estatus:                    ['VIGENTE','VENCIDO','RENOVADO','RESCISION'].includes(c.estatus) ? c.estatus : 'VIGENTE',
       estatus_proceso:            c.estatus_proceso ?? 'EN_EJECUCION',
       renta_mensual:              c.renta_mensual ?? '',
@@ -293,10 +293,10 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     if (error) { setSavingEdit(false); setEditErr(error.message); return }
 
     // Actualizar nombre del arrendatario si fue modificado
-    if (c.arrendatario_id && (editForm.arr_nombre || editForm.arr_apellidos)) {
+    if (c.arrendatario_id) {
       await supabase.from('arrendatarios').update({
-        nombre:    editForm.arr_nombre    || null,
-        apellidos: editForm.arr_apellidos || null,
+        locatario:      editForm.arr_locatario      || null,
+        nombre_negocio: editForm.arr_nombre_negocio || null,
       }).eq('id', c.arrendatario_id)
     }
 
@@ -441,21 +441,19 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                     {/* Arrendatario — editable */}
                     <div style={{ marginBottom: '12px', padding: '12px 14px', background: '#F0F4FF', borderRadius: '8px', border: '1px solid #C7D2FE' }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Arrendatario</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <div>
-                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Nombre(s)</div>
-                          <input value={editForm.arr_nombre}
-                            onChange={e => setEditForm(f => ({ ...f, arr_nombre: e.target.value }))}
-                            placeholder="Nombre(s)"
-                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Apellidos</div>
-                          <input value={editForm.arr_apellidos}
-                            onChange={e => setEditForm(f => ({ ...f, arr_apellidos: e.target.value }))}
-                            placeholder="Apellido paterno materno"
-                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
-                        </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Nombre / Locatario</div>
+                        <input value={editForm.arr_locatario}
+                          onChange={e => setEditForm(f => ({ ...f, arr_locatario: e.target.value }))}
+                          placeholder="Nombre completo del arrendatario"
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Nombre negocio / razón social</div>
+                        <input value={editForm.arr_nombre_negocio}
+                          onChange={e => setEditForm(f => ({ ...f, arr_nombre_negocio: e.target.value }))}
+                          placeholder="Nombre del negocio o razón social"
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
                       </div>
                     </div>
 
