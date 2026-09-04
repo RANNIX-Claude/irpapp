@@ -1973,7 +1973,8 @@ function TabNominaIWOL() {
     const prima_vac     = parseFloat(aj.prima_vac     || 0)
     const dia_festivo   = parseFloat(aj.dia_festivo   || 0)
     const totalPerc     = percepcion - descuento + complemento + vacaciones + prima_vac + dia_festivo
-    const transferencia = parseFloat(aj.transferencia !== undefined ? aj.transferencia : totalPerc)
+    const defaultTransfer = emp.forma_pago === 'EFECTIVO' ? 0 : totalPerc
+    const transferencia = parseFloat(aj.transferencia !== undefined ? aj.transferencia : defaultTransfer)
     const efectivo      = Math.round((totalPerc - transferencia) * 100) / 100
     return {
       no: idx + 1,
@@ -1991,14 +1992,15 @@ function TabNominaIWOL() {
       total_percepciones: totalPerc,
       transferencia,
       efectivo,
+      forma_pago: emp.forma_pago || 'TRANSFERENCIA',
     }
   })
 
   const totales = {
     percepcion:         renglones.reduce((s, r) => s + r.percepcion, 0),
     total_percepciones: renglones.reduce((s, r) => s + r.total_percepciones, 0),
-    transferencia:      renglones.reduce((s, r) => s + r.transferencia, 0),
-    efectivo:           renglones.reduce((s, r) => s + r.efectivo, 0),
+    transferencia:      renglones.reduce((s, r) => s + (r.forma_pago !== 'EFECTIVO' ? r.total_percepciones : 0), 0),
+    efectivo:           renglones.reduce((s, r) => s + (r.forma_pago === 'EFECTIVO' ? r.total_percepciones : 0), 0),
   }
 
   const setAj = (empId, k, v) => setAjustes(prev => ({
@@ -2162,8 +2164,21 @@ function TabNominaIWOL() {
             style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'#057642',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
             <Download size={14} /> Exportar Excel
           </button>
+          <button onClick={() => window.print()}
+            style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'#1A3C5E',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+            <Printer size={14} /> Imprimir PDF
+          </button>
         </div>
       </div>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #nomina-iwol-print, #nomina-iwol-print * { visibility: visible; }
+          #nomina-iwol-print { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          @page { size: A4 landscape; margin: 12mm; }
+        }
+      `}</style>
 
       {/* Totales rápidos */}
       <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
@@ -2181,7 +2196,7 @@ function TabNominaIWOL() {
       </div>
 
       {/* Tabla nómina */}
-      <div style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
+      <div id="nomina-iwol-print" style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
             <thead>
@@ -2205,8 +2220,12 @@ function TabNominaIWOL() {
                   <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.prima_vac} onChange={v => setAj(r.empleado_id,'prima_vac',v)} /></td>
                   <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.dia_festivo} onChange={v => setAj(r.empleado_id,'dia_festivo',v)} /></td>
                   <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#057642' }}>${r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
-                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.transferencia !== undefined ? ajustes[r.empleado_id].transferencia : r.total_percepciones} onChange={v => setAj(r.empleado_id,'transferencia',v)} /></td>
-                  <td style={{ padding:'10px 12px',textAlign:'right',color:'#374151' }}>{r.efectivo > 0 ? '$'+r.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
+                  <td style={{ padding:'10px 12px',textAlign:'right',color:'#1D4ED8',fontWeight:600 }}>
+                    {r.forma_pago !== 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                  </td>
+                  <td style={{ padding:'10px 12px',textAlign:'right',color:'#166534',fontWeight:600 }}>
+                    {r.forma_pago === 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                  </td>
                 </tr>
               ))}
               {/* Totales */}
