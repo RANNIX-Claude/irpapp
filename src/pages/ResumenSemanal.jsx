@@ -93,34 +93,26 @@ function sabadoDe(iso) {
 }
 
 // ── Carga pensiones del sistema de estacionamiento (proyecto separado) ─────────
-async function cargarPensionesParking(ini, fin) {
-  if (!supabaseParking) return { cobradas: [], esperadas: [] }
+async function cargarPensionesParking(ini, _fin) {
+  if (!supabaseParking) return { cobradas: [], pendientes: [], esperadas: [] }
   // Determinar mes/año del rango (usa el Sábado inicial)
   const d = new Date(ini + 'T12:00:00')
   const mes  = d.getMonth() + 1
   const anio = d.getFullYear()
 
-  const [{ data: cobradas }, { data: todasMes }] = await Promise.all([
-    // Pagadas cuya fecha_pago cae dentro de la semana
-    supabaseParking.from('pagos_pension')
-      .select('pago_id, monto_pagado, monto_tarifa, fecha_pago, periodo_mes, notas, pension:pension_id(codigo_acceso, monto_mensual)')
-      .eq('estado', 'pagado')
-      .gte('fecha_pago', ini)
-      .lte('fecha_pago', fin)
-      .order('fecha_pago'),
+  // Traer TODAS las pensiones del mes (cobradas y pendientes)
+  const { data: todasMes } = await supabaseParking
+    .from('pagos_pension')
+    .select('pago_id, monto_pagado, monto_tarifa, fecha_pago, periodo_mes, estado, notas, pension:pension_id(codigo_acceso, monto_mensual)')
+    .eq('periodo_mes', mes)
+    .eq('periodo_año', anio)
+    .order('estado')  // pagado primero
 
-    // Todas del mes para calcular esperado total
-    supabaseParking.from('pagos_pension')
-      .select('monto_tarifa, monto_pagado, estado')
-      .eq('periodo_mes', mes)
-      .eq('periodo_año', anio),
-  ])
+  const todas      = todasMes ?? []
+  const cobradas   = todas.filter(p => p.estado === 'pagado')
+  const pendientes = todas.filter(p => p.estado !== 'pagado')
 
-  return {
-    cobradas:  cobradas  ?? [],
-    esperadas: todasMes  ?? [],
-    mes, anio,
-  }
+  return { cobradas, pendientes, esperadas: todas, mes, anio }
 }
 
 // ── Carga de datos: estac usa iniEstac→fin, resto usa ini→fin ─────────────────
@@ -183,22 +175,30 @@ async function cargarDatos(ini, fin, iniEstac) {
   })
 
   // Pensiones: priorizar sistema parking; fallback a tabla legacy
-  const pensionesParking_cobradas = pensionesParking.cobradas ?? []
-  const pensionesParking_esperadas = pensionesParking.esperadas ?? []
+  const pensionesParking_cobradas   = pensionesParking.cobradas   ?? []
+  const pensionesParking_pendientes = pensionesParking.pendientes ?? []
+  const pensionesParking_esperadas  = pensionesParking.esperadas  ?? []
   const usarParking = supabaseParking !== null
+
+  const normalizarPension = (p, pagado) => ({
+    id:                  p.pago_id,
+    local_referencia:    p.pension?.codigo_acceso || '—',
+    arrendatario_nombre: p.pension?.codigo_acceso || '—',
+    monto:               parseFloat(p.monto_pagado) || parseFloat(p.monto_tarifa) || 0,
+    monto_tarifa:        parseFloat(p.monto_tarifa) || 0,
+    num_recibo:          null,
+    fecha:               p.fecha_pago,
+    pagado,
+    nota:                p.notas,
+    estado:              p.estado,
+  })
 
   // Normalizar pensiones cobradas a formato común
   const pensiones = usarParking
-    ? pensionesParking_cobradas.map(p => ({
-        id:                 p.pago_id,
-        local_referencia:   p.pension?.codigo_acceso || '—',
-        arrendatario_nombre: p.pension?.codigo_acceso || '—',
-        monto:              parseFloat(p.monto_pagado) || parseFloat(p.monto_tarifa) || 0,
-        num_recibo:         null,
-        fecha:              p.fecha_pago,
-        pagado:             true,
-        nota:               p.notas,
-      }))
+    ? [
+        ...pensionesParking_cobradas.map(p => normalizarPension(p, true)),
+        ...pensionesParking_pendientes.map(p => normalizarPension(p, false)),
+      ]
     : (pensionesLegacy ?? [])
 
   return {
@@ -790,7 +790,8 @@ export default function ResumenSemanal() {
   }, [semSel?.ini])
 
   // Calcular totales
-  const totPensiones  = (datos?.pensiones  ?? []).reduce((a, b) => a + (parseFloat(b.monto)      || 0), 0)
+  // Solo las cobradas (pagado=true) cuentan como ingreso real
+  const totPensiones  = (datos?.pensiones  ?? []).filter(p => p.pagado).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0)
   const totEstac      = (datos?.estac      ?? []).reduce((a, b) => a + (parseFloat(b.cantidad)    || 0), 0)
   const totVending    = (datos?.vending    ?? []).reduce((a, b) => a + (parseFloat(b.venta_pesos) || 0), 0)
   const totRentas     = (datos?.rentasEf   ?? []).reduce((a, b) => a + (parseFloat(b.importe)     || 0), 0)
@@ -946,32 +947,66 @@ export default function ResumenSemanal() {
                     </div>
                   )}
 
-                  {/* Cobradas en la semana */}
-                  {pensiones.length === 0 ? (
-                    <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>
-                      {supabaseParking ? 'Sin pensiones cobradas esta semana' : 'Sin pensiones esta semana'}
-                    </div>
-                  ) : pensiones.map((p, i) => (
-                    <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0 ? 'white' : '#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px', cursor:'pointer' }}
-                      onClick={() => setDetalleIngreso({ tabla:'estacionamiento_pensiones', row: p })}
-                      onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
-                      onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
-                      <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre !== p.local_referencia ? p.arrendatario_nombre : ''} {p.num_recibo ? <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span> : null}</span>
-                      {!supabaseParking && (
-                        <span style={S.acciones}>
-                          <button style={{ ...S.btnEdit, background:'#E8F4FD', color:'#0A66C2' }} title="Generar Recibo" onClick={() => setReciboRec(p)}>📄</button>
-                          <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_pensiones', row: p })}><Pencil size={12}/></button>
-                          <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_pensiones', id: p.id, label: `Pensión #${p.num_recibo} — ${p.arrendatario_nombre}` })}><Trash2 size={12}/></button>
-                        </span>
-                      )}
-                      <span style={S.monto('#374151')}>{fmt(p.monto)}</span>
-                    </div>
-                  ))}
+                  {/* Cobradas del mes */}
+                  {(() => {
+                    const cobradas   = pensiones.filter(p => p.pagado)
+                    const pendientes = pensiones.filter(p => !p.pagado)
+                    const totCob = cobradas.reduce((s, p) => s + (p.monto || 0), 0)
+                    const totPen = pendientes.reduce((s, p) => s + (p.monto_tarifa || p.monto || 0), 0)
 
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'7px 12px', background:'#F0F9FF', borderBottom:'1px solid #BFDBFE' }}>
-                    <span style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>Total pensiones esta semana</span>
-                    <span style={S.monto('#0A66C2')}>{fmt(totPensiones)}</span>
-                  </div>
+                    const FilaPension = ({ p, i, esCobrada }) => (
+                      <div key={i} style={{ display:'grid', gridTemplateColumns:'auto 1fr 110px', padding:'5px 12px',
+                        background: esCobrada ? (i%2===0?'#F0FDF4':'#ECFDF5') : (i%2===0?'#FFFBEB':'#FEF9C3'),
+                        borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'8px' }}>
+                        <span style={{ fontSize:'13px' }}>{esCobrada ? '✅' : '🕐'}</span>
+                        <span style={{ fontSize:'12px', color: esCobrada ? '#374151' : '#92400E', fontWeight: esCobrada ? 400 : 500 }}>
+                          {p.local_referencia}
+                          {p.nota ? <span style={{ color:'#9CA3AF', marginLeft:'6px', fontSize:'11px' }}>{p.nota}</span> : null}
+                        </span>
+                        <span style={{ textAlign:'right', fontSize:'12px', fontWeight:700,
+                          color: esCobrada ? '#057642' : '#D97706' }}>
+                          {fmt(esCobrada ? p.monto : (p.monto_tarifa || p.monto))}
+                        </span>
+                      </div>
+                    )
+
+                    return (
+                      <>
+                        {/* Cobradas */}
+                        {cobradas.length > 0 && (
+                          <div style={{ padding:'3px 12px', background:'#D1FAE5', fontSize:'10px', fontWeight:800, color:'#057642', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                            Cobradas ({cobradas.length})
+                          </div>
+                        )}
+                        {cobradas.map((p, i) => <FilaPension key={p.id} p={p} i={i} esCobrada={true} />)}
+
+                        {/* Pendientes */}
+                        {pendientes.length > 0 && (
+                          <div style={{ padding:'3px 12px', background:'#FEF3C7', fontSize:'10px', fontWeight:800, color:'#92400E', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                            Por cobrar ({pendientes.length})
+                          </div>
+                        )}
+                        {pendientes.map((p, i) => <FilaPension key={p.id} p={p} i={i} esCobrada={false} />)}
+
+                        {pensiones.length === 0 && (
+                          <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>
+                            Sin pensiones registradas este mes
+                          </div>
+                        )}
+
+                        {/* Totales */}
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 110px', padding:'7px 12px', background:'#F0F9FF', borderBottom:'1px solid #BFDBFE', gap:'4px' }}>
+                          <span style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>
+                            Pensiones del mes · {cobradas.length}/{pensiones.length} cobradas
+                          </span>
+                          <span style={{ textAlign:'right', fontSize:'11px', color:'#6B7280' }}>
+                            {pendientes.length > 0 && <span style={{ color:'#D97706' }}>Pend: {fmt(totPen)}</span>}
+                          </span>
+                          <span style={S.monto('#0A66C2')}>{fmt(totCob)}</span>
+                        </div>
+                      </>
+                    )
+                  })()}
                 </>
               )
             })()}
