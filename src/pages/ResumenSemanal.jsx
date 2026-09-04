@@ -109,8 +109,8 @@ async function cargarPensionesParking(ini, _fin) {
     .order('estado')  // pagado primero
 
   const todas      = todasMes ?? []
-  const cobradas   = todas.filter(p => p.estado === 'pagado')
-  const pendientes = todas.filter(p => p.estado !== 'pagado')
+  const cobradas   = todas.filter(p => p.estado === 'pagado' || p.estado === 'validado')
+  const pendientes = todas.filter(p => p.estado !== 'pagado' && p.estado !== 'validado')
 
   return { cobradas, pendientes, esperadas: todas, mes, anio }
 }
@@ -919,7 +919,7 @@ export default function ResumenSemanal() {
             {(() => {
               const esperadasMes = datos?.pensionesEsperadasMes ?? []
               const totEsperado  = esperadasMes.reduce((s, p) => s + (parseFloat(p.monto_tarifa) || 0), 0)
-              const totCobradoMes = esperadasMes.filter(p => p.estado === 'pagado').reduce((s, p) => s + (parseFloat(p.monto_pagado) || 0), 0)
+              const totCobradoMes = esperadasMes.filter(p => p.estado === 'pagado' || p.estado === 'validado').reduce((s, p) => s + (parseFloat(p.monto_pagado) || 0), 0)
               const pkInfo = datos?.pensionesParking ?? {}
               const mesesStr = pkInfo.mes ? `${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][pkInfo.mes]} ${pkInfo.anio}` : ''
               return (
