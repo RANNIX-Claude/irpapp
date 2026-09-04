@@ -1,6 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight, Images, Loader2 } from 'lucide-react'
+import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight, Images, Loader2, Eye } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
@@ -913,6 +913,9 @@ export default function GastosOperativos() {
                           </td>
                           <td style={{ padding:'10px 12px' }}>
                             <div style={{ display:'flex', gap:5 }}>
+                              {g.ticket_url && (
+                                <button onClick={e => { e.stopPropagation(); window.open(g.ticket_url,'_blank') }} title="Ver ticket" style={{ padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></button>
+                              )}
                               <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
                               <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
                             </div>
