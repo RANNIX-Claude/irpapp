@@ -2174,10 +2174,25 @@ function TabNominaIWOL() {
         @media print {
           body * { visibility: hidden; }
           #nomina-iwol-print, #nomina-iwol-print * { visibility: visible; }
-          #nomina-iwol-print { position: absolute; left: 0; top: 0; width: 100%; }
+          #nomina-iwol-print {
+            position: absolute; left: 0; top: 0; width: 100%;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print { display: none !important; }
-          @page { size: A4 landscape; margin: 12mm; }
+          @page { size: A4 landscape; margin: 10mm; }
+          /* Inputs → mostrar valor como texto */
+          #nomina-iwol-print input { display: none !important; }
+          #nomina-iwol-print .print-val { display: inline !important; }
+          /* Asegurar fondo en header y totales */
+          #nomina-iwol-print thead tr,
+          #nomina-iwol-print .print-total-row {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
         }
+        /* En pantalla ocultar el texto-plano alternativo */
+        .print-val { display: none; }
       `}</style>
 
       {/* Totales rápidos */}
@@ -2197,6 +2212,21 @@ function TabNominaIWOL() {
 
       {/* Tabla nómina */}
       <div id="nomina-iwol-print" style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
+        {/* Encabezado solo visible en impresión */}
+        <div className="print-val" style={{ padding:'10px 14px 6px', borderBottom:'2px solid #1A3C5E' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:15, fontWeight:800, color:'#1A3C5E' }}>INMOBILIARIA IWOL — Nómina Semanal</div>
+              <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>
+                Semana: {semana.lunes} al {semana.domingo}
+              </div>
+            </div>
+            <div style={{ textAlign:'right', fontSize:11, color:'#6B7280' }}>
+              <div>RANNIX Consulting</div>
+              <div>Generado: {new Date().toLocaleDateString('es-MX')}</div>
+            </div>
+          </div>
+        </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
             <thead>
@@ -2215,10 +2245,22 @@ function TabNominaIWOL() {
                   <td style={{ padding:'10px 12px',fontSize:11 }}>{r.descanso}</td>
                   <td style={{ padding:'10px 12px',textAlign:'center',fontWeight:700,color:r.faltas>0?'#B24020':'#374151' }}>{r.faltas}</td>
                   <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:600,color:'#374151' }}>${r.percepcion.toLocaleString('es-MX')}</td>
-                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.complemento} onChange={v => setAj(r.empleado_id,'complemento',v)} /></td>
-                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.vacaciones} onChange={v => setAj(r.empleado_id,'vacaciones',v)} /></td>
-                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.prima_vac} onChange={v => setAj(r.empleado_id,'prima_vac',v)} /></td>
-                  <td style={{ padding:'8px 10px' }}><INP value={ajustes[r.empleado_id]?.dia_festivo} onChange={v => setAj(r.empleado_id,'dia_festivo',v)} /></td>
+                  <td style={{ padding:'8px 10px', textAlign:'right' }}>
+                    <INP value={ajustes[r.empleado_id]?.complemento} onChange={v => setAj(r.empleado_id,'complemento',v)} />
+                    <span className="print-val" style={{ fontSize:12, color:'#374151' }}>{ajustes[r.empleado_id]?.complemento ? '$'+parseFloat(ajustes[r.empleado_id].complemento).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</span>
+                  </td>
+                  <td style={{ padding:'8px 10px', textAlign:'right' }}>
+                    <INP value={ajustes[r.empleado_id]?.vacaciones} onChange={v => setAj(r.empleado_id,'vacaciones',v)} />
+                    <span className="print-val" style={{ fontSize:12, color:'#374151' }}>{ajustes[r.empleado_id]?.vacaciones ? '$'+parseFloat(ajustes[r.empleado_id].vacaciones).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</span>
+                  </td>
+                  <td style={{ padding:'8px 10px', textAlign:'right' }}>
+                    <INP value={ajustes[r.empleado_id]?.prima_vac} onChange={v => setAj(r.empleado_id,'prima_vac',v)} />
+                    <span className="print-val" style={{ fontSize:12, color:'#374151' }}>{ajustes[r.empleado_id]?.prima_vac ? '$'+parseFloat(ajustes[r.empleado_id].prima_vac).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</span>
+                  </td>
+                  <td style={{ padding:'8px 10px', textAlign:'right' }}>
+                    <INP value={ajustes[r.empleado_id]?.dia_festivo} onChange={v => setAj(r.empleado_id,'dia_festivo',v)} />
+                    <span className="print-val" style={{ fontSize:12, color:'#374151' }}>{ajustes[r.empleado_id]?.dia_festivo ? '$'+parseFloat(ajustes[r.empleado_id].dia_festivo).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</span>
+                  </td>
                   <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#057642' }}>${r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                   <td style={{ padding:'10px 12px',textAlign:'right',color:'#1D4ED8',fontWeight:600 }}>
                     {r.forma_pago !== 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
@@ -2229,7 +2271,7 @@ function TabNominaIWOL() {
                 </tr>
               ))}
               {/* Totales */}
-              <tr style={{ background:'#1A3C5E',color:'white',fontWeight:700 }}>
+              <tr className="print-total-row" style={{ background:'#1A3C5E',color:'white',fontWeight:700 }}>
                 <td colSpan={4} style={{ padding:'10px 12px' }}></td>
                 <td style={{ padding:'10px 12px',textAlign:'center' }}>TOTALES:</td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.percepcion.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
