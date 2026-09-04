@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   LogOut, Download, FileText, CheckCircle, Clock, AlertTriangle,
-  DollarSign, ChevronDown, ChevronUp, Eye, Home, CreditCard, Upload, X
+  DollarSign, ChevronDown, ChevronUp, Eye, Home, CreditCard, Upload, X,
+  User, Phone, Mail, MapPin, Building2, CalendarDays, ShieldCheck
 } from 'lucide-react'
 
 const OCR_FN = '/.netlify/functions/extraer-documento'
@@ -475,14 +476,146 @@ function PortalLogin({ onLogin }) {
   )
 }
 
+// ── Tab: Mi Perfil ───────────────────────────────────────────────────────────
+function TabMiPerfil({ arrendatario, contrato }) {
+  const Row = ({ label, val, mono }) => val ? (
+    <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:10, borderBottom:'1px solid #F3F4F6', padding:'10px 0' }}>
+      <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'.4px' }}>{label}</span>
+      <span style={{ fontSize:13, fontFamily: mono ? 'monospace' : 'inherit', color:'#111827' }}>{val}</span>
+    </div>
+  ) : null
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Avatar / nombre */}
+      <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'20px 18px', display:'flex', alignItems:'center', gap:16 }}>
+        <div style={{ width:60, height:60, borderRadius:16, background:'#EEF2FF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <User size={28} color="#0A66C2" />
+        </div>
+        <div>
+          <div style={{ fontSize:18, fontWeight:800, color:'#1F2937' }}>{arrendatario.nombre_razon_social}</div>
+          <div style={{ fontSize:12, color:'#6B7280', marginTop:2 }}>
+            {arrendatario.tipo_persona === 'MORAL' ? 'Persona Moral' : 'Persona Física'}
+            {arrendatario.representante_legal ? ` · Rep: ${arrendatario.representante_legal}` : ''}
+          </div>
+        </div>
+      </div>
+
+      {/* Datos de contacto */}
+      <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'16px 18px' }}>
+        <div style={{ fontSize:12, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Datos de contacto</div>
+        <Row label="RFC"      val={arrendatario.rfc}      mono />
+        <Row label="Teléfono" val={arrendatario.telefono} />
+        <Row label="Email"    val={arrendatario.email} />
+        <Row label="Domicilio" val={arrendatario.domicilio} />
+        <Row label="Giro"     val={arrendatario.nombre_negocio} />
+      </div>
+
+      {/* Datos del contrato */}
+      {contrato && (
+        <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'16px 18px' }}>
+          <div style={{ fontSize:12, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Mi Local</div>
+          <Row label="Local(es)"     val={contrato.locales_display} />
+          <Row label="Folio contrato" val={contrato.folio} mono />
+          <Row label="Renta mensual" val={contrato.renta_mensual ? '$' + parseFloat(contrato.renta_mensual).toLocaleString('es-MX', {minimumFractionDigits:2}) : null} />
+          <Row label="Inicio"        val={contrato.fecha_inicio} />
+          <Row label="Vencimiento"   val={contrato.fecha_fin ?? 'Tiempo indeterminado'} />
+          <Row label="Estatus"       val={contrato.estatus} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Tab: Mi Contrato ─────────────────────────────────────────────────────────
+function TabMiContrato({ contrato }) {
+  if (!contrato) return (
+    <div style={{ textAlign:'center', padding:48, color:'#9CA3AF', background:'white', borderRadius:14 }}>
+      <FileText size={36} color="#E5E7EB" style={{ marginBottom:12 }} />
+      <div>Sin contrato asociado</div>
+    </div>
+  )
+
+  const Row = ({ label, val, mono, span }) => val ? (
+    <div style={{ gridColumn: span ? '1 / -1' : undefined, display:'grid', gridTemplateColumns:'160px 1fr', gap:10, borderBottom:'1px solid #F3F4F6', padding:'10px 0' }}>
+      <span style={{ fontSize:12, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'.4px' }}>{label}</span>
+      <span style={{ fontSize:13, fontFamily: mono ? 'monospace' : 'inherit', color:'#111827' }}>{val}</span>
+    </div>
+  ) : null
+
+  const fmtMoney = n => n ? '$' + parseFloat(n).toLocaleString('es-MX', {minimumFractionDigits:2}) : null
+
+  const SEMAFORO = { VIGENTE:'#057642', VENCIDO:'#B24020', BORRADOR:'#6B7280' }
+  const sc = SEMAFORO[contrato.estatus] || '#E8A020'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Header contrato */}
+      <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'18px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <div style={{ width:52, height:52, borderRadius:14, background:'#EEF2FF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <ShieldCheck size={26} color="#0A66C2" />
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <span style={{ fontSize:16, fontWeight:800, color:'#1F2937', fontFamily:'monospace' }}>{contrato.folio}</span>
+              <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20, background: sc+'20', color: sc }}>{contrato.estatus}</span>
+            </div>
+            <div style={{ fontSize:12, color:'#6B7280', marginTop:3 }}>
+              {contrato.locales_display} · {contrato.tipo_contrato || 'Arrendamiento'}
+            </div>
+          </div>
+          {contrato.contrato_pdf_url && (
+            <a href={contrato.contrato_pdf_url} target="_blank" rel="noreferrer"
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'9px 14px', background:'#DC2626', color:'white', borderRadius:9, fontSize:12, fontWeight:700, textDecoration:'none' }}>
+              <Download size={14} /> PDF
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Condiciones económicas */}
+      <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'16px 18px' }}>
+        <div style={{ fontSize:12, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Condiciones económicas</div>
+        <Row label="Renta mensual"       val={fmtMoney(contrato.renta_mensual)} />
+        <Row label="Renta sin IVA"       val={fmtMoney(contrato.renta_sin_iva)} />
+        <Row label="Depósito garantía"   val={fmtMoney(contrato.deposito_garantia)} />
+        <Row label="Incremento anual"    val={contrato.incremento_anual_pct ? contrato.incremento_anual_pct + '%' : null} />
+        <Row label="Penalización mora"   val={contrato.penalizacion_pct ? contrato.penalizacion_pct + '% mensual' : null} />
+        <Row label="Día de pago"         val={contrato.dia_pago ? `Día ${contrato.dia_pago} de cada mes` : null} />
+      </div>
+
+      {/* Vigencia */}
+      <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'16px 18px' }}>
+        <div style={{ fontSize:12, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Vigencia</div>
+        <Row label="Fecha inicio"        val={contrato.fecha_inicio} />
+        <Row label="Fecha vencimiento"   val={contrato.fecha_fin ?? 'Tiempo indeterminado'} />
+        <Row label="Giro autorizado"     val={contrato.giro_autorizado} />
+      </div>
+
+      {/* Fiador */}
+      {contrato.fiador_nombre && (
+        <div style={{ background:'white', borderRadius:14, border:'1px solid #E5E7EB', padding:'16px 18px' }}>
+          <div style={{ fontSize:12, fontWeight:800, color:'#0A66C2', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Fiador / Aval</div>
+          <Row label="Nombre"   val={contrato.fiador_nombre} />
+          <Row label="RFC"      val={contrato.fiador_rfc} mono />
+          <Row label="Domicilio" val={contrato.fiador_domicilio} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Página principal del portal ───────────────────────────────────────────────
 export default function PortalArrendatario({ embedded = false }) {
-  const [session, setSession] = useState(null)
+  const [session, setSession]       = useState(null)
   const [arrendatario, setArrendatario] = useState(null)
-  const [cobros, setCobros] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [contrato, setContrato]     = useState(null)
+  const [cobros, setCobros]         = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [tab, setTab]               = useState('pagos')  // 'pagos' | 'contrato' | 'perfil'
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
-  const [filtroEst, setFiltroEst] = useState('Todos')
+  const [filtroEst, setFiltroEst]   = useState('Todos')
 
   // Escuchar cambios de sesión
   useEffect(() => {
@@ -499,17 +632,26 @@ export default function PortalArrendatario({ embedded = false }) {
 
   const cargarDatos = async () => {
     setLoading(true)
-    // Datos del arrendatario logueado
+    // Datos completos del arrendatario
     const { data: arr } = await supabase
       .from('arrendatarios')
-      .select('id, nombre_razon_social, rfc, tipo_persona, telefono')
+      .select('id, nombre_razon_social, rfc, tipo_persona, telefono, email, domicilio, nombre_negocio, representante_legal, auth_user_id')
       .eq('auth_user_id', session.user.id)
       .single()
 
     if (!arr) { setLoading(false); return }
     setArrendatario(arr)
 
-    // Cobros programados desde la vista portal_mis_cobros
+    // Contrato vigente del arrendatario
+    const { data: ctrs } = await supabase
+      .from('prp_contratos')
+      .select('*')
+      .eq('arrendatario_id', arr.id)
+      .order('fecha_inicio', { ascending: false })
+      .limit(1)
+    setContrato(ctrs?.[0] ?? null)
+
+    // Cobros del portal
     const { data: rows } = await supabase
       .from('portal_mis_cobros')
       .select('*')
@@ -554,16 +696,23 @@ export default function PortalArrendatario({ embedded = false }) {
   const mora           = cobros.filter(c => c.estatus === 'EN_MORA').length
   const totalFacturas  = cobros.reduce((a, b) => a + (parseInt(b.num_pdfs) || 0), 0)
 
-  // ── Filtros ──
-  const anios = [...new Set(cobros.map(c => c.anio))].sort((a, b) => b - a)
+  // ── Tab Mis Pagos: lógica de filtros ────────────────────────────────────────
+  const anios    = [...new Set(cobros.map(c => c.anio))].sort((a, b) => b - a)
   const filtrados = cobros.filter(c => {
     const matchAnio = c.anio === anioFiltro
     const matchEst  = filtroEst === 'Todos' || c.estatus === filtroEst
     return matchAnio && matchEst
   })
 
+  // Navegación inferior
+  const TABS = [
+    { id: 'pagos',    label: 'Mis Pagos',    icon: CreditCard },
+    { id: 'contrato', label: 'Mi Contrato',  icon: ShieldCheck },
+    { id: 'perfil',   label: 'Mi Perfil',    icon: User },
+  ]
+
   return (
-    <div style={{ minHeight: '100vh', background: '#F3F4F6' }}>
+    <div style={{ minHeight: '100vh', background: '#F3F4F6', paddingBottom: 72 }}>
       {/* Header */}
       <div style={{ background: '#1A3C5E', padding: '0 20px' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px' }}>
@@ -573,7 +722,9 @@ export default function PortalArrendatario({ embedded = false }) {
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>Portal IWOL</div>
-              <div style={{ fontSize: '10px', color: '#93C5FD', lineHeight: 1.2 }}>Mis pagos y facturas</div>
+              <div style={{ fontSize: '10px', color: '#93C5FD', lineHeight: 1.2 }}>
+                {arrendatario.nombre_razon_social}
+              </div>
             </div>
           </div>
           <button onClick={cerrarSesion} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#93C5FD', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
@@ -584,95 +735,113 @@ export default function PortalArrendatario({ embedded = false }) {
 
       <div style={{ maxWidth: '700px', margin: '0 auto', padding: '20px 16px' }}>
 
-        {/* Bienvenida */}
-        <div style={{ background: 'white', borderRadius: '14px', padding: '20px', marginBottom: '16px', border: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <CreditCard size={24} color="#0A66C2" />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bienvenido</div>
-              <div style={{ fontSize: '17px', fontWeight: 800, color: '#1F2937', lineHeight: 1.2 }}>{arrendatario.nombre_razon_social}</div>
-              {cobros[0] && (
-                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
-                  {cobros[0].inmueble_nombre} · Local {cobros[0].numero_local}
+        {/* ── TAB: MIS PAGOS ─────────────────────────────────────────── */}
+        {tab === 'pagos' && (
+          <>
+            {/* KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+              {[
+                { label: 'Total pagado', value: fmt(totalPagado), color: '#16a34a', bg: '#D1FAE5', icon: CheckCircle },
+                { label: 'Por pagar', value: fmt(totalPendiente), color: totalPendiente > 0 ? '#D97706' : '#16a34a', bg: totalPendiente > 0 ? '#FEF3C7' : '#D1FAE5', icon: totalPendiente > 0 ? Clock : CheckCircle },
+                { label: `${pagados} pagados`, value: `${cobros.length} cobros`, color: '#0A66C2', bg: '#EEF2FF', icon: DollarSign },
+                { label: `${totalFacturas} facturas`, value: 'disponibles', color: '#6B7280', bg: '#F3F4F6', icon: FileText },
+              ].map(({ label, value, color, bg, icon: Icon }) => (
+                <div key={label} style={{ background: 'white', borderRadius: '12px', padding: '14px', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={18} color={color} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#1F2937' }}>{value}</div>
+                    <div style={{ fontSize: '11px', color: '#6B7280' }}>{label}</div>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Alerta mora */}
+            {mora > 0 && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <AlertTriangle size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: '1px' }} />
+                <div>
+                  <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '14px' }}>Tienes {mora} pago(s) en mora</div>
+                  <div style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>Por favor realiza tu pago a la brevedad para evitar cargos adicionales.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Filtros */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {anios.map(a => (
+                  <button key={a} onClick={() => setAnioFiltro(a)} style={{
+                    padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
+                    borderColor: anioFiltro === a ? '#0A66C2' : '#E5E7EB',
+                    background: anioFiltro === a ? '#0A66C2' : 'white',
+                    color: anioFiltro === a ? 'white' : '#6B7280',
+                  }}>{a}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+                {['Todos', 'PAGADO', 'PENDIENTE', 'EN_MORA'].map(e => (
+                  <button key={e} onClick={() => setFiltroEst(e)} style={{
+                    padding: '7px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                    borderColor: filtroEst === e ? '#0A66C2' : '#E5E7EB',
+                    background: filtroEst === e ? '#EEF2FF' : 'white',
+                    color: filtroEst === e ? '#0A66C2' : '#6B7280',
+                  }}>{e === 'Todos' ? 'Todos' : (ESTATUS_META[e]?.label || e)}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Lista de cobros */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filtrados.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 20px', background: 'white', borderRadius: '14px', border: '1px solid #E5E7EB', color: '#9CA3AF' }}>
+                  <FileText size={36} color="#E5E7EB" style={{ marginBottom: '12px' }} />
+                  <div style={{ fontWeight: 600 }}>Sin movimientos para este período</div>
+                </div>
+              ) : (
+                filtrados.map(cobro => <CobrosCard key={cobro.id} cobro={cobro} arrendatarioId={arrendatario?.id} />)
               )}
             </div>
-          </div>
-        </div>
-
-        {/* KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
-          {[
-            { label: 'Total pagado', value: fmt(totalPagado), color: '#16a34a', bg: '#D1FAE5', icon: CheckCircle },
-            { label: 'Por pagar', value: fmt(totalPendiente), color: totalPendiente > 0 ? '#D97706' : '#16a34a', bg: totalPendiente > 0 ? '#FEF3C7' : '#D1FAE5', icon: totalPendiente > 0 ? Clock : CheckCircle },
-            { label: `${pagados} pagados`, value: `${cobros.length} cobros`, color: '#0A66C2', bg: '#EEF2FF', icon: DollarSign },
-            { label: `${totalFacturas} facturas`, value: 'disponibles', color: '#6B7280', bg: '#F3F4F6', icon: FileText },
-          ].map(({ label, value, color, bg, icon: Icon }) => (
-            <div key={label} style={{ background: 'white', borderRadius: '12px', padding: '14px', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={18} color={color} />
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1F2937' }}>{value}</div>
-                <div style={{ fontSize: '11px', color: '#6B7280' }}>{label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Alerta mora */}
-        {mora > 0 && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <AlertTriangle size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: '1px' }} />
-            <div>
-              <div style={{ fontWeight: 700, color: '#DC2626', fontSize: '14px' }}>Tienes {mora} pago(s) en mora</div>
-              <div style={{ fontSize: '12px', color: '#991B1B', marginTop: '2px' }}>Por favor realiza tu pago a la brevedad para evitar cargos adicionales. Contacta a la administración si tienes alguna duda.</div>
-            </div>
-          </div>
+          </>
         )}
 
-        {/* Filtros */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {anios.map(a => (
-              <button key={a} onClick={() => setAnioFiltro(a)} style={{
-                padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
-                borderColor: anioFiltro === a ? '#0A66C2' : '#E5E7EB',
-                background: anioFiltro === a ? '#0A66C2' : 'white',
-                color: anioFiltro === a ? 'white' : '#6B7280',
-              }}>{a}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
-            {['Todos', 'PAGADO', 'PENDIENTE', 'EN_MORA'].map(e => (
-              <button key={e} onClick={() => setFiltroEst(e)} style={{
-                padding: '7px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-                borderColor: filtroEst === e ? '#0A66C2' : '#E5E7EB',
-                background: filtroEst === e ? '#EEF2FF' : 'white',
-                color: filtroEst === e ? '#0A66C2' : '#6B7280',
-              }}>{e === 'Todos' ? 'Todos' : (ESTATUS_META[e]?.label || e)}</button>
-            ))}
-          </div>
-        </div>
+        {/* ── TAB: MI CONTRATO ───────────────────────────────────────── */}
+        {tab === 'contrato' && <TabMiContrato contrato={contrato} />}
 
-        {/* Lista de cobros */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
-          {filtrados.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 20px', background: 'white', borderRadius: '14px', border: '1px solid #E5E7EB', color: '#9CA3AF' }}>
-              <FileText size={36} color="#E5E7EB" style={{ marginBottom: '12px' }} />
-              <div style={{ fontWeight: 600 }}>Sin movimientos para este período</div>
-            </div>
-          ) : (
-            filtrados.map(cobro => <CobrosCard key={cobro.id} cobro={cobro} arrendatarioId={arrendatario?.id} />)
-          )}
-        </div>
+        {/* ── TAB: MI PERFIL ─────────────────────────────────────────── */}
+        {tab === 'perfil' && <TabMiPerfil arrendatario={arrendatario} contrato={contrato} />}
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', paddingBottom: '20px' }}>
+        <div style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', paddingTop: 28, paddingBottom: '20px' }}>
           Plaza IWOL — Metepec, México · {new Date().getFullYear()}<br />
           Powered by RANNIX Consulting
+        </div>
+      </div>
+
+      {/* ── Barra de navegación inferior ──────────────────────────────── */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: 'white', borderTop: '1px solid #E5E7EB',
+        display: 'flex', justifyContent: 'center',
+        boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+        zIndex: 50,
+      }}>
+        <div style={{ maxWidth: 700, width: '100%', display: 'flex' }}>
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 3, padding: '10px 0', border: 'none', background: 'transparent',
+              cursor: 'pointer',
+              color: tab === id ? '#0A66C2' : '#9CA3AF',
+              borderTop: `2.5px solid ${tab === id ? '#0A66C2' : 'transparent'}`,
+              fontWeight: tab === id ? 700 : 500,
+            }}>
+              <Icon size={20} />
+              <span style={{ fontSize: 11 }}>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
