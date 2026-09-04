@@ -475,28 +475,38 @@ export default function Ingresos() {
   const { data, loading } = usePRP('prp_ingresos', { refreshKey })
   const lista = data ?? []
 
-  const filtrados = useMemo(() => lista.filter(r => {
+  const filtrados = useMemo(() => {
     const q = search.toLowerCase()
-    const matchQ = !q
-      || (r.id_contrato || '').toLowerCase().includes(q)
-      || (r.propietario || '').toLowerCase().includes(q)
-      || (r.local_id || '').toLowerCase().includes(q)
-      || (r.factura || '').toLowerCase().includes(q)
-    const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
-    let matchM
-    if (filtroModo === 'fecha_pago') {
-      // Filtrar por mes/año de la fecha real de pago (campo fecha)
-      if (!r.fecha) { matchM = false }
-      else {
-        const d = new Date(r.fecha)
-        matchM = d.getMonth() + 1 === filtroMes && d.getFullYear() === filtroAnio
-      }
-    } else {
-      // Filtrar por período de renta (mes/anio del ingreso)
-      matchM = r.mes === filtroMes && r.anio === filtroAnio
-    }
-    return matchQ && matchT && matchM
-  }), [lista, search, filtroTipo, filtroMes, filtroAnio, filtroModo])
+    return lista
+      .filter(r => {
+        const matchQ = !q
+          || (r.id_contrato || '').toLowerCase().includes(q)
+          || (r.propietario || '').toLowerCase().includes(q)
+          || (r.local_id || '').toLowerCase().includes(q)
+          || (r.arrendatario_nombre || '').toLowerCase().includes(q)
+          || (r.locales_display || '').toLowerCase().includes(q)
+          || (r.factura || '').toLowerCase().includes(q)
+        const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
+        let matchM
+        if (filtroModo === 'fecha_pago') {
+          if (!r.fecha) { matchM = false }
+          else {
+            const d = new Date(r.fecha)
+            matchM = d.getMonth() + 1 === filtroMes && d.getFullYear() === filtroAnio
+          }
+        } else {
+          matchM = r.mes === filtroMes && r.anio === filtroAnio
+        }
+        return matchQ && matchT && matchM
+      })
+      .sort((a, b) => {
+        // Orden default: por local (locales_display), luego por fecha
+        const la = a.locales_display || 'ZZZ'
+        const lb = b.locales_display || 'ZZZ'
+        if (la !== lb) return la.localeCompare(lb, 'es', { numeric: true })
+        return (a.fecha || '').localeCompare(b.fecha || '')
+      })
+  }, [lista, search, filtroTipo, filtroMes, filtroAnio, filtroModo])
 
   const soloImportes = filtrados.filter(r => r.es_principal && r.importe != null)
   const totalMes = soloImportes.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
@@ -598,8 +608,8 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Tipo','Docs','Importe','Nota'].map(h => (
-                        <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: h === 'Importe' ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
+                      {['Fecha pago','Período','Contrato','Tipo','Docs','Esperado','Cobrado','Nota'].map(h => (
+                        <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
                     </tr>
@@ -650,6 +660,9 @@ export default function Ingresos() {
                             }
                           </div>
                         </td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'12px', color: r.renta_mensual ? '#374151' : '#D1D5DB' }}>
+                          {r.renta_mensual ? fmt(r.renta_mensual) : '—'}
+                        </td>
                         <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, fontSize:'13px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
                           {fmt(r.importe)}
                         </td>
@@ -668,6 +681,9 @@ export default function Ingresos() {
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
                       <td colSpan={5} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'13px', color:'#6B7280' }}>
+                        {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
+                      </td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
                       <td /><td />
                     </tr>
@@ -697,7 +713,7 @@ export default function Ingresos() {
         return (
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
             onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }}>
-            <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'520px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+            <div style={{ background:'white', borderRadius:'14px', width:'90vw', maxWidth:'960px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
               onClick={e => e.stopPropagation()}>
 
               {/* Header */}
@@ -766,8 +782,10 @@ export default function Ingresos() {
                     <Paperclip size={11} /> Comprobante
                   </div>
                   {verDetalle.comprobante_url
-                    ? <img src={verDetalle.comprobante_url} alt="comprobante"
-                        style={{ width:'100%', borderRadius:'10px', border:'1px solid #E5E7EB', display:'block' }} />
+                    ? <div style={{ overflowX:'auto', overflowY:'auto', maxHeight:'55vh', borderRadius:'10px', border:'1px solid #E5E7EB', background:'#F9FAFB' }}>
+                        <img src={verDetalle.comprobante_url} alt="comprobante"
+                          style={{ display:'block', maxWidth:'none', height:'auto', minWidth:'100%' }} />
+                      </div>
                     : <div style={{ padding:'16px', background:'#F9FAFB', borderRadius:'10px', border:'1.5px dashed #D1D5DB', textAlign:'center', fontSize:'12px', color:'#9CA3AF' }}>
                         Sin comprobante adjunto
                       </div>
