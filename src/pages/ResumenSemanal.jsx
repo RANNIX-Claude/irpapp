@@ -93,10 +93,10 @@ function sabadoDe(iso) {
 }
 
 // ── Carga pensiones del sistema de estacionamiento (proyecto separado) ─────────
-async function cargarPensionesParking(ini, _fin) {
+async function cargarPensionesParking(ini, fin) {
   if (!supabaseParking) return { cobradas: [], pendientes: [], esperadas: [] }
-  // Determinar mes/año del rango (usa el Sábado inicial)
-  const d = new Date(ini + 'T12:00:00')
+  // Usa el Viernes final de la semana para determinar el mes (la semana puede cruzar dos meses)
+  const d = new Date((fin || ini) + 'T12:00:00')
   const mes  = d.getMonth() + 1
   const anio = d.getFullYear()
 
