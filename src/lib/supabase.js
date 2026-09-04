@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
+// ── Cliente secundario: Sistema de Estacionamiento / Parking ─────────────────
+const parkingUrl     = import.meta.env.VITE_PARKING_URL     || ''
+const parkingAnonKey = import.meta.env.VITE_PARKING_ANON_KEY || ''
+export const supabaseParking = parkingUrl
+  ? createClient(parkingUrl, parkingAnonKey, { auth: { persistSession: false } })
+  : null
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.placeholder'
 

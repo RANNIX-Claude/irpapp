@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X, Pencil, Trash2 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseParking } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -92,14 +92,46 @@ function sabadoDe(iso) {
   return d.toISOString().split('T')[0]
 }
 
+// ── Carga pensiones del sistema de estacionamiento (proyecto separado) ─────────
+async function cargarPensionesParking(ini, fin) {
+  if (!supabaseParking) return { cobradas: [], esperadas: [] }
+  // Determinar mes/año del rango (usa el Sábado inicial)
+  const d = new Date(ini + 'T12:00:00')
+  const mes  = d.getMonth() + 1
+  const anio = d.getFullYear()
+
+  const [{ data: cobradas }, { data: todasMes }] = await Promise.all([
+    // Pagadas cuya fecha_pago cae dentro de la semana
+    supabaseParking.from('pagos_pension')
+      .select('pago_id, monto_pagado, monto_tarifa, fecha_pago, periodo_mes, notas, pension:pension_id(codigo_acceso, monto_mensual)')
+      .eq('estado', 'pagado')
+      .gte('fecha_pago', ini)
+      .lte('fecha_pago', fin)
+      .order('fecha_pago'),
+
+    // Todas del mes para calcular esperado total
+    supabaseParking.from('pagos_pension')
+      .select('monto_tarifa, monto_pagado, estado')
+      .eq('periodo_mes', mes)
+      .eq('periodo_año', anio),
+  ])
+
+  return {
+    cobradas:  cobradas  ?? [],
+    esperadas: todasMes  ?? [],
+    mes, anio,
+  }
+}
+
 // ── Carga de datos: estac usa iniEstac→fin, resto usa ini→fin ─────────────────
 async function cargarDatos(ini, fin, iniEstac) {
   const [
     { data: estac },
-    { data: pensiones },
+    { data: pensionesLegacy },
     { data: vending },
     { data: gastos },
     { data: rentasEf },
+    pensionesParking,
   ] = await Promise.all([
     // Estacionamiento: desde Vie anterior (iniEstac) hasta el Vie del corte
     supabase.from('estacionamiento_diario')
@@ -107,7 +139,7 @@ async function cargarDatos(ini, fin, iniEstac) {
       .gte('fecha', iniEstac).lte('fecha', fin)
       .order('fecha'),
 
-    // Pensiones: semana_inicio = Sábado
+    // Pensiones legacy (tabla local — fallback si parking no disponible)
     supabase.from('estacionamiento_pensiones')
       .select('id, local_referencia, arrendatario_nombre, monto, num_recibo, fecha, pagado, nota')
       .eq('semana_inicio', ini)
@@ -131,6 +163,9 @@ async function cargarDatos(ini, fin, iniEstac) {
       .eq('origen', 'EFECTIVO')
       .gte('fecha', ini).lte('fecha', fin)
       .order('fecha'),
+
+    // Pensiones del sistema de estacionamiento (proyecto externo)
+    cargarPensionesParking(ini, fin),
   ])
 
   const ingresosEf = rentasEf ?? []
@@ -141,16 +176,36 @@ async function cargarDatos(ini, fin, iniEstac) {
     if (det.length === 0) return v
     const realVentas = det.reduce((s, r) => s + (parseFloat(r.importe_ventas) || 0), 0)
     if (Math.abs(realVentas - (parseFloat(v.venta_pesos) || 0)) > 0.5) {
-      // Actualizar en BD en background (sin esperar)
       supabase.from('vending_semanas').update({ venta_pesos: realVentas }).eq('id', v.id).then(() => {})
       return { ...v, venta_pesos: realVentas }
     }
     return v
   })
 
+  // Pensiones: priorizar sistema parking; fallback a tabla legacy
+  const pensionesParking_cobradas = pensionesParking.cobradas ?? []
+  const pensionesParking_esperadas = pensionesParking.esperadas ?? []
+  const usarParking = supabaseParking !== null
+
+  // Normalizar pensiones cobradas a formato común
+  const pensiones = usarParking
+    ? pensionesParking_cobradas.map(p => ({
+        id:                 p.pago_id,
+        local_referencia:   p.pension?.codigo_acceso || '—',
+        arrendatario_nombre: p.pension?.codigo_acceso || '—',
+        monto:              parseFloat(p.monto_pagado) || parseFloat(p.monto_tarifa) || 0,
+        num_recibo:         null,
+        fecha:              p.fecha_pago,
+        pagado:             true,
+        nota:               p.notas,
+      }))
+    : (pensionesLegacy ?? [])
+
   return {
     estac:     estac     ?? [],
-    pensiones: pensiones ?? [],
+    pensiones,
+    pensionesEsperadasMes: usarParking ? pensionesParking_esperadas : [],
+    pensionesParking: { mes: pensionesParking.mes, anio: pensionesParking.anio },
     vending:   vendingRows,
     gastos:    gastos    ?? [],
     rentasEf:  ingresosEf.filter(r => r.tipo === 'RENTA'),
@@ -860,37 +915,66 @@ export default function ResumenSemanal() {
           </div>
 
             {/* ── PENSIONES ── */}
-            {(pensiones.length > 0 || true) && (
-              <>
-                <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span>Pensiones de estacionamiento</span>
-                  <button onClick={() => setModal('pension')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-primary)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
-                    <Plus size={10}/> Nueva
-                  </button>
-                </div>
-                {pensiones.length === 0 && (
-                <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones esta semana</div>
-              )}
-              {pensiones.map((p, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px', cursor:'pointer' }}
-                    onClick={() => setDetalleIngreso({ tabla:'estacionamiento_pensiones', row: p })}
-                    onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
-                    onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
-                    <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre} <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span></span>
-                    <span style={S.acciones}>
-                      <button style={{ ...S.btnEdit, background:'#E8F4FD', color:'#0A66C2' }} title="Generar Recibo" onClick={() => setReciboRec(p)}>📄</button>
-                      <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_pensiones', row: p })}><Pencil size={12}/></button>
-                      <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_pensiones', id: p.id, label: `Pensión #${p.num_recibo} — ${p.arrendatario_nombre}` })}><Trash2 size={12}/></button>
-                    </span>
-                    <span style={S.monto('#374151')}>{fmt(p.monto)}</span>
+            {(() => {
+              const esperadasMes = datos?.pensionesEsperadasMes ?? []
+              const totEsperado  = esperadasMes.reduce((s, p) => s + (parseFloat(p.monto_tarifa) || 0), 0)
+              const totCobradoMes = esperadasMes.filter(p => p.estado === 'pagado').reduce((s, p) => s + (parseFloat(p.monto_pagado) || 0), 0)
+              const pkInfo = datos?.pensionesParking ?? {}
+              const mesesStr = pkInfo.mes ? `${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][pkInfo.mes]} ${pkInfo.anio}` : ''
+              return (
+                <>
+                  <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span>Pensiones de estacionamiento</span>
+                    {!supabaseParking && (
+                      <button onClick={() => setModal('pension')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-primary)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+                        <Plus size={10}/> Nueva
+                      </button>
+                    )}
                   </div>
-                ))}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0A66C2' }}>Total pensiones</span>
-                  <span style={S.monto('#0A66C2')}>{fmt(totPensiones)}</span>
-                </div>
-              </>
-            )}
+
+                  {/* Resumen del mes (desde sistema parking) */}
+                  {supabaseParking && esperadasMes.length > 0 && (
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 12px', background:'#EFF6FF', borderBottom:'1px solid #DBEAFE' }}>
+                      <span style={{ fontSize:'10px', fontWeight:700, color:'#0A66C2' }}>
+                        Mes {mesesStr}: {esperadasMes.length} pensiones activas
+                      </span>
+                      <span style={{ fontSize:'11px', color:'#374151' }}>
+                        <span style={{ color:'#6B7280' }}>Esperado: </span>
+                        <strong>{fmt(totEsperado)}</strong>
+                        {totCobradoMes > 0 && <span style={{ color:'#057642', marginLeft:'8px' }}>· Cobrado: {fmt(totCobradoMes)}</span>}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Cobradas en la semana */}
+                  {pensiones.length === 0 ? (
+                    <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>
+                      {supabaseParking ? 'Sin pensiones cobradas esta semana' : 'Sin pensiones esta semana'}
+                    </div>
+                  ) : pensiones.map((p, i) => (
+                    <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto 110px', padding:'6px 12px', background: i%2===0 ? 'white' : '#FAFAFA', borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'4px', cursor:'pointer' }}
+                      onClick={() => setDetalleIngreso({ tabla:'estacionamiento_pensiones', row: p })}
+                      onMouseEnter={e => e.currentTarget.style.background='#F0EEFF'}
+                      onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
+                      <span style={S.lblSmall}>{p.local_referencia} {p.arrendatario_nombre !== p.local_referencia ? p.arrendatario_nombre : ''} {p.num_recibo ? <span style={{ color:'#9CA3AF' }}>#{p.num_recibo}</span> : null}</span>
+                      {!supabaseParking && (
+                        <span style={S.acciones}>
+                          <button style={{ ...S.btnEdit, background:'#E8F4FD', color:'#0A66C2' }} title="Generar Recibo" onClick={() => setReciboRec(p)}>📄</button>
+                          <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_pensiones', row: p })}><Pencil size={12}/></button>
+                          <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_pensiones', id: p.id, label: `Pensión #${p.num_recibo} — ${p.arrendatario_nombre}` })}><Trash2 size={12}/></button>
+                        </span>
+                      )}
+                      <span style={S.monto('#374151')}>{fmt(p.monto)}</span>
+                    </div>
+                  ))}
+
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'7px 12px', background:'#F0F9FF', borderBottom:'1px solid #BFDBFE' }}>
+                    <span style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>Total pensiones esta semana</span>
+                    <span style={S.monto('#0A66C2')}>{fmt(totPensiones)}</span>
+                  </div>
+                </>
+              )
+            })()}
 
             {/* ── ESTACIONAMIENTO DIARIO ── */}
             <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
