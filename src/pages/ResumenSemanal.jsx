@@ -969,12 +969,6 @@ export default function ResumenSemanal() {
                                   <span style={{ textAlign:'right', fontSize:'13px', fontWeight:800, color:'#057642' }}>{fmt(totCob)}</span>
                                 </div>
                               )}
-                              {/* Pendientes — 1 renglón informativo (no suma) */}
-                              {pendientes.length > 0 && (
-                                <div style={{ padding:'5px 12px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', fontSize:'11px', color:'#92400E' }}>
-                                  <strong>🕐 Por cobrar ({pendientes.length}):</strong> {localesPendientes}
-                                </div>
-                              )}
                             </>
                         }
                         {/* Total */}
