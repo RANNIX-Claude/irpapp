@@ -1,8 +1,8 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, Plus, Save, BarChart2, FileText, Printer } from 'lucide-react'
+import { TrendingUp, Plus, Save, BarChart2, FileText, Printer, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseParking } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -155,13 +155,15 @@ export default function EDR() {
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [tab,  setTab]  = useState('tablero')
 
-  const [registro,    setRegistro]    = useState(null)
-  const [form,        setForm]        = useState({})
-  const [loading,     setLoading]     = useState(false)
-  const [saving,      setSaving]      = useState(false)
-  const [proyRentas,  setProyRentas]  = useState(0)
-  const [realRentas,  setRealRentas]  = useState({ factura: 0, total: 0 })
-  const [proySueldos, setProySueldos] = useState(0)
+  const [registro,      setRegistro]      = useState(null)
+  const [form,          setForm]          = useState({})
+  const [loading,       setLoading]       = useState(false)
+  const [saving,        setSaving]        = useState(false)
+  const [cargando,      setCargando]      = useState(false)
+  const [proyRentas,    setProyRentas]    = useState(0)
+  const [realRentas,    setRealRentas]    = useState({ factura: 0, total: 0 })
+  const [proySueldos,   setProySueldos]   = useState(0)
+  const [resumenCarga,  setResumenCarga]  = useState(null) // { rentas, pensiones, sueldos }
 
   const loadProyectado = useCallback(async () => {
     const { data } = await supabase
@@ -209,6 +211,69 @@ export default function EDR() {
     if (m > 12) { m = 1;  a++ }
     setMes(m); setAnio(a)
   }
+
+  // ── Cargar datos automáticos de las fuentes de verdad ───────────────────────
+  const cargarDatosAutomaticos = useCallback(async () => {
+    setCargando(true)
+    const resumen = { rentas: 0, poyPensiones: 0, realPensiones: 0, sueldos: 0 }
+
+    // 1. Rentas proyectadas: contratos vigentes
+    const { data: contratos } = await supabase
+      .from('prp_contratos').select('renta_mensual')
+      .in('estatus', ['VIGENTE','vigente','Vigente'])
+    const sumRentas = contratos?.reduce((s, c) => s + (parseFloat(c.renta_mensual)||0), 0) || 0
+    resumen.rentas = sumRentas
+
+    // 2. Rentas reales: ingresos del mes tipo RENTA
+    const { data: ingresosRenta } = await supabase
+      .from('ingresos').select('importe, factura')
+      .eq('mes', mes).eq('anio', anio).eq('tipo', 'RENTA')
+    const rFactura = ingresosRenta?.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+    const rSinFact = ingresosRenta?.filter(r => !r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+
+    // 3. Pensiones: desde DB de estacionamiento
+    let poyPensiones = 0, realPensiones = 0
+    if (supabaseParking) {
+      // Proyectado: suma de monto_mensual de pensiones activas
+      const { data: pensionesActivas } = await supabaseParking
+        .from('pensiones').select('monto_mensual').eq('activa', true)
+      poyPensiones = pensionesActivas?.reduce((s, p) => s + (parseFloat(p.monto_mensual)||0), 0) || 0
+
+      // Real: pagos_pension cobrados en el mes seleccionado
+      const { data: pagosPension } = await supabaseParking
+        .from('pagos_pension').select('monto_pagado')
+        .eq('periodo_mes', mes).eq('periodo_año', anio).eq('estado', 'pagado')
+      realPensiones = pagosPension?.reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0) || 0
+    }
+    resumen.poyPensiones  = poyPensiones
+    resumen.realPensiones = realPensiones
+
+    // 4. Sueldos reales: nóminas autorizadas/pagadas con fecha_pago en el mes
+    const fechaIni = `${anio}-${String(mes).padStart(2,'0')}-01`
+    const fechaFin = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
+    const { data: nominas } = await supabase
+      .from('nomina_periodos').select('total_neto')
+      .in('estado', ['AUTORIZADA','PAGADA','TIMBRADA'])
+      .gte('fecha_pago', fechaIni).lte('fecha_pago', fechaFin)
+    const sumSueldos = nominas?.reduce((s, n) => s + (parseFloat(n.total_neto)||0), 0) || 0
+    resumen.sueldos = sumSueldos
+
+    // Actualizar form con los datos calculados
+    setForm(f => ({
+      ...f,
+      proy_rentas_contratos:    sumRentas,
+      real_rentas_factura:      rFactura,
+      real_rentas_sin_factura:  rSinFact,
+      proy_pensiones:           poyPensiones,
+      real_pensiones:           realPensiones,
+      real_sueldos:             sumSueldos,
+    }))
+    setProyRentas(sumRentas)
+    setRealRentas({ factura: rFactura, total: rFactura + rSinFact })
+    setResumenCarga(resumen)
+    setCargando(false)
+    toast.success(`Datos cargados: rentas ${fmt(sumRentas)}, sueldos ${fmt(sumSueldos)}, pensiones ${fmt(realPensiones)}`)
+  }, [mes, anio])
 
   const handleNuevo = async () => {
     if (registro) { toast('Ya existe un registro para este mes'); return }
@@ -302,8 +367,9 @@ export default function EDR() {
 
   return (
     <>
-      {/* Print CSS */}
+      {/* Print + spinner CSS */}
       <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @media print {
           body * { visibility: hidden; }
           #edr-print, #edr-print * { visibility: visible; }
@@ -353,12 +419,17 @@ export default function EDR() {
                 <Plus size={14} /> Nuevo
               </button>
             )}
-            {registro && tab === 'elaboracion' && (
+            {registro && tab === 'elaboracion' && (<>
+              <button onClick={cargarDatosAutomaticos} disabled={cargando}
+                style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 16px', background:'#6D28D9', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
+                <RefreshCw size={14} style={{ animation: cargando ? 'spin 1s linear infinite' : 'none' }} />
+                {cargando ? 'Cargando…' : 'Cargar Datos'}
+              </button>
               <button onClick={handleSave} disabled={saving}
                 style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 16px', background:'var(--color-success)', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
                 <Save size={14} /> {saving ? 'Guardando…' : 'Guardar'}
               </button>
-            )}
+            </>)}
           </div>
         </div>
 
@@ -506,7 +577,19 @@ export default function EDR() {
              ══════════════════════════════════════════════════════════════════ */
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px' }}>
 
-            {/* Col 1: Ingresos Proyectado */}
+            {/* Banner de última carga automática */}
+          {resumenCarga && (
+            <div style={{ gridColumn:'1 / -1', padding:'12px 16px', background:'#EDE9FE', borderRadius:'10px',
+              border:'1px solid #DDD6FE', display:'flex', gap:'24px', flexWrap:'wrap', alignItems:'center' }}>
+              <span style={{ fontSize:'12px', fontWeight:700, color:'#6D28D9' }}>Datos cargados automáticamente:</span>
+              <span style={{ fontSize:'12px', color:'#374151' }}>Rentas contratos: <strong>{fmt(resumenCarga.rentas)}</strong></span>
+              <span style={{ fontSize:'12px', color:'#374151' }}>Pensiones proyectadas: <strong>{fmt(resumenCarga.poyPensiones)}</strong></span>
+              <span style={{ fontSize:'12px', color:'#374151' }}>Pensiones cobradas: <strong>{fmt(resumenCarga.realPensiones)}</strong></span>
+              <span style={{ fontSize:'12px', color:'#374151' }}>Nómina pagada: <strong>{fmt(resumenCarga.sueldos)}</strong></span>
+            </div>
+          )}
+
+          {/* Col 1: Ingresos Proyectado */}
             <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
               <div style={{ padding:'12px 16px', background:'#EFF6FF', borderBottom:'1px solid #DBEAFE' }}>
                 <div style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>Ingresos — Proyectado</div>
