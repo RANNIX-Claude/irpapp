@@ -947,60 +947,40 @@ export default function ResumenSemanal() {
                     </div>
                   )}
 
-                  {/* Cobradas del mes */}
+                  {/* Cobradas del mes — formato compacto */}
                   {(() => {
                     const cobradas   = pensiones.filter(p => p.pagado)
                     const pendientes = pensiones.filter(p => !p.pagado)
                     const totCob = cobradas.reduce((s, p) => s + (p.monto || 0), 0)
-                    const totPen = pendientes.reduce((s, p) => s + (p.monto_tarifa || p.monto || 0), 0)
-
-                    const FilaPension = ({ p, i, esCobrada }) => (
-                      <div key={i} style={{ display:'grid', gridTemplateColumns:'auto 1fr 110px', padding:'5px 12px',
-                        background: esCobrada ? (i%2===0?'#F0FDF4':'#ECFDF5') : (i%2===0?'#FFFBEB':'#FEF9C3'),
-                        borderBottom:'1px solid #F3F4F6', alignItems:'center', gap:'8px' }}>
-                        <span style={{ fontSize:'13px' }}>{esCobrada ? '✅' : '🕐'}</span>
-                        <span style={{ fontSize:'12px', color: esCobrada ? '#374151' : '#92400E', fontWeight: esCobrada ? 400 : 500 }}>
-                          {p.local_referencia}
-                          {p.nota ? <span style={{ color:'#9CA3AF', marginLeft:'6px', fontSize:'11px' }}>{p.nota}</span> : null}
-                        </span>
-                        <span style={{ textAlign:'right', fontSize:'12px', fontWeight:700,
-                          color: esCobrada ? '#057642' : '#D97706' }}>
-                          {fmt(esCobrada ? p.monto : (p.monto_tarifa || p.monto))}
-                        </span>
-                      </div>
-                    )
+                    const localesCobradas = cobradas.map(p => p.local_referencia).join(', ')
+                    const localesPendientes = pendientes.map(p => p.local_referencia).join(', ')
 
                     return (
                       <>
-                        {/* Cobradas */}
-                        {cobradas.length > 0 && (
-                          <div style={{ padding:'3px 12px', background:'#D1FAE5', fontSize:'10px', fontWeight:800, color:'#057642', textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                            Cobradas ({cobradas.length})
-                          </div>
-                        )}
-                        {cobradas.map((p, i) => <FilaPension key={p.id} p={p} i={i} esCobrada={true} />)}
-
-                        {/* Pendientes */}
-                        {pendientes.length > 0 && (
-                          <div style={{ padding:'3px 12px', background:'#FEF3C7', fontSize:'10px', fontWeight:800, color:'#92400E', textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                            Por cobrar ({pendientes.length})
-                          </div>
-                        )}
-                        {pendientes.map((p, i) => <FilaPension key={p.id} p={p} i={i} esCobrada={false} />)}
-
-                        {pensiones.length === 0 && (
-                          <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>
-                            Sin pensiones registradas este mes
-                          </div>
-                        )}
-
-                        {/* Totales */}
-                        <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 110px', padding:'7px 12px', background:'#F0F9FF', borderBottom:'1px solid #BFDBFE', gap:'4px' }}>
+                        {pensiones.length === 0
+                          ? <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones registradas este mes</div>
+                          : <>
+                              {/* Cobradas — 1 renglón */}
+                              {cobradas.length > 0 && (
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0', alignItems:'center', gap:'8px' }}>
+                                  <span style={{ fontSize:'11px', color:'#057642' }}>
+                                    <strong>✅ Cobradas ({cobradas.length}):</strong> {localesCobradas}
+                                  </span>
+                                  <span style={{ textAlign:'right', fontSize:'13px', fontWeight:800, color:'#057642' }}>{fmt(totCob)}</span>
+                                </div>
+                              )}
+                              {/* Pendientes — 1 renglón informativo (no suma) */}
+                              {pendientes.length > 0 && (
+                                <div style={{ padding:'5px 12px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', fontSize:'11px', color:'#92400E' }}>
+                                  <strong>🕐 Por cobrar ({pendientes.length}):</strong> {localesPendientes}
+                                </div>
+                              )}
+                            </>
+                        }
+                        {/* Total */}
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'7px 12px', background:'#F0F9FF', borderBottom:'1px solid #BFDBFE' }}>
                           <span style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>
                             Pensiones del mes · {cobradas.length}/{pensiones.length} cobradas
-                          </span>
-                          <span style={{ textAlign:'right', fontSize:'11px', color:'#6B7280' }}>
-                            {pendientes.length > 0 && <span style={{ color:'#D97706' }}>Pend: {fmt(totPen)}</span>}
                           </span>
                           <span style={S.monto('#0A66C2')}>{fmt(totCob)}</span>
                         </div>
