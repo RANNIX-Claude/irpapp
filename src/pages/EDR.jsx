@@ -573,129 +573,209 @@ export default function EDR() {
 
         ) : (
           /* ══════════════════════════════════════════════════════════════════
-             TAB: EN ELABORACIÓN
+             TAB: EN ELABORACIÓN — misma estructura que el Tablero
              ══════════════════════════════════════════════════════════════════ */
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px' }}>
+          (() => {
+            /* ── Input compacto para celdas ── */
+            const CI = ({ field, values, onChange, hint, readOnly = false, color = '#111827' }) => {
+              const val = values[field]
+              return readOnly
+                ? <div style={{ textAlign:'right', fontSize:'12px', fontWeight:700, color, padding:'0 6px' }}>{val !== undefined && val !== 0 ? fmt(val) : ''}</div>
+                : <div style={{ position:'relative' }}>
+                    <input type="number" step="0.01"
+                      value={val ?? ''}
+                      onChange={e => onChange(field, e.target.value)}
+                      placeholder="—"
+                      style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px',
+                        fontSize:'12px', fontWeight:600, textAlign:'right', background:'white',
+                        color, outline:'none', boxSizing:'border-box' }} />
+                    {hint && <div style={{ fontSize:'9px', color:'#9CA3AF', textAlign:'right', marginTop:'1px' }}>{hint}</div>}
+                  </div>
+            }
 
-            {/* Banner de última carga automática */}
-          {resumenCarga && (
-            <div style={{ gridColumn:'1 / -1', padding:'12px 16px', background:'#EDE9FE', borderRadius:'10px',
-              border:'1px solid #DDD6FE', display:'flex', gap:'24px', flexWrap:'wrap', alignItems:'center' }}>
-              <span style={{ fontSize:'12px', fontWeight:700, color:'#6D28D9' }}>Datos cargados automáticamente:</span>
-              <span style={{ fontSize:'12px', color:'#374151' }}>Rentas contratos: <strong>{fmt(resumenCarga.rentas)}</strong></span>
-              <span style={{ fontSize:'12px', color:'#374151' }}>Pensiones proyectadas: <strong>{fmt(resumenCarga.poyPensiones)}</strong></span>
-              <span style={{ fontSize:'12px', color:'#374151' }}>Pensiones cobradas: <strong>{fmt(resumenCarga.realPensiones)}</strong></span>
-              <span style={{ fontSize:'12px', color:'#374151' }}>Nómina pagada: <strong>{fmt(resumenCarga.sueldos)}</strong></span>
-            </div>
-          )}
+            /* ── Fila de encabezado de columnas ── */
+            const COLS_E = '1fr 180px 180px'
+            const thE = { padding:'8px 12px', fontSize:'10px', fontWeight:700, color:'#6B7280',
+              textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'right',
+              background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }
 
-          {/* Col 1: Ingresos Proyectado */}
-            <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', background:'#EFF6FF', borderBottom:'1px solid #DBEAFE' }}>
-                <div style={{ fontSize:'12px', fontWeight:700, color:'#0A66C2' }}>Ingresos — Proyectado</div>
-                <div style={{ fontSize:'10px', color:'#6B7280', marginTop:'2px' }}>Se autocalcula de contratos vigentes</div>
+            /* ── Fila de encabezado de sección ── */
+            const SecH = ({ label, bg = '#1A3C5E' }) => (
+              <div style={{ display:'grid', gridTemplateColumns: COLS_E, background: bg, padding:'7px 12px' }}>
+                <div style={{ fontSize:'11px', fontWeight:800, color:'white', textTransform:'uppercase',
+                  letterSpacing:'0.07em', gridColumn:'1 / -1' }}>{label}</div>
               </div>
-              <div style={{ padding:'14px 16px' }}>
-                <NumField label="Rentas contratos vigentes" field="proy_rentas_contratos"
-                  values={{ proy_rentas_contratos: form.proy_rentas_contratos ?? proyRentas }}
-                  onChange={setField} hint={`auto: ${fmt(proyRentas)}`} />
-                <NumField label="Restaurant / Ampliación ($276 m²)" field="proy_restaurant"
-                  values={form} onChange={setField} hint="negativo si descuenta" />
-                <NumField label="Locales vacantes (monto pérdida)" field="proy_locales_vacantes"
-                  values={form} onChange={setField} hint="positivo, se resta" />
-                <NumField label="Estacionamiento proyectado" field="proy_estacionamiento" values={form} onChange={setField} />
-                <NumField label="Pensiones proyectadas" field="proy_pensiones" values={form} onChange={setField} />
-                <NumField label="Maquinita / Vending proyectado" field="proy_maquinita" values={form} onChange={setField} />
-                <NumField label="Agua (cobro proyectado)" field="proy_agua_ingresos" values={form} onChange={setField} />
-              </div>
-            </div>
+            )
 
-            {/* Col 2: Ingresos Real */}
-            <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
-                <div style={{ fontSize:'12px', fontWeight:700, color:'#057642' }}>Ingresos — Real</div>
-                <div style={{ fontSize:'10px', color:'#6B7280', marginTop:'2px' }}>Valores del mes cobrados</div>
-              </div>
-              <div style={{ padding:'14px 16px' }}>
-                <NumField label="Rentas con factura" field="real_rentas_factura"
-                  values={{ real_rentas_factura: form.real_rentas_factura ?? realRentas.factura }}
-                  onChange={setField} hint={`de ingresos: ${fmt(realRentas.factura)}`} />
-                <NumField label="Rentas sin factura" field="real_rentas_sin_factura" values={form} onChange={setField} />
-                <NumField label="Penalizaciones / Recargos" field="real_penalizaciones" values={form} onChange={setField} />
-                <NumField label="IVA retenido" field="real_iva" values={form} onChange={setField} hint="monto positivo, se resta" />
-                <NumField label="Estacionamiento real" field="real_estacionamiento" values={form} onChange={setField} />
-                <NumField label="Pensiones real" field="real_pensiones" values={form} onChange={setField} />
-                <NumField label="Maquinita / Vending real" field="real_maquinita" values={form} onChange={setField} />
-                <NumField label="Agua (cobro real)" field="real_agua_ingresos" values={form} onChange={setField} />
-              </div>
-            </div>
-
-            {/* Col 3: Gastos + Fijos + Notas */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-
-              <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', background:'#FEF9C3', borderBottom:'1px solid #FDE68A' }}>
-                  <div style={{ fontSize:'12px', fontWeight:700, color:'#92400E' }}>Gastos Variables</div>
+            /* ── Fila de subtotal (calculado, no editable) ── */
+            const SubE = ({ label, proy, real, highlight = false, big = false }) => {
+              const bg = highlight ? (real >= 0 ? '#F0FDF4' : '#FEF2F2') : '#F5F5F5'
+              const clr = big ? (real >= 0 ? '#057642' : '#B91C1C') : '#111827'
+              const sz = big ? '14px' : '12px'
+              const fw = big ? 900 : 700
+              return (
+                <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
+                  padding: big ? '10px 12px' : '7px 12px', background: bg,
+                  borderTop: big ? '3px solid ' + (real >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB' }}>
+                  <div style={{ fontSize: sz, fontWeight: fw, color: clr }}>{label}</div>
+                  <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#6B7280', padding:'0 6px' }}>
+                    {proy !== 0 ? fmt(proy) : ''}
+                  </div>
+                  <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color: big ? clr : (real < 0 ? '#B91C1C' : '#374151'), padding:'0 6px' }}>
+                    {real !== 0 ? fmt(real) : ''}
+                  </div>
                 </div>
-                <div style={{ padding:'14px 16px' }}>
-                  <NumField label="Sueldos proyectado" field="proy_sueldos"
-                    values={{ proy_sueldos: form.proy_sueldos ?? proySueldos }}
-                    onChange={setField} hint={`RH: ${fmt(proySueldos)}`} />
-                  <NumField label="Sueldos real" field="real_sueldos" values={form} onChange={setField} />
-                  <NumField label="Fondo Revolvente proyectado" field="proy_fondo_revolvente" values={form} onChange={setField} />
-                  <NumField label="Fondo Revolvente real" field="real_fondo_revolvente" values={form} onChange={setField} />
-                  <NumField label="Gasto Excedente" field="real_gasto_excedente" values={form} onChange={setField} />
-                  <NumField label="Luz proyectada" field="proy_luz" values={form} onChange={setField} />
-                  <NumField label="Luz real" field="real_luz" values={form} onChange={setField} />
-                  <NumField label="Agua (gasto) proyectada" field="proy_agua_gastos" values={form} onChange={setField} />
-                  <NumField label="Agua (gasto) real" field="real_agua_gastos" values={form} onChange={setField} />
-                  <NumField label="Otros gastos proyectados" field="proy_otros_gastos" values={form} onChange={setField} />
-                  <NumField label="Otros gastos reales" field="real_otros_gastos" values={form} onChange={setField} />
+              )
+            }
+
+            /* ── Fila editable ── */
+            const Row = ({ label, fieldP, fieldR, vP, vR, indent = 0, hintP, hintR, negLabel = false }) => (
+              <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
+                padding:'5px 12px', borderTop:'1px solid #F3F4F6', alignItems:'center',
+                background:'white' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+                  paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center', gap:'4px' }}>
+                  {label}
+                </div>
+                <div style={{ padding:'2px 6px' }}>
+                  {fieldP
+                    ? <CI field={fieldP} values={vP} onChange={setField} hint={hintP} />
+                    : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
+                </div>
+                <div style={{ padding:'2px 6px' }}>
+                  {fieldR
+                    ? <CI field={fieldR} values={vR} onChange={setField} hint={hintR} color={negLabel ? '#B91C1C' : '#111827'} />
+                    : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
                 </div>
               </div>
+            )
 
-              <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', background:'#F5F3FF', borderBottom:'1px solid #DDD6FE' }}>
-                  <div style={{ fontSize:'12px', fontWeight:700, color:'#6D28D9' }}>Impuestos y Gastos Fijos</div>
+            const fP = { ...form, proy_rentas_contratos: form.proy_rentas_contratos ?? proyRentas, proy_sueldos: form.proy_sueldos ?? proySueldos }
+            const fR = { ...form, real_rentas_factura: form.real_rentas_factura ?? realRentas.factura }
+
+            return (
+              <div style={{ background:'white', borderRadius:'12px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
+
+                {/* Banner datos automáticos */}
+                {resumenCarga && (
+                  <div style={{ padding:'10px 14px', background:'#EDE9FE', borderBottom:'1px solid #DDD6FE',
+                    display:'flex', gap:'20px', flexWrap:'wrap', alignItems:'center' }}>
+                    <span style={{ fontSize:'11px', fontWeight:700, color:'#6D28D9' }}>Datos cargados automáticamente:</span>
+                    <span style={{ fontSize:'11px', color:'#374151' }}>Rentas: <strong>{fmt(resumenCarga.rentas)}</strong></span>
+                    <span style={{ fontSize:'11px', color:'#374151' }}>Pens.proy: <strong>{fmt(resumenCarga.poyPensiones)}</strong></span>
+                    <span style={{ fontSize:'11px', color:'#374151' }}>Pens.real: <strong>{fmt(resumenCarga.realPensiones)}</strong></span>
+                    <span style={{ fontSize:'11px', color:'#374151' }}>Nómina: <strong>{fmt(resumenCarga.sueldos)}</strong></span>
+                  </div>
+                )}
+
+                {/* Encabezado columnas */}
+                <div style={{ display:'grid', gridTemplateColumns: COLS_E }}>
+                  <div style={{ ...thE, textAlign:'left' }}>Concepto</div>
+                  <div style={thE}>Proyectado</div>
+                  <div style={thE}>Real</div>
                 </div>
-                <div style={{ padding:'14px 16px' }}>
-                  <NumField label="Predial" field="predial" values={form} onChange={setField} />
-                  <NumField label="Transporte Residuos Sólidos" field="transporte_residuos" values={form} onChange={setField} />
-                  <NumField label="Licencia de Estacionamiento" field="licencia_estacionamiento" values={form} onChange={setField} />
-                  <NumField label="Anuncio Publicitario IWOL" field="anuncio_publicitario" values={form} onChange={setField} />
+
+                {/* ── INGRESOS ── */}
+                <SecH label="Ingresos" />
+
+                <Row label="Rentas contratos vigentes" fieldP="proy_rentas_contratos" fieldR={null}
+                  vP={fP} vR={fR} hintP={`auto: ${fmt(proyRentas)}`} />
+                <Row label="Restaurant / Ampliación ($276 m²)" fieldP="proy_restaurant" fieldR={null}
+                  vP={fP} vR={fR} indent={1} />
+                <Row label="Locales vacantes (monto pérdida)" fieldP="proy_locales_vacantes" fieldR={null}
+                  vP={fP} vR={fR} indent={1} />
+
+                <SubE label="Rentas brutas" proy={pRentasBrutas} real={rRentasBrutas} />
+
+                <Row label="Rentas con factura" fieldP={null} fieldR="real_rentas_factura"
+                  vP={fP} vR={fR} indent={1} hintR={`ingresos: ${fmt(realRentas.factura)}`} />
+                <Row label="Rentas sin factura" fieldP={null} fieldR="real_rentas_sin_factura"
+                  vP={fP} vR={fR} indent={1} />
+                <Row label="Penalizaciones / Recargos" fieldP={null} fieldR="real_penalizaciones"
+                  vP={fP} vR={fR} indent={1} />
+                <Row label="IVA retenido" fieldP={null} fieldR="real_iva"
+                  vP={fP} vR={fR} indent={1} negLabel hintR="positivo, se resta" />
+
+                <SubE label="Ingresos Netos Renta" proy={pIngNeto} real={rIngNeto} highlight />
+
+                <Row label="Estacionamiento" fieldP="proy_estacionamiento" fieldR="real_estacionamiento"
+                  vP={fP} vR={fR} />
+                <Row label="Pensiones" fieldP="proy_pensiones" fieldR="real_pensiones"
+                  vP={fP} vR={fR} />
+                <Row label="Maquinita / Vending" fieldP="proy_maquinita" fieldR="real_maquinita"
+                  vP={fP} vR={fR} />
+                <Row label="Agua (cobro)" fieldP="proy_agua_ingresos" fieldR="real_agua_ingresos"
+                  vP={fP} vR={fR} />
+
+                <SubE label="Total Ingresos" proy={pTotalIng} real={rTotalIng} highlight />
+
+                {/* ── GASTOS VARIABLES ── */}
+                <SecH label="Gastos Variables" />
+
+                <Row label="Sueldos" fieldP="proy_sueldos" fieldR="real_sueldos"
+                  vP={fP} vR={fR} hintP={`RH: ${fmt(proySueldos)}`} />
+                <Row label="Fondo Revolvente" fieldP="proy_fondo_revolvente" fieldR="real_fondo_revolvente"
+                  vP={fP} vR={fR} />
+                <Row label="Gasto Excedente" fieldP={null} fieldR="real_gasto_excedente"
+                  vP={fP} vR={fR} indent={1} />
+                <Row label="Luz" fieldP="proy_luz" fieldR="real_luz"
+                  vP={fP} vR={fR} />
+                <Row label="Agua (gasto)" fieldP="proy_agua_gastos" fieldR="real_agua_gastos"
+                  vP={fP} vR={fR} />
+                <Row label="Otros gastos" fieldP="proy_otros_gastos" fieldR="real_otros_gastos"
+                  vP={fP} vR={fR} />
+
+                <SubE label="Total Gastos Variables" proy={pTotalG} real={rTotalG} />
+                <SubE label="Utilidad Bruta" proy={pUtilBruta} real={rUtilBruta} highlight />
+
+                {/* ── IMPUESTOS Y GASTOS FIJOS ── */}
+                <SecH label="Impuestos y Gastos Fijos" bg="#4B5563" />
+
+                <Row label="Predial" fieldP="predial" fieldR="predial"
+                  vP={fP} vR={fR} />
+                <Row label="Transporte de Residuos Sólidos" fieldP="transporte_residuos" fieldR="transporte_residuos"
+                  vP={fP} vR={fR} />
+                <Row label="Licencia de Estacionamiento" fieldP="licencia_estacionamiento" fieldR="licencia_estacionamiento"
+                  vP={fP} vR={fR} />
+                <Row label="Anuncio Publicitario IWOL" fieldP="anuncio_publicitario" fieldR="anuncio_publicitario"
+                  vP={fP} vR={fR} />
+
+                <SubE label="Total Impuestos" proy={pTotalImp} real={rTotalImp} />
+                <SubE label="Utilidad Neta" proy={pUtilNeta} real={rUtilNeta} highlight big />
+
+                {/* ── Notas + acciones ── */}
+                <div style={{ padding:'14px 16px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB',
+                  display:'grid', gridTemplateColumns:'1fr auto', gap:'16px', alignItems:'start' }}>
+                  <div>
+                    <div style={{ fontSize:'11px', fontWeight:700, color:'#374151', marginBottom:'5px', textTransform:'uppercase' }}>Notas del mes</div>
+                    <textarea
+                      value={form.notas ?? ''}
+                      onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                      rows={3}
+                      placeholder="Observaciones, eventos especiales, ajustes..."
+                      style={{ width:'100%', padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:'7px',
+                        fontSize:'12px', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none' }}
+                    />
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:'8px', paddingTop:'20px' }}>
+                    {registro?.status !== 'cerrado' && (
+                      <button onClick={async () => {
+                        await supabase.from('er_mensual').update({ status:'cerrado' }).eq('id', registro.id)
+                        await loadRegistro(mes, anio)
+                        toast.success('Mes cerrado')
+                      }} style={{ padding:'8px 14px', background:'#374151', color:'white', border:'none',
+                        borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        Cerrar mes
+                      </button>
+                    )}
+                  </div>
                 </div>
+
               </div>
-
-              {/* Notas */}
-              <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
-                <div style={{ padding:'12px 16px', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
-                  <div style={{ fontSize:'12px', fontWeight:700, color:'#374151' }}>Notas del mes</div>
-                </div>
-                <div style={{ padding:'14px 16px' }}>
-                  <textarea
-                    value={form.notas ?? ''}
-                    onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                    rows={4}
-                    placeholder="Observaciones, eventos especiales, ajustes..."
-                    style={{ width:'100%', padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:'7px',
-                      fontSize:'13px', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none' }}
-                  />
-                </div>
-              </div>
-
-              {/* Cerrar mes */}
-              {registro?.status !== 'cerrado' && (
-                <button onClick={async () => {
-                  await supabase.from('er_mensual').update({ status:'cerrado' }).eq('id', registro.id)
-                  await loadRegistro(mes, anio)
-                  toast.success('Mes cerrado')
-                }} style={{ padding:'10px', background:'#374151', color:'white', border:'none',
-                  borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-                  Cerrar mes
-                </button>
-              )}
-            </div>
-          </div>
+            )
+          })()
         )}
       </div>
     </>
