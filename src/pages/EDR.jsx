@@ -864,6 +864,7 @@ export default function EDR() {
                 </div>
 
                 <SecHdr label="Ingresos" />
+                {/* Sección proyectada — referencia de presupuesto */}
                 <EditRow label="* Rentas totales"
                   fieldP="proy_rentas_contratos"
                   fieldMes="real_rentas_factura_mes" fieldOtros="real_rentas_factura_otros"
@@ -872,20 +873,26 @@ export default function EDR() {
                   hintMes={`ref: ${fmt(realRentas.factura)}`} />
                 <EditRow label="• Restaurant; Ampliación ($276 m² pp)"
                   fieldP="proy_restaurant"
-                  fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
                   form={fForm} setField={sf} indent={1} />
                 <InfoRowE label="Rentas disponibles (locales-Restau)"
                   proy={(parseFloat(fForm.proy_rentas_contratos)||proyRentas) - (parseFloat(fForm.proy_restaurant)||0)}
                   indent={1} />
                 <EditRow label="** Locales (L10, L22, Financiera L24,25,26)"
                   fieldP="proy_locales_vacantes"
-                  fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
                   form={fForm} setField={sf} indent={2} />
+
+                {/* Subtotal + desglose real (igual orden que Tablero) */}
+                <SubTot label="Rentas brutas" proy={pRentasBrutas} real={eRentasBrutas}
+                  mes={eRmRentas} otros={eOpRentas} />
+                <EditRow label="Rentas sin Factura"
+                  fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
+                  form={fForm} setField={sf} indent={1} />
+                <EditRow label="Penalizaciones"
+                  fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
+                  form={fForm} setField={sf} indent={1} />
                 <EditRow label="IVA retenido" fieldP={null} fieldR="real_iva"
                   form={fForm} setField={sf} indent={1} negLabel hintR="positivo, se resta" />
 
-                <SubTot label="Rentas brutas"       proy={pRentasBrutas} real={eRentasBrutas}
-                  mes={eRmRentas} otros={eOpRentas} />
                 <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight />
 
                 <EditRow label="Estacionamiento"
