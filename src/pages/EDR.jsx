@@ -185,17 +185,35 @@ function SubTot({ label, proy, real, mes = 0, otros = 0, highlight = false, big 
       <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#6B7280', padding:'0 6px' }}>
         {proy !== 0 ? fmt(proy) : ''}
       </div>
+      {/* Total antes que Mes/Otros (igual que Tablero) */}
+      <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw,
+        color: big ? clr : (real < 0 ? '#B91C1C' : '#374151'), padding:'0 6px' }}>
+        {real !== 0 ? fmt(real) : ''}
+      </div>
       <div style={{ textAlign:'right', fontSize:'11px', fontWeight: fw, color:'#4B5563', padding:'0 6px' }}>
         {mes !== 0 ? fmt(mes) : ''}
       </div>
       <div style={{ textAlign:'right', fontSize:'11px', fontWeight: fw, color:'#4B5563', padding:'0 6px' }}>
         {otros !== 0 ? fmt(otros) : ''}
       </div>
-      <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw,
-        color: big ? clr : (real < 0 ? '#B91C1C' : '#374151'), padding:'0 6px' }}>
-        {real !== 0 ? fmt(real) : ''}
-      </div>
       <div style={{ textAlign:'center' }}><PctBadge value={ratio} /></div>
+    </div>
+  )
+}
+/* Fila informativa de referencia dentro de En Elaboración */
+function InfoRowE({ label, proy = 0, indent = 0 }) {
+  const p = parseFloat(proy) || 0
+  return (
+    <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
+      padding:'3px 12px', borderTop:'1px solid #FEE2E2', background:'#FFF5F5' }}>
+      <div style={{ fontSize:'11px', fontStyle:'italic', color:'#B91C1C',
+        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center' }}>
+        {label}
+      </div>
+      <div style={{ textAlign:'right', fontSize:'11px', color:'#B91C1C', padding:'0 6px', fontWeight:600 }}>
+        {p !== 0 ? fmt(p) : ''}
+      </div>
+      <div /><div /><div /><div />
     </div>
   )
 }
@@ -223,15 +241,7 @@ function EditRow({ label, fieldP, fieldMes, fieldOtros, fieldR, form, setField,
       <div style={{ padding:'2px 4px' }}>
         {fieldP ? <CellInput field={fieldP} values={form} onChange={setField} hint={hintP} /> : dash}
       </div>
-      {/* Rentas Mes */}
-      <div style={{ padding:'2px 4px' }}>
-        {isSplit ? <CellInput field={fieldMes} values={form} onChange={setField} hint={hintMes} /> : dash}
-      </div>
-      {/* Otros Periodos */}
-      <div style={{ padding:'2px 4px' }}>
-        {isSplit ? <CellInput field={fieldOtros} values={form} onChange={setField} hint={hintOtros} /> : dash}
-      </div>
-      {/* Total: auto si split, editable si gasto */}
+      {/* Total: auto si split, editable si gasto — posición 3 (igual que Tablero) */}
       <div style={{ padding:'2px 4px' }}>
         {isSplit
           ? <div style={{ textAlign:'right', fontSize:'12px', fontWeight:700, color:'#374151', padding:'4px 6px' }}>
@@ -241,6 +251,14 @@ function EditRow({ label, fieldP, fieldMes, fieldOtros, fieldR, form, setField,
             ? <CellInput field={fieldR} values={form} onChange={setField} hint={hintR}
                 color={negLabel ? '#B91C1C' : '#111827'} />
             : dash}
+      </div>
+      {/* Rentas Mes */}
+      <div style={{ padding:'2px 4px' }}>
+        {isSplit ? <CellInput field={fieldMes} values={form} onChange={setField} hint={hintMes} /> : dash}
+      </div>
+      {/* Otros Periodos */}
+      <div style={{ padding:'2px 4px' }}>
+        {isSplit ? <CellInput field={fieldOtros} values={form} onChange={setField} hint={hintOtros} /> : dash}
       </div>
       {/* % vs Proy */}
       <div style={{ textAlign:'center' }}><PctBadge value={ratio} /></div>
@@ -839,27 +857,30 @@ export default function EDR() {
                 <div style={{ display:'grid', gridTemplateColumns: COLS_E }}>
                   <div style={{ ...thE, textAlign:'left' }}>Concepto</div>
                   <div style={thE}>Proyectado</div>
+                  <div style={thE}>Total</div>
                   <div style={thE}>Rentas Mes</div>
                   <div style={thE}>Otros Periodos</div>
-                  <div style={thE}>Total</div>
                   <div style={thE}>vs Proy</div>
                 </div>
 
                 <SecHdr label="Ingresos" />
-                <EditRow label="Rentas contratos vigentes"
+                <EditRow label="* Rentas totales"
                   fieldP="proy_rentas_contratos"
                   fieldMes="real_rentas_factura_mes" fieldOtros="real_rentas_factura_otros"
                   form={fForm} setField={sf}
                   hintP={`auto: ${fmt(proyRentas)}`}
                   hintMes={`ref: ${fmt(realRentas.factura)}`} />
-                <EditRow label="Restaurant / Ampliación ($276 m²)"
+                <EditRow label="• Restaurant; Ampliación ($276 m² pp)"
                   fieldP="proy_restaurant"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
                   form={fForm} setField={sf} indent={1} />
-                <EditRow label="Locales vacantes / Penalizaciones"
+                <InfoRowE label="Rentas disponibles (locales-Restau)"
+                  proy={(parseFloat(fForm.proy_rentas_contratos)||proyRentas) - (parseFloat(fForm.proy_restaurant)||0)}
+                  indent={1} />
+                <EditRow label="** Locales (L10, L22, Financiera L24,25,26)"
                   fieldP="proy_locales_vacantes"
                   fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
-                  form={fForm} setField={sf} indent={1} />
+                  form={fForm} setField={sf} indent={2} />
                 <EditRow label="IVA retenido" fieldP={null} fieldR="real_iva"
                   form={fForm} setField={sf} indent={1} negLabel hintR="positivo, se resta" />
 
