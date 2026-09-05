@@ -605,6 +605,11 @@ function generarHTML({ iniStr, finStr, pensiones, estac, parkingData, vending, g
           <tr class="section-row"><td colspan="4">Pensiones de Estacionamiento</td></tr>
           ${rowsPensiones}
           <tr><td colspan="2" style="padding:4px 8px;font-weight:700">Total Pensiones</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px">${fmt(totPensiones)}</td></tr>
+          <tr><td colspan="4" style="padding:4px 8px;font-size:10px;color:#057642;border-top:1px dashed #D1FAE5">
+            ✅ Cobradas (${pensiones.filter(p=>p.pagado).length}/${pensiones.length}):
+            ${pensiones.filter(p=>p.pagado).map(p=>p.local_referencia).join(', ')}
+            ${pensiones.filter(p=>!p.pagado).length > 0 ? `<br/><span style="color:#B91C1C">⏳ Pendientes: ${pensiones.filter(p=>!p.pagado).map(p=>p.local_referencia).join(', ')}</span>` : ''}
+          </td></tr>
           ` : ''}
 
           <!-- ESTACIONAMIENTO DIARIO -->
