@@ -540,7 +540,7 @@ function TabEmpleados({ onNuevo }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                  {['Empleado','# Emp','Puesto / Área','Horario','Descanso','Forma Pago','Salario Mensual','Tipo Contrato','Vencimiento','Estado'].map(h => (
+                  {['Empleado','# Emp','Puesto / Área','Horario','Descanso','Forma Pago','Salario Mensual','Tipo Contrato','Vencimiento','Estado',''].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--color-text-light)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.5px' }}>{h}</th>
                   ))}
                 </tr>
