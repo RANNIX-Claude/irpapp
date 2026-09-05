@@ -2140,7 +2140,6 @@ function TabNominaIWOL() {
   }
 
   const INP = NominaInput
-  )
 
   return (
     <div>
