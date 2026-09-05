@@ -285,6 +285,7 @@ export default function EDR() {
   const [proyRentas,    setProyRentas]    = useState(0)
   const [realRentas,    setRealRentas]    = useState({ factura: 0, total: 0 })
   const [realIngByTipo, setRealIngByTipo] = useState({})
+  const [realParking,   setRealParking]   = useState({})   // { estac_mes, pension_mes, vending_mes, ... }
   const [proySueldos,   setProySueldos]   = useState(0)
   const [resumenCarga,  setResumenCarga]  = useState(null) // { rentas, pensiones, sueldos }
 
@@ -332,6 +333,39 @@ export default function EDR() {
     }
   }, [])
 
+  // Carga datos del sistema de estacionamiento (supabaseParking) y vending (main)
+  const loadParkingData = useCallback(async (m, a) => {
+    if (!supabaseParking) return
+
+    try {
+      const sumField = rows => (rows ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
+
+      // Estacionamiento: pagos_boletos del mes (Sistema de Tickets)
+      const { data: boletosMes } = await supabaseParking
+        .from('pagos_boletos').select('monto_pagado, importe, total')
+        .eq('periodo_mes', m).eq('periodo_año', a)
+      const estac_mes = sumField(boletosMes)
+
+      // Pensiones: pagados en el mes
+      const { data: pagosPension } = await supabaseParking
+        .from('pagos_pension').select('monto_pagado')
+        .eq('periodo_mes', m).eq('periodo_año', a).eq('estado', 'pagado')
+      const pension_mes = (pagosPension ?? []).reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0)
+
+      // Vending: semanas cuya fecha_inicio cae en el mes seleccionado
+      const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
+      const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
+      const { data: vendingMes } = await supabaseParking
+        .from('vending_semanas').select('venta_pesos')
+        .gte('fecha_inicio', fechaIni).lte('fecha_inicio', fechaFin)
+      const vending_mes = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
+
+      setRealParking({ estac_mes, estac_otros: 0, pension_mes, pension_otros: 0, vending_mes, vending_otros: 0 })
+    } catch (e) {
+      console.warn('[EDR] loadParkingData error:', e.message)
+    }
+  }, [])
+
   const loadProySueldos = useCallback(async (m, a) => {
     const dias = new Date(a, m, 0).getDate()
     const { data } = await supabase.from('empleados')
@@ -353,28 +387,34 @@ export default function EDR() {
     loadRegistro(mes, anio)
     loadRealRentas(mes, anio)
     loadProySueldos(mes, anio)
-  }, [mes, anio, loadRegistro, loadRealRentas, loadProySueldos])
+    loadParkingData(mes, anio)
+  }, [mes, anio, loadRegistro, loadRealRentas, loadProySueldos, loadParkingData])
 
   // Auto-sincroniza campos _mes/_otros desde ingresos si no hay foto guardada
   // (campo === 0 o null → usa valor de ingresos; si ya tiene valor → respeta la foto)
+  // Prioridad: supabaseParking (estac/pension/vending) > main ingresos > 0
   useEffect(() => {
-    if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO) return
+    if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
       real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura           || 0,
       real_rentas_factura_otros: f.real_rentas_factura_otros || (realRentas.otros_periodos   || 0),
       real_rsf_mes:              f.real_rsf_mes              || ((realRentas.rentas_mes || 0) - (realRentas.factura || 0)) || 0,
       real_rsf_otros:            f.real_rsf_otros            || 0,
-      real_estac_mes:            f.real_estac_mes            || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
-      real_estac_otros:          f.real_estac_otros          || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
-      real_pension_mes:          f.real_pension_mes          || realIngByTipo.PENSION?.mes            || 0,
-      real_pension_otros:        f.real_pension_otros        || realIngByTipo.PENSION?.otros          || 0,
-      real_maquinita_mes:        f.real_maquinita_mes        || realIngByTipo.MAQUINITA?.mes          || 0,
-      real_maquinita_otros:      f.real_maquinita_otros      || realIngByTipo.MAQUINITA?.otros        || 0,
+      // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
+      real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:          f.real_estac_otros          || realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
+      // Pensiones: supabaseParking pagos_pension > main ingresos
+      real_pension_mes:          f.real_pension_mes          || realParking.pension_mes      || realIngByTipo.PENSION?.mes            || 0,
+      real_pension_otros:        f.real_pension_otros        || realParking.pension_otros    || realIngByTipo.PENSION?.otros          || 0,
+      // Maquinita/Vending: supabaseParking vending_semanas > main ingresos
+      real_maquinita_mes:        f.real_maquinita_mes        || realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes          || 0,
+      real_maquinita_otros:      f.real_maquinita_otros      || realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros        || 0,
+      // Agua: tabla de ingresos main supabase (tipo='AGUA')
       real_agua_ing_mes:         f.real_agua_ing_mes         || realIngByTipo.AGUA?.mes               || 0,
       real_agua_ing_otros:       f.real_agua_ing_otros       || realIngByTipo.AGUA?.otros             || 0,
     }))
-  }, [realRentas, realIngByTipo])
+  }, [realRentas, realIngByTipo, realParking])
 
   const irMes = (delta) => {
     let m = mes + delta, a = anio
@@ -405,19 +445,45 @@ export default function EDR() {
     const rFactura = ingresosRenta?.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
     const rSinFact = ingresosRenta?.filter(r => !r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
 
-    // 3. Pensiones: desde DB de estacionamiento
-    let poyPensiones = 0, realPensiones = 0
+    // 3. Sistema de Tickets (supabaseParking): pensiones, estacionamiento, vending
+    let poyPensiones = 0, realPensiones = 0, realEstacParking = 0, realVendingParking = 0
     if (supabaseParking) {
-      // Proyectado: suma de monto_mensual de pensiones activas
+      // Proyectado pensiones: suma de monto_mensual de pensiones activas
       const { data: pensionesActivas } = await supabaseParking
         .from('pensiones').select('monto_mensual').eq('activa', true)
       poyPensiones = pensionesActivas?.reduce((s, p) => s + (parseFloat(p.monto_mensual)||0), 0) || 0
 
-      // Real: pagos_pension cobrados en el mes seleccionado
+      // Real pensiones: pagos_pension cobrados en el mes
       const { data: pagosPension } = await supabaseParking
         .from('pagos_pension').select('monto_pagado')
         .eq('periodo_mes', mes).eq('periodo_año', anio).eq('estado', 'pagado')
       realPensiones = pagosPension?.reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0) || 0
+
+      // Real estacionamiento: pagos_boletos del mes (Sistema de Tickets)
+      try {
+        const { data: boletosMes } = await supabaseParking
+          .from('pagos_boletos').select('monto_pagado, importe, total')
+          .eq('periodo_mes', mes).eq('periodo_año', anio)
+        realEstacParking = (boletosMes ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
+      } catch (_) {}
+
+      // Real vending: vending_semanas del mes (sumarizando semanas dentro del mes)
+      try {
+        const fechaIniV = `${anio}-${String(mes).padStart(2,'0')}-01`
+        const fechaFinV = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
+        const { data: vendingMes } = await supabaseParking
+          .from('vending_semanas').select('venta_pesos')
+          .gte('fecha_inicio', fechaIniV).lte('fecha_inicio', fechaFinV)
+        realVendingParking = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
+      } catch (_) {}
+
+      // Actualizar estado realParking con datos frescos
+      setRealParking(p => ({
+        ...p,
+        estac_mes: realEstacParking, estac_otros: 0,
+        pension_mes: realPensiones, pension_otros: 0,
+        vending_mes: realVendingParking, vending_otros: 0,
+      }))
     }
     resumen.poyPensiones  = poyPensiones
     resumen.realPensiones = realPensiones
@@ -454,11 +520,13 @@ export default function EDR() {
       real_pension_mes:            realPensiones,
       real_pension_otros:          0,
       real_sueldos:                sumSueldos,
-      // Estacionamiento/Maquinita/Agua — desde realIngByTipo ya cargado
-      real_estac_mes:              realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
-      real_estac_otros:            realIngByTipo.ESTACIONAMIENTO?.otros || 0,
-      real_maquinita_mes:          realIngByTipo.MAQUINITA?.mes         || 0,
-      real_maquinita_otros:        realIngByTipo.MAQUINITA?.otros       || 0,
+      // Estacionamiento: supabaseParking pagos_boletos (frescos) > main ingresos
+      real_estac_mes:              realEstacParking   || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:            0,
+      // Maquinita/Vending: supabaseParking vending_semanas (frescos) > main ingresos
+      real_maquinita_mes:          realVendingParking || realIngByTipo.MAQUINITA?.mes         || 0,
+      real_maquinita_otros:        0,
+      // Agua: tabla de ingresos main supabase (tipo='AGUA')
       real_agua_ing_mes:           realIngByTipo.AGUA?.mes              || 0,
       real_agua_ing_otros:         realIngByTipo.AGUA?.otros            || 0,
     }))
