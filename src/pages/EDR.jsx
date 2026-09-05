@@ -234,6 +234,7 @@ export default function EDR() {
   const [cargando,      setCargando]      = useState(false)
   const [proyRentas,    setProyRentas]    = useState(0)
   const [realRentas,    setRealRentas]    = useState({ factura: 0, total: 0 })
+  const [realIngByTipo, setRealIngByTipo] = useState({})
   const [proySueldos,   setProySueldos]   = useState(0)
   const [resumenCarga,  setResumenCarga]  = useState(null) // { rentas, pensiones, sueldos }
 
@@ -247,19 +248,37 @@ export default function EDR() {
   const loadRealRentas = useCallback(async (m, a) => {
     const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
-    // Query por fecha de cobro (base caja): todo lo que entró en el mes calendario
+    // Base caja: todo cobrado en el mes calendario, todos los tipos
     const { data } = await supabase.from('ingresos')
-      .select('importe, factura, mes, anio')
-      .eq('tipo', 'RENTA')
+      .select('importe, factura, mes, anio, tipo')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const rentasMes    = data.filter(r => r.mes === m && r.anio === a)
-      const otrosPer     = data.filter(r => r.mes !== m || r.anio !== a)
-      const totalCobrado = data.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      const rmTotal      = rentasMes.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      const opTotal      = otrosPer.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      const factura      = rentasMes.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      setRealRentas({ factura, total: totalCobrado, rentas_mes: rmTotal, otros_periodos: opTotal })
+      const esMes = r => r.mes === m && r.anio === a
+      const sum   = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+
+      // RENTA
+      const rentas      = data.filter(r => r.tipo === 'RENTA')
+      const rentasMes   = rentas.filter(esMes)
+      const rentasOtros = rentas.filter(r => !esMes(r))
+      const factura     = rentasMes.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      setRealRentas({
+        factura,
+        total:          sum(rentas),
+        rentas_mes:     sum(rentasMes),
+        otros_periodos: sum(rentasOtros),
+      })
+
+      // Otros tipos — split mes/otros base caja
+      const byTipo = {}
+      for (const tipo of ['ESTACIONAMIENTO','PENSION','MAQUINITA','AGUA']) {
+        const rows = data.filter(r => r.tipo === tipo)
+        byTipo[tipo] = {
+          mes:   sum(rows.filter(esMes)),
+          otros: sum(rows.filter(r => !esMes(r))),
+          total: sum(rows),
+        }
+      }
+      setRealIngByTipo(byTipo)
     }
   }, [])
 
@@ -594,18 +613,38 @@ export default function EDR() {
               otrosPer={opRentasBrutas + (rIva !== 0 ? Math.round(rIva * (opRentasBrutas / (rRentasBrutas || 1))) : 0)} />
 
             <PLRow label="Estacionamiento"
-              proy={pEstac} total={rEstac} rentasMes={rEstac} />
+              proy={pEstac} total={rEstac}
+              rentasMes={realIngByTipo.ESTACIONAMIENTO?.mes ?? rEstac}
+              otrosPer={realIngByTipo.ESTACIONAMIENTO?.otros ?? 0} />
             <PLRow label="Pensiones"
-              proy={pPensiones} total={rPensiones} rentasMes={rPensiones} />
+              proy={pPensiones} total={rPensiones}
+              rentasMes={realIngByTipo.PENSION?.mes ?? rPensiones}
+              otrosPer={realIngByTipo.PENSION?.otros ?? 0} />
             <PLRow label="Maquinita"
-              proy={pMaquinita} total={rMaquinita} rentasMes={rMaquinita} />
+              proy={pMaquinita} total={rMaquinita}
+              rentasMes={realIngByTipo.MAQUINITA?.mes ?? rMaquinita}
+              otrosPer={realIngByTipo.MAQUINITA?.otros ?? 0} />
             <PLRow label="Agua"
-              proy={pAguaIng} total={rAguaIng} otrosPer={rAguaIng} />
+              proy={pAguaIng} total={rAguaIng}
+              rentasMes={realIngByTipo.AGUA?.mes ?? rAguaIng}
+              otrosPer={realIngByTipo.AGUA?.otros ?? 0} />
 
             <SubRow label="Total Ingresos" highlight
               proy={pTotalIng} total={rTotalIng}
-              rentasMes={rmRentasBrutas + rEstac + rPensiones + rMaquinita}
-              otrosPer={opRentasBrutas + rAguaIng} />
+              rentasMes={
+                rmRentasBrutas +
+                (realIngByTipo.ESTACIONAMIENTO?.mes ?? rEstac) +
+                (realIngByTipo.PENSION?.mes ?? rPensiones) +
+                (realIngByTipo.MAQUINITA?.mes ?? rMaquinita) +
+                (realIngByTipo.AGUA?.mes ?? rAguaIng)
+              }
+              otrosPer={
+                opRentasBrutas +
+                (realIngByTipo.ESTACIONAMIENTO?.otros ?? 0) +
+                (realIngByTipo.PENSION?.otros ?? 0) +
+                (realIngByTipo.MAQUINITA?.otros ?? 0) +
+                (realIngByTipo.AGUA?.otros ?? 0)
+              } />
 
             {/* ── GASTOS VARIABLES ─────────────────────────────────────────── */}
             <SectionHeader label="Gastos Variables" bg="#1A3C5E" />
