@@ -144,6 +144,78 @@ function NumField({ label, field, values, onChange, hint = '' }) {
   )
 }
 
+/* ── Celda de input numérico en tabla (nivel módulo) ──────────────────────── */
+const COLS_E = '1fr 180px 180px'
+const thE = { padding:'8px 12px', fontSize:'10px', fontWeight:700, color:'#6B7280',
+  textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'right',
+  background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }
+
+function CellInput({ field, values, onChange, hint, color = '#111827' }) {
+  return (
+    <div>
+      <input type="number" step="0.01"
+        value={values[field] ?? ''}
+        onChange={e => onChange(field, e.target.value)}
+        placeholder="—"
+        style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px',
+          fontSize:'12px', fontWeight:600, textAlign:'right', background:'white',
+          color, outline:'none', boxSizing:'border-box' }} />
+      {hint && <div style={{ fontSize:'9px', color:'#9CA3AF', textAlign:'right', marginTop:'1px' }}>{hint}</div>}
+    </div>
+  )
+}
+function SecHdr({ label, bg = '#1A3C5E' }) {
+  return (
+    <div style={{ display:'grid', gridTemplateColumns: COLS_E, background: bg, padding:'7px 12px' }}>
+      <div style={{ fontSize:'11px', fontWeight:800, color:'white', textTransform:'uppercase',
+        letterSpacing:'0.07em', gridColumn:'1 / -1' }}>{label}</div>
+    </div>
+  )
+}
+function SubTot({ label, proy, real, highlight = false, big = false }) {
+  const bg  = highlight ? (real >= 0 ? '#F0FDF4' : '#FEF2F2') : '#F5F5F5'
+  const clr = big ? (real >= 0 ? '#057642' : '#B91C1C') : '#111827'
+  const sz  = big ? '14px' : '12px', fw = big ? 900 : 700
+  return (
+    <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
+      padding: big ? '10px 12px' : '7px 12px', background: bg,
+      borderTop: big ? '3px solid ' + (real >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB' }}>
+      <div style={{ fontSize: sz, fontWeight: fw, color: clr }}>{label}</div>
+      <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#6B7280', padding:'0 6px' }}>
+        {proy !== 0 ? fmt(proy) : ''}
+      </div>
+      <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw,
+        color: big ? clr : (real < 0 ? '#B91C1C' : '#374151'), padding:'0 6px' }}>
+        {real !== 0 ? fmt(real) : ''}
+      </div>
+    </div>
+  )
+}
+function EditRow({ label, fieldP, fieldR, form, setField, indent = 0, hintP, hintR, negLabel = false }) {
+  return (
+    <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
+      padding:'5px 12px', borderTop:'1px solid #F3F4F6', alignItems:'center', background:'white' }}
+      onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+      onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+      <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center' }}>
+        {label}
+      </div>
+      <div style={{ padding:'2px 6px' }}>
+        {fieldP
+          ? <CellInput field={fieldP} values={form} onChange={setField} hint={hintP} />
+          : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
+      </div>
+      <div style={{ padding:'2px 6px' }}>
+        {fieldR
+          ? <CellInput field={fieldR} values={form} onChange={setField} hint={hintR}
+              color={negLabel ? '#B91C1C' : '#111827'} />
+          : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
+      </div>
+    </div>
+  )
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
    ════════════════════════════════════════════════════════════════════════════ */
@@ -173,12 +245,21 @@ export default function EDR() {
   }, [])
 
   const loadRealRentas = useCallback(async (m, a) => {
-    const { data } = await supabase.from('ingresos').select('importe, factura')
-      .eq('mes', m).eq('anio', a).eq('tipo', 'RENTA')
+    const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
+    const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
+    // Query por fecha de cobro (base caja): todo lo que entró en el mes calendario
+    const { data } = await supabase.from('ingresos')
+      .select('importe, factura, mes, anio')
+      .eq('tipo', 'RENTA')
+      .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const total   = data.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      const factura = data.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
-      setRealRentas({ factura, total })
+      const rentasMes    = data.filter(r => r.mes === m && r.anio === a)
+      const otrosPer     = data.filter(r => r.mes !== m || r.anio !== a)
+      const totalCobrado = data.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const rmTotal      = rentasMes.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const opTotal      = otrosPer.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const factura      = rentasMes.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      setRealRentas({ factura, total: totalCobrado, rentas_mes: rmTotal, otros_periodos: opTotal })
     }
   }, [])
 
@@ -333,15 +414,18 @@ export default function EDR() {
   const pUtilBruta = pTotalIng - pTotalG
   const pUtilNeta  = pUtilBruta - pTotalImp
 
-  // Real (Total = Rentas Mes + Otros Periodos)
-  const rRentaFact = parseFloat(r.real_rentas_factura)    ?? realRentas.factura
-  const rRentaSin  = parseFloat(r.real_rentas_sin_factura) || 0
-  const rPenaliz   = parseFloat(r.real_penalizaciones) || 0
-  const rIva       = -(Math.abs(parseFloat(r.real_iva) || 0))
+  // Real — base caja: todo lo recibido en el mes calendario
+  // realRentas.rentas_mes  = cobrado este mes PARA este período
+  // realRentas.otros_periodos = cobrado este mes PARA períodos anteriores (adeudos)
+  // realRentas.total = rentas_mes + otros_periodos
+  const rRentaFact    = parseFloat(r.real_rentas_factura)    || realRentas.factura || 0
+  const rRentaSin     = parseFloat(r.real_rentas_sin_factura) || 0
+  const rPenaliz      = parseFloat(r.real_penalizaciones) || 0
+  const rIva          = -(Math.abs(parseFloat(r.real_iva) || 0))
   const rRentasBrutas = rRentaFact + rRentaSin + rPenaliz
-  // Para Rentas Mes vs Otros: usamos renta factura como "del mes" y sin factura como "otros"
-  const rmRentasBrutas = rRentaFact       // rentas mes
-  const opRentasBrutas = rRentaSin + rPenaliz  // otros
+  // Rentas Mes / Otros Periodos: base caja por fecha de cobro
+  const rmRentasBrutas = realRentas.rentas_mes    || 0   // cobrado y pertenece a este mes
+  const opRentasBrutas = realRentas.otros_periodos || 0  // cobrado pero de otros períodos
   const rIngNeto   = rRentasBrutas + rIva
   const rEstac     = parseFloat(r.real_estacionamiento) || 0
   const rPensiones = parseFloat(r.real_pensiones) || 0
@@ -573,92 +657,19 @@ export default function EDR() {
 
         ) : (
           /* ══════════════════════════════════════════════════════════════════
-             TAB: EN ELABORACIÓN — misma estructura que el Tablero
+             TAB: EN ELABORACIÓN
              ══════════════════════════════════════════════════════════════════ */
           (() => {
-            /* ── Input compacto para celdas ── */
-            const CI = ({ field, values, onChange, hint, readOnly = false, color = '#111827' }) => {
-              const val = values[field]
-              return readOnly
-                ? <div style={{ textAlign:'right', fontSize:'12px', fontWeight:700, color, padding:'0 6px' }}>{val !== undefined && val !== 0 ? fmt(val) : ''}</div>
-                : <div style={{ position:'relative' }}>
-                    <input type="number" step="0.01"
-                      value={val ?? ''}
-                      onChange={e => onChange(field, e.target.value)}
-                      placeholder="—"
-                      style={{ width:'100%', padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px',
-                        fontSize:'12px', fontWeight:600, textAlign:'right', background:'white',
-                        color, outline:'none', boxSizing:'border-box' }} />
-                    {hint && <div style={{ fontSize:'9px', color:'#9CA3AF', textAlign:'right', marginTop:'1px' }}>{hint}</div>}
-                  </div>
+            const fForm = {
+              ...form,
+              proy_rentas_contratos: form.proy_rentas_contratos ?? proyRentas,
+              proy_sueldos:          form.proy_sueldos          ?? proySueldos,
+              real_rentas_factura:   form.real_rentas_factura   ?? realRentas.factura,
             }
-
-            /* ── Fila de encabezado de columnas ── */
-            const COLS_E = '1fr 180px 180px'
-            const thE = { padding:'8px 12px', fontSize:'10px', fontWeight:700, color:'#6B7280',
-              textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'right',
-              background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }
-
-            /* ── Fila de encabezado de sección ── */
-            const SecH = ({ label, bg = '#1A3C5E' }) => (
-              <div style={{ display:'grid', gridTemplateColumns: COLS_E, background: bg, padding:'7px 12px' }}>
-                <div style={{ fontSize:'11px', fontWeight:800, color:'white', textTransform:'uppercase',
-                  letterSpacing:'0.07em', gridColumn:'1 / -1' }}>{label}</div>
-              </div>
-            )
-
-            /* ── Fila de subtotal (calculado, no editable) ── */
-            const SubE = ({ label, proy, real, highlight = false, big = false }) => {
-              const bg = highlight ? (real >= 0 ? '#F0FDF4' : '#FEF2F2') : '#F5F5F5'
-              const clr = big ? (real >= 0 ? '#057642' : '#B91C1C') : '#111827'
-              const sz = big ? '14px' : '12px'
-              const fw = big ? 900 : 700
-              return (
-                <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
-                  padding: big ? '10px 12px' : '7px 12px', background: bg,
-                  borderTop: big ? '3px solid ' + (real >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB' }}>
-                  <div style={{ fontSize: sz, fontWeight: fw, color: clr }}>{label}</div>
-                  <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#6B7280', padding:'0 6px' }}>
-                    {proy !== 0 ? fmt(proy) : ''}
-                  </div>
-                  <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color: big ? clr : (real < 0 ? '#B91C1C' : '#374151'), padding:'0 6px' }}>
-                    {real !== 0 ? fmt(real) : ''}
-                  </div>
-                </div>
-              )
-            }
-
-            /* ── Fila editable ── */
-            const Row = ({ label, fieldP, fieldR, vP, vR, indent = 0, hintP, hintR, negLabel = false }) => (
-              <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
-                padding:'5px 12px', borderTop:'1px solid #F3F4F6', alignItems:'center',
-                background:'white' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
-                onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
-                  paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center', gap:'4px' }}>
-                  {label}
-                </div>
-                <div style={{ padding:'2px 6px' }}>
-                  {fieldP
-                    ? <CI field={fieldP} values={vP} onChange={setField} hint={hintP} />
-                    : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
-                </div>
-                <div style={{ padding:'2px 6px' }}>
-                  {fieldR
-                    ? <CI field={fieldR} values={vR} onChange={setField} hint={hintR} color={negLabel ? '#B91C1C' : '#111827'} />
-                    : <div style={{ textAlign:'right', color:'#D1D5DB', fontSize:'12px' }}>—</div>}
-                </div>
-              </div>
-            )
-
-            const fP = { ...form, proy_rentas_contratos: form.proy_rentas_contratos ?? proyRentas, proy_sueldos: form.proy_sueldos ?? proySueldos }
-            const fR = { ...form, real_rentas_factura: form.real_rentas_factura ?? realRentas.factura }
-
+            const sf = setField
             return (
               <div style={{ background:'white', borderRadius:'12px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
 
-                {/* Banner datos automáticos */}
                 {resumenCarga && (
                   <div style={{ padding:'10px 14px', background:'#EDE9FE', borderBottom:'1px solid #DDD6FE',
                     display:'flex', gap:'20px', flexWrap:'wrap', alignItems:'center' }}>
@@ -670,109 +681,74 @@ export default function EDR() {
                   </div>
                 )}
 
-                {/* Encabezado columnas */}
                 <div style={{ display:'grid', gridTemplateColumns: COLS_E }}>
                   <div style={{ ...thE, textAlign:'left' }}>Concepto</div>
                   <div style={thE}>Proyectado</div>
                   <div style={thE}>Real</div>
                 </div>
 
-                {/* ── INGRESOS ── */}
-                <SecH label="Ingresos" />
+                <SecHdr label="Ingresos" />
+                <EditRow label="Rentas contratos vigentes" fieldP="proy_rentas_contratos" fieldR="real_rentas_factura"
+                  form={fForm} setField={sf} hintP={`auto: ${fmt(proyRentas)}`} hintR={`ingresos: ${fmt(realRentas.factura)}`} />
+                <EditRow label="Restaurant / Ampliación ($276 m²)" fieldP="proy_restaurant" fieldR="real_rentas_sin_factura"
+                  form={fForm} setField={sf} indent={1} hintR="rentas s/factura" />
+                <EditRow label="Locales vacantes (pérdida)" fieldP="proy_locales_vacantes" fieldR="real_penalizaciones"
+                  form={fForm} setField={sf} indent={1} hintR="penalizaciones" />
+                <EditRow label="IVA retenido" fieldP={null} fieldR="real_iva"
+                  form={fForm} setField={sf} indent={1} negLabel hintR="positivo, se resta" />
 
-                <Row label="Rentas contratos vigentes" fieldP="proy_rentas_contratos" fieldR={null}
-                  vP={fP} vR={fR} hintP={`auto: ${fmt(proyRentas)}`} />
-                <Row label="Restaurant / Ampliación ($276 m²)" fieldP="proy_restaurant" fieldR={null}
-                  vP={fP} vR={fR} indent={1} />
-                <Row label="Locales vacantes (monto pérdida)" fieldP="proy_locales_vacantes" fieldR={null}
-                  vP={fP} vR={fR} indent={1} />
+                <SubTot label="Rentas brutas" proy={pRentasBrutas} real={rRentasBrutas} />
+                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={rIngNeto} highlight />
 
-                <SubE label="Rentas brutas" proy={pRentasBrutas} real={rRentasBrutas} />
+                <EditRow label="Estacionamiento"  fieldP="proy_estacionamiento"  fieldR="real_estacionamiento"  form={fForm} setField={sf} />
+                <EditRow label="Pensiones"         fieldP="proy_pensiones"        fieldR="real_pensiones"        form={fForm} setField={sf} />
+                <EditRow label="Maquinita/Vending" fieldP="proy_maquinita"        fieldR="real_maquinita"        form={fForm} setField={sf} />
+                <EditRow label="Agua (cobro)"      fieldP="proy_agua_ingresos"    fieldR="real_agua_ingresos"    form={fForm} setField={sf} />
 
-                <Row label="Rentas con factura" fieldP={null} fieldR="real_rentas_factura"
-                  vP={fP} vR={fR} indent={1} hintR={`ingresos: ${fmt(realRentas.factura)}`} />
-                <Row label="Rentas sin factura" fieldP={null} fieldR="real_rentas_sin_factura"
-                  vP={fP} vR={fR} indent={1} />
-                <Row label="Penalizaciones / Recargos" fieldP={null} fieldR="real_penalizaciones"
-                  vP={fP} vR={fR} indent={1} />
-                <Row label="IVA retenido" fieldP={null} fieldR="real_iva"
-                  vP={fP} vR={fR} indent={1} negLabel hintR="positivo, se resta" />
+                <SubTot label="Total Ingresos" proy={pTotalIng} real={rTotalIng} highlight />
 
-                <SubE label="Ingresos Netos Renta" proy={pIngNeto} real={rIngNeto} highlight />
+                <SecHdr label="Gastos Variables" />
+                <EditRow label="Sueldos"         fieldP="proy_sueldos"          fieldR="real_sueldos"          form={fForm} setField={sf} hintP={`RH: ${fmt(proySueldos)}`} />
+                <EditRow label="Fondo Revolvente" fieldP="proy_fondo_revolvente" fieldR="real_fondo_revolvente" form={fForm} setField={sf} />
+                <EditRow label="Gasto Excedente" fieldP={null}                  fieldR="real_gasto_excedente"  form={fForm} setField={sf} indent={1} />
+                <EditRow label="Luz"             fieldP="proy_luz"              fieldR="real_luz"              form={fForm} setField={sf} />
+                <EditRow label="Agua (gasto)"    fieldP="proy_agua_gastos"      fieldR="real_agua_gastos"      form={fForm} setField={sf} />
+                <EditRow label="Otros gastos"    fieldP="proy_otros_gastos"     fieldR="real_otros_gastos"     form={fForm} setField={sf} />
 
-                <Row label="Estacionamiento" fieldP="proy_estacionamiento" fieldR="real_estacionamiento"
-                  vP={fP} vR={fR} />
-                <Row label="Pensiones" fieldP="proy_pensiones" fieldR="real_pensiones"
-                  vP={fP} vR={fR} />
-                <Row label="Maquinita / Vending" fieldP="proy_maquinita" fieldR="real_maquinita"
-                  vP={fP} vR={fR} />
-                <Row label="Agua (cobro)" fieldP="proy_agua_ingresos" fieldR="real_agua_ingresos"
-                  vP={fP} vR={fR} />
+                <SubTot label="Total Gastos Variables" proy={pTotalG} real={rTotalG} />
+                <SubTot label="Utilidad Bruta" proy={pUtilBruta} real={rUtilBruta} highlight />
 
-                <SubE label="Total Ingresos" proy={pTotalIng} real={rTotalIng} highlight />
+                <SecHdr label="Impuestos y Gastos Fijos" bg="#4B5563" />
+                <EditRow label="Predial"                        fieldP="predial"                   fieldR="predial"                   form={fForm} setField={sf} />
+                <EditRow label="Transporte Residuos Sólidos"    fieldP="transporte_residuos"        fieldR="transporte_residuos"        form={fForm} setField={sf} />
+                <EditRow label="Licencia de Estacionamiento"    fieldP="licencia_estacionamiento"   fieldR="licencia_estacionamiento"   form={fForm} setField={sf} />
+                <EditRow label="Anuncio Publicitario IWOL"      fieldP="anuncio_publicitario"       fieldR="anuncio_publicitario"       form={fForm} setField={sf} />
 
-                {/* ── GASTOS VARIABLES ── */}
-                <SecH label="Gastos Variables" />
+                <SubTot label="Total Impuestos" proy={pTotalImp} real={rTotalImp} />
+                <SubTot label="Utilidad Neta" proy={pUtilNeta} real={rUtilNeta} highlight big />
 
-                <Row label="Sueldos" fieldP="proy_sueldos" fieldR="real_sueldos"
-                  vP={fP} vR={fR} hintP={`RH: ${fmt(proySueldos)}`} />
-                <Row label="Fondo Revolvente" fieldP="proy_fondo_revolvente" fieldR="real_fondo_revolvente"
-                  vP={fP} vR={fR} />
-                <Row label="Gasto Excedente" fieldP={null} fieldR="real_gasto_excedente"
-                  vP={fP} vR={fR} indent={1} />
-                <Row label="Luz" fieldP="proy_luz" fieldR="real_luz"
-                  vP={fP} vR={fR} />
-                <Row label="Agua (gasto)" fieldP="proy_agua_gastos" fieldR="real_agua_gastos"
-                  vP={fP} vR={fR} />
-                <Row label="Otros gastos" fieldP="proy_otros_gastos" fieldR="real_otros_gastos"
-                  vP={fP} vR={fR} />
-
-                <SubE label="Total Gastos Variables" proy={pTotalG} real={rTotalG} />
-                <SubE label="Utilidad Bruta" proy={pUtilBruta} real={rUtilBruta} highlight />
-
-                {/* ── IMPUESTOS Y GASTOS FIJOS ── */}
-                <SecH label="Impuestos y Gastos Fijos" bg="#4B5563" />
-
-                <Row label="Predial" fieldP="predial" fieldR="predial"
-                  vP={fP} vR={fR} />
-                <Row label="Transporte de Residuos Sólidos" fieldP="transporte_residuos" fieldR="transporte_residuos"
-                  vP={fP} vR={fR} />
-                <Row label="Licencia de Estacionamiento" fieldP="licencia_estacionamiento" fieldR="licencia_estacionamiento"
-                  vP={fP} vR={fR} />
-                <Row label="Anuncio Publicitario IWOL" fieldP="anuncio_publicitario" fieldR="anuncio_publicitario"
-                  vP={fP} vR={fR} />
-
-                <SubE label="Total Impuestos" proy={pTotalImp} real={rTotalImp} />
-                <SubE label="Utilidad Neta" proy={pUtilNeta} real={rUtilNeta} highlight big />
-
-                {/* ── Notas + acciones ── */}
                 <div style={{ padding:'14px 16px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB',
                   display:'grid', gridTemplateColumns:'1fr auto', gap:'16px', alignItems:'start' }}>
                   <div>
                     <div style={{ fontSize:'11px', fontWeight:700, color:'#374151', marginBottom:'5px', textTransform:'uppercase' }}>Notas del mes</div>
-                    <textarea
-                      value={form.notas ?? ''}
+                    <textarea value={form.notas ?? ''}
                       onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                      rows={3}
-                      placeholder="Observaciones, eventos especiales, ajustes..."
+                      rows={3} placeholder="Observaciones, eventos especiales, ajustes..."
                       style={{ width:'100%', padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:'7px',
-                        fontSize:'12px', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none' }}
-                    />
+                        fontSize:'12px', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none' }} />
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'8px', paddingTop:'20px' }}>
+                  <div style={{ paddingTop:'20px' }}>
                     {registro?.status !== 'cerrado' && (
                       <button onClick={async () => {
                         await supabase.from('er_mensual').update({ status:'cerrado' }).eq('id', registro.id)
-                        await loadRegistro(mes, anio)
-                        toast.success('Mes cerrado')
+                        await loadRegistro(mes, anio); toast.success('Mes cerrado')
                       }} style={{ padding:'8px 14px', background:'#374151', color:'white', border:'none',
-                        borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
                         Cerrar mes
                       </button>
                     )}
                   </div>
                 </div>
-
               </div>
             )
           })()

@@ -52,6 +52,24 @@ const ETAPAS_CANDIDATO = ['NUEVO', 'DOCUMENTOS', 'ENTREVISTA', 'OFERTA', 'ACEPTA
 const ETAPA_COLOR = { NUEVO: '#6B7280', DOCUMENTOS: '#E8A020', ENTREVISTA: '#0A66C2', OFERTA: '#8B5CF6', ACEPTADO: '#057642', RECHAZADO: '#B24020' }
 const MOTIVOS_RECHAZO = ['No cumple perfil', 'No pasó entrevista', 'Documentos incompletos', 'No se presentó', 'Salario no acordado', 'Ya no está disponible', 'Otro']
 
+/* ── Componentes reutilizables de formulario (nivel módulo para evitar remounts) ── */
+function FieldWrapper({ label, children, span }) {
+  return (
+    <div style={span ? { gridColumn: '1 / -1' } : {}}>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>{label}</label>
+      {children}
+    </div>
+  )
+}
+function NominaInput({ value, onChange }) {
+  return (
+    <input type="number" step="0.01" min="0"
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+      style={{ width:72, padding:'4px 6px', border:'1px solid #E5E7EB', borderRadius:5, fontSize:12, textAlign:'right' }} />
+  )
+}
+
 // ── Modal Nuevo Empleado ────────────────────────────────────────────────────
 function NuevoEmpleadoModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -97,17 +115,12 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
     onCreated(); onClose()
   }
 
-  const F = ({ label, children, span }) => (
-    <div style={span ? { gridColumn: '1 / -1' } : {}}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--color-text-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>{label}</label>
-      {children}
-    </div>
-  )
   const inp = (k, rest = {}) => (
     <input value={form[k]} onChange={e => set(k, e.target.value)}
       style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, boxSizing: 'border-box', ...rest.style }}
       {...rest} />
   )
+  const F = FieldWrapper
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
@@ -315,12 +328,7 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
       {opts}
     </select>
   )
-  const F = ({ label, children, span }) => (
-    <div style={span ? { gridColumn:'1 / -1' } : {}}>
-      <label style={{ display:'block',fontSize:11,fontWeight:700,color:'var(--color-text-light)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.5px' }}>{label}</label>
-      {children}
-    </div>
-  )
+  const F = FieldWrapper
 
   return (
     <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20 }} onClick={onClose}>
@@ -2131,13 +2139,7 @@ function TabNominaIWOL() {
     toast.success('Excel generado correctamente')
   }
 
-  const INP = ({ value, onChange }) => (
-    <input
-      type="number" step="0.01" min="0"
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      style={{ width:72,padding:'4px 6px',border:'1px solid #E5E7EB',borderRadius:5,fontSize:12,textAlign:'right' }}
-    />
+  const INP = NominaInput
   )
 
   return (
@@ -2180,18 +2182,45 @@ function TabNominaIWOL() {
             print-color-adjust: exact !important;
           }
           .no-print { display: none !important; }
-          @page { size: A4 landscape; margin: 10mm; }
-          /* Inputs → mostrar valor como texto */
+
+          /* Oficio landscape: 355mm × 216mm — caben las 13 columnas */
+          @page {
+            size: 355mm 216mm landscape;
+            margin: 6mm 8mm;
+          }
+
+          /* Tabla compacta para impresión */
+          #nomina-iwol-print table { font-size: 9px !important; width: 100% !important; table-layout: fixed; }
+          #nomina-iwol-print thead th { padding: 5px 4px !important; font-size: 8px !important; white-space: normal !important; }
+          #nomina-iwol-print tbody td { padding: 5px 4px !important; font-size: 9px !important; }
+
+          /* Anchos fijos por columna (suma ≈ 335mm) */
+          #nomina-iwol-print table colgroup { display: table-column-group; }
+          #nomina-iwol-print th:nth-child(1),  #nomina-iwol-print td:nth-child(1)  { width: 14px;  } /* No */
+          #nomina-iwol-print th:nth-child(2),  #nomina-iwol-print td:nth-child(2)  { width: 52px;  } /* Nombre */
+          #nomina-iwol-print th:nth-child(3),  #nomina-iwol-print td:nth-child(3)  { width: 52px;  } /* Horario */
+          #nomina-iwol-print th:nth-child(4),  #nomina-iwol-print td:nth-child(4)  { width: 20px;  } /* Descanso */
+          #nomina-iwol-print th:nth-child(5),  #nomina-iwol-print td:nth-child(5)  { width: 16px;  } /* Faltas */
+          #nomina-iwol-print th:nth-child(6),  #nomina-iwol-print td:nth-child(6)  { width: 28px;  } /* Percepción */
+          #nomina-iwol-print th:nth-child(7),  #nomina-iwol-print td:nth-child(7)  { width: 28px;  } /* Complem. */
+          #nomina-iwol-print th:nth-child(8),  #nomina-iwol-print td:nth-child(8)  { width: 24px;  } /* Vacaciones */
+          #nomina-iwol-print th:nth-child(9),  #nomina-iwol-print td:nth-child(9)  { width: 24px;  } /* Prima Vac */
+          #nomina-iwol-print th:nth-child(10), #nomina-iwol-print td:nth-child(10) { width: 24px;  } /* Día Festivo */
+          #nomina-iwol-print th:nth-child(11), #nomina-iwol-print td:nth-child(11) { width: 30px;  } /* Total Perc */
+          #nomina-iwol-print th:nth-child(12), #nomina-iwol-print td:nth-child(12) { width: 28px;  } /* Transferencia */
+          #nomina-iwol-print th:nth-child(13), #nomina-iwol-print td:nth-child(13) { width: 24px;  } /* Efectivo */
+
+          /* Inputs → valor de texto */
           #nomina-iwol-print input { display: none !important; }
           #nomina-iwol-print .print-val { display: inline !important; }
-          /* Asegurar fondo en header y totales */
+
+          /* Colores forzados */
           #nomina-iwol-print thead tr,
           #nomina-iwol-print .print-total-row {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
         }
-        /* En pantalla ocultar el texto-plano alternativo */
         .print-val { display: none; }
       `}</style>
 
