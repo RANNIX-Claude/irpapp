@@ -337,6 +337,27 @@ export default function EDR() {
     loadProySueldos(mes, anio)
   }, [mes, anio, loadRegistro, loadRealRentas, loadProySueldos])
 
+  // Auto-sincroniza campos _mes/_otros desde ingresos si no hay foto guardada
+  // (campo === 0 o null → usa valor de ingresos; si ya tiene valor → respeta la foto)
+  useEffect(() => {
+    if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO) return
+    setForm(f => ({
+      ...f,
+      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura           || 0,
+      real_rentas_factura_otros: f.real_rentas_factura_otros || (realRentas.otros_periodos   || 0),
+      real_rsf_mes:              f.real_rsf_mes              || ((realRentas.rentas_mes || 0) - (realRentas.factura || 0)) || 0,
+      real_rsf_otros:            f.real_rsf_otros            || 0,
+      real_estac_mes:            f.real_estac_mes            || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:          f.real_estac_otros          || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
+      real_pension_mes:          f.real_pension_mes          || realIngByTipo.PENSION?.mes            || 0,
+      real_pension_otros:        f.real_pension_otros        || realIngByTipo.PENSION?.otros          || 0,
+      real_maquinita_mes:        f.real_maquinita_mes        || realIngByTipo.MAQUINITA?.mes          || 0,
+      real_maquinita_otros:      f.real_maquinita_otros      || realIngByTipo.MAQUINITA?.otros        || 0,
+      real_agua_ing_mes:         f.real_agua_ing_mes         || realIngByTipo.AGUA?.mes               || 0,
+      real_agua_ing_otros:       f.real_agua_ing_otros       || realIngByTipo.AGUA?.otros             || 0,
+    }))
+  }, [realRentas, realIngByTipo])
+
   const irMes = (delta) => {
     let m = mes + delta, a = anio
     if (m < 1)  { m = 12; a-- }
@@ -400,7 +421,7 @@ export default function EDR() {
     const rmSin   = ingresosRenta?.filter(r => !r.factura && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
     const opSin   = ingresosRenta?.filter(r => !r.factura && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
-    // Actualizar form con los datos calculados
+    // Fuerza recarga — siempre sobreescribe con datos frescos de ingresos (foto nueva)
     setForm(f => ({
       ...f,
       proy_rentas_contratos:       sumRentas,
@@ -412,9 +433,16 @@ export default function EDR() {
       real_rsf_otros:              opSin,
       proy_pensiones:              poyPensiones,
       real_pensiones:              realPensiones,
-      real_pension_mes:            realPensiones,  // pensiones: asumir todo = mes actual
+      real_pension_mes:            realPensiones,
       real_pension_otros:          0,
       real_sueldos:                sumSueldos,
+      // Estacionamiento/Maquinita/Agua — desde realIngByTipo ya cargado
+      real_estac_mes:              realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:            realIngByTipo.ESTACIONAMIENTO?.otros || 0,
+      real_maquinita_mes:          realIngByTipo.MAQUINITA?.mes         || 0,
+      real_maquinita_otros:        realIngByTipo.MAQUINITA?.otros       || 0,
+      real_agua_ing_mes:           realIngByTipo.AGUA?.mes              || 0,
+      real_agua_ing_otros:         realIngByTipo.AGUA?.otros            || 0,
     }))
     setProyRentas(sumRentas)
     setRealRentas({ factura: rFactura, total: rFactura + rSinFact, rentas_mes: rmFact + rmSin, otros_periodos: opFact + opSin })
@@ -498,19 +526,41 @@ export default function EDR() {
   const rmAguaIng   = parseFloat(r.real_agua_ing_mes)          || 0
   const opAguaIng   = parseFloat(r.real_agua_ing_otros)        || 0
 
-  // Totales derivados (mes + otros)
-  const rRentaFact    = rmRentaFact + opRentaFact || parseFloat(r.real_rentas_factura)    || realRentas.factura || 0
-  const rRentaSin     = rmRentaSin  + opRentaSin  || parseFloat(r.real_rentas_sin_factura) || 0
-  const rPenaliz      = rmPenaliz   + opPenaliz   || parseFloat(r.real_penalizaciones)    || 0
+  // Totales: foto guardada (er_mensual) > fallback ingresos query
+  // null en er_mensual → aún sin foto → usar datos vivos de ingresos
+  const hasFoto = (mes_val, otros_val) => r.id && (mes_val !== null || otros_val !== null)
+  const rRentaFact    = hasFoto(r.real_rentas_factura_mes, r.real_rentas_factura_otros)
+    ? rmRentaFact + opRentaFact
+    : (realRentas.factura || 0)
+  const rRentaSin     = hasFoto(r.real_rsf_mes, r.real_rsf_otros)
+    ? rmRentaSin + opRentaSin
+    : 0
+  const rPenaliz      = hasFoto(r.real_penaliz_mes, r.real_penaliz_otros)
+    ? rmPenaliz + opPenaliz
+    : 0
   const rIva          = -(Math.abs(parseFloat(r.real_iva) || 0))
   const rRentasBrutas = rRentaFact + rRentaSin + rPenaliz
-  const rmRentasBrutas = rmRentaFact + rmRentaSin + rmPenaliz
-  const opRentasBrutas = opRentaFact + opRentaSin + opPenaliz
+
+  const rmRentasBrutas = hasFoto(r.real_rentas_factura_mes, r.real_rsf_mes)
+    ? rmRentaFact + rmRentaSin + rmPenaliz
+    : (realRentas.rentas_mes    || 0)
+  const opRentasBrutas = hasFoto(r.real_rentas_factura_otros, r.real_rsf_otros)
+    ? opRentaFact + opRentaSin + opPenaliz
+    : (realRentas.otros_periodos || 0)
+
   const rIngNeto   = rRentasBrutas + rIva
-  const rEstac     = rmEstac + opEstac || parseFloat(r.real_estacionamiento) || 0
-  const rPensiones = rmPension + opPension || parseFloat(r.real_pensiones)   || 0
-  const rMaquinita = rmMaquinita + opMaquinita || parseFloat(r.real_maquinita) || 0
-  const rAguaIng   = rmAguaIng + opAguaIng   || parseFloat(r.real_agua_ingresos) || 0
+  const rEstac     = hasFoto(r.real_estac_mes, r.real_estac_otros)
+    ? rmEstac + opEstac
+    : (realIngByTipo.ESTACIONAMIENTO?.total || parseFloat(r.real_estacionamiento) || 0)
+  const rPensiones = hasFoto(r.real_pension_mes, r.real_pension_otros)
+    ? rmPension + opPension
+    : (realIngByTipo.PENSION?.total || parseFloat(r.real_pensiones) || 0)
+  const rMaquinita = hasFoto(r.real_maquinita_mes, r.real_maquinita_otros)
+    ? rmMaquinita + opMaquinita
+    : (realIngByTipo.MAQUINITA?.total || parseFloat(r.real_maquinita) || 0)
+  const rAguaIng   = hasFoto(r.real_agua_ing_mes, r.real_agua_ing_otros)
+    ? rmAguaIng + opAguaIng
+    : (realIngByTipo.AGUA?.total || parseFloat(r.real_agua_ingresos) || 0)
   const rTotalIng  = rIngNeto + rEstac + rPensiones + rMaquinita + rAguaIng
 
   const rSueldos   = parseFloat(r.real_sueldos) || 0
