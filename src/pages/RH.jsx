@@ -1,5 +1,6 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Users, Search, Plus, AlertTriangle, CheckCircle, Clock, TrendingUp,
   UserCheck, Download, X, ChevronRight, Briefcase, FileText,
@@ -477,6 +478,7 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
 
 // ── Tab Empleados ───────────────────────────────────────────────────────────
 function TabEmpleados({ onNuevo }) {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filtroArea, setFiltroArea] = useState('Todos')
   const [selected, setSelected] = useState(null)
@@ -588,6 +590,12 @@ function TabEmpleados({ onNuevo }) {
                     </td>
                     <td style={{ padding: '11px 14px' }}>
                       <span style={{ padding: '3px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: e.estado_id==='ACTIVO' ? '#dcfce7' : '#fee2e2', color: e.estado_id==='ACTIVO' ? '#166534' : '#991b1b' }}>{e.estado_id}</span>
+                    </td>
+                    <td style={{ padding: '11px 14px' }} onClick={ev => ev.stopPropagation()}>
+                      <button onClick={() => navigate(`/rh/empleado/${e.id}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#1D4ED8', whiteSpace: 'nowrap' }}>
+                        <FileText size={12} /> Expediente
+                      </button>
                     </td>
                   </tr>
                 ))}
