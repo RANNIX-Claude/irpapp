@@ -556,7 +556,13 @@ export default function EDR() {
   const rPenaliz      = hasFoto(r.real_penaliz_mes, r.real_penaliz_otros)
     ? rmPenaliz + opPenaliz
     : 0
-  const rIva          = -(Math.abs(parseFloat(r.real_iva) || 0))
+  // IVA: si hay split mes/otros usa esos; si no, usa real_iva total (legacy)
+  const rmIva       = parseFloat(r.real_iva_mes)   || 0
+  const opIva       = parseFloat(r.real_iva_otros)  || 0
+  const rIvaTotal   = hasFoto(r.real_iva_mes, r.real_iva_otros)
+    ? -(rmIva + opIva)
+    : -(Math.abs(parseFloat(r.real_iva) || 0))
+  const rIva        = rIvaTotal
   const rRentasBrutas = rRentaFact + rRentaSin + rPenaliz
 
   const rmRentasBrutas = hasFoto(r.real_rentas_factura_mes, r.real_rsf_mes)
@@ -732,9 +738,9 @@ export default function EDR() {
             <PLRow label="Penalizaciones" indent={1}
               total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
-              proy={0} total={rIva}
-              rentasMes={rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0}
-              otrosPer={rIva !== 0 ? Math.round(rIva * (opRentasBrutas / (rRentasBrutas || 1))) : 0} />
+              proy={parseFloat(r.proy_iva)||0} total={rIva}
+              rentasMes={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -rmIva : (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
+              otrosPer={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -opIva : (rIva !== 0 ? Math.round(rIva * (opRentasBrutas / (rRentasBrutas || 1))) : 0)} />
 
             <SubRow label="Ingresos Netos Renta" highlight
               proy={pIngNeto} total={rIngNeto}
@@ -821,7 +827,9 @@ export default function EDR() {
             const eRentaFact  = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rentas_factura_otros)||0)
             const eRentaSin   = (parseFloat(fForm.real_rsf_mes)||0)              + (parseFloat(fForm.real_rsf_otros)||0)
             const ePenaliz    = (parseFloat(fForm.real_penaliz_mes)||0)          + (parseFloat(fForm.real_penaliz_otros)||0)
-            const eIva        = -(Math.abs(parseFloat(fForm.real_iva)||0))
+            const eIvaMes     = parseFloat(fForm.real_iva_mes)   || 0
+            const eIvaOtros   = parseFloat(fForm.real_iva_otros)  || 0
+            const eIva        = -(eIvaMes + eIvaOtros) || -(Math.abs(parseFloat(fForm.real_iva)||0))
             const eRentasBrutas = eRentaFact + eRentaSin + ePenaliz
             const eRmRentas   = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)   + (parseFloat(fForm.real_penaliz_mes)||0)
             const eOpRentas   = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0) + (parseFloat(fForm.real_penaliz_otros)||0)
@@ -885,13 +893,17 @@ export default function EDR() {
                 <SubTot label="Rentas brutas" proy={pRentasBrutas} real={eRentasBrutas}
                   mes={eRmRentas} otros={eOpRentas} />
                 <EditRow label="Rentas sin Factura"
+                  fieldP="proy_rsf"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
                   form={fForm} setField={sf} indent={1} />
                 <EditRow label="Penalizaciones"
+                  fieldP="proy_penaliz"
                   fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
                   form={fForm} setField={sf} indent={1} />
-                <EditRow label="IVA retenido" fieldP={null} fieldR="real_iva"
-                  form={fForm} setField={sf} indent={1} negLabel hintR="positivo, se resta" />
+                <EditRow label="IVA retenido"
+                  fieldP="proy_iva"
+                  fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
+                  form={fForm} setField={sf} indent={1} negLabel />
 
                 <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight />
 
