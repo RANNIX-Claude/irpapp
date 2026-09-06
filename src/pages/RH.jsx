@@ -446,9 +446,10 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
     setUploadingFoto(true)
     try {
       const ext = file.name.split('.').pop().toLowerCase()
-      const path = `avatars/${emp.id}.${ext}`
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
-      if (upErr) { toast.error('Error al subir foto'); return }
+      const path = `${emp.id}.${ext}`
+      await supabase.storage.from('avatars').remove([path])
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file)
+      if (upErr) { toast.error('Error al subir foto: ' + upErr.message); return }
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const url = publicUrl + '?t=' + Date.now()
       await supabase.from('prp_empleados').update({ foto_url: url }).eq('id', emp.id)
