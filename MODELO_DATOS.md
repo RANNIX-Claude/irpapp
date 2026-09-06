@@ -98,6 +98,15 @@
 | `nomina_detalle` | Línea por empleado: percepciones, ISR, IMSS, deducciones, neto |
 
 ### Módulo 8 — Estacionamiento
+
+> ⛔ **SUSTITUIDO — no implementar.** Este módulo queda reemplazado por el sistema
+> **IwolPark** completo, que ya opera en producción (`iwol.click`) y se absorbe como el
+> módulo de estacionamiento de IRP. Las cinco tablas de abajo se conservan solo como
+> registro del diseño original; las tablas reales son las 20 de IwolPark.
+> Ver `docs/03-arquitectura/ADR-001-integracion-estacionamiento.md`.
+
+**Diseño original (histórico, no vigente):**
+
 | Tabla | Descripción |
 |-------|-------------|
 | `cajones_estacionamiento` | 40 cajones con zona, nivel, estado, pensión asignada |
