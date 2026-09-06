@@ -217,8 +217,26 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
     if (file) {
       const ext = file.name.split('.').pop().toUpperCase()
       const path = `expedientes/${empleadoId}/${Date.now()}_${file.name}`
-      const { error: upErr } = await supabase.storage.from('rh-expedientes').upload(path, file, { upsert: true })
-      if (!upErr) { archivo_path = path; tamano_kb = Math.round(file.size / 1024); formato = ext }
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (token) {
+        const base = import.meta.env.VITE_SUPABASE_URL
+        const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+        const res = await fetch(`${base}/storage/v1/object/expedientes-docs/${path}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type },
+          body: file,
+        })
+        if (res.ok) {
+          archivo_path = path
+          archivo_url = `${base}/storage/v1/object/public/expedientes-docs/${path}`
+          tamano_kb = Math.round(file.size / 1024)
+          formato = ext
+        } else {
+          const errBody = await res.text()
+          toast.error('Error al subir archivo: ' + errBody)
+        }
+      }
     }
     const { error } = await supabase.from('rh_expediente_documentos').insert({
       empleado_id: empleadoId, tipo: form.tipo, nombre: form.nombre,
@@ -784,8 +802,11 @@ export default function ExpedienteEmpleado() {
                             {doc.vence && <span style={{ color: doc.vence < hoy ? C.danger : C.warning }}>· Vence {fmtD(doc.vence)}</span>}
                           </div>
                         </div>
-                        {doc.archivo_path && (
-                          <button onClick={async () => { const url = await urlFirmada('rh-expedientes', doc.archivo_path); if (url) window.open(url) }}
+                        {(doc.archivo_url || doc.archivo_path) && (
+                          <button onClick={async () => {
+                            const url = doc.archivo_url || await urlFirmada('expedientes-docs', doc.archivo_path)
+                            if (url) window.open(url)
+                          }}
                             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 12, color: C.primary }}>
                             <Download size={13} /> Descargar
                           </button>
@@ -1048,8 +1069,8 @@ export default function ExpedienteEmpleado() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nombre}</div>
                   <div style={{ fontSize: 10, color: C.muted }}>{d.tamano_kb ? d.tamano_kb + ' KB · ' : ''}{fmtD(d.fecha_doc || d.created_at?.slice(0,10))}</div>
                 </div>
-                {d.archivo_path && (
-                  <button onClick={async () => { const url = await urlFirmada('rh-expedientes', d.archivo_path); if (url) window.open(url) }}
+                {(d.archivo_url || d.archivo_path) && (
+                  <button onClick={async () => { const url = d.archivo_url || await urlFirmada('expedientes-docs', d.archivo_path); if (url) window.open(url) }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2 }}>
                     <Download size={13} />
                   </button>
