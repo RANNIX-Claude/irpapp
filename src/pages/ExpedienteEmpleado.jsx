@@ -411,6 +411,42 @@ const TABS = [
   { id: 'historial',    label: 'Historial',         icon: History },
 ]
 
+// ── Avatar con upload ────────────────────────────────────────────────────────
+function AvatarUpload({ nombre, foto, size = 72, uploading, inputRef, onChange }) {
+  const [hovered, setHovered] = useState(false)
+  const ini = (nombre || 'NN').split(' ').slice(0,2).map(w => w[0]||'').join('').toUpperCase()
+  const col = AVATAR_COLORS[(nombre||'').charCodeAt(0) % AVATAR_COLORS.length]
+  const showOverlay = hovered || uploading
+  return (
+    <div
+      style={{ position: 'relative', cursor: 'pointer', flexShrink: 0, width: size, height: size }}
+      onClick={() => inputRef.current?.click()}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title="Cambiar foto de perfil"
+    >
+      {foto
+        ? <img src={foto} alt={nombre} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.15)', display: 'block' }} />
+        : <div style={{ width: size, height: size, borderRadius: '50%', background: col+'18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size*0.35, fontWeight: 800, color: col, border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.15)' }}>{ini}</div>
+      }
+      {/* Overlay hover/uploading */}
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, opacity: showOverlay ? 1 : 0, transition: 'opacity .18s', pointerEvents: 'none' }}>
+        {uploading
+          ? <div style={{ width: 22, height: 22, border: '2.5px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          : <><Upload size={18} color="white" /><span style={{ fontSize: 9, color: 'white', fontWeight: 700, letterSpacing: '.3px' }}>CAMBIAR</span></>
+        }
+      </div>
+      {/* Badge cámara */}
+      {!uploading && (
+        <div style={{ position: 'absolute', bottom: 2, right: 2, width: 20, height: 20, borderRadius: '50%', background: C.primary, border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <Upload size={9} color="white" />
+        </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={onChange} />
+    </div>
+  )
+}
+
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function ExpedienteEmpleado() {
   const { id } = useParams()
@@ -540,23 +576,14 @@ export default function ExpedienteEmpleado() {
           <div style={{ height: 90, background: `linear-gradient(135deg, ${C.dark} 0%, ${C.primary} 60%, ${C.primary}99 100%)`, borderRadius: '0 0 12px 12px', marginBottom: '-28px' }} />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, padding: '0 8px 16px' }}>
             {/* Avatar clickeable — cambiar foto */}
-            <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} onClick={() => fotoInputRef.current?.click()} title="Cambiar foto de perfil">
-              <Avatar nombre={emp.nombre_completo} foto={emp.foto_url} size={72} />
-              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, opacity: 0, transition: 'opacity .2s', border: '3px solid white', boxSizing: 'border-box' }}
-                onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=uploadingFoto?1:0}
-                style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: uploadingFoto?'rgba(0,0,0,.5)':'rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, opacity: uploadingFoto?1:0, transition: 'opacity .2s' }}>
-                {uploadingFoto
-                  ? <div style={{ width: 20, height: 20, border: '2.5px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                  : <><Upload size={16} color="white" /><span style={{ fontSize: 9, color: 'white', fontWeight: 700 }}>Cambiar</span></>}
-              </div>
-              <input ref={fotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFotoChange} />
-              {/* Botón cámara siempre visible en esquina */}
-              {!uploadingFoto && (
-                <div style={{ position: 'absolute', bottom: 2, right: 2, width: 22, height: 22, borderRadius: '50%', background: C.primary, border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                  <Upload size={10} color="white" />
-                </div>
-              )}
-            </div>
+            <AvatarUpload
+              nombre={emp.nombre_completo}
+              foto={emp.foto_url}
+              size={72}
+              uploading={uploadingFoto}
+              inputRef={fotoInputRef}
+              onChange={handleFotoChange}
+            />
             <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>{emp.nombre_completo}</h1>

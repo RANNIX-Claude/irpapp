@@ -412,6 +412,27 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
   )
 }
 
+// ── Avatar con upload (modal detalle) ────────────────────────────────────────
+function AvatarUploadSmall({ nombre, foto, uploading, inputRef, onChange }) {
+  const [hovered, setHovered] = useState(false)
+  const showOverlay = hovered || uploading
+  return (
+    <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0, width: 44, height: 44 }}
+      onClick={() => inputRef.current?.click()}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title="Cambiar foto">
+      <Avatar nombre={nombre} foto={foto} size={44} />
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: showOverlay ? 1 : 0, transition: 'opacity .18s', pointerEvents: 'none' }}>
+        {uploading
+          ? <div style={{ width: 14, height: 14, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          : <Upload size={13} color="white" />}
+      </div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={onChange} />
+    </div>
+  )
+}
+
 // ── Detalle de empleado ─────────────────────────────────────────────────────
 function DetalleEmpleado({ emp, onClose, onRefresh }) {
   const [subModal, setSubModal] = useState(null) // 'renovar' | 'editar'
@@ -446,16 +467,7 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
       <div style={{ background: 'white', borderRadius: 12, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, background: 'white' }}>
           {/* Avatar clickeable para cambiar foto */}
-          <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} onClick={() => fotoInputRef.current?.click()} title="Cambiar foto">
-            <Avatar nombre={emp.nombre_completo} foto={fotoUrl} size={44} />
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploadingFoto ? 1 : 0, transition: 'opacity .2s' }}
-              onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=uploadingFoto?1:0}>
-              {uploadingFoto
-                ? <div style={{ width: 16, height: 16, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                : <Upload size={14} color="white" />}
-            </div>
-            <input ref={fotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFotoChange} />
-          </div>
+          <AvatarUploadSmall nombre={emp.nombre_completo} foto={fotoUrl} uploading={uploadingFoto} inputRef={fotoInputRef} onChange={handleFotoChange} />
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{emp.nombre_completo}</h2>
             <div style={{ fontSize: 12, color: 'var(--color-text-light)' }}>{emp.puesto} · {emp.numero_empleado}</div>
