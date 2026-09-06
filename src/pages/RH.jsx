@@ -446,7 +446,7 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
     setUploadingFoto(true)
     try {
       const ext = file.name.split('.').pop().toLowerCase()
-      const path = `${emp.id}.${ext}`
+      const path = `${emp.id}_${Date.now()}.${ext}`
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) { toast.error('Sin sesión activa'); return }
@@ -454,11 +454,11 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
       const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
       const res = await fetch(`${base}/storage/v1/object/avatars/${path}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type, 'x-upsert': 'true' },
+        headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type },
         body: file,
       })
       if (!res.ok) { const t = await res.text(); toast.error('Error foto: ' + t); return }
-      const url = `${base}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`
+      const url = `${base}/storage/v1/object/public/avatars/${path}`
       await supabase.from('rh_empleados').update({ foto_url: url }).eq('id', emp.id)
       setFotoUrl(url)
       toast.success('Foto actualizada')
