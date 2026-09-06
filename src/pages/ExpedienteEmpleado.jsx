@@ -484,7 +484,7 @@ export default function ExpedienteEmpleado() {
       if (upErr) { toast.error('Error al subir foto: ' + upErr.message); return }
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const url = publicUrl + '?t=' + Date.now()
-      await supabase.from('prp_empleados').update({ foto_url: url }).eq('id', emp.id)
+      await supabase.from('rh_empleados').update({ foto_url: url }).eq('id', emp.id)
       setEmp(em => ({ ...em, foto_url: url }))
       toast.success('Foto actualizada')
     } catch (err) {

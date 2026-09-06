@@ -452,7 +452,7 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
       if (upErr) { toast.error('Error al subir foto: ' + upErr.message); return }
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
       const url = publicUrl + '?t=' + Date.now()
-      await supabase.from('prp_empleados').update({ foto_url: url }).eq('id', emp.id)
+      await supabase.from('rh_empleados').update({ foto_url: url }).eq('id', emp.id)
       setFotoUrl(url)
       toast.success('Foto actualizada')
       onRefresh()
