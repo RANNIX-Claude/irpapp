@@ -415,12 +415,47 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
 // ── Detalle de empleado ─────────────────────────────────────────────────────
 function DetalleEmpleado({ emp, onClose, onRefresh }) {
   const [subModal, setSubModal] = useState(null) // 'renovar' | 'editar'
+  const [fotoUrl, setFotoUrl] = useState(emp.foto_url)
+  const [uploadingFoto, setUploadingFoto] = useState(false)
+  const fotoInputRef = useRef(null)
+
+  const handleFotoChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFoto(true)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase()
+      const path = `avatars/${emp.id}.${ext}`
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) { toast.error('Error al subir foto'); return }
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      const url = publicUrl + '?t=' + Date.now()
+      await supabase.from('prp_empleados').update({ foto_url: url }).eq('id', emp.id)
+      setFotoUrl(url)
+      toast.success('Foto actualizada')
+      onRefresh()
+    } catch (err) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setUploadingFoto(false)
+    }
+  }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: 12, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, background: 'white' }}>
-          <Avatar nombre={emp.nombre_completo} foto={emp.foto_url} size={44} />
+          {/* Avatar clickeable para cambiar foto */}
+          <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} onClick={() => fotoInputRef.current?.click()} title="Cambiar foto">
+            <Avatar nombre={emp.nombre_completo} foto={fotoUrl} size={44} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploadingFoto ? 1 : 0, transition: 'opacity .2s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=uploadingFoto?1:0}>
+              {uploadingFoto
+                ? <div style={{ width: 16, height: 16, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                : <Upload size={14} color="white" />}
+            </div>
+            <input ref={fotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFotoChange} />
+          </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{emp.nombre_completo}</h2>
             <div style={{ fontSize: 12, color: 'var(--color-text-light)' }}>{emp.puesto} · {emp.numero_empleado}</div>

@@ -431,7 +431,31 @@ export default function ExpedienteEmpleado() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef'
+  const [uploadingFoto, setUploadingFoto] = useState(false)
+  const fotoInputRef = useRef(null)
   const reload = () => setRefreshKey(k => k + 1)
+
+  const handleFotoChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !emp) return
+    setUploadingFoto(true)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase()
+      const path = `avatars/${emp.id}.${ext}`
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) { toast.error('Error al subir foto'); return }
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      const url = publicUrl + '?t=' + Date.now()
+      await supabase.from('prp_empleados').update({ foto_url: url }).eq('id', emp.id)
+      setEmp(em => ({ ...em, foto_url: url }))
+      toast.success('Foto actualizada')
+    } catch (err) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setUploadingFoto(false)
+      if (fotoInputRef.current) fotoInputRef.current.value = ''
+    }
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -515,7 +539,24 @@ export default function ExpedienteEmpleado() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ height: 90, background: `linear-gradient(135deg, ${C.dark} 0%, ${C.primary} 60%, ${C.primary}99 100%)`, borderRadius: '0 0 12px 12px', marginBottom: '-28px' }} />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, padding: '0 8px 16px' }}>
-            <Avatar nombre={emp.nombre_completo} foto={emp.foto_url} size={72} />
+            {/* Avatar clickeable — cambiar foto */}
+            <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} onClick={() => fotoInputRef.current?.click()} title="Cambiar foto de perfil">
+              <Avatar nombre={emp.nombre_completo} foto={emp.foto_url} size={72} />
+              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, opacity: 0, transition: 'opacity .2s', border: '3px solid white', boxSizing: 'border-box' }}
+                onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=uploadingFoto?1:0}
+                style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: uploadingFoto?'rgba(0,0,0,.5)':'rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, opacity: uploadingFoto?1:0, transition: 'opacity .2s' }}>
+                {uploadingFoto
+                  ? <div style={{ width: 20, height: 20, border: '2.5px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  : <><Upload size={16} color="white" /><span style={{ fontSize: 9, color: 'white', fontWeight: 700 }}>Cambiar</span></>}
+              </div>
+              <input ref={fotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFotoChange} />
+              {/* Botón cámara siempre visible en esquina */}
+              {!uploadingFoto && (
+                <div style={{ position: 'absolute', bottom: 2, right: 2, width: 22, height: 22, borderRadius: '50%', background: C.primary, border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <Upload size={10} color="white" />
+                </div>
+              )}
+            </div>
             <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>{emp.nombre_completo}</h1>
