@@ -188,9 +188,26 @@ camino no es atómico**: dos peticiones casi simultáneas pueden insertar el mis
 dos veces. El código ya trae el manejo del error 23505 previsto "para cuando la
 constraint exista".
 
-Crear la restricción cierra el hueco, pero primero hay que depurar los duplicados que ya
-existan en producción. Es una decisión con datos de por medio, no un `alter table`
-suelto. Debe resolverse antes de que IRP escriba sobre `tickets`.
+**Verificado 2026-09-07**: `select folio, count(*) ... having count(*) > 1` no devuelve
+filas. **No hay duplicados**, así que la restricción es blindaje y no reparación.
+
+El alcance real resultó menor de lo estimado: `syncQueue()` tiene un candado
+(`_syncEnCurso`) y envía en serie, de modo que dentro de una misma pestaña dos folios
+nunca salen a la vez. La carrera exige **dos instancias simultáneas de la app** —
+`localStorage` se comparte entre pestañas del mismo origen, pero el candado vive en la
+memoria de cada una. `ABRIR_CAJERO.bat` ya mitiga eso: hace `taskkill /f /im chrome.exe`
+antes de abrir, garantizando una sola instancia.
+
+Crear la restricción no requiere tocar código ni desplegar: el manejo del error 23505 ya
+está escrito en `enviarSupabase()` y hoy es código muerto; con la constraint se activa
+solo y la base resuelve la carrera de forma atómica.
+
+```sql
+alter table public.tickets add constraint tickets_folio_key unique (folio);
+```
+
+Aplicar primero en QA, verificar la operación de caja, después en Producción. Debe
+quedar antes de que IRP escriba sobre `tickets`.
 
 ### 3. La red saliente bloquea Supabase
 
@@ -209,7 +226,7 @@ en la configuración de claude.ai/code.
 | # | Etapa | Riesgo |
 |---|---|---|
 | 0 | Extraer y versionar el DDL real de las cuatro tablas sin DDL | Ninguno |
-| 0b | Resolver el `UNIQUE(folio)` de `tickets` y sus duplicados | Medio — toca datos de producción |
+| 0b | Crear `UNIQUE(folio)` en `tickets` (sin duplicados que depurar) | Bajo — `alter table`, sin cambios de código |
 | 1 | Marcar el Módulo 8 como reemplazado en `MODELO_DATOS.md` | Ninguno |
 | 2 | Conectar IRP a la base de estacionamiento (cliente Supabase adicional) | Ninguno — solo lectura al inicio |
 | 3 | Construir la sección Estacionamiento en el menú lateral | Ninguno |
