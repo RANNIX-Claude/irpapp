@@ -146,27 +146,61 @@ Los tableros aparecen en dos lugares con propósitos distintos —operativo bajo
 **Migraciones** (`sql_*.sql`, 6): `avisos_operador`, `campanas`, `historico_mensual`,
 `impactos_detalle`, `locales`, `versiones_app`
 
-**Sin DDL versionado** (2): `tickets`, `bitacora`
+**Sin DDL versionado** (4): `tickets`, `bitacora`, `cortes`, `empleados`
 
 **Vistas** (6): `v_kpi_dia`, `v_kpi_franja`, `v_kpi_cajero`, `v_resumen_mensual`,
 `v_pensiones_estado`, `v_cobranza_mes`
 
 ---
 
-## Bloqueador
+## Bloqueadores
 
-### `tickets` y `bitacora` no existen en el repositorio
+### 1. Cuatro tablas no existen en el repositorio
 
-Ambas aparecen únicamente en sentencias `ALTER TABLE`. Su estructura solo vive en la
-base de producción. **`tickets` es la tabla central del negocio** —los boletos— y hoy
-nadie puede reconstruir IwolPark desde su repositorio.
+Actualizado 2026-09-07: no son dos, son cuatro. Cruzando las tablas que el código
+consulta contra las que el repositorio define:
 
-Con esta decisión el riesgo es menor que con una migración (IRP consume las tablas donde
-están, no las recrea), pero sigue siendo indispensable para desarrollar contra ellas y
-para cualquier recuperación ante desastre.
+| Tabla | Rastro en el repositorio |
+|---|---|
+| `tickets` | solo `alter table` — **tabla central del negocio (los boletos)** |
+| `bitacora` | solo `alter table` |
+| `cortes` | **ningún rastro**, salvo su uso en `mcp-iwolpark/server.js` — es donde cuadra el dinero del turno |
+| `empleados` | sin DDL, y `sql_empleado_id.sql` le agrega una FK encima |
 
-**Acción**: extraer el DDL real con `pg_dump --schema-only` o desde el SQL Editor de
-Supabase, y versionarlo en el repositorio de IwolPark.
+Su estructura solo vive en la base. Hoy nadie puede reconstruir IwolPark desde su
+repositorio, y `cortes` importa especialmente para IRP: ahí se concilia el efectivo
+de cada turno contra lo esperado.
+
+Se descartó que el DDL estuviera en otro lado: se extrajo el texto del PDF de 48
+páginas y de los dos `.docx` del repositorio —el transcript de meses de desarrollo—
+sin un solo `create table tickets`.
+
+**Acción**: `sql_introspeccion_tickets_bitacora.sql` (rama `claude/ddl-tickets-bitacora`
+de IwolPark) devuelve columnas con tipo y default, constraints, índices, RLS, GRANTs y
+triggers de las cuatro tablas en una sola corrida. Correrlo **en QA y en Producción**:
+comparar ambas salidas es lo único que prueba si los ambientes divergieron.
+
+### 2. `tickets` no tiene UNIQUE sobre `folio`
+
+`IwolPark_TABLET.html:1591` documenta que la tabla carece de esa restricción, y por eso
+`enviarSupabase()` hace PATCH por folio y, si no actualizó ninguna fila, POST. **Ese
+camino no es atómico**: dos peticiones casi simultáneas pueden insertar el mismo folio
+dos veces. El código ya trae el manejo del error 23505 previsto "para cuando la
+constraint exista".
+
+Crear la restricción cierra el hueco, pero primero hay que depurar los duplicados que ya
+existan en producción. Es una decisión con datos de por medio, no un `alter table`
+suelto. Debe resolverse antes de que IRP escriba sobre `tickets`.
+
+### 3. La red saliente bloquea Supabase
+
+Las sesiones de Claude Code —tanto en la nube como en la instalación local— tienen
+`supabase.co` bloqueado por política del proxy (403 al CONNECT). Ninguna puede leer el
+catálogo de la base directamente.
+
+Consecuencia operativa: toda introspección de esquema se hace pegando SQL en el editor
+de Supabase y devolviendo la salida. Alternativa: abrir la política de red del entorno
+en la configuración de claude.ai/code.
 
 ---
 
@@ -174,7 +208,8 @@ Supabase, y versionarlo en el repositorio de IwolPark.
 
 | # | Etapa | Riesgo |
 |---|---|---|
-| 0 | Extraer y versionar el DDL real de `tickets` y `bitacora` | Ninguno |
+| 0 | Extraer y versionar el DDL real de las cuatro tablas sin DDL | Ninguno |
+| 0b | Resolver el `UNIQUE(folio)` de `tickets` y sus duplicados | Medio — toca datos de producción |
 | 1 | Marcar el Módulo 8 como reemplazado en `MODELO_DATOS.md` | Ninguno |
 | 2 | Conectar IRP a la base de estacionamiento (cliente Supabase adicional) | Ninguno — solo lectura al inicio |
 | 3 | Construir la sección Estacionamiento en el menú lateral | Ninguno |
