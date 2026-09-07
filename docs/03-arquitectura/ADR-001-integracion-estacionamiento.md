@@ -188,8 +188,10 @@ camino no es atómico**: dos peticiones casi simultáneas pueden insertar el mis
 dos veces. El código ya trae el manejo del error 23505 previsto "para cuando la
 constraint exista".
 
-**Verificado 2026-09-07**: `select folio, count(*) ... having count(*) > 1` no devuelve
-filas. **No hay duplicados**, así que la restricción es blindaje y no reparación.
+**Verificado 2026-09-07 en Producción** (`syryisrelcjgdulxmgro`, la base de
+`iwol.click`): `select folio, count(*) ... having count(*) > 1` no devuelve filas. **No
+hay duplicados en el ambiente en vivo**, así que la restricción es blindaje y no
+reparación. Falta correr la misma comprobación en QA antes de aplicarla ahí.
 
 El alcance real resultó menor de lo estimado: `syncQueue()` tiene un candado
 (`_syncEnCurso`) y envía en serie, de modo que dentro de una misma pestaña dos folios
