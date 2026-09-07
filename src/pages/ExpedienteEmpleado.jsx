@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, User, Briefcase, FileText, AlertCircle, Clock,
@@ -24,6 +24,8 @@ const C = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt$ = n => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 const fmtD = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+const sumRecibos = (rows, campo) => rows.reduce((t, r) => t + (parseFloat(r[campo]) || 0), 0)
 
 function antiguedad(fi) {
   if (!fi) return '—'
@@ -301,6 +303,68 @@ function ModalCapacitacion({ empleadoId, onClose, onSaved }) {
   )
 }
 
+// ── Modal: registrar incidencia ──────────────────────────────────────────────
+// Mismos tipos y reglas que NuevaIncidenciaModal en RH.jsx: la incidencia se
+// ancla al lunes de su semana y afecta_nomina define si descuenta salario.
+const TIPOS_INCIDENCIA = [
+  { id: 'INASISTENCIA',     label: 'Inasistencia',     afecta: true  },
+  { id: 'RETARDO',          label: 'Retardo',          afecta: false },
+  { id: 'PERMISO_SIN_GOCE', label: 'Permiso sin goce', afecta: true  },
+  { id: 'PERMISO_CON_GOCE', label: 'Permiso con goce', afecta: false },
+  { id: 'VACACIONES',       label: 'Vacaciones',       afecta: false },
+  { id: 'INCAPACIDAD',      label: 'Incapacidad',      afecta: false },
+]
+
+function lunesDeLaSemana(fechaISO) {
+  const dt = new Date(fechaISO + 'T12:00:00')
+  const dia = dt.getDay() // 0 = domingo
+  dt.setDate(dt.getDate() + (dia === 0 ? -6 : 1 - dia))
+  return dt.toISOString().split('T')[0]
+}
+
+function ModalIncidencia({ empleadoId, onClose, onSaved }) {
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], tipo: 'INASISTENCIA', descripcion: '' })
+  const [saving, setSaving] = useState(false)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const tipoSel = TIPOS_INCIDENCIA.find(t => t.id === form.tipo)
+
+  const handleSave = async () => {
+    if (!form.fecha) return toast.error('La fecha es obligatoria')
+    setSaving(true)
+    const { error } = await supabase.from('rh_incidencias').insert({
+      empleado_id: empleadoId,
+      fecha: form.fecha,
+      tipo: form.tipo,
+      descripcion: form.descripcion || null,
+      afecta_nomina: tipoSel?.afecta ?? true,
+      semana_inicio: lunesDeLaSemana(form.fecha),
+      created_by: 'USUARIO',
+    })
+    setSaving(false)
+    if (error) {
+      if (error.code === '23505') return toast.error('Ya existe esa incidencia para este empleado y fecha')
+      return toast.error(error.message)
+    }
+    toast.success('Incidencia registrada'); onSaved(); onClose()
+  }
+
+  return (
+    <Modal title="Registrar Incidencia" icon={AlertCircle} onClose={onClose}>
+      <FormGrid>
+        <FI label="Fecha *" type="date" value={form.fecha} onChange={v => sf('fecha', v)} />
+        <FI label="Tipo" type="select" value={form.tipo} onChange={v => sf('tipo', v)} opts={TIPOS_INCIDENCIA.map(t => [t.id, t.label])} />
+        <FI label="Descripción" value={form.descripcion} onChange={v => sf('descripcion', v)} span />
+      </FormGrid>
+      {tipoSel?.afecta && (
+        <div style={{ marginTop: 14, background: '#FEF3C7', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> Esta incidencia descuenta del salario en nómina
+        </div>
+      )}
+      <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} label="Registrar" />
+    </Modal>
+  )
+}
+
 // ── Modal: agregar evaluación ────────────────────────────────────────────────
 function ModalEvaluacion({ empleadoId, onClose, onSaved }) {
   const [form, setForm] = useState({ periodo: '', tipo: 'ANUAL', calificacion: '', nivel: 'BUENO', evaluador: '', fortalezas: '', areas_mejora: '', fecha: new Date().toISOString().split('T')[0] })
@@ -478,13 +542,14 @@ export default function ExpedienteEmpleado() {
   const [docs, setDocs]             = useState([])
   const [incidencias, setIncidencias] = useState([])
   const [asistencia, setAsistencia] = useState([])
-  const [nominaPeriodos, setNomina] = useState([])
+  const [recibos, setRecibos]       = useState([])
+  const [reciboAbierto, setReciboAbierto] = useState(null)
   const [capacitacion, setCapacitacion] = useState([])
   const [evaluaciones, setEvaluaciones] = useState([])
   const [beneficios, setBeneficios] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef'
+  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef' | 'incid'
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const fotoInputRef = useRef(null)
   const reload = () => setRefreshKey(k => k + 1)
@@ -521,7 +586,7 @@ export default function ExpedienteEmpleado() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [empR, sueldoR, nombreR, cambiosR, docsR, incR, asistR, nomR, capacR, evalR, benefR] = await Promise.all([
+    const [empR, sueldoR, nombreR, cambiosR, docsR, incR, asistR, capacR, evalR, benefR] = await Promise.all([
       supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
       supabase.from('rh_historial_sueldo').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_historial_nombre').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
@@ -529,7 +594,6 @@ export default function ExpedienteEmpleado() {
       supabase.from('rh_expediente_documentos').select('*').eq('empleado_id', id).order('created_at', { ascending: false }),
       supabase.from('prp_incidencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(50),
       supabase.from('prp_asistencia').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(30),
-      supabase.from('nomina_periodos').select('id,folio,fecha_inicio,fecha_fin,estado,total_neto').order('fecha_inicio', { ascending: false }).limit(20),
       supabase.from('rh_capacitacion').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
       supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
@@ -541,7 +605,6 @@ export default function ExpedienteEmpleado() {
     setDocs(docsR.data ?? [])
     setIncidencias(incR.data ?? [])
     setAsistencia(asistR.data ?? [])
-    setNomina(nomR.data ?? [])
     setCapacitacion(capacR.data ?? [])
     setEvaluaciones(evalR.data ?? [])
     setBeneficios(benefR.data ?? [])
@@ -549,6 +612,40 @@ export default function ExpedienteEmpleado() {
   }, [id])
 
   useEffect(() => { loadData() }, [loadData, refreshKey])
+
+  // Recibos de nómina DEL empleado. prp_prenomina no expone empleado_id: el
+  // cruce es por numero_empleado, así que se carga aparte, ya que emp existe.
+  const numEmpleado = emp?.numero_empleado
+  useEffect(() => {
+    if (!numEmpleado) { setRecibos([]); return }
+    let cancelado = false
+    ;(async () => {
+      const { data: pren, error } = await supabase
+        .from('prp_prenomina').select('*').eq('numero_empleado', numEmpleado)
+      if (cancelado) return
+      if (error) { console.error('[expediente] prenómina:', error.message); setRecibos([]); return }
+
+      const filas = pren ?? []
+      const periodoIds = [...new Set(filas.map(r => r.periodo_id).filter(Boolean))]
+      let periodos = []
+      if (periodoIds.length) {
+        const { data } = await supabase
+          .from('nomina_periodos')
+          .select('id,folio,fecha_inicio,fecha_fin,estado,total_neto')
+          .in('id', periodoIds)
+        periodos = data ?? []
+      }
+      if (cancelado) return
+
+      const porId = Object.fromEntries(periodos.map(p => [p.id, p]))
+      setRecibos(
+        filas
+          .map(r => ({ ...r, periodo: porId[r.periodo_id] ?? null }))
+          .sort((a, b) => (b.periodo?.fecha_inicio ?? '').localeCompare(a.periodo?.fecha_inicio ?? ''))
+      )
+    })()
+    return () => { cancelado = true }
+  }, [numEmpleado, refreshKey])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: C.muted, flexDirection: 'column' }}>
@@ -822,7 +919,7 @@ export default function ExpedienteEmpleado() {
           {/* ── INCIDENCIAS ── */}
           {tab === 'incidencias' && (
             <Card>
-              <Section title="Historial de incidencias" icon={AlertCircle}>
+              <Section title="Historial de incidencias" icon={AlertCircle} action={<BtnPrimary onClick={() => setModal('incid')} small><Plus size={13} /> Registrar</BtnPrimary>}>
                 {incidencias.length === 0 ? <Empty icon={CheckCircle} msg="Sin incidencias" color={C.success} /> : <IncidenciasTable rows={incidencias} />}
               </Section>
             </Card>
@@ -857,23 +954,87 @@ export default function ExpedienteEmpleado() {
           {/* ── NÓMINA ── */}
           {tab === 'nomina' && (
             <Card>
-              <Section title="Períodos de nómina" icon={CreditCard}>
-                {nominaPeriodos.length === 0 ? <Empty icon={CreditCard} msg="Sin períodos de nómina" /> : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead><tr style={{ background: C.light }}>{['Folio','Período','Estado','Neto'].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
-                      <tbody>
-                        {nominaPeriodos.map(p => (
-                          <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                            <Td mono blue>{p.folio}</Td>
-                            <Td small>{fmtD(p.fecha_inicio)} — {fmtD(p.fecha_fin)}</Td>
-                            <Td><Badge label={p.estado} color={p.estado === 'PAGADA' || p.estado === 'TIMBRADA' ? C.success : p.estado === 'AUTORIZADA' ? C.primary : C.warning} /></Td>
-                            <Td bold>{p.total_neto ? fmt$(p.total_neto) : '—'}</Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+              <Section title="Recibos de nómina" icon={CreditCard}>
+                {recibos.length === 0 ? (
+                  <Empty icon={CreditCard} msg={numEmpleado ? 'Sin recibos de nómina calculados' : 'El empleado no tiene número de empleado asignado'} />
+                ) : (
+                  <>
+                    {/* Acumulados del empleado */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
+                      {[
+                        ['Neto acumulado',  fmt$(sumRecibos(recibos, 'neto_pagar')),        C.success],
+                        ['Percepciones',    fmt$(sumRecibos(recibos, 'salario_periodo')),   C.primary],
+                        ['Deducciones',     fmt$(sumRecibos(recibos, 'total_deducciones')), C.danger],
+                        ['Recibos',         String(recibos.length),                         C.muted],
+                        ['Timbrados',       `${recibos.filter(r => r.estatus_cfdi === 'TIMBRADO').length}/${recibos.length}`, C.gold],
+                      ].map(([label, valor, color]) => (
+                        <div key={label} style={{ background: C.light, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px' }}>
+                          <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>{label}</div>
+                          <div style={{ fontSize: 17, fontWeight: 800, color, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead><tr style={{ background: C.light }}>{['Folio','Período','Días','Percepción','Deducciones','Neto','CFDI',''].map((h, i) => <Th key={i}>{h}</Th>)}</tr></thead>
+                        <tbody>
+                          {recibos.map(r => {
+                            const abierto = reciboAbierto === r.id
+                            return (
+                              <Fragment key={r.id}>
+                                <tr
+                                  onClick={() => setReciboAbierto(abierto ? null : r.id)}
+                                  style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer', background: abierto ? C.light : undefined }}
+                                >
+                                  <Td mono blue>{r.periodo?.folio ?? '—'}</Td>
+                                  <Td small>{r.periodo ? `${fmtD(r.periodo.fecha_inicio)} — ${fmtD(r.periodo.fecha_fin)}` : '—'}</Td>
+                                  <Td mono small>
+                                    {r.dias_trabajados ?? '—'}{r.dias_periodo ? `/${r.dias_periodo}` : ''}
+                                    {r.dias_falta > 0 && <span style={{ color: C.danger, fontWeight: 700 }}> · {r.dias_falta}F</span>}
+                                  </Td>
+                                  <Td mono>{fmt$(r.salario_periodo)}</Td>
+                                  <Td mono>{fmt$(r.total_deducciones)}</Td>
+                                  <Td mono bold>{fmt$(r.neto_pagar)}</Td>
+                                  <td style={{ padding: '10px 12px' }}>
+                                    <Badge
+                                      label={r.estatus_cfdi ?? 'PENDIENTE'}
+                                      color={r.estatus_cfdi === 'TIMBRADO' ? C.success : r.estatus_cfdi === 'ERROR' ? C.danger : C.muted}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '10px 12px', color: C.muted }}>
+                                    <ChevronDown size={14} style={{ transform: abierto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
+                                  </td>
+                                </tr>
+                                {abierto && (
+                                  <tr style={{ background: C.light }}>
+                                    <td colSpan={8} style={{ padding: '4px 12px 16px' }}>
+                                      <Grid4>
+                                        <Campo label="Salario diario"   value={fmt$(r.salario_diario)} mono />
+                                        <Campo label="IMSS obrero"      value={fmt$(r.imss_obrero)} mono />
+                                        <Campo label="ISR retenido"     value={fmt$(r.isr_a_retener)} mono />
+                                        <Campo label="Subsidio empleo"  value={fmt$(r.subsidio_empleo)} mono />
+                                        <Campo label="Estado período"   value={r.periodo?.estado} />
+                                        <Campo label="Banco"            value={r.banco} />
+                                        <Campo label="CLABE"            value={r.cuenta_clabe} mono />
+                                        <Campo label="UUID CFDI"        value={r.uuid_cfdi} mono />
+                                      </Grid4>
+                                      {r.error_timbrado && (
+                                        <div style={{ marginTop: 10, display: 'flex', alignItems: 'flex-start', gap: 8, background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px' }}>
+                                          <AlertTriangle size={14} color={C.danger} style={{ flexShrink: 0, marginTop: 1 }} />
+                                          <div style={{ fontSize: 12, color: '#991B1B' }}>{r.error_timbrado}</div>
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </Section>
             </Card>
@@ -1123,6 +1284,7 @@ export default function ExpedienteEmpleado() {
                 [TrendingUp, 'Cambio de sueldo', () => setModal('sueldo')],
                 [User, 'Cambio de nombre', () => setModal('nombre')],
                 [FileText, 'Agregar documento', () => { setTab('documentos'); setModal('doc') }],
+                [AlertCircle, 'Registrar incidencia', () => { setTab('incidencias'); setModal('incid') }],
                 [BookOpen, 'Registrar capacitación', () => { setTab('capacitacion'); setModal('capac') }],
                 [Star, 'Nueva evaluación', () => { setTab('evaluaciones'); setModal('eval') }],
                 [Heart, 'Agregar beneficio', () => { setTab('beneficios'); setModal('benef') }],
@@ -1143,6 +1305,7 @@ export default function ExpedienteEmpleado() {
       {modal === 'capac'  && <ModalCapacitacion empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'eval'   && <ModalEvaluacion empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'benef'  && <ModalBeneficio empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
+      {modal === 'incid'  && <ModalIncidencia empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
     </div>
   )
 }
