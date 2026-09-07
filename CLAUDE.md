@@ -1,5 +1,5 @@
 # CLAUDE.md — IRP (IWOL Resource Planning)
-## RANNIX Consulting | v1.0 | 2026
+## RANNIX Consulting | v1.3.0 | 2026
 
 ---
 
@@ -13,13 +13,14 @@ Desarrollado por **Roberto Aguilar Cota / RANNIX Consulting**.
 
 ## Stack Tecnológico
 
-- **Frontend**: React 18 + Vite + TailwindCSS
-- **Backend/DB**: Supabase (PostgreSQL + Auth + Storage + RLS)
+- **Frontend**: React 18 + Vite 5 + TailwindCSS 3 (con estilos inline sobre variables CSS)
+- **Backend/DB**: Supabase (PostgreSQL + Auth + Storage privado + RLS)
 - **Deploy**: Netlify (Functions como proxy seguro para Claude API)
 - **IA**: Claude API vía Netlify Functions (NUNCA expuesta en frontend)
 - **Routing**: React Router DOM v6
-- **State**: Zustand + React Query
+- **State**: Zustand + React Query (`@tanstack/react-query`)
 - **Forms**: React Hook Form + Zod
+- **Gráficas**: Recharts · **Export**: exceljs, xlsx, docx · **Toasts**: react-hot-toast · **Iconos**: lucide-react
 
 ---
 
@@ -31,19 +32,22 @@ DEv/
 │   ├── components/
 │   │   ├── agents/     # AgenteOperativo.jsx, AgenteAnalitico.jsx
 │   │   ├── layout/     # Header.jsx, Sidebar.jsx, Footer.jsx
-│   │   ├── ui/         # KPICard, StatusBadge, LoadingSpinner, EmptyState
+│   │   ├── ui/         # KPICard, StatusBadge, LoadingSpinner, EmptyState,
+│   │   │               # NuevoContratoModal, ElaborarContratoModal,
+│   │   │               # ExpedienteForm, ExpedienteModal,
+│   │   │               # ModalSolicitudPersona, TicketModal
 │   │   └── dummy/      # DummyTable.jsx (prueba de conexión Supabase)
-│   ├── context/        # AppContext.jsx (user, loading, sidebarOpen)
-│   ├── hooks/          # useSupabase.js, useAuth.js
-│   ├── lib/            # supabase.js, auth.js, claude.js
-│   ├── pages/          # Dashboard.jsx, Login.jsx, ComingSoon.jsx
+│   ├── context/        # AppContext.jsx (user, perfil, loading, sidebarOpen)
+│   ├── hooks/          # useSupabase.js, useAuth.js, usePRP.js, useAudit.js
+│   ├── lib/            # supabase.js (+ urlFirmada), auth.js, claude.js
+│   ├── pages/          # 32 páginas (ver tabla de módulos)
 │   └── styles/         # theme.css (variables CSS completas)
-├── netlify/functions/
-│   ├── chat-operativo.js    # Agente Operativo (conversacional)
-│   └── chat-analitico.js    # Agente Analítico (BI/DW)
+├── netlify/functions/  # 12 funciones serverless
+├── migrations/         # 001–035 (SQL numerado, serie histórica)
+├── supabase/migrations/# migraciones con timestamp (CLI Supabase)
+├── sql/, scripts/      # utilidades y consultas de apoyo
 ├── public/
-│   └── favicon.svg
-├── .env.local              # Solo variables VITE_* (seguras para frontend)
+├── .env.local          # Solo variables VITE_* (seguras para frontend)
 ├── netlify.toml
 ├── tailwind.config.js
 └── vite.config.js
@@ -55,10 +59,12 @@ DEv/
 
 ### GRUPO A — `.env.local` (VITE_ prefix, seguras para frontend)
 ```
-VITE_SUPABASE_URL=https://lrcoagjswpequmuaaxep.supabase.co
+VITE_SUPABASE_URL=https://kusuoxwzdxfuybvyiakg.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon_key>
 VITE_APP_TITLE=IRP — Inmueble Resource Planning
-VITE_APP_URL=https://juriscontrol02.netlify.app
+VITE_APP_URL=https://irpapp.netlify.app
+VITE_PARKING_URL=<url del proyecto Supabase del sistema de tickets>
+VITE_PARKING_ANON_KEY=<anon_key del sistema de tickets>
 ```
 
 ### GRUPO B — Netlify Environment Variables ÚNICAMENTE (NUNCA en frontend)
@@ -88,41 +94,109 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 
 ## Base de Datos — Supabase
 
-**Proyecto**: `kusuoxwzdxfuybvyiakg`
+**Proyecto principal**: `kusuoxwzdxfuybvyiakg`
 
-### Tablas Principales
-- `public.cat_estado_general` — Catálogo de estados (VIGENTE, DISPONIBLE, VENCIDO, EN_MORA, PENDIENTE, COMPLETADO, CANCELADO, EN_PROCESO, MANTENIMIENTO, ACTIVO, INACTIVO)
-- `public.dummy` — Tabla de prueba para verificar conexión Supabase + Realtime
+**Proyecto secundario**: sistema de tickets de estacionamiento — cliente `supabaseParking` en `src/lib/supabase.js` (lectura, sin sesión persistida). Alimenta EDR con Estacionamiento / Pensiones / Vending.
 
-### Data Warehouse
-- `dw.dim_tiempo_dia` — Dimensión días 2020-2030
-- `dw.dim_tiempo_mes` — Dimensión meses 2020-2030
-- `dw.dim_tiempo_anio` — Dimensión años 2020-2030
+### Convención de acceso: vistas `prp_*`
+El frontend **lee siempre desde vistas `prp_*`**, nunca de las tablas base. Las escrituras sí van a la tabla base correspondiente (p. ej. actualizar `foto_url` va a `rh_empleados`, no a `prp_empleados`).
 
-### RLS (Row Level Security)
-- Todas las tablas tienen RLS habilitado
-- `dummy`: autenticados pueden SELECT/INSERT/UPDATE/DELETE
-- `cat_estado_general`: autenticados pueden SELECT
+Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`, `prp_cartera`, `prp_cobros`, `prp_gastos`, `prp_ingresos`, `prp_incidencias`, `prp_asistencia`, `prp_prenomina`, `prp_vacantes`, `prp_bitacora`, `prp_proveedores`, `prp_movimientos_bancarios`, `prp_estacionamiento`, `prp_estacionamiento_mensual`, `prp_pensiones_estacionamiento`, `prp_vending_semanas`, `prp_fondos_revolventes`, `prp_fondo_semana`, `prp_fondo_revolvente_cierres`, `prp_mapa_locales`, `prp_notas_contrato`, `prp_expediente_arrendatario`.
+
+### Tablas principales
+- **Inmobiliario**: `cat_locales`, `contratos`, `contratos_locales`, `arrendatarios`
+- **Cobranza**: `cargos_programados`, `comprobantes_pago`, `aplicaciones_pago`, `movimientos_banco`
+- **Financiero**: `ingresos`, `gastos_operativos`, `gasto_detalle`, `er_mensual`
+- **Operación**: `ordenes_trabajo`, `cat_proveedores`, `cat_productos`
+- **Estacionamiento**: `estacionamiento_diario`, `estacionamiento_pensiones`
+- **Vending**: `vending_productos`, `vending_semanas`
+- **RH**: `rh_empleados`, `rh_incidencias`, `rh_historial_sueldo`, `rh_historial_nombre`, `rh_historial_cambios`, `rh_expediente_documentos`, `rh_beneficios`, `rh_capacitacion`, `rh_evaluaciones`
+- **Catálogos / DW**: `cat_estado_general`, `dw.dim_tiempo_dia`, `dw.dim_tiempo_mes`, `dw.dim_tiempo_anio`
+
+### Storage
+- **Privados** (requieren URL firmada): `contratos-firmados`, `facturas-cfdi`, `prospecto-docs`, `tickets-gastos`, `vending-reportes`, `expedientes-docs`
+- **Público a propósito**: `avatars` — fotos de perfil de empleados (`035_fix_avatars_policy.sql` lo deja `public = true` con lectura abierta). Aquí sí se usa la URL pública directa.
+
+Para los buckets privados, desde `20260829120000_storage_privado_urls_firmadas.sql` **no se usa `getPublicUrl()`**: se firma con `urlFirmada(bucket, path, segundos)` de `src/lib/supabase.js` (requiere sesión). El portal de prospectos, que es anónimo, obtiene su URL desde la function `portal-prospecto`.
+
+### Migraciones — dos carriles
+- `migrations/NNN_*.sql` — numeradas, serie histórica del proyecto (hasta `035_fix_avatars_policy.sql`)
+- `supabase/migrations/<timestamp>_*.sql` — carril del CLI de Supabase, el usado para lo reciente
+
+### RLS
+Habilitado en todas las tablas. Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver `20260820910000_notify_pgrst_reload.sql`).
 
 ---
 
-## Módulos IRP (15 en total)
+## Módulos IRP — 31 rutas en producción
 
-| # | Ruta | Módulo | Estado |
-|---|------|--------|--------|
-| 0 | `/` | Dashboard + KPIs | ✅ Implementado |
-| 1 | `/inmuebles` | Inmuebles y Unidades | 🔄 Sprint 2 |
-| 2 | `/contratos` | Contratos de Arrendamiento | 🔄 Sprint 2 |
-| 3 | `/cobranza` | Cobranza y Conciliación | 🔄 Sprint 3 |
-| 4 | `/arrendatarios` | Arrendatarios | 🔄 Sprint 3 |
-| 5 | `/mantenimiento` | Mantenimiento y OT | 🔄 Sprint 4 |
-| 6 | `/proyectos` | Proyectos y Obras | 🔄 Sprint 4 |
-| 7 | `/proveedores` | Proveedores | 🔄 Sprint 5 |
-| 8 | `/rh` | RH y Nómina | 🔄 Sprint 5 |
-| 9 | `/estacionamiento` | Estacionamiento | 🔄 Sprint 6 |
-| 10 | `/prospectos` | Prospectos y CRM | 🔄 Sprint 6 |
-| 11 | `/reportes` | Reportes y BI | 🔄 Sprint 7 |
-| 12 | `/config` | Configuración | 🔄 Sprint 7 |
+Registradas en `src/App.jsx`.
+
+| Ruta | Módulo | Página |
+|---|---|---|
+| `/` | Dashboard + KPIs | `Dashboard.jsx` |
+| `/inmuebles` | Inmuebles y Unidades | `Inmuebles.jsx` |
+| `/mapa-locales` | Mapa visual de locales | `MapaLocales.jsx` |
+| `/contratos` | Contratos de Arrendamiento | `Contratos.jsx` |
+| `/renovaciones` | Renovaciones de contrato | `Renovaciones.jsx` |
+| `/arrendatarios` | Arrendatarios | `Arrendatarios.jsx` |
+| `/cobranza` | Cobranza | `Cobranza.jsx` |
+| `/conciliacion` | Conciliación bancaria | `Conciliacion.jsx` |
+| `/ingresos` | Ingresos | `Ingresos.jsx` |
+| `/gastos-operativos` | Gastos operativos | `GastosOperativos.jsx` |
+| `/fondo-revolvente` | Fondo revolvente | `FondoRevolvente.jsx` |
+| `/utilidades` | Utilidades | `Utilidades.jsx` |
+| `/edr` | Estado de Resultados mensual | `EDR.jsx` |
+| `/resumen-semanal` | Resumen semanal | `ResumenSemanal.jsx` |
+| `/reportes` | Reportes y BI | `Reportes.jsx` |
+| `/mantenimiento` | Mantenimiento y OT | `Mantenimiento.jsx` |
+| `/proyectos` | Proyectos y Obras | `Proyectos.jsx` |
+| `/proveedores` | Proveedores | `Proveedores.jsx` |
+| `/bitacora` | Bitácora | `Bitacora.jsx` |
+| `/agua` | Consumo de agua | `Agua.jsx` |
+| `/estacionamiento` | Estacionamiento y pensiones | `Estacionamiento.jsx` |
+| `/vending` | Vending | `Vending.jsx` |
+| `/despachos` | Despachos | `Despachos.jsx` |
+| `/restaurante/gastos` | Gastos de restaurante | `RestauranteGastos.jsx` |
+| `/rh` | RH y Nómina | `RH.jsx` |
+| `/rh/empleado/:id` | Expediente Digital de Empleado | `ExpedienteEmpleado.jsx` |
+| `/prospectos` | Prospectos y CRM | `Prospectos.jsx` |
+| `/config` | Configuración | `Configuracion.jsx` |
+| `/portal/prospecto/:token` | Portal público de prospecto | `PortalProspecto.jsx` |
+| `/portal/arrendatario` | Portal de arrendatario | `PortalArrendatario.jsx` |
+| — | Login | `Login.jsx` |
+
+---
+
+## Roles y shells de aplicación
+
+`AppLayout` en `src/App.jsx` decide qué aplicación ve cada usuario según `perfil.rol_id`:
+
+1. **Rutas `/portal/*`** — públicas, sin layout admin (prospecto y arrendatario)
+2. **`arrendatario` / `prospecto` logueado** (`ROLES_PORTAL`) — solo `PortalArrendatario embedded`, nunca el admin
+3. **`restaurante`** — shell admin recortado: únicamente `/restaurante/gastos`
+4. **Resto (staff)** — layout admin completo con las 28 rutas internas
+
+---
+
+## Netlify Functions (12)
+
+| Function | Propósito |
+|---|---|
+| `chat-operativo.js` | Agente Operativo conversacional |
+| `chat-analitico.js` | Agente Analítico BI/DW |
+| `extraer-documento.js` | Extracción de datos de documentos con Claude |
+| `gastos-ocr.js` | OCR de tickets de gastos |
+| `vending-ocr.js` | OCR de reportes de vending |
+| `generar-contrato.js` | Generación de contrato |
+| `generar-documentos.js` | Generación de documentos (docx) |
+| `generar-sanciones.js` | Cálculo/generación de sanciones |
+| `crear-acceso-inquilino.js` | Alta de acceso al portal de arrendatario |
+| `portal-prospecto.js` | Backend anónimo del portal de prospectos (firma URLs) |
+| `subir-comprobante.js` | Carga de comprobantes de pago |
+| `admin-ajuste-vending.js` | Ajustes administrativos de vending |
+
+Todas usan `claude-sonnet-4-6`; `max_tokens` va de 800 a 4096 según la función.
 
 ---
 
@@ -146,8 +220,8 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 
 - **Usuarios internos**: Email + contraseña (vía Supabase Auth)
 - **Google OAuth**: `signInWithGoogle()` en `src/lib/auth.js`
-- **Usuarios externos**: Magic Link (arrendatarios, prospectos)
-- **Sesión persistida**: `persistSession: true` en Supabase client
+- **Usuarios externos**: Magic Link / token de portal (arrendatarios, prospectos)
+- **Sesión persistida**: `persistSession: true` en el cliente principal; `false` en `supabaseParking`
 
 ---
 
@@ -164,11 +238,13 @@ npm run preview    # Vista previa del build
 ## Deploy
 
 - **URL producción**: https://irpapp.netlify.app
-- **GitHub**: https://github.com/NapoNapo67/JurisControl
+- **GitHub**: https://github.com/RANNIX-Claude/irpapp
+- **Ramas**: `master` (producción), `develop`, `demo`
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
 - **Functions directory**: `netlify/functions`
 - **Node version**: 20
+- **SPA redirect**: `/*` → `/index.html` (200)
 
 ---
 
@@ -191,6 +267,16 @@ npm run preview    # Vista previa del build
 5. Depósito en garantía = 2 meses de renta (configurable por contrato)
 6. Penalización morosidad = 5% mensual (configurable)
 7. Contrato mínimo 1 año; opción renovación anticipada 60 días antes
+
+---
+
+## Convenciones de Código
+
+- **Leer por vista, escribir por tabla**: consultas desde `prp_*`, mutaciones a la tabla base
+- **Storage siempre firmado**: `urlFirmada()`, nunca `getPublicUrl()`
+- **Commits en español** con prefijo tipo + módulo: `feat(rh):`, `fix(storage):`, `chore:`
+- **Estilos**: variables CSS de `theme.css` mediante `style={{ ... }}` inline; Tailwind disponible pero no dominante
+- **Claves secretas**: jamás en `VITE_*`; toda llamada a Claude pasa por Netlify Functions
 
 ---
 
