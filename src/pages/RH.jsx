@@ -508,9 +508,6 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[['Historial Salarial', null], ['Asistencias', null], ['Documentos', null], ['Incidencias', null]].map(([a]) => (
-              <button key={a} style={{ padding: '7px 12px', background: '#F3F4F6', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-light)' }}>{a}</button>
-            ))}
             <button onClick={() => setSubModal('editar')}
               style={{ padding: '7px 12px', background: '#FFF7ED', border: '1.5px solid #E8A020', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#92400E', display: 'flex', alignItems: 'center', gap: 5 }}>
               <Edit2 size={13} /> Modificar
