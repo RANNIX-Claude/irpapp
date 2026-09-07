@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Receipt, Plus, X, Camera, AlertTriangle, Check, FileText, Sparkles, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
+import { ImagenPrivada, EnlacePrivado } from './ArchivoPrivado'
 
 const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
@@ -432,19 +433,19 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
               <div style={{ fontSize: 11, fontWeight: 800, color: '#0A66C2', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.06em' }}>
                 🖼️ Ticket Escaneado
               </div>
-              <img
-                src={gasto.ticket_url}
+              <ImagenPrivada
+                bucket="tickets-gastos"
+                valor={gasto.ticket_url}
                 alt="Ticket escaneado"
                 style={{ width: '100%', maxHeight: 280, objectFit: 'contain', borderRadius: 8, border: '1px solid #DBEAFE', background: '#fff' }}
               />
-              <a
-                href={gasto.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <EnlacePrivado
+                bucket="tickets-gastos"
+                valor={gasto.ticket_url}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, color: '#0A66C2', textDecoration: 'none' }}
               >
                 <ExternalLink size={11} /> Abrir en pantalla completa
-              </a>
+              </EnlacePrivado>
             </div>
           )}
 

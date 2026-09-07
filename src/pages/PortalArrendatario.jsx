@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import {
   LogOut, Download, FileText, CheckCircle, Clock, AlertTriangle,
   DollarSign, ChevronDown, ChevronUp, Eye, Home, CreditCard, Upload, X,
@@ -347,16 +348,16 @@ function CobrosCard({ cobro, arrendatarioId }) {
                     {/* Botones descarga */}
                     <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                       {ing.factura_pdf_url && (
-                        <a href={ing.factura_pdf_url} target="_blank" rel="noreferrer"
+                        <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_pdf_url}
                           style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: '#DC2626', color: 'white', borderRadius: '7px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
                           <Download size={12} /> PDF
-                        </a>
+                        </EnlacePrivado>
                       )}
                       {ing.factura_xml_url && (
-                        <a href={ing.factura_xml_url} target="_blank" rel="noreferrer"
+                        <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_xml_url}
                           style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: '#16a34a', color: 'white', borderRadius: '7px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
                           <Download size={12} /> XML
-                        </a>
+                        </EnlacePrivado>
                       )}
                       {!ing.factura_pdf_url && !ing.factura_xml_url && (
                         <span style={{ fontSize: '11px', color: '#9CA3AF', padding: '6px 10px', background: '#F9FAFB', borderRadius: '7px' }}>Sin factura</span>
@@ -566,10 +567,10 @@ function TabMiContrato({ contrato }) {
             </div>
           </div>
           {contrato.contrato_pdf_url && (
-            <a href={contrato.contrato_pdf_url} target="_blank" rel="noreferrer"
+            <EnlacePrivado bucket="contratos-firmados" valor={contrato.contrato_pdf_url}
               style={{ display:'flex', alignItems:'center', gap:5, padding:'9px 14px', background:'#DC2626', color:'white', borderRadius:9, fontSize:12, fontWeight:700, textDecoration:'none' }}>
               <Download size={14} /> PDF
-            </a>
+            </EnlacePrivado>
           )}
         </div>
       </div>

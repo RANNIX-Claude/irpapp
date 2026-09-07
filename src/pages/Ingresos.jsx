@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
+import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const TIPOS = ['RENTA','SANCION','AGUA','OTRO']
@@ -652,10 +653,10 @@ export default function Ingresos() {
                               : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin factura"><FileText size={13} /></span>
                             }
                             {r.comprobante_url
-                              ? <a href={r.comprobante_url} target="_blank" rel="noreferrer" title="Ver comprobante"
-                                  style={{ display:'inline-flex', alignItems:'center', color:'#057642', background:'#D1FAE5', padding:'3px 6px', borderRadius:'8px' }} onClick={e => e.stopPropagation()}>
+                              ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Ver comprobante"
+                                  style={{ display:'inline-flex', alignItems:'center', color:'#057642', background:'#D1FAE5', padding:'3px 6px', borderRadius:'8px' }}>
                                   <Paperclip size={12} />
-                                </a>
+                                </EnlacePrivado>
                               : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin comprobante"><Paperclip size={13} /></span>
                             }
                           </div>
@@ -783,7 +784,7 @@ export default function Ingresos() {
                   </div>
                   {verDetalle.comprobante_url
                     ? <div style={{ overflowX:'auto', overflowY:'auto', maxHeight:'55vh', borderRadius:'10px', border:'1px solid #E5E7EB', background:'#F9FAFB' }}>
-                        <img src={verDetalle.comprobante_url} alt="comprobante"
+                        <ImagenPrivada bucket="facturas-cfdi" valor={verDetalle.comprobante_url} alt="comprobante"
                           style={{ display:'block', maxWidth:'none', height:'auto', minWidth:'100%' }} />
                       </div>
                     : <div style={{ padding:'16px', background:'#F9FAFB', borderRadius:'10px', border:'1.5px dashed #D1D5DB', textAlign:'center', fontSize:'12px', color:'#9CA3AF' }}>

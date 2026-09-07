@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
+import { ImagenPrivada } from '../components/ui/ArchivoPrivado'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt  = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
@@ -767,6 +768,13 @@ export default function RestauranteGastos() {
   const [subiendoTicket, setSubiendoTicket] = useState(null)
   const [artIds, setArtIds]         = useState(null) // IDs de gastos que tienen el artículo buscado
 
+  // El lightbox pinta la URL directo, así que hay que firmarla antes de abrirlo.
+  const abrirLightbox = async (valor) => {
+    const url = await urlFirmada('tickets-gastos', valor)
+    if (url) setLightbox(url)
+    else toast.error('No se pudo abrir el ticket')
+  }
+
   const cargar = useCallback(async () => {
     setLoading(true)
     let q = supabase.from('restaurante_gastos').select('*').order('fecha', { ascending: false })
@@ -820,7 +828,7 @@ export default function RestauranteGastos() {
       const { url: ticket_url } = await upResp.json()
       await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
       toast.success('Ticket adjuntado')
-      setLightbox(ticket_url)   // abrir lightbox inmediatamente
+      abrirLightbox(ticket_url)   // abrir lightbox inmediatamente
       cargar()
     } finally { setSubiendoTicket(null) }
   }
@@ -1046,10 +1054,10 @@ export default function RestauranteGastos() {
                               <div style={{ flexShrink:0, width:150, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8 }}>
                                 <div style={{ fontSize:10, fontWeight:700, color:'#15803D', marginBottom:4 }}>🖼️ Ticket</div>
                                 {(g.ticket_url.toLowerCase().includes('.pdf'))
-                                  ? <div onClick={() => setLightbox(g.ticket_url)} style={{ cursor:'pointer', textAlign:'center', padding:'16px 0', fontSize:32 }}>📄<div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>Documento PDF</div></div>
-                                  : <img src={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={() => setLightbox(g.ticket_url)} />
+                                  ? <div onClick={() => abrirLightbox(g.ticket_url)} style={{ cursor:'pointer', textAlign:'center', padding:'16px 0', fontSize:32 }}>📄<div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>Documento PDF</div></div>
+                                  : <ImagenPrivada bucket="tickets-gastos" valor={g.ticket_url} alt="ticket" style={{ width:'100%', maxHeight:200, objectFit:'contain', cursor:'pointer', borderRadius:6 }} onClick={url => setLightbox(url)} />
                                 }
-                                <button onClick={() => setLightbox(g.ticket_url)} style={{ width:'100%', marginTop:4, padding:'3px 0', background:'#EFF6FF', border:'none', borderRadius:4, fontSize:10, color:'#0A66C2', cursor:'pointer', fontWeight:700 }}>🔍 Ampliar</button>
+                                <button onClick={() => abrirLightbox(g.ticket_url)} style={{ width:'100%', marginTop:4, padding:'3px 0', background:'#EFF6FF', border:'none', borderRadius:4, fontSize:10, color:'#0A66C2', cursor:'pointer', fontWeight:700 }}>🔍 Ampliar</button>
                               </div>
                             )}
                           </div>

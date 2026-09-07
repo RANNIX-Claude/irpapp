@@ -4,6 +4,7 @@ import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, Al
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
+import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
 // ─── Helper: extrae nombre legible de proveedor (string, objeto, o JSON serializado) ──
 const parseProvNombre = (val) => {
@@ -914,7 +915,7 @@ export default function GastosOperativos() {
                           <td style={{ padding:'10px 12px' }}>
                             <div style={{ display:'flex', gap:5 }}>
                               {g.ticket_url && (
-                                <button onClick={e => { e.stopPropagation(); window.open(g.ticket_url,'_blank') }} title="Ver ticket" style={{ padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></button>
+                                <EnlacePrivado bucket="tickets-gastos" valor={g.ticket_url} title="Ver ticket" style={{ display:'inline-flex', padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></EnlacePrivado>
                               )}
                               <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
                               <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
@@ -955,8 +956,8 @@ export default function GastosOperativos() {
                                 {g.ticket_url && (
                                   <div style={{ flexShrink:0, width:180, background:'white', border:'1.5px solid #BBF7D0', borderRadius:10, padding:8, textAlign:'center' }}>
                                     <div style={{ fontSize:10, fontWeight:800, color:'#065F46', textTransform:'uppercase', marginBottom:6, letterSpacing:'.06em' }}>🖼️ Ticket</div>
-                                    <img src={g.ticket_url} alt="Ticket" style={{ width:'100%', maxHeight:240, objectFit:'contain', borderRadius:6, cursor:'pointer' }} onClick={() => window.open(g.ticket_url,'_blank')} title="Clic para abrir en pantalla completa"/>
-                                    <a href={g.ticket_url} target="_blank" rel="noopener noreferrer" style={{ display:'block', marginTop:5, fontSize:10, color:'#0A66C2' }}>Ver completo ↗</a>
+                                    <ImagenPrivada bucket="tickets-gastos" valor={g.ticket_url} alt="Ticket" style={{ width:'100%', maxHeight:240, objectFit:'contain', borderRadius:6, cursor:'pointer' }} onClick={url => window.open(url,'_blank','noopener,noreferrer')} />
+                                    <EnlacePrivado bucket="tickets-gastos" valor={g.ticket_url} style={{ display:'block', marginTop:5, fontSize:10, color:'#0A66C2' }}>Ver completo ↗</EnlacePrivado>
                                   </div>
                                 )}
                               </div>

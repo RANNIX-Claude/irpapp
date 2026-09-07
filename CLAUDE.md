@@ -114,10 +114,33 @@ Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`
 - **Catálogos / DW**: `cat_estado_general`, `dw.dim_tiempo_dia`, `dw.dim_tiempo_mes`, `dw.dim_tiempo_anio`
 
 ### Storage
-- **Privados** (requieren URL firmada): `contratos-firmados`, `facturas-cfdi`, `prospecto-docs`, `tickets-gastos`, `vending-reportes`, `expedientes-docs`
-- **Público a propósito**: `avatars` — fotos de perfil de empleados (`035_fix_avatars_policy.sql` lo deja `public = true` con lectura abierta). Aquí sí se usa la URL pública directa.
 
-Para los buckets privados, desde `20260829120000_storage_privado_urls_firmadas.sql` **no se usa `getPublicUrl()`**: se firma con `urlFirmada(bucket, path, segundos)` de `src/lib/supabase.js` (requiere sesión). El portal de prospectos, que es anónimo, obtiene su URL desde la function `portal-prospecto`.
+Estado del cierre de buckets (etapa 2 de `20260829120000_storage_privado_urls_firmadas.sql`):
+
+| Bucket | `public` | Políticas RLS |
+|---|---|---|
+| `contratos-firmados` | **false** | authenticated |
+| `prospecto-docs` | **false** | authenticated + insert anónimo acotado a `prospectos/` |
+| `facturas-cfdi` | true | authenticated |
+| `tickets-gastos` | true | authenticated |
+| `vending-reportes` | true | authenticated |
+| `comprobantes-pago` | true | authenticated (arrendatario solo su carpeta) |
+| `expedientes-docs` | true | authenticated (`20260907100000`) |
+| `avatars` | **true a propósito** | lectura pública — fotos de empleados |
+
+**Regla de lectura**: salvo `avatars`, ningún archivo se pinta con su URL directa. Se usa
+`src/components/ui/ArchivoPrivado.jsx` — `<ImagenPrivada>`, `<EnlacePrivado>` y el hook
+`useUrlFirmada` — que firman con `urlFirmada()` de `src/lib/supabase.js`. `EnlacePrivado`
+firma al hacer clic, no al pintar, para no gastar una firma por fila de tabla. El portal de
+prospectos, que es anónimo, obtiene su URL desde la function `portal-prospecto`.
+
+**Escrituras**: todavía guardan la URL pública completa en las columnas `*_url`. No hace
+falta migrarlas: `urlFirmada()` detecta ese formato y extrae la ruta. Guardar la ruta es
+preferible para filas nuevas, pero ambas funcionan.
+
+**Pendiente**: poner `public = false` en los cinco buckets que siguen abiertos. Ya tienen
+políticas y el frontend ya lee firmado, así que es un cambio de una línea por bucket —
+pero conviene verificar en producción que las lecturas firmadas funcionan antes de cerrarlos.
 
 ### Migraciones — dos carriles
 - `migrations/NNN_*.sql` — numeradas, serie histórica del proyecto (hasta `035_fix_avatars_policy.sql`)

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import LoadingSpinner from './LoadingSpinner'
+import { EnlacePrivado } from './ArchivoPrivado'
 import { logAudit } from '../../hooks/useAudit'
 
 const TIPOS_DOC = {
@@ -230,12 +231,12 @@ export default function ExpedienteModal({ entidad, entidadTipo = 'ARRENDATARIO',
                   )}
                   {entidad.archivo_contrato_url && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <a href={entidad.archivo_contrato_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: 'var(--color-primary)', color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
+                      <EnlacePrivado bucket="contratos-firmados" valor={entidad.archivo_contrato_url} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: 'var(--color-primary)', color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
                         <Eye size={14} /> Ver contrato firmado (PDF)
-                      </a>
-                      <a href={entidad.archivo_contrato_url} download style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: '#F3F4F6', color: 'var(--color-text)', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+                      </EnlacePrivado>
+                      <EnlacePrivado bucket="contratos-firmados" valor={entidad.archivo_contrato_url} descargar style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', background: '#F3F4F6', color: 'var(--color-text)', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
                         <Download size={14} /> Descargar
-                      </a>
+                      </EnlacePrivado>
                     </div>
                   )}
                   {!entidad.archivo_contrato_url && (
@@ -313,9 +314,9 @@ export default function ExpedienteModal({ entidad, entidadTipo = 'ARRENDATARIO',
                           {doc && <EstatusDoc estatus={doc.estatus} />}
                           {doc && (
                             <>
-                              <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', background: 'var(--color-primary)', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
+                              <EnlacePrivado bucket="expedientes-docs" valor={doc.url} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', background: 'var(--color-primary)', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
                                 <Eye size={12} />
-                              </a>
+                              </EnlacePrivado>
                               {doc.estatus !== 'APROBADO' && (
                                 <button onClick={() => cambiarEstatus(doc.id, 'APROBADO')} style={{ padding: '5px 8px', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>✓</button>
                               )}

@@ -5,6 +5,7 @@ import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, Sh
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase, supabaseParking } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // Extrae nombre legible de proveedor (puede ser string normal, objeto JSON o JSON serializado)
@@ -1352,11 +1353,11 @@ export default function ResumenSemanal() {
             {ticketDetalle.gasto.ticket_url && (
               <div style={{ padding:'16px 20px', borderBottom:'1px solid #F3F4F6', textAlign:'center' }}>
                 <div style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:8 }}>Ticket Escaneado</div>
-                <img src={ticketDetalle.gasto.ticket_url} alt="Ticket" style={{ maxWidth:'100%', maxHeight:320, borderRadius:8, border:'1px solid #E5E7EB', objectFit:'contain' }} />
+                <ImagenPrivada bucket="tickets-gastos" valor={ticketDetalle.gasto.ticket_url} alt="Ticket" style={{ maxWidth:'100%', maxHeight:320, borderRadius:8, border:'1px solid #E5E7EB', objectFit:'contain' }} />
                 <div style={{ marginTop:6 }}>
-                  <a href={ticketDetalle.gasto.ticket_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <EnlacePrivado bucket="tickets-gastos" valor={ticketDetalle.gasto.ticket_url} style={{ fontSize:11, color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:4 }}>
                     <ExternalLink size={11}/> Abrir en nueva pestaña
-                  </a>
+                  </EnlacePrivado>
                 </div>
               </div>
             )}
