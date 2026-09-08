@@ -12,6 +12,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import ImportadorDocumento, { OCR_POR_TIPO } from '../components/ui/ImportadorDocumento'
 
 // ── Paleta RANNIX ────────────────────────────────────────────────────────────
 const C = {
@@ -44,53 +45,8 @@ function antiguedad(fi) {
 
 // Solo estos documentos caducan. Para el resto la fecha de vencimiento no
 // aplica y el campo se oculta en vez de pedir un dato que no existe.
-const ETIQUETA_CAMPO = {
-  curp: 'CURP', fecha_nacimiento: 'Fecha de nacimiento', sexo: 'Sexo',
-  calle: 'Calle', numero_ext: 'Número ext.', numero_int: 'Número int.',
-  colonia: 'Colonia', municipio: 'Municipio', estado_domicilio: 'Estado',
-  codigo_postal: 'Código postal',
-}
-
+// TIPOS_QUE_VENCEN queda aquí porque es del catálogo de documentos, no del OCR.
 const TIPOS_QUE_VENCEN = ['CONTRATO', 'INE', 'CONSTANCIA_MEDICA']
-
-// Documentos de los que la IA puede sacar datos de la ficha del empleado.
-// El valor es el prompt de netlify/functions/extraer-documento.
-const OCR_POR_TIPO = {
-  INE: 'INE_FRENTE',
-  COMPROBANTE_DOM: 'COMPROBANTE_DOMICILIO',
-}
-
-// Traduce lo que devuelve el OCR a columnas de rh_empleados. Descarta nulos y
-// cadenas vacías para no pisar datos ya capturados con huecos del documento.
-function mapearAEmpleado(datos, tipo) {
-  if (!datos) return {}
-  const m = tipo === 'INE'
-    ? {
-        curp: datos.curp,
-        fecha_nacimiento: datos.fecha_nacimiento,
-        // En la INE el sexo viene H/M; aquí se guarda M/F.
-        sexo: datos.sexo === 'H' ? 'M' : datos.sexo === 'M' ? 'F' : null,
-        calle: datos.calle,
-        numero_ext: datos.no_ext,
-        numero_int: datos.no_int,
-        colonia: datos.colonia_ine,
-        municipio: datos.municipio_ine,
-        estado_domicilio: datos.estado_ine,
-        codigo_postal: datos.cp_ine,
-      }
-    : {
-        calle: datos.calle,
-        numero_ext: datos.no_ext,
-        numero_int: datos.no_int,
-        colonia: datos.colonia,
-        municipio: datos.municipio,
-        estado_domicilio: datos.estado,
-        codigo_postal: datos.cp,
-      }
-  return Object.fromEntries(
-    Object.entries(m).filter(([, v]) => v != null && String(v).trim() !== '')
-  )
-}
 
 const TIPOS_DOC = ['CONTRATO','INE','CURP','NSS','CONSTANCIA_MEDICA','COMPROBANTE_DOM','FOTO','ACTA_NAC','RFC','OTRO']
 const TIPO_DOC_LABEL = { CONTRATO:'Contrato laboral', INE:'INE/IFE', CURP:'CURP', NSS:'NSS', CONSTANCIA_MEDICA:'Constancia médica', COMPROBANTE_DOM:'Comprobante domicilio', FOTO:'Fotografía', ACTA_NAC:'Acta de nacimiento', RFC:'RFC', OTRO:'Otro' }
@@ -267,9 +223,6 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
   const [form, setForm] = useState({ tipo: 'CONTRATO', nombre: '', fecha_doc: '', vence: '', notas: '' })
   const [file, setFile] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [leyendo, setLeyendo] = useState(false)
-  const [extraidos, setExtraidos] = useState(null)
-  const [aplicando, setAplicando] = useState(false)
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   // El nombre por defecto es la etiqueta del tipo: escribir "CURP" cuando ya
@@ -277,43 +230,8 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
   // casos en que hace falta distinguir (OTRO, o dos contratos del mismo año).
   const nombreFinal = form.nombre.trim() || TIPO_DOC_LABEL[form.tipo] || form.tipo
   const vence = TIPOS_QUE_VENCEN.includes(form.tipo)
-  const promptOCR = OCR_POR_TIPO[form.tipo]
 
-  const leerDocumento = async () => {
-    if (!file) return
-    setLeyendo(true); setExtraidos(null)
-    try {
-      const b64 = await new Promise((res, rej) => {
-        const r = new FileReader()
-        r.onload = () => res(r.result.split(',')[1])
-        r.onerror = rej
-        r.readAsDataURL(file)
-      })
-      const resp = await fetch('/.netlify/functions/extraer-documento', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ image_base64: b64, media_type: file.type, tipo_doc: promptOCR }),
-      })
-      const j = await resp.json()
-      if (!resp.ok || !j.datos) throw new Error(j.error || 'No se pudieron leer los datos')
-      setExtraidos(j.datos)
-      toast.success('Datos leídos — revísalos antes de aplicar')
-    } catch (e) {
-      toast.error('No se pudo leer: ' + e.message)
-    } finally { setLeyendo(false) }
-  }
 
-  const aplicarAFicha = async () => {
-    const cambios = mapearAEmpleado(extraidos, form.tipo)
-    if (!Object.keys(cambios).length) return toast.error('No hay datos aprovechables')
-    setAplicando(true)
-    const { error } = await supabase.from('rh_empleados').update(cambios).eq('id', empleadoId)
-    setAplicando(false)
-    if (error) return toast.error(error.message)
-    toast.success(`Ficha actualizada — ${Object.keys(cambios).length} campos`)
-    setExtraidos(null)
-    onSaved()
-  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -366,40 +284,24 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={labelStyle}>Archivo (PDF, DOCX, XLSX, imagen)</label>
           <input type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-            onChange={e => { setFile(e.target.files[0]); setExtraidos(null) }}
+            onChange={e => setFile(e.target.files[0])}
             style={{ display: 'block', width: '100%', padding: '8px', border: `1.5px dashed ${C.border}`, borderRadius: 7, fontSize: 13, boxSizing: 'border-box', cursor: 'pointer' }} />
         </div>
 
-        {/* Lectura del documento para llenar la ficha del empleado */}
-        {promptOCR && file && (
-          <div style={{ gridColumn: '1/-1', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 10, padding: '12px 14px' }}>
-            {!extraidos ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1, fontSize: 12, color: C.text }}>
-                  Se pueden leer los datos de este documento y llenar la ficha del empleado.
-                </div>
-                <BtnPrimary onClick={leerDocumento} small>
-                  {leyendo ? 'Leyendo…' : <><Sparkles size={13} /> Leer datos</>}
-                </BtnPrimary>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                  Datos leídos — se aplicarán a la ficha
-                </div>
-                <Grid4>
-                  {Object.entries(mapearAEmpleado(extraidos, form.tipo)).map(([k, v]) => (
-                    <Campo key={k} label={ETIQUETA_CAMPO[k] || k} value={String(v)} />
-                  ))}
-                </Grid4>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <BtnSecondary onClick={() => setExtraidos(null)}>Descartar</BtnSecondary>
-                  <BtnPrimary onClick={aplicarAFicha} small>
-                    {aplicando ? 'Aplicando…' : 'Aplicar a la ficha'}
-                  </BtnPrimary>
-                </div>
-              </>
-            )}
+        {/* Mismo importador que el formulario de Modificar; aquí sí escribe
+            directo en la ficha porque el flujo ya es "estoy subiendo este
+            documento". */}
+        {OCR_POR_TIPO[form.tipo] && (
+          <div style={{ gridColumn: '1/-1' }}>
+            <ImportadorDocumento
+              etiquetaAplicar="Aplicar a la ficha"
+              onAplicar={async (cambios) => {
+                const { error } = await supabase.from('rh_empleados').update(cambios).eq('id', empleadoId)
+                if (error) return toast.error(error.message)
+                toast.success(`Ficha actualizada — ${Object.keys(cambios).length} campos`)
+                onSaved()
+              }}
+            />
           </div>
         )}
 

@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
+import ImportadorDocumento from '../components/ui/ImportadorDocumento'
 import toast from 'react-hot-toast'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -389,6 +390,18 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
           </div>
         ) : (
         <form onSubmit={handleSubmit} style={{ padding:'20px 24px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14 }}>
+          {/* Rellena los campos del formulario, no guarda: así se revisa antes
+              de dar Guardar cambios. */}
+          <div style={{ gridColumn:'1 / -1' }}>
+            <ImportadorDocumento
+              etiquetaAplicar="Rellenar formulario"
+              onAplicar={cambios => {
+                setForm(f => ({ ...f, ...cambios }))
+                toast.success(`${Object.keys(cambios).length} campos rellenados — revisa y guarda`)
+              }}
+            />
+          </div>
+
           {/* ── Datos personales ── */}
           <Seccion titulo="Datos personales" />
           <F label="Nombre(s)"><input required value={form.nombre} onChange={e => set('nombre',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
