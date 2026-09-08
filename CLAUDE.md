@@ -121,11 +121,11 @@ Estado del cierre de buckets (etapa 2 de `20260829120000_storage_privado_urls_fi
 |---|---|---|
 | `contratos-firmados` | **false** | authenticated |
 | `prospecto-docs` | **false** | authenticated + insert anónimo acotado a `prospectos/` |
-| `facturas-cfdi` | true | authenticated |
-| `tickets-gastos` | true | authenticated |
-| `vending-reportes` | true | authenticated |
-| `comprobantes-pago` | true | authenticated (arrendatario solo su carpeta) |
-| `expedientes-docs` | true | authenticated (`20260907100000`) |
+| `facturas-cfdi` | **false** | authenticated |
+| `tickets-gastos` | **false** | authenticated |
+| `vending-reportes` | **false** | authenticated |
+| `comprobantes-pago` | **false** | authenticated (arrendatario solo su carpeta) |
+| `expedientes-docs` | **false** | authenticated (`20260907100000`) |
 | `avatars` | **true a propósito** | lectura pública — fotos de empleados |
 
 **Regla de lectura**: salvo `avatars`, ningún archivo se pinta con su URL directa. Se usa
@@ -138,9 +138,9 @@ prospectos, que es anónimo, obtiene su URL desde la function `portal-prospecto`
 falta migrarlas: `urlFirmada()` detecta ese formato y extrae la ruta. Guardar la ruta es
 preferible para filas nuevas, pero ambas funcionan.
 
-**Pendiente**: poner `public = false` en los cinco buckets que siguen abiertos. Ya tienen
-políticas y el frontend ya lee firmado, así que es un cambio de una línea por bucket —
-pero conviene verificar en producción que las lecturas firmadas funcionan antes de cerrarlos.
+**Cierre**: `20260908200000_storage_cerrar_buckets_publicos.sql` pone `public = false` en los
+cinco buckets que quedaban abiertos. Es reversible: si algo deja de verse, se vuelve a poner
+`public = true` en el bucket afectado.
 
 ### Migraciones — dos carriles
 - `migrations/NNN_*.sql` — numeradas, serie histórica del proyecto (hasta `035_fix_avatars_policy.sql`)
