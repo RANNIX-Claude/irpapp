@@ -855,9 +855,11 @@ export default function ExpedienteEmpleado() {
               onChange={handleFotoChange}
             />
             <div style={{ flex: 1, paddingBottom: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>{emp.nombre_completo}</h1>
-                <Badge label={activo ? 'Activo' : 'Inactivo'} color={activo ? C.success : C.danger} />
+              {/* El nombre va sobre la banda azul: blanco y subido para que no
+                  se encime con el borde inferior del degradado. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: -20, marginBottom: 6 }}>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#FFFFFF', textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>{emp.nombre_completo}</h1>
+                <Badge label={activo ? 'Activo' : 'Inactivo'} color={activo ? C.success : C.danger} bg={C.surface} />
               </div>
               <div style={{ fontSize: 14, color: C.primary, fontWeight: 600, marginTop: 2 }}>{emp.puesto || '—'}</div>
               <div style={{ display: 'flex', gap: 16, marginTop: 6, flexWrap: 'wrap' }}>
