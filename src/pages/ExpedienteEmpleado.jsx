@@ -7,7 +7,7 @@ import {
   Award, CreditCard, CheckCircle, AlertTriangle,
   Users, Download, Upload, Star, BookOpen, Heart,
   History, Settings, Printer, Shield, Activity,
-  ChevronDown, MoreVertical, Eye
+  ChevronDown, MoreVertical, Eye, Home
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { urlFirmada } from '../lib/supabase'
@@ -24,6 +24,12 @@ const C = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt$ = n => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 const fmtD = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+// Calle + número ext/int en una línea, o null si no hay desglose capturado.
+const domicilioCalle = (e) => {
+  const partes = [e.calle, e.numero_ext && `#${e.numero_ext}`, e.numero_int && `int. ${e.numero_int}`]
+  return partes.filter(Boolean).join(' ') || null
+}
 
 const sumRecibos = (rows, campo) => rows.reduce((t, r) => t + (parseFloat(r[campo]) || 0), 0)
 
@@ -586,8 +592,11 @@ export default function ExpedienteEmpleado() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [empR, sueldoR, nombreR, cambiosR, docsR, incR, asistR, capacR, evalR, benefR] = await Promise.all([
+    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, asistR, capacR, evalR, benefR] = await Promise.all([
       supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
+      // La vista no expone fecha_nacimiento, direccion, banco, cuenta_clabe ni
+      // los campos del expediente completo. Se traen de la tabla y se fusionan.
+      supabase.from('rh_empleados').select('*').eq('id', id).maybeSingle(),
       supabase.from('rh_historial_sueldo').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_historial_nombre').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_historial_cambios').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
@@ -598,7 +607,9 @@ export default function ExpedienteEmpleado() {
       supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
     ])
-    setEmp(empR.data)
+    // La fila de la tabla va debajo: la vista manda en lo que sí calcula
+    // (nombre_completo, antigüedad, semáforo, salario_mensual).
+    setEmp(empR.data ? { ...tablaR.data, ...empR.data } : tablaR.data)
     setHistSueldo(sueldoR.data ?? [])
     setHistNombre(nombreR.data ?? [])
     setHistCambios(cambiosR.data ?? [])
@@ -842,7 +853,7 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Sueldo diario" value={fmt$(emp.salario_diario)} />
                     <Campo label="Sueldo mensual aprox." value={fmt$(salMensual)} />
                     <Campo label="Forma de pago" value={emp.forma_pago} />
-                    <Campo label="Banco / CLABE" value={emp.clabe || emp.banco} mono />
+                    <Campo label="Banco / CLABE" value={[emp.banco, emp.cuenta_clabe].filter(Boolean).join(' · ')} mono />
                   </Grid4>
                 </Section>
                 <Section title="Horario" icon={Clock}>
@@ -855,8 +866,26 @@ export default function ExpedienteEmpleado() {
                   <Grid4>
                     <Campo label="Email" value={emp.email} />
                     <Campo label="Celular" value={emp.celular} />
-                    <Campo label="Dirección" value={emp.direccion} />
+                    <Campo label="Teléfono fijo" value={emp.telefono_fijo} />
+                    <Campo label="Contacto de emergencia" value={emp.contacto_emergencia_nombre} />
+                    <Campo label="Tel. de emergencia" value={emp.contacto_emergencia_telefono} />
+                    <Campo label="Parentesco" value={emp.contacto_emergencia_parentesco} />
                   </Grid4>
+                </Section>
+                <Section title="Domicilio" icon={Home}>
+                  <Grid4>
+                    <Campo label="Calle y número" value={domicilioCalle(emp)} />
+                    <Campo label="Colonia" value={emp.colonia} />
+                    <Campo label="Código postal" value={emp.codigo_postal} mono />
+                    <Campo label="Municipio / Alcaldía" value={emp.municipio} />
+                    <Campo label="Estado" value={emp.estado_domicilio} />
+                    <Campo label="Referencias" value={emp.referencias_domicilio} />
+                  </Grid4>
+                  {!domicilioCalle(emp) && emp.direccion && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: C.muted }}>
+                      Captura anterior en una línea: <span style={{ color: C.text }}>{emp.direccion}</span>
+                    </div>
+                  )}
                 </Section>
               </div>
             </Card>

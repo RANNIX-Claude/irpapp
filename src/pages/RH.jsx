@@ -258,59 +258,99 @@ function RenovarContratoModal({ empleado, onClose, onSaved }) {
 
 // ── Modal Editar Empleado ───────────────────────────────────────────────────
 const DIAS_DESCANSO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo','Sin descanso','-']
+const ESTADOS_CIVILES = ['Soltero(a)','Casado(a)','Unión libre','Divorciado(a)','Viudo(a)']
+const ESCOLARIDADES = ['Primaria','Secundaria','Preparatoria','Técnico','Licenciatura','Posgrado']
+const TIPOS_JORNADA = ['Jornada completa','Media jornada','Jornada reducida','Turno nocturno','Fin de semana']
+const BANCOS = [
+  'BBVA','Banorte','Santander','Banamex','HSBC','Scotiabank','Inbursa',
+  'Azteca','BanCoppel','Afirme','BanBajío','Banregio','Nu','Klar','Otro',
+]
+
+// Encabezado de sección dentro del formulario de dos columnas.
+function Seccion({ titulo }) {
+  return (
+    <div style={{ gridColumn:'1 / -1', marginTop:6, paddingBottom:4, borderBottom:'1.5px solid #E5E7EB' }}>
+      <span style={{ fontSize:11, fontWeight:800, color:'var(--color-primary)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+        {titulo}
+      </span>
+    </div>
+  )
+}
+
+// Campos que el formulario administra. Se listan aparte para poder cargarlos
+// y guardarlos sin repetir la lista tres veces.
+const CAMPOS_EMPLEADO = [
+  'nombre','apellido_pat','apellido_mat','sexo','rfc','curp','nss',
+  'fecha_nacimiento','estado_civil','nacionalidad','lugar_nacimiento','escolaridad',
+  'fecha_ingreso','puesto','area','departamento','centro_trabajo','supervisor',
+  'tipo_jornada','fecha_fin_contrato',
+  'salario_diario','forma_pago','banco','cuenta_clabe',
+  'email','celular','telefono_fijo',
+  'calle','numero_ext','numero_int','colonia','municipio','estado_domicilio',
+  'codigo_postal','referencias_domicilio','direccion',
+  'contacto_emergencia_nombre','contacto_emergencia_telefono','contacto_emergencia_parentesco',
+  'horario_trabajo','dia_descanso','notas',
+]
+
+const CAMPOS_MAYUSCULA = ['nombre','apellido_pat','apellido_mat','rfc','curp']
+const CAMPOS_FECHA     = ['fecha_nacimiento','fecha_ingreso','fecha_fin_contrato']
 
 function EditarEmpleadoModal({ emp, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    nombre:          emp.nombre          || '',
-    apellido_pat:    emp.apellido_pat     || '',
-    apellido_mat:    emp.apellido_mat     || '',
-    sexo:            emp.sexo             || 'M',
-    rfc:             emp.rfc              || '',
-    curp:            emp.curp             || '',
-    nss:             emp.nss              || '',
-    fecha_nacimiento: emp.fecha_nacimiento || '',
-    fecha_ingreso:   emp.fecha_ingreso    || '',
-    puesto:          emp.puesto           || '',
-    area:            emp.area             || '',
-    departamento:    emp.departamento     || '',
-    salario_diario:  emp.salario_diario   || '',
-    email:           emp.email            || '',
-    celular:         emp.celular          || '',
-    notas:           emp.notas            || '',
-    horario_trabajo: emp.horario_trabajo  || '',
-    dia_descanso:    emp.dia_descanso     || '',
-    forma_pago:      emp.forma_pago       || 'TRANSFERENCIA',
-  })
+  const vacio = Object.fromEntries(CAMPOS_EMPLEADO.map(k => [k, '']))
+  const [form, setForm] = useState({ ...vacio, sexo: 'M', forma_pago: 'TRANSFERENCIA' })
+  const [cargando, setCargando] = useState(true)
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Se lee de rh_empleados y NO de la fila de prp_empleados que llega en `emp`:
+  // la vista no expone fecha_nacimiento, direccion, banco ni cuenta_clabe, así
+  // que partir de ella dejaba esos campos vacíos y el guardado los borraba.
+  useEffect(() => {
+    let cancelado = false
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('rh_empleados').select('*').eq('id', emp.id).maybeSingle()
+      if (cancelado) return
+      if (error) {
+        toast.error('No se pudieron cargar los datos: ' + error.message)
+        setCargando(false)
+        return
+      }
+      const fila = data ?? {}
+      setForm({
+        ...vacio,
+        ...Object.fromEntries(
+          CAMPOS_EMPLEADO.map(k => [k, fila[k] == null ? '' : String(fila[k])])
+        ),
+        sexo:       fila.sexo       || 'M',
+        forma_pago: fila.forma_pago || 'TRANSFERENCIA',
+      })
+      setCargando(false)
+    })()
+    return () => { cancelado = true }
+  }, [emp.id])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.nombre || !form.apellido_pat) return toast.error('Nombre y apellido son obligatorios')
+    if (form.cuenta_clabe && !/^\d{18}$/.test(form.cuenta_clabe.replace(/\s/g, '')))
+      return toast.error('La CLABE debe tener 18 dígitos')
     setSaving(true)
+
+    const payload = Object.fromEntries(CAMPOS_EMPLEADO.map(k => {
+      const v = (form[k] ?? '').toString().trim()
+      if (CAMPOS_MAYUSCULA.includes(k)) return [k, v.toUpperCase() || null]
+      if (CAMPOS_FECHA.includes(k))     return [k, v || null]
+      return [k, v || null]
+    }))
+    payload.salario_diario = parseFloat(form.salario_diario) || null
+    payload.forma_pago     = form.forma_pago || 'TRANSFERENCIA'
+    payload.sexo           = form.sexo
+    payload.cuenta_clabe   = form.cuenta_clabe ? form.cuenta_clabe.replace(/\s/g, '') : null
+
     const { error } = await supabase
       .from('rh_empleados')
-      .update({
-        nombre:          form.nombre.toUpperCase(),
-        apellido_pat:    form.apellido_pat.toUpperCase(),
-        apellido_mat:    form.apellido_mat.toUpperCase() || null,
-        sexo:            form.sexo,
-        rfc:             form.rfc.toUpperCase()  || null,
-        curp:            form.curp.toUpperCase() || null,
-        nss:             form.nss               || null,
-        fecha_nacimiento: form.fecha_nacimiento  || null,
-        fecha_ingreso:   form.fecha_ingreso      || null,
-        puesto:          form.puesto             || null,
-        area:            form.area               || null,
-        departamento:    form.departamento       || null,
-        salario_diario:  parseFloat(form.salario_diario) || null,
-        email:           form.email              || null,
-        celular:         form.celular            || null,
-        notas:           form.notas              || null,
-        horario_trabajo: form.horario_trabajo    || null,
-        dia_descanso:    form.dia_descanso       || null,
-        forma_pago:      form.forma_pago         || 'TRANSFERENCIA',
-      })
+      .update(payload)
       .eq('id', emp.id)
     setSaving(false)
     if (error) return toast.error(error.message)
@@ -343,33 +383,52 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
           <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={20} /></button>
         </div>
 
+        {cargando ? (
+          <div style={{ padding:'40px 24px',textAlign:'center',color:'var(--color-text-light)',fontSize:13 }}>
+            Cargando datos del empleado…
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} style={{ padding:'20px 24px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:14 }}>
-          {/* Datos personales */}
+          {/* ── Datos personales ── */}
+          <Seccion titulo="Datos personales" />
           <F label="Nombre(s)"><input required value={form.nombre} onChange={e => set('nombre',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
           <F label="Apellido Paterno"><input required value={form.apellido_pat} onChange={e => set('apellido_pat',e.target.value)} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /></F>
           <F label="Apellido Materno">{inp('apellido_mat')}</F>
           <F label="Sexo">{sel('sexo', [<option key="M" value="M">Masculino</option>, <option key="F" value="F">Femenino</option>])}</F>
           <F label="Fecha nacimiento">{inp('fecha_nacimiento', { type:'date' })}</F>
-          <F label="Fecha ingreso">{inp('fecha_ingreso', { type:'date' })}</F>
-
-          {/* Puesto */}
-          <F label="Puesto">{inp('puesto')}</F>
-          <F label="Área">{inp('area')}</F>
-          <F label="Departamento" span>{inp('departamento')}</F>
-
-          {/* Salario */}
-          <F label="Salario diario ($)">
-            <input required type="number" step="0.01" value={form.salario_diario}
-              onChange={e => set('salario_diario', e.target.value)}
-              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          <F label="Lugar de nacimiento">{inp('lugar_nacimiento', { placeholder:'Ciudad, Estado' })}</F>
+          <F label="Estado civil">
+            {sel('estado_civil', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...ESTADOS_CIVILES.map(v => <option key={v} value={v}>{v}</option>),
+            ])}
+          </F>
+          <F label="Nacionalidad">{inp('nacionalidad', { placeholder:'Mexicana' })}</F>
+          <F label="Escolaridad">
+            {sel('escolaridad', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...ESCOLARIDADES.map(v => <option key={v} value={v}>{v}</option>),
+            ])}
           </F>
           <F label="RFC">{inp('rfc', { placeholder:'RFC', style:{ fontFamily:'monospace',textTransform:'uppercase' } })}</F>
           <F label="CURP">{inp('curp', { placeholder:'CURP', style:{ fontFamily:'monospace',textTransform:'uppercase' } })}</F>
           <F label="NSS (IMSS)">{inp('nss')}</F>
-          <F label="Email">{inp('email', { type:'email' })}</F>
-          <F label="Celular">{inp('celular')}</F>
 
-          {/* Nuevos campos */}
+          {/* ── Datos laborales ── */}
+          <Seccion titulo="Datos laborales" />
+          <F label="Fecha ingreso">{inp('fecha_ingreso', { type:'date' })}</F>
+          <F label="Fecha fin de contrato">{inp('fecha_fin_contrato', { type:'date' })}</F>
+          <F label="Puesto">{inp('puesto')}</F>
+          <F label="Área">{inp('area')}</F>
+          <F label="Departamento">{inp('departamento')}</F>
+          <F label="Centro de trabajo">{inp('centro_trabajo', { placeholder:'Ej: Plaza IWOL' })}</F>
+          <F label="Supervisor">{inp('supervisor', { placeholder:'Nombre del jefe directo' })}</F>
+          <F label="Tipo de jornada">
+            {sel('tipo_jornada', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...TIPOS_JORNADA.map(v => <option key={v} value={v}>{v}</option>),
+            ])}
+          </F>
           <F label="Horario de trabajo" span>
             <input value={form.horario_trabajo} onChange={e => set('horario_trabajo', e.target.value)}
               placeholder="Ej: Lunes a Sábado 8-16 hrs"
@@ -381,6 +440,14 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
               ...DIAS_DESCANSO.map(d => <option key={d} value={d}>{d}</option>),
             ])}
           </F>
+
+          {/* ── Compensación y pago ── */}
+          <Seccion titulo="Compensación y pago" />
+          <F label="Salario diario ($)">
+            <input required type="number" step="0.01" value={form.salario_diario}
+              onChange={e => set('salario_diario', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
           <F label="Forma de pago">
             {sel('forma_pago', [
               <option key="T" value="TRANSFERENCIA">Transferencia</option>,
@@ -388,8 +455,43 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
               <option key="M" value="MIXTO">Mixto (Transfer + Efectivo)</option>,
             ])}
           </F>
+          <F label="Banco">
+            {sel('banco', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...BANCOS.map(b => <option key={b} value={b}>{b}</option>),
+            ])}
+          </F>
+          <F label="CLABE interbancaria">
+            {inp('cuenta_clabe', { placeholder:'18 dígitos', maxLength:18, inputMode:'numeric', style:{ fontFamily:'monospace' } })}
+          </F>
 
-          {/* Notas */}
+          {/* ── Contacto ── */}
+          <Seccion titulo="Contacto" />
+          <F label="Email">{inp('email', { type:'email' })}</F>
+          <F label="Celular">{inp('celular')}</F>
+          <F label="Teléfono fijo">{inp('telefono_fijo')}</F>
+          <F label="Contacto de emergencia">{inp('contacto_emergencia_nombre', { placeholder:'Nombre completo' })}</F>
+          <F label="Teléfono de emergencia">{inp('contacto_emergencia_telefono')}</F>
+          <F label="Parentesco">{inp('contacto_emergencia_parentesco', { placeholder:'Ej: Esposa, Madre' })}</F>
+
+          {/* ── Domicilio ── */}
+          <Seccion titulo="Domicilio" />
+          <F label="Calle" span>{inp('calle')}</F>
+          <F label="Número exterior">{inp('numero_ext')}</F>
+          <F label="Número interior">{inp('numero_int')}</F>
+          <F label="Colonia">{inp('colonia')}</F>
+          <F label="Código postal">{inp('codigo_postal', { maxLength:5, inputMode:'numeric' })}</F>
+          <F label="Municipio / Alcaldía">{inp('municipio')}</F>
+          <F label="Estado">{inp('estado_domicilio')}</F>
+          <F label="Referencias" span>
+            {inp('referencias_domicilio', { placeholder:'Entre calles, color de casa, etc.' })}
+          </F>
+          <F label="Domicilio en una línea (captura anterior)" span>
+            {inp('direccion', { placeholder:'Se conserva de la captura previa' })}
+          </F>
+
+          {/* ── Notas ── */}
+          <Seccion titulo="Notas" />
           <F label="Notas" span>
             <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
               style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box',resize:'vertical' }} />
@@ -407,6 +509,7 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )
