@@ -283,7 +283,7 @@ const CAMPOS_EMPLEADO = [
   'nombre','apellido_pat','apellido_mat','sexo','rfc','curp','nss',
   'fecha_nacimiento','estado_civil','nacionalidad','lugar_nacimiento','escolaridad',
   'fecha_ingreso','puesto','area','departamento','centro_trabajo','supervisor',
-  'tipo_jornada','fecha_fin_contrato',
+  'tipo_jornada',
   'salario_diario','forma_pago','banco','cuenta_clabe',
   'email','celular','telefono_fijo',
   'calle','numero_ext','numero_int','colonia','municipio','estado_domicilio',
@@ -293,7 +293,7 @@ const CAMPOS_EMPLEADO = [
 ]
 
 const CAMPOS_MAYUSCULA = ['nombre','apellido_pat','apellido_mat','rfc','curp']
-const CAMPOS_FECHA     = ['fecha_nacimiento','fecha_ingreso','fecha_fin_contrato']
+const CAMPOS_FECHA     = ['fecha_nacimiento','fecha_ingreso']
 
 function EditarEmpleadoModal({ emp, onClose, onSaved }) {
   const vacio = Object.fromEntries(CAMPOS_EMPLEADO.map(k => [k, '']))
@@ -417,7 +417,6 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
           {/* ── Datos laborales ── */}
           <Seccion titulo="Datos laborales" />
           <F label="Fecha ingreso">{inp('fecha_ingreso', { type:'date' })}</F>
-          <F label="Fecha fin de contrato">{inp('fecha_fin_contrato', { type:'date' })}</F>
           <F label="Puesto">{inp('puesto')}</F>
           <F label="Área">{inp('area')}</F>
           <F label="Departamento">{inp('departamento')}</F>

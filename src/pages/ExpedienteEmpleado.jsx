@@ -761,7 +761,7 @@ export default function ExpedienteEmpleado() {
                     [Briefcase, 'Puesto actual', emp.puesto, emp.area, C.primary],
                     [Users, 'Antigüedad', antiguedad(emp.fecha_ingreso), `Desde ${fmtD(emp.fecha_ingreso)}`, C.dark],
                     [Shield, 'Departamento', emp.departamento || emp.area || '—', 'Dirección', C.gold],
-                    [Activity, 'Estatus', activo ? 'Activo' : 'Inactivo', TIPO_CONTRATO[emp.tipo_contrato] || emp.tipo_contrato || '—', activo ? C.success : C.danger],
+                    [Activity, 'Estatus', activo ? 'Activo' : 'Inactivo', emp.tipo_contrato_nombre || TIPO_CONTRATO[emp.tipo_contrato_id] || '—', activo ? C.success : C.danger],
                   ].map(([Icon, label, val, sub, color]) => (
                     <div key={label} style={{ background: C.surface, padding: '18px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -780,7 +780,7 @@ export default function ExpedienteEmpleado() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 0' }}>
                     {[
                       ['Fecha de ingreso', fmtD(emp.fecha_ingreso)],
-                      ['Tipo de contrato', TIPO_CONTRATO[emp.tipo_contrato] || emp.tipo_contrato],
+                      ['Tipo de contrato', emp.tipo_contrato_nombre || TIPO_CONTRATO[emp.tipo_contrato_id]],
                       ['Departamento', emp.departamento],
                       ['Puesto', emp.puesto],
                       ['Centro de trabajo', emp.centro_trabajo],
@@ -843,8 +843,8 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Centro de trabajo" value={emp.centro_trabajo} />
                     <Campo label="Supervisor" value={emp.supervisor} />
                     <Campo label="Fecha de ingreso" value={fmtD(emp.fecha_ingreso)} />
-                    <Campo label="Tipo de contrato" value={TIPO_CONTRATO[emp.tipo_contrato] || emp.tipo_contrato} />
-                    <Campo label="Fecha fin contrato" value={fmtD(emp.fecha_fin_contrato)} />
+                    <Campo label="Tipo de contrato" value={emp.tipo_contrato_nombre || TIPO_CONTRATO[emp.tipo_contrato_id]} />
+                    <Campo label="Fecha fin contrato" value={emp.contrato_fin ? fmtD(emp.contrato_fin) : 'Sin vencimiento'} />
                     <Campo label="Tipo de jornada" value={emp.tipo_jornada} />
                   </Grid4>
                 </Section>

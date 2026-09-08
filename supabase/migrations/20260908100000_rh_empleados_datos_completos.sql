@@ -2,7 +2,7 @@
 --
 -- El Expediente Digital ya pinta estos datos, pero no existían como columnas ni
 -- había dónde capturarlos, así que salían siempre en "—":
---   Datos laborales : centro de trabajo, supervisor, tipo de jornada, fin de contrato
+--   Datos laborales : centro de trabajo, supervisor, tipo de jornada
 --   Domicilio       : solo existía `direccion` como texto libre, sin desglose
 --   Contacto        : sin teléfono fijo ni contacto de emergencia
 --   Personales      : sin estado civil, escolaridad, nacionalidad ni lugar de nacimiento
@@ -15,11 +15,12 @@
 -- existente ni ninguna pantalla actual.
 
 -- ── Datos laborales ─────────────────────────────────────────────────────────
+-- El fin de contrato NO se agrega aqui: ya vive en rh_contratos y la vista lo
+-- expone como contrato_fin. Duplicarlo daria dos fuentes de verdad.
 ALTER TABLE public.rh_empleados
-  ADD COLUMN IF NOT EXISTS centro_trabajo      text,
-  ADD COLUMN IF NOT EXISTS supervisor          text,
-  ADD COLUMN IF NOT EXISTS tipo_jornada        text,
-  ADD COLUMN IF NOT EXISTS fecha_fin_contrato  date;
+  ADD COLUMN IF NOT EXISTS centro_trabajo  text,
+  ADD COLUMN IF NOT EXISTS supervisor      text,
+  ADD COLUMN IF NOT EXISTS tipo_jornada    text;
 
 -- ── Domicilio desglosado ────────────────────────────────────────────────────
 -- Se conserva `direccion` (texto libre ya capturado). El desglose es para los
