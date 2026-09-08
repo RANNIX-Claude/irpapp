@@ -62,6 +62,12 @@ const NAV_SECTIONS = [
     ]
   },
   {
+    label: 'ARRENDATARIO',
+    items: [
+      { label: 'Mi cuenta', path: '/portal/arrendatario', icon: UserCheck },
+    ]
+  },
+  {
     label: 'RECURSOS HUMANOS',
     items: [
       { label: 'RH / Nómina', path: '/rh', icon: UserCheck },

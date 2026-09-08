@@ -18,6 +18,7 @@ import Proyectos from './pages/Proyectos.jsx'
 import Proveedores from './pages/Proveedores.jsx'
 import RH from './pages/RH.jsx'
 import ExpedienteEmpleado from './pages/ExpedienteEmpleado.jsx'
+import ExpedienteContrato from './pages/ExpedienteContrato.jsx'
 import Estacionamiento from './pages/Estacionamiento.jsx'
 import Prospectos from './pages/Prospectos.jsx'
 import Reportes from './pages/Reportes.jsx'
@@ -111,6 +112,7 @@ function AppLayout() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/inmuebles" element={<Inmuebles />} />
           <Route path="/contratos" element={<Contratos />} />
+          <Route path="/contratos/:id" element={<ExpedienteContrato />} />
           <Route path="/renovaciones" element={<Renovaciones />} />
           <Route path="/cobranza" element={<Cobranza />} />
           <Route path="/arrendatarios" element={<Arrendatarios />} />

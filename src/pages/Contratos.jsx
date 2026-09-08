@@ -1,4 +1,5 @@
 ﻿import { useModuleAudit } from '../hooks/useAudit'
+import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import NuevoContratoModalShared from '../components/ui/NuevoContratoModal'
@@ -7,7 +8,7 @@ import {
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
   Grid, AlignJustify, Printer
-} from 'lucide-react'
+, FolderOpen} from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
@@ -126,6 +127,7 @@ function ProcesoBadge({ c, onChange }) {
 }
 
 function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
+  const navigate = useNavigate()
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
@@ -165,6 +167,10 @@ function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
       </td>
       <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button title="Abrir expediente del contrato" onClick={e => { e.stopPropagation(); navigate(`/contratos/${c.id}`) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 9px', height: '30px', border: '1px solid #BFDBFE', borderRadius: '6px', background: '#EFF6FF', cursor: 'pointer', color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700 }}>
+            <FolderOpen size={13} /> Expediente
+          </button>
           <button title="Ver detalle" onClick={e => { e.stopPropagation(); onView(c) }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-primary)' }}>
             <Eye size={14} />
