@@ -45,6 +45,16 @@ function antiguedad(fi) {
 
 // Solo estos documentos caducan. Para el resto la fecha de vencimiento no
 // aplica y el campo se oculta en vez de pedir un dato que no existe.
+// Las tarjetas del resumen agrupan por los tipos REALES que guarda
+// rh_incidencias (ver TIPOS_INCIDENCIA). Antes buscaban 'FALTA', 'PERMISO' y
+// 'HORA_EXTRA', que no existen: por eso siempre marcaban cero.
+const RESUMEN_INCIDENCIAS = [
+  ['Faltas',       ['INASISTENCIA'],                            C.danger],
+  ['Retardos',     ['RETARDO'],                                 C.warning],
+  ['Permisos',     ['PERMISO_SIN_GOCE', 'PERMISO_CON_GOCE'],    C.primary],
+  ['Vac. / Incap.', ['VACACIONES', 'INCAPACIDAD'],             C.success],
+]
+
 // TIPOS_QUE_VENCEN queda aquí porque es del catálogo de documentos, no del OCR.
 const TIPOS_QUE_VENCEN = ['CONTRATO', 'INE', 'CONSTANCIA_MEDICA']
 
@@ -843,10 +853,12 @@ export default function ExpedienteEmpleado() {
                   {incidencias.length === 0 ? <Empty icon={CheckCircle} msg="Sin incidencias" color={C.success} /> : (
                     <>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
-                        {[['Retardos','RETARDO',C.warning],['Faltas','FALTA',C.danger],['Permisos','PERMISO',C.primary],['Horas extra','HORA_EXTRA',C.success]].map(([l, tipo, c]) => (
-                          <div key={l} style={{ textAlign: 'center', padding: '10px', background: c + '10', borderRadius: 8 }}>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: c }}>{incidencias.filter(i => i.tipo_incidencia === tipo || i.tipo === tipo).length}</div>
-                            <div style={{ fontSize: 11, color: C.muted }}>{l}</div>
+                        {RESUMEN_INCIDENCIAS.map(([etiqueta, tipos, c]) => (
+                          <div key={etiqueta} style={{ textAlign: 'center', padding: '10px', background: c + '10', borderRadius: 8 }}>
+                            <div style={{ fontSize: 20, fontWeight: 800, color: c }}>
+                              {incidencias.filter(i => tipos.includes(i.tipo_incidencia ?? i.tipo)).length}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.muted }}>{etiqueta}</div>
                           </div>
                         ))}
                       </div>
