@@ -59,6 +59,11 @@ const NAV_SECTIONS = [
       { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
       { label: 'Proveedores', path: '/proveedores', icon: Truck },
+    ]
+  },
+  {
+    label: 'RECURSOS HUMANOS',
+    items: [
       { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
     ]
   },
