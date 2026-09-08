@@ -6,6 +6,8 @@ import StatusBadge from '../components/ui/StatusBadge'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
+import { ImagenPrivada } from '../components/ui/ArchivoPrivado'
 
 const PRIORIDAD_STYLE = {
   ALTA: { bg: '#FEF2F2', text: '#B24020', label: 'Alta' },
@@ -25,14 +27,6 @@ const TECNICOS_CATALOGO = [
   { id: 't8', nombre: 'Tec. Morales B.', especialidad: 'Redes y Telecomunicaciones', telefono: '55 8888 2222' },
 ]
 
-const ORDENES_INICIAL = [
-  { id: 'OT-2026-0312', tipo: 'Correctivo', categoria: 'Eléctrico', inmueble: 'Plaza Reforma Norte', area: 'Área común P1', descripcion: 'Falla en tablero eléctrico sector B — sin luz en pasillos', prioridad: 'URGENTE', asignado: 'Ing. López Garza', estado: 'EN_PROCESO', fecha_apertura: '2026-06-28', fecha_cierre_est: '2026-07-01', costo_est: 8500, evidencias: [] },
-  { id: 'OT-2026-0313', tipo: 'Preventivo', categoria: 'Climatización', inmueble: 'Torre Corporativa Insurgentes', area: 'Piso 4 completo', descripcion: 'Mantenimiento semestral de sistemas HVAC — revisión filtros y carga de gas', prioridad: 'MEDIA', asignado: 'Tec. Hernández R.', estado: 'PENDIENTE', fecha_apertura: '2026-07-01', fecha_cierre_est: '2026-07-05', costo_est: 12000, evidencias: [] },
-  { id: 'OT-2026-0308', tipo: 'Correctivo', categoria: 'Plomería', inmueble: 'Clínica Especialidades Satélite', area: 'Baño consultorio C12', descripcion: 'Fuga en tubería de agua fría — mancha en pared', prioridad: 'ALTA', asignado: 'Plo. Martínez J.', estado: 'COMPLETADO', fecha_apertura: '2026-06-20', fecha_cierre_est: '2026-06-22', costo_est: 3200, costo_real: 2950, fecha_cierre_real: '2026-06-21', evidencias: [] },
-  { id: 'OT-2026-0310', tipo: 'Preventivo', categoria: 'Seguridad', inmueble: 'Plaza del Valle Monterrey', area: 'Estacionamiento subterráneo', descripcion: 'Revisión y calibración de cámaras CCTV y control de acceso', prioridad: 'MEDIA', asignado: 'Tec. Sánchez P.', estado: 'PENDIENTE', fecha_apertura: '2026-07-03', fecha_cierre_est: '2026-07-04', costo_est: 5500, evidencias: [] },
-  { id: 'OT-2026-0307', tipo: 'Mejora', categoria: 'Pintura', inmueble: 'Nave Industrial Vallejo', area: 'Nave principal', descripcion: 'Repintura de señalización de seguridad industrial en piso y paredes', prioridad: 'BAJA', asignado: 'Pint. Reyes A.', estado: 'COMPLETADO', fecha_apertura: '2026-06-15', fecha_cierre_est: '2026-06-18', costo_est: 7800, costo_real: 8100, fecha_cierre_real: '2026-06-19', evidencias: [] },
-  { id: 'OT-2026-0315', tipo: 'Correctivo', categoria: 'Jardinería', inmueble: 'Plaza Reforma Norte', area: 'Jardín entrada principal', descripcion: 'Poda de árboles y restitución de plantas dañadas por lluvia', prioridad: 'BAJA', asignado: 'Jard. Cruz M.', estado: 'PENDIENTE', fecha_apertura: '2026-07-01', fecha_cierre_est: '2026-07-08', costo_est: 4200, evidencias: [] },
-]
 
 const TIPOS = ['Todos', 'Correctivo', 'Preventivo', 'Mejora']
 const PRIORIDADES = ['Todas', 'URGENTE', 'ALTA', 'MEDIA', 'BAJA']
@@ -98,28 +92,59 @@ function ReasignarModal({ ot, onClose, onReasignar }) {
 }
 
 // ── Adjuntar evidencias ────────────────────────────────────────────────────────
+const MAX_EVIDENCIA_MB = 10
+
 function EvidenciaPanel({ ot, onUpdate, onClose }) {
   const fileRef = useRef()
   const [previews, setPreviews] = useState(ot.evidencias || [])
   const [dragging, setDragging] = useState(false)
+  const [subiendo, setSubiendo] = useState(0)
 
-  const addFiles = (files) => {
-    const nuevas = Array.from(files).map(f => ({
-      id: Date.now() + Math.random(),
-      nombre: f.name,
-      url: URL.createObjectURL(f),
-      tipo: f.type,
-      fecha: new Date().toLocaleDateString('es-MX'),
-    }))
-    const updated = [...previews, ...nuevas]
+  // Los archivos se suben al bucket ot-evidencias y en la OT se guarda la RUTA.
+  // Antes se guardaba URL.createObjectURL(), que solo vive mientras la pestaña
+  // esté abierta: al recargar, la evidencia desaparecía.
+  const addFiles = async (files) => {
+    const lista = Array.from(files)
+    if (!lista.length) return
+
+    const grandes = lista.filter(f => f.size > MAX_EVIDENCIA_MB * 1024 * 1024)
+    if (grandes.length) {
+      toast.error(`${grandes[0].name} pasa de ${MAX_EVIDENCIA_MB} MB`)
+      return
+    }
+
+    setSubiendo(lista.length)
+    const subidas = []
+    for (const f of lista) {
+      const limpio = f.name.replace(/[^\w.\-]/g, '_')
+      const path = `${ot.id}/${Date.now()}_${limpio}`
+      const { error } = await supabase.storage
+        .from('ot-evidencias').upload(path, f, { contentType: f.type, upsert: false })
+      if (error) { toast.error(`No se pudo subir ${f.name}: ${error.message}`); continue }
+      subidas.push({
+        id: path,
+        nombre: f.name,
+        path,
+        tipo: f.type,
+        tamano_kb: Math.round(f.size / 1024),
+        fecha: new Date().toISOString().slice(0, 10),
+      })
+    }
+    setSubiendo(0)
+    if (!subidas.length) return
+
+    const updated = [...previews, ...subidas]
     setPreviews(updated)
-    onUpdate(updated)
+    await onUpdate(updated)
+    toast.success(`${subidas.length} evidencia${subidas.length !== 1 ? 's' : ''} adjunta${subidas.length !== 1 ? 's' : ''}`)
   }
 
-  const eliminar = (id) => {
+  const eliminar = async (id) => {
+    const ev = previews.find(p => p.id === id)
     const updated = previews.filter(p => p.id !== id)
     setPreviews(updated)
-    onUpdate(updated)
+    await onUpdate(updated)
+    if (ev?.path) await supabase.storage.from('ot-evidencias').remove([ev.path])
   }
 
   return (
@@ -147,7 +172,7 @@ function EvidenciaPanel({ ot, onUpdate, onClose }) {
             }}>
             <Image size={28} color={dragging ? 'var(--color-primary)' : '#9CA3AF'} style={{ marginBottom: '8px' }} />
             <div style={{ fontSize: '13px', fontWeight: 600, color: dragging ? 'var(--color-primary)' : 'var(--color-text)' }}>
-              Arrastra imágenes o haz clic para seleccionar
+              {subiendo ? `Subiendo ${subiendo} archivo${subiendo !== 1 ? 's' : ''}…` : 'Arrastra imágenes o haz clic para seleccionar'}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '4px' }}>JPG, PNG, PDF · Máx 10 MB por archivo</div>
             <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
@@ -159,7 +184,7 @@ function EvidenciaPanel({ ot, onUpdate, onClose }) {
               {previews.map(p => (
                 <div key={p.id} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
                   {p.tipo?.startsWith('image/') ? (
-                    <img src={p.url} alt={p.nombre} style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }} />
+                    <ImagenPrivada bucket="ot-evidencias" valor={p.path} alt={p.nombre} style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }} />
                   ) : (
                     <div style={{ height: '110px', background: '#F3F4F6', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                       <FileText size={24} color="#9CA3AF" />
@@ -418,7 +443,7 @@ function OTModal({ ot, onClose, onUpdate }) {
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {ot.evidencias.map(e => (
                     e.tipo?.startsWith('image/') ? (
-                      <img key={e.id} src={e.url} alt={e.nombre} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #E5E7EB' }} />
+                      <ImagenPrivada key={e.id} bucket="ot-evidencias" valor={e.path} alt={e.nombre} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #E5E7EB' }} />
                     ) : (
                       <div key={e.id} style={{ width: '70px', height: '70px', borderRadius: '6px', border: '1px solid #E5E7EB', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <FileText size={20} color="#9CA3AF" />
@@ -498,7 +523,7 @@ export default function Mantenimiento() {
       costo_real:       updated.costo_real || null,
       fecha_cierre_real: updated.fecha_cierre_real || null,
       asignado:         updated.asignado,
-      evidencias:       undefined, // evidencias se manejan en Storage
+      evidencias:       updated.evidencias ?? [],
       updated_at:       new Date().toISOString(),
     }).eq('id', updated.id)
     setOrdenes(prev => prev.map(o => o.id === updated.id ? updated : o))
