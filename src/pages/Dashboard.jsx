@@ -144,7 +144,7 @@ export default function Dashboard() {
     const estac_pens = (estac||[]).filter(e=>e.estatus==='OCUPADO').reduce((a,b)=>a+(parseFloat(b.monto_mensual)||0),0)
     const agua_ing = cobrosM.filter(c=>(c.concepto||'').toUpperCase().includes('AGUA')).reduce((a,b)=>a+(parseFloat(b.monto_pagado)||0),0)
     const fondo_total = (fondo||[]).reduce((a,b)=>a+(parseFloat(b.saldo_final||b.saldo_actual||b.monto)||0),0)
-    const sueldos = (empleados||[]).filter(e=>e.estatus==='ACTIVO').reduce((a,b)=>a+(parseFloat(b.salario_mensual||b.sueldo_bruto)||0),0)
+    const sueldos = (empleados||[]).filter(e=>e.estado_id==='ACTIVO').reduce((a,b)=>a+(parseFloat(b.salario_mensual||b.sueldo_bruto)||0),0)
     const rentas_brutas=safe(rb,REF.rentas_brutas)
     const iva=safe(iv,REF.iva)
     const ingresos_netos=rentas_brutas+(safe(rsf,REF.rentas_sin_factura))+(safe(pen,REF.penalizaciones))-iva
@@ -164,7 +164,7 @@ export default function Dashboard() {
       total_impuestos:REF.total_impuestos, utilidad_neta:utilidad_bruta-REF.total_impuestos,
       cobros_raw:cobrosM, gastos_raw:gastosM,
       estac_raw:(estac||[]).filter(e=>e.estatus==='OCUPADO'),
-      empleados_raw:(empleados||[]).filter(e=>e.estatus==='ACTIVO'),
+      empleados_raw:(empleados||[]).filter(e=>e.estado_id==='ACTIVO'),
       fondo_raw:fondo||[],
     }
   }, [cobros, gastos, fondo, estac, empleados, mes, anio])

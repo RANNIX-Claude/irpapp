@@ -300,17 +300,27 @@ export default function Conciliacion() {
     refreshKey,
   })
 
+  // La mora NO es un estatus: los cobros solo se guardan como PENDIENTE o
+  // PAGADO. Un cobro está en mora cuando sigue sin pagarse y su fecha límite
+  // ya pasó. Antes se filtraba por estatus 'EN_MORA'/'VENCIDO', valores que
+  // nunca se asignan, así que el indicador marcaba cero con cartera vencida.
+  const hoyISO = new Date().toISOString().slice(0, 10)
+  const enMora = c => c.estatus !== 'PAGADO' && !!c.fecha_limite_pago && c.fecha_limite_pago < hoyISO
+
   const lista = (data ?? []).filter(c => {
     const q = search.toLowerCase()
     const matchQ = !q || (c.referencia_pago || '').toLowerCase().includes(q) || (c.arrendatario_nombre || '').toLowerCase().includes(q)
     const matchMes = !filtroMes || `${c.anio}-${String(c.mes).padStart(2,'0')}` === filtroMes
-    const matchEst = filtroEst === 'Todos' || c.estatus === filtroEst
+    const matchEst = filtroEst === 'Todos'
+      || (filtroEst === 'EN_MORA' ? enMora(c) : c.estatus === filtroEst)
     return matchQ && matchMes && matchEst
   })
 
   const pagados = (data ?? []).filter(c => c.estatus === 'PAGADO').length
-  const pendientes = (data ?? []).filter(c => c.estatus === 'PENDIENTE').length
-  const mora = (data ?? []).filter(c => ['EN_MORA','VENCIDO'].includes(c.estatus)).length
+  const pendientes = (data ?? []).filter(c => c.estatus === 'PENDIENTE' && !enMora(c)).length
+  const mora = (data ?? []).filter(enMora).length
+  const montoMora = (data ?? []).filter(enMora)
+    .reduce((a, c) => a + ((parseFloat(c.monto_total) || 0) - (parseFloat(c.monto_pagado) || 0)), 0)
   const totalCobrado = (data ?? []).filter(c => c.estatus === 'PAGADO').reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
 
   const handleCSV = (e) => {
@@ -443,7 +453,7 @@ export default function Conciliacion() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         <KPIBox label="Pagados" value={pagados} color="var(--color-success)" onClick={() => setFiltroEst('PAGADO')} />
         <KPIBox label="Pendientes" value={pendientes} color="var(--color-warning)" onClick={() => setFiltroEst('PENDIENTE')} />
-        <KPIBox label="En mora" value={mora} color="var(--color-danger)" onClick={() => setFiltroEst('EN_MORA')} />
+        <KPIBox label="En mora" value={mora} sub={montoMora > 0 ? fmt(montoMora) : undefined} color="var(--color-danger)" onClick={() => setFiltroEst('EN_MORA')} />
         <KPIBox label="Total cobrado" value={fmt(totalCobrado)} color="var(--color-primary)" sub="mes actual" />
       </div>
 
