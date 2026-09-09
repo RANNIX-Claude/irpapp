@@ -5,7 +5,7 @@ import {
   Search, BarChart3, Settings, Wallet, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed,
-} from 'lucide-react'
+, FolderOpen} from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
 const NAV_SECTIONS = [
@@ -31,7 +31,6 @@ const NAV_SECTIONS = [
       { label: 'Cobranza',      path: '/cobranza',      icon: CreditCard    },
       { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft },
       { label: 'Ingresos',      path: '/ingresos',      icon: TrendingUp    },
-      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users         },
     ]
   },
   {
@@ -64,7 +63,8 @@ const NAV_SECTIONS = [
   {
     label: 'ARRENDATARIO',
     items: [
-      { label: 'Mi cuenta', path: '/portal/arrendatario', icon: UserCheck },
+      { label: 'Arrendatarios', path: '/arrendatarios', icon: Users    },
+      { label: 'Expedientes',   path: '/contratos',     icon: FolderOpen },
     ]
   },
   {
