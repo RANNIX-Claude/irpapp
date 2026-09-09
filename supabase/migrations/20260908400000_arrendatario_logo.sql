@@ -20,12 +20,13 @@ VALUES (
   'logos-arrendatarios',
   true,
   2097152,  -- 2 MB: son logos, no fotografías
-  ARRAY['image/jpeg','image/png','image/webp','image/svg+xml']
+  ARRAY['image/jpeg','image/png','image/webp']
 )
 ON CONFLICT (id) DO UPDATE SET
   public             = true,
   file_size_limit    = 2097152,
-  allowed_mime_types = ARRAY['image/jpeg','image/png','image/webp','image/svg+xml'];
+  -- sin SVG: Storage lo rechaza y no hace falta para un logo
+  allowed_mime_types = ARRAY['image/jpeg','image/png','image/webp'];
 
 DROP POLICY IF EXISTS "logos_public_read"   ON storage.objects;
 DROP POLICY IF EXISTS "logos_auth_insert"   ON storage.objects;
