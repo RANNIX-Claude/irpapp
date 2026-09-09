@@ -9,21 +9,24 @@ export function AppProvider({ children }) {
   const [loading, setLoading]   = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  // Carga el perfil + rol desde irp_usuarios; fallback a user_metadata del JWT
+  // Carga el perfil + rol desde irp_usuarios; si falla, se cae al rol que trae
+  // el propio token.
   const cargarPerfil = async (userId, userMeta) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('irp_usuarios')
       .select('rol_id, nombre, apellido, activo')
       .eq('id', userId)
       .single()
-    if (data) {
-      setPerfil(data)
-    } else if (userMeta?.rol_id) {
-      // Fallback: rol embebido en raw_user_meta_data del token
-      setPerfil({ rol_id: userMeta.rol_id, nombre: userMeta.nombre || '', apellido: '', activo: true })
-    } else {
-      setPerfil(null)
-    }
+
+    if (data) { setPerfil(data); return }
+
+    // El respaldo leía userMeta.rol_id, pero el token guarda el rol como `rol`:
+    // nunca entraba, así que un fallo de la tabla dejaba al usuario sin perfil.
+    const rol = userMeta?.rol_id ?? userMeta?.rol
+    if (error) console.warn('[perfil] no se pudo leer irp_usuarios:', error.message, rol ? '— se usa el rol del token' : '')
+    setPerfil(rol
+      ? { rol_id: rol, nombre: userMeta?.nombre || '', apellido: userMeta?.apellido || '', activo: true }
+      : null)
   }
 
   useEffect(() => {
