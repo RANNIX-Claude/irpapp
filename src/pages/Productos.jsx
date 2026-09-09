@@ -6,13 +6,17 @@ import LogoEditable from '../components/ui/LogoEditable'
 import toast from 'react-hot-toast'
 
 // Unidades de compra habituales en los tickets de proveedor.
-const UNIDADES = ['PZA', 'KG', 'GR', 'LT', 'ML', 'CAJA', 'PAQUETE', 'BOLSA', 'SERVICIO']
+const UNIDADES = ['PZA', 'KG', 'GR', 'LT', 'ML', 'MT', 'CAJA', 'PAQUETE', 'BOLSA', 'SERVICIO']
+
+// cat_productos tiene CHECK sobre categoria: solo acepta estos tres valores.
+// Por eso es un select y no texto libre — cualquier otra cosa hace fallar el alta.
+const CATEGORIAS = ['VENDING', 'OPERACION', 'MANTENIMIENTO']
 
 const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }
 
 // ─── Alta / edición ──────────────────────────────────────────────────────────
-function ProductoModal({ producto, categorias, onClose, onSaved }) {
+function ProductoModal({ producto, onClose, onSaved }) {
   const esNuevo = producto === 'nuevo'
   const [form, setForm] = useState(esNuevo
     ? { clave: '', nombre: '', categoria: '', unidad: 'PZA', activo: true }
@@ -26,11 +30,13 @@ function ProductoModal({ producto, categorias, onClose, onSaved }) {
 
   const guardar = async () => {
     if (!form.nombre.trim()) return toast.error('El nombre es obligatorio')
+    if (!form.clave.trim()) return toast.error('La clave es obligatoria')
+    if (!form.categoria) return toast.error('Elige una categoría')
     setSaving(true)
     const payload = {
-      clave: form.clave.trim().toUpperCase() || null,
+      clave: form.clave.trim().toUpperCase(),
       nombre: form.nombre.trim(),
-      categoria: form.categoria.trim() || null,
+      categoria: form.categoria,
       unidad: form.unidad || null,
       activo: form.activo,
     }
@@ -73,7 +79,7 @@ function ProductoModal({ producto, categorias, onClose, onSaved }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={lbl}>Clave</label>
+              <label style={lbl}>Clave *</label>
               <input value={form.clave} onChange={e => set('clave', e.target.value)} placeholder="SKU interno" style={{ ...inp, fontFamily: 'monospace', textTransform: 'uppercase' }} />
             </div>
             <div>
@@ -90,11 +96,11 @@ function ProductoModal({ producto, categorias, onClose, onSaved }) {
           </div>
 
           <div>
-            <label style={lbl}>Categoría</label>
-            <input value={form.categoria} onChange={e => set('categoria', e.target.value)} list="categorias-producto" placeholder="Bebidas, Botanas, Limpieza…" style={inp} />
-            <datalist id="categorias-producto">
-              {categorias.map(c => <option key={c} value={c} />)}
-            </datalist>
+            <label style={lbl}>Categoría *</label>
+            <select value={form.categoria} onChange={e => set('categoria', e.target.value)} style={{ ...inp, background: 'white' }}>
+              <option value="">— Seleccionar —</option>
+              {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
@@ -276,7 +282,6 @@ export default function Productos() {
       {modal && (
         <ProductoModal
           producto={modal}
-          categorias={categorias}
           onClose={() => setModal(null)}
           onSaved={cargar}
         />

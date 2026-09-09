@@ -4,6 +4,13 @@ import { Truck, Plus, Search, X, Pencil, Check, ChevronDown , LayoutGrid, AlignJ
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
 
+// La base tiene CHECK sobre categoria: una cadena vacía la rechaza. Se manda
+// null y de paso no se guardan cadenas vacías en el resto de los campos.
+const limpiar = (form) => Object.fromEntries(
+  Object.entries({ ...form, clave: (form.clave || '').toUpperCase() })
+    .map(([k, v]) => [k, typeof v === 'string' && v.trim() === '' ? null : v])
+)
+
 const CATEGORIAS = [
   { id: 'VENDING',       label: 'Vending',        color: '#EC4899' },
   { id: 'OPERACION',     label: 'Operación',      color: '#057642' },
@@ -32,10 +39,10 @@ function ModalProveedor({ proveedor, onClose, onSaved }) {
     setSaving(true); setError(null)
     try {
       if (isEdit) {
-        const { error: err } = await supabase.from('cat_proveedores').update({ ...form, clave: form.clave.toUpperCase() }).eq('id', proveedor.id)
+        const { error: err } = await supabase.from('cat_proveedores').update(limpiar(form)).eq('id', proveedor.id)
         if (err) throw err
       } else {
-        const { error: err } = await supabase.from('cat_proveedores').insert({ ...form, clave: form.clave.toUpperCase() })
+        const { error: err } = await supabase.from('cat_proveedores').insert(limpiar(form))
         if (err) throw err
       }
       onSaved()

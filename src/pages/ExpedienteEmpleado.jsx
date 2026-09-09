@@ -177,7 +177,14 @@ function ModalSueldo({ empleadoId, sueldoActual, onClose, onSaved }) {
       sueldo_nuevo: parseFloat(form.sueldo_nuevo),
       motivo: form.motivo || null, tipo: form.tipo,
     })
-    if (!error) await supabase.from('prp_empleados').update({ salario_diario: parseFloat(form.sueldo_nuevo) }).eq('id', empleadoId)
+    // El sueldo se escribe en la TABLA: prp_empleados es una vista no
+    // actualizable, y su error se descartaba, asi que el historial quedaba con
+    // el sueldo nuevo y la ficha con el viejo.
+    if (!error) {
+      const { error: errSueldo } = await supabase
+        .from('rh_empleados').update({ salario_diario: parseFloat(form.sueldo_nuevo) }).eq('id', empleadoId)
+      if (errSueldo) { setSaving(false); return toast.error('Se registró el historial pero no se aplicó el sueldo: ' + errSueldo.message) }
+    }
     setSaving(false)
     if (error) return toast.error(error.message)
     toast.success('Cambio de sueldo registrado')
@@ -1039,7 +1046,7 @@ export default function ExpedienteEmpleado() {
                             <Td mono>{a.hora_entrada || '—'}</Td>
                             <Td mono>{a.hora_salida || '—'}</Td>
                             <Td mono>{a.horas_trabajadas ? `${a.horas_trabajadas}h` : '—'}</Td>
-                            <Td><Badge label={a.estatus || 'Registrado'} color={a.estatus === 'RETARDO' ? C.warning : C.success} /></Td>
+                            <Td><Badge label={a.estado || 'Registrado'} color={a.estado === 'RETARDO' ? C.warning : C.success} /></Td>
                           </tr>
                         ))}
                       </tbody>
