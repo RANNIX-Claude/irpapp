@@ -654,7 +654,7 @@ export default function ExpedienteEmpleado() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, asistR, capacR, evalR, benefR] = await Promise.all([
+    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, capacR, evalR, benefR] = await Promise.all([
       supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
       // La vista no expone fecha_nacimiento, direccion, banco, cuenta_clabe ni
       // los campos del expediente completo. Se traen de la tabla y se fusionan.
@@ -664,7 +664,6 @@ export default function ExpedienteEmpleado() {
       supabase.from('rh_historial_cambios').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_expediente_documentos').select('*').eq('empleado_id', id).order('created_at', { ascending: false }),
       supabase.from('prp_incidencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(50),
-      supabase.from('prp_asistencia').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(30),
       supabase.from('rh_capacitacion').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
       supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
@@ -677,7 +676,6 @@ export default function ExpedienteEmpleado() {
     setHistCambios(cambiosR.data ?? [])
     setDocs(docsR.data ?? [])
     setIncidencias(incR.data ?? [])
-    setAsistencia(asistR.data ?? [])
     setCapacitacion(capacR.data ?? [])
     setEvaluaciones(evalR.data ?? [])
     setBeneficios(benefR.data ?? [])
@@ -690,9 +688,15 @@ export default function ExpedienteEmpleado() {
   // cruce es por numero_empleado, así que se carga aparte, ya que emp existe.
   const numEmpleado = emp?.numero_empleado
   useEffect(() => {
-    if (!numEmpleado) { setRecibos([]); return }
+    if (!numEmpleado) { setRecibos([]); setAsistencia([]); return }
     let cancelado = false
     ;(async () => {
+      // prp_asistencia tampoco expone empleado_id: el cruce es numero_empleado.
+      supabase.from('prp_asistencia').select('*')
+        .eq('numero_empleado', numEmpleado)
+        .order('fecha', { ascending: false }).limit(30)
+        .then(({ data }) => { if (!cancelado) setAsistencia(data ?? []) })
+
       const { data: pren, error } = await supabase
         .from('prp_prenomina').select('*').eq('numero_empleado', numEmpleado)
       if (cancelado) return

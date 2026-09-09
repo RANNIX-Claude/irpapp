@@ -39,6 +39,11 @@ $$;
 COMMENT ON FUNCTION public.mi_rol() IS
   'Rol del usuario autenticado. SECURITY DEFINER a propósito: se salta RLS para que las políticas puedan preguntar por el rol sin provocar recursión.';
 
+-- Staff = personal interno. Se define por exclusión de los roles externos y
+-- acotados, para que un rol nuevo entre como staff sin tener que tocar esto.
+-- Roles reales en la tabla: super_admin, admin_inmobiliaria, gerente_plaza,
+-- supervisor_operaciones, rh_manager, contador, ventas_crm, mantenimiento,
+-- read_only, arrendatario, restaurante.
 CREATE OR REPLACE FUNCTION public.es_staff()
 RETURNS boolean
 LANGUAGE sql
@@ -47,15 +52,32 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT COALESCE(
-    (SELECT rol_id IN ('SUPERADMIN','ADMIN','ADMINISTRADOR','GERENTE','COBRANZA')
+    (SELECT rol_id NOT IN ('arrendatario','prospecto','restaurante')
+       FROM public.irp_usuarios WHERE id = auth.uid()),
+    false)
+$$;
+
+-- Administración: los tres roles que la política original dejaba ver todos los
+-- perfiles. Se conserva esa semántica tal cual.
+CREATE OR REPLACE FUNCTION public.es_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    (SELECT rol_id IN ('super_admin','admin_inmobiliaria','gerente_plaza')
        FROM public.irp_usuarios WHERE id = auth.uid()),
     false)
 $$;
 
 REVOKE ALL ON FUNCTION public.mi_rol()   FROM public, anon;
 REVOKE ALL ON FUNCTION public.es_staff() FROM public, anon;
+REVOKE ALL ON FUNCTION public.es_admin() FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.mi_rol()   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.es_staff() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.es_admin() TO authenticated;
 
 -- ─────────────────────────────────────────────────────────────
 -- 2. Políticas de irp_usuarios sin auto-referencia
@@ -81,23 +103,23 @@ CREATE POLICY "usuarios_leen_su_ficha" ON public.irp_usuarios
   USING (id = auth.uid());
 
 -- El staff ve a todos, preguntando el rol por la función (que no pasa por RLS).
-CREATE POLICY "staff_lee_todos" ON public.irp_usuarios
+CREATE POLICY "admin_lee_todos" ON public.irp_usuarios
   FOR SELECT TO authenticated
-  USING (public.es_staff());
+  USING (public.es_admin());
 
 -- Cada quien actualiza su propia ficha; el staff, la de cualquiera.
 CREATE POLICY "usuarios_actualizan_su_ficha" ON public.irp_usuarios
   FOR UPDATE TO authenticated
-  USING (id = auth.uid() OR public.es_staff())
-  WITH CHECK (id = auth.uid() OR public.es_staff());
+  USING (id = auth.uid() OR public.es_admin())
+  WITH CHECK (id = auth.uid() OR public.es_admin());
 
-CREATE POLICY "staff_administra_usuarios" ON public.irp_usuarios
+CREATE POLICY "admin_administra_usuarios" ON public.irp_usuarios
   FOR INSERT TO authenticated
-  WITH CHECK (public.es_staff());
+  WITH CHECK (public.es_admin());
 
-CREATE POLICY "staff_borra_usuarios" ON public.irp_usuarios
+CREATE POLICY "admin_borra_usuarios" ON public.irp_usuarios
   FOR DELETE TO authenticated
-  USING (public.es_staff());
+  USING (public.es_admin());
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. La política de storage deja de consultar la tabla
