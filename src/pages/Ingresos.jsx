@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Search, X, Save, TrendingUp, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Upload, Image, CheckCircle2, Circle, Eye, FileText, Paperclip } from 'lucide-react'
+import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
@@ -13,6 +13,11 @@ const TIPOS = ['RENTA','SANCION','AGUA','OTRO']
 const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280' }
 
 function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('es-MX', { minimumFractionDigits: 0 }) : '—' }
+function fmtK(n) { return '$' + ((n || 0) / 1000).toFixed(1) + 'K' }
+
+// `fecha` llega como ISO; se compara por texto para no depender de la zona horaria
+// del navegador, que es lo que ya se usa al pintarla en la tabla.
+function mesDeFechaPago(r) { return r.fecha ? r.fecha.slice(0, 7) : null }
 
 const BLANK = {
   fecha: new Date().toISOString().slice(0,10),
@@ -476,6 +481,17 @@ export default function Ingresos() {
   const { data, loading } = usePRP('prp_ingresos', { refreshKey })
   const lista = data ?? []
 
+  // Lo proyectado sale de los contratos, no de los ingresos: son fuentes distintas.
+  const { data: dataContratos } = usePRP('prp_contratos', { select: 'id, estatus, renta_mensual, fecha_inicio, fecha_fin' })
+  const contratos = dataContratos ?? []
+
+  const periodoYYYYMM = `${filtroAnio}-${String(filtroMes).padStart(2, '0')}`
+  const periodoIdx = filtroAnio * 12 + filtroMes
+
+  const enPeriodo = r => filtroModo === 'fecha_pago'
+    ? mesDeFechaPago(r) === periodoYYYYMM
+    : r.mes === filtroMes && r.anio === filtroAnio
+
   const filtrados = useMemo(() => {
     const q = search.toLowerCase()
     return lista
@@ -488,17 +504,7 @@ export default function Ingresos() {
           || (r.locales_display || '').toLowerCase().includes(q)
           || (r.factura || '').toLowerCase().includes(q)
         const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
-        let matchM
-        if (filtroModo === 'fecha_pago') {
-          if (!r.fecha) { matchM = false }
-          else {
-            const d = new Date(r.fecha)
-            matchM = d.getMonth() + 1 === filtroMes && d.getFullYear() === filtroAnio
-          }
-        } else {
-          matchM = r.mes === filtroMes && r.anio === filtroAnio
-        }
-        return matchQ && matchT && matchM
+        return matchQ && matchT && enPeriodo(r)
       })
       .sort((a, b) => {
         // Orden default: por local (locales_display), luego por fecha
@@ -511,8 +517,32 @@ export default function Ingresos() {
 
   const soloImportes = filtrados.filter(r => r.es_principal && r.importe != null)
   const totalMes = soloImportes.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
-  const totalRenta = soloImportes.filter(r => r.tipo === 'RENTA').reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
-  const totalSanciones = soloImportes.filter(r => r.tipo === 'SANCION').reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
+
+  // Las tarjetas resumen el período completo: el filtro de tipo y la búsqueda solo
+  // recortan la tabla, para que los totales no cambien al explorar.
+  const delPeriodo = useMemo(
+    () => lista.filter(r => r.importe != null && enPeriodo(r)),
+    [lista, filtroMes, filtroAnio, filtroModo],
+  )
+  const suma = arr => arr.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
+  const totalRenta = suma(delPeriodo.filter(r => r.tipo === 'RENTA'))
+  const totalSanciones = suma(delPeriodo.filter(r => r.tipo === 'SANCION'))
+
+  // Proyectado: renta de los contratos cuya vigencia cubre el mes seleccionado.
+  // Se decide por fechas y no por `estatus`, que es un valor fijo por contrato y
+  // daría el mismo número en todos los períodos.
+  const contratosVigentes = contratos.filter(c => {
+    const ini = (c.fecha_inicio || '').slice(0, 10)
+    const fin = (c.fecha_fin || '').slice(0, 10)
+    return ini && ini <= `${periodoYYYYMM}-31` && (!fin || fin >= `${periodoYYYYMM}-01`)
+  })
+  const totalProyectado = contratosVigentes.reduce((a, c) => a + (parseFloat(c.renta_mensual) || 0), 0)
+
+  // Recibido vs. correspondido: `fecha` es cuándo se pagó, `mes`/`anio` a qué renta
+  // corresponde. Siempre se parte de la fecha de pago, aunque el toggle esté en período.
+  const rentasRecibidas = lista.filter(r => r.tipo === 'RENTA' && r.importe != null && mesDeFechaPago(r) === periodoYYYYMM)
+  const rentaDelMesEnTurno = rentasRecibidas.filter(r => r.anio * 12 + r.mes === periodoIdx)
+  const rentaDeMesesAnteriores = rentasRecibidas.filter(r => r.anio * 12 + r.mes < periodoIdx)
 
   const eliminar = async (r) => {
     const { error } = await supabase.from('ingresos').delete().eq('id', r.id)
@@ -543,11 +573,31 @@ export default function Ingresos() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'14px', marginBottom:'24px' }}>
-        <KPICard title={`${filtroModo === 'fecha_pago' ? 'Pago' : 'Período'} ${MESES[filtroMes]} ${filtroAnio}`} value={`$${(totalMes/1000).toFixed(1)}K`} icon={TrendingUp} color="var(--color-primary)" />
-        <KPICard title="Rentas"      value={`$${(totalRenta/1000).toFixed(1)}K`}      icon={DollarSign}   color="var(--color-success)" />
-        <KPICard title="Sanciones"   value={`$${(totalSanciones/1000).toFixed(1)}K`}  icon={AlertCircle}  color="var(--color-danger)" />
-        <KPICard title="Registros"   value={filtrados.filter(r => r.es_principal).length} icon={Calendar} color="var(--color-secondary)" />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
+        <KPICard title={`Proyectado ${MESES[filtroMes]} ${filtroAnio}`}
+          value={fmtK(totalProyectado)}
+          subtitle={`${contratosVigentes.length} contratos vigentes en el mes`}
+          icon={Target} color="var(--color-primary)" />
+        <KPICard title="Rentas cobradas"
+          value={fmtK(totalRenta)}
+          subtitle={`${delPeriodo.filter(r => r.tipo === 'RENTA').length} pagos de renta`}
+          icon={DollarSign} color="var(--color-success)" />
+        <KPICard title="Sanciones"
+          value={fmtK(totalSanciones)}
+          subtitle={`${delPeriodo.filter(r => r.tipo === 'SANCION').length} sanciones por mora`}
+          icon={AlertCircle} color="var(--color-danger)" />
+        <KPICard title="Del mes en turno"
+          value={fmtK(suma(rentaDelMesEnTurno))}
+          subtitle={`${rentaDelMesEnTurno.length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}`}
+          icon={CalendarCheck} color="var(--color-success)" />
+        <KPICard title="De meses anteriores"
+          value={fmtK(suma(rentaDeMesesAnteriores))}
+          subtitle={`${rentaDeMesesAnteriores.length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados`}
+          icon={History} color="var(--color-warning)" />
+        <KPICard title="Registros"
+          value={delPeriodo.length}
+          subtitle={`Ingresos de todo tipo en el ${filtroModo === 'fecha_pago' ? 'mes de pago' : 'período de renta'}`}
+          icon={Calendar} color="var(--color-secondary)" />
       </div>
 
       {/* Filtros */}
