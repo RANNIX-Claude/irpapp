@@ -7,8 +7,8 @@ import {
   FileText, Plus, Search, AlertTriangle, CheckCircle,
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
-  Grid, AlignJustify, Printer
-, FolderOpen} from 'lucide-react'
+  Grid, AlignJustify, Printer, FolderOpen, LayoutGrid,
+} from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
 import KPICard from '../components/ui/KPICard'
@@ -186,6 +186,92 @@ function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
         </div>
       </td>
     </tr>
+  )
+}
+
+
+// ─── Tarjeta de contrato (vista mosaico) ─────────────────────────────────────
+// Misma idea que las tarjetas de empleados en RH, pero con el logo del negocio
+// en lugar de la foto. Si el arrendatario no tiene logo se pintan sus iniciales.
+function TarjetaContrato({ c, logo, onView, onExpediente }) {
+  const vigente = c.estatus === 'VIGENTE'
+  const dias = c.dias_restantes
+  const nombre = c.nombre_negocio || c.arrendatario_nombre || 'Sin nombre'
+  const ini = nombre.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+
+  // Barra de avance de la vigencia: cuánto del plazo ya transcurrió.
+  const ini_ts = c.fecha_inicio ? new Date(c.fecha_inicio).getTime() : null
+  const fin_ts = c.fecha_fin ? new Date(c.fecha_fin).getTime() : null
+  const pct = ini_ts && fin_ts && fin_ts > ini_ts
+    ? Math.min(100, Math.max(0, Math.round((Date.now() - ini_ts) / (fin_ts - ini_ts) * 100)))
+    : 0
+  const colorDias = dias == null ? '#9CA3AF' : dias < 0 ? 'var(--color-danger)' : dias <= 60 ? 'var(--color-secondary)' : 'var(--color-success)'
+
+  return (
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+      {/* Banda con local y plazo */}
+      <div style={{ position: 'relative', height: 96, background: 'linear-gradient(135deg,#1A3C5E 0%,#0A66C2 70%)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 12px' }}>
+        <span style={{ background: 'rgba(255,255,255,.16)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5, fontFamily: 'monospace' }}>
+          {c.locales_display || c.unidad_numero || '—'}
+        </span>
+        <span style={{ background: 'rgba(255,255,255,.16)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5 }}>
+          {(c.tipo_contrato || '').toUpperCase()}
+        </span>
+        {/* Logo montado sobre la banda */}
+        <div style={{ position: 'absolute', left: '50%', bottom: -30, transform: 'translateX(-50%)', width: 62, height: 62, borderRadius: '50%', background: 'white', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {logo
+            ? <img src={logo} alt={nombre} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            : <span style={{ fontSize: 18, fontWeight: 800, color: '#CBD5E1' }}>{ini}</span>}
+        </div>
+      </div>
+
+      <div style={{ padding: '38px 14px 12px', textAlign: 'center', flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)', textTransform: 'uppercase', lineHeight: 1.25 }}>{nombre}</div>
+        <div style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 600, marginTop: 3 }}>{c.giro_autorizado || 'Sin giro'}</div>
+        {c.nombre_negocio && c.arrendatario_nombre && (
+          <div style={{ fontSize: 11, color: 'var(--color-text-light)', marginTop: 2 }}>{c.arrendatario_nombre}</div>
+        )}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+          <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 800, background: vigente ? '#D1FAE5' : '#FEE2E2', color: vigente ? '#057642' : '#B24020' }}>
+            {c.estatus}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--color-text-light)', fontFamily: 'monospace' }}>{c.folio}</span>
+        </div>
+      </div>
+
+      {/* Renta y vigencia */}
+      <div style={{ borderTop: '1px solid #F3F4F6', padding: '10px 14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text)' }}>
+              {c.renta_mensual ? '$' + parseFloat(c.renta_mensual).toLocaleString('es-MX', { maximumFractionDigits: 0 }) : '—'}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-light)' }}>Renta mensual</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: colorDias }}>
+              {dias == null ? '—' : dias < 0 ? `${Math.abs(dias)}` : dias}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-light)' }}>
+              {dias == null ? '' : dias < 0 ? 'd vencido' : 'd restantes'}
+            </div>
+          </div>
+        </div>
+        <div style={{ height: 4, background: '#F3F4F6', borderRadius: 3, marginTop: 8, overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: colorDias }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-text-light)', marginTop: 5 }}>
+          <span>{c.fecha_inicio || '—'}</span>
+          <span>{c.fecha_fin || '—'}</span>
+        </div>
+      </div>
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
+        <button onClick={() => onView(c)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', borderRight: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--color-text-light)' }}>Ver</button>
+        <button onClick={() => onExpediente(c)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--color-primary)' }}>Expediente</button>
+      </div>
+    </div>
   )
 }
 
@@ -1125,7 +1211,17 @@ export default function Contratos() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [showNuevo, setShowNuevo] = useState(false)
+  const [vistaGrid, setVistaGrid] = useState(false)
+  // logo_url vive en arrendatarios y prp_contratos no lo expone; se carga aparte
+  // y se indexa por arrendatario para pintarlo en las tarjetas.
+  const [logos, setLogos] = useState({})
   const [generandoFolios, setGenerandoFolios] = useState(false)
+
+  useEffect(() => {
+    supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => {
+      setLogos(Object.fromEntries((data ?? []).filter(a => a.logo_url).map(a => [a.id, a.logo_url])))
+    })
+  }, [])
 
   // Genera folio IWOL-L{locales}-{año} para contratos sin folio estándar
   const ESTATUS_VALIDOS = ['VIGENTE', 'VENCIDO', 'RENOVADO', 'RESCISION']
@@ -1169,6 +1265,7 @@ export default function Contratos() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [refreshKey, setRefreshKey] = useState(0)
   const [diasAnticip, setDiasAnticip] = useState(60)
+  const navigate = useNavigate()
   const [vistaAnual, setVistaAnual] = useState(false)
   const [anioAnual, setAnioAnual] = useState(String(new Date().getFullYear()))
   const { data, loading } = usePRP('prp_contratos', { order: { col: 'fecha_inicio', asc: false }, refreshKey })
@@ -1253,12 +1350,16 @@ export default function Contratos() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {/* Toggle lista / vista anual */}
           <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
-            <button onClick={() => setVistaAnual(false)} title="Vista lista"
-              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: !vistaAnual ? 'var(--color-primary)' : 'white', color: !vistaAnual ? 'white' : '#6B7280' }}>
+            <button onClick={() => { setVistaAnual(false); setVistaGrid(false) }} title="Vista lista"
+              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: !vistaAnual && !vistaGrid ? 'var(--color-primary)' : 'white', color: !vistaAnual && !vistaGrid ? 'white' : '#6B7280' }}>
               <AlignJustify size={16} />
             </button>
+            <button onClick={() => { setVistaAnual(false); setVistaGrid(true) }} title="Vista mosaico"
+              style={{ padding: '8px 12px', border: 'none', borderLeft: '1px solid #E5E7EB', cursor: 'pointer', background: vistaGrid && !vistaAnual ? 'var(--color-primary)' : 'white', color: vistaGrid && !vistaAnual ? 'white' : '#6B7280' }}>
+              <LayoutGrid size={16} />
+            </button>
             <button onClick={() => setVistaAnual(true)} title="Vista anual de vencimientos"
-              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: vistaAnual ? 'var(--color-primary)' : 'white', color: vistaAnual ? 'white' : '#6B7280' }}>
+              style={{ padding: '8px 12px', border: 'none', borderLeft: '1px solid #E5E7EB', cursor: 'pointer', background: vistaAnual ? 'var(--color-primary)' : 'white', color: vistaAnual ? 'white' : '#6B7280' }}>
               <Grid size={16} />
             </button>
           </div>
@@ -1431,6 +1532,15 @@ export default function Contratos() {
             ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><LoadingSpinner /></div>
             : filtrados.length === 0
               ? <EmptyState title="Sin contratos" description="No hay contratos que coincidan con los filtros." />
+              : vistaGrid
+              ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16, padding: 16, background: '#F8FAFC' }}>
+                  {filtrados.map(c => (
+                    <TarjetaContrato key={c.id} c={c} logo={logos[c.arrendatario_id]}
+                      onView={c => { setSelectedInEditMode(false); setSelected(c) }}
+                      onExpediente={c => navigate(`/contratos/${c.id}`)}
+                    />
+                  ))}
+                </div>
               : <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>

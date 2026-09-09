@@ -4,8 +4,8 @@ import {
   Wrench, HardHat, Truck, UserCheck, Car,
   Search, BarChart3, Settings, Wallet, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
-  UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed,
-, FolderOpen} from 'lucide-react'
+  UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
+} from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
 const NAV_SECTIONS = [
