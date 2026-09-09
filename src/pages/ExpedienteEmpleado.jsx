@@ -65,7 +65,9 @@ const TIPO_SUELDO = { AJUSTE:{label:'Ajuste',color:C.primary}, PROMOCION:{label:
 const TIPO_CONTRATO = { TEMPORAL_3SEM:'Temporal 3 semanas', TEMPORAL_30D:'Temporal 30 días', PRUEBA_90:'Prueba 90 días', INDEFINIDO:'Tiempo indefinido' }
 const EVAL_COLOR = { EXCELENTE:C.success, BUENO:C.primary, REGULAR:C.warning, DEFICIENTE:C.danger }
 
-const CAMPOS_EXPEDIENTE = ['CONTRATO','INE','CURP','NSS','CONSTANCIA_MEDICA','COMPROBANTE_DOM','FOTO','ACTA_NAC','RFC']
+// Documentos que cuentan para la completitud. FOTO y CONSTANCIA_MEDICA se
+// pueden archivar y siguen en TIPOS_DOC, pero no cuentan como obligatorios.
+const CAMPOS_EXPEDIENTE = ['CONTRATO','INE','CURP','NSS','COMPROBANTE_DOM','ACTA_NAC','RFC']
 
 const AVATAR_COLORS = ['#0A66C2','#057642','#E8A020','#B24020','#6B21A8','#0F766E']
 
