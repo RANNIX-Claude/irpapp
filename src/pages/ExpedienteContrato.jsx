@@ -217,16 +217,37 @@ export default function ExpedienteContrato() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const { data: expData } = await supabase
-      .from('prp_expediente_arrendatario').select('*').eq('contrato_id', id).maybeSingle()
+    // Se lee de prp_contratos, la misma vista que alimenta la lista.
+    // prp_expediente_arrendatario NO sirve aquí: está construida sobre el
+    // esquema `prp` (prp.contratos_arrendamiento), un modelo distinto al de
+    // public.contratos, así que sus contrato_id no corresponden a estos.
+    const { data: c } = await supabase
+      .from('prp_contratos').select('*').eq('id', id).maybeSingle()
 
-    if (!expData) { setExp(null); setLoading(false); return }
+    if (!c) { setExp(null); setLoading(false); return }
+
+    // Nombres que espera el resto de la pantalla.
+    const expData = {
+      ...c,
+      contrato_id:        c.id,
+      nombre_completo:    c.arrendatario_nombre,
+      rfc:                c.arrendatario_rfc,
+      telefono:           c.arrendatario_telefono,
+      email:              c.arrendatario_email,
+      domicilio:          c.arrendatario_domicilio,
+      contrato_estatus:   c.estatus,
+      numero_local:       c.locales_display || c.unidad_numero,
+      metros_cuadrados:   c.m2_totales,
+      dia_limite_pago:    c.dia_pago,
+      penalizacion_mora_pct: c.penalizacion_pct,
+      alta_fecha:         c.created_at?.slice(0, 10),
+    }
 
     const [cobrosR, docsR, arrR] = await Promise.all([
       supabase.from('prp_cobros').select('*').eq('contrato_id', id).order('anio', { ascending: false }).order('mes', { ascending: false }),
-      supabase.from('documentos').select('*').eq('entidad_tipo', 'ARRENDATARIO').eq('entidad_id', expData.arrendatario_id),
+      supabase.from('documentos').select('*').eq('entidad_tipo', 'ARRENDATARIO').eq('entidad_id', c.arrendatario_id),
       // logo_url no está en la vista; se lee de la tabla.
-      supabase.from('arrendatarios').select('logo_url').eq('id', expData.arrendatario_id).maybeSingle(),
+      supabase.from('arrendatarios').select('logo_url').eq('id', c.arrendatario_id).maybeSingle(),
     ])
 
     setExp(expData)
@@ -274,7 +295,7 @@ export default function ExpedienteContrato() {
         </button>
         <ChevronRight size={13} color={C.muted} />
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{exp.nombre_completo}</span>
-        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{exp.numero_local}</span>
+        <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{exp.folio || exp.numero_local}</span>
         <div style={{ flex: 1 }} />
         <Badge label={exp.contrato_estatus || '—'} color={vigente ? C.success : C.danger} />
         <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: C.muted }}>
@@ -303,7 +324,7 @@ export default function ExpedienteContrato() {
                 {exp.giro_autorizado || 'Sin giro registrado'}
               </div>
               <div style={{ display: 'flex', gap: 16, marginTop: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={12} />{exp.inmueble_nombre} · {exp.numero_local}</span>
+                <span style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={12} />{[exp.inmueble_nombre, exp.numero_local].filter(Boolean).join(' · ') || 'Sin local'}</span>
                 {exp.email && <span style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><Mail size={12} />{exp.email}</span>}
                 {exp.telefono && <span style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={12} />{exp.telefono}</span>}
                 <span style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><Hash size={12} />{exp.rfc || 'Sin RFC'}</span>
@@ -367,7 +388,7 @@ export default function ExpedienteContrato() {
                   <Grid4>
                     <Campo label="Vigencia" value={`${fmtD(exp.fecha_inicio)} — ${fmtD(exp.fecha_fin)}`} />
                     <Campo label="Tipo de contrato" value={exp.tipo_contrato} />
-                    <Campo label="Local" value={`${exp.numero_local} · ${exp.metros_cuadrados ?? '—'} m²`} />
+                    <Campo label="Local" value={[exp.numero_local, exp.metros_cuadrados && `${exp.metros_cuadrados} m²`].filter(Boolean).join(' · ')} />
                     <Campo label="Día límite de pago" value={exp.dia_limite_pago ? `Día ${exp.dia_limite_pago}` : '—'} />
                   </Grid4>
                 </Section>
@@ -390,6 +411,7 @@ export default function ExpedienteContrato() {
                   <Grid4>
                     <Campo label="Fecha de inicio" value={fmtD(exp.fecha_inicio)} />
                     <Campo label="Fecha de fin" value={fmtD(exp.fecha_fin)} />
+                    <Campo label="Folio" value={exp.folio} mono />
                     <Campo label="Tipo de contrato" value={exp.tipo_contrato} />
                     <Campo label="Estatus" value={exp.contrato_estatus} />
                     <Campo label="Renta mensual" value={fmt$(exp.renta_mensual)} />
