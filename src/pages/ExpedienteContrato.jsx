@@ -244,14 +244,27 @@ export default function ExpedienteContrato() {
     }
 
     const [cobrosR, docsR, arrR] = await Promise.all([
-      supabase.from('prp_cobros').select('*').eq('contrato_id', id).order('anio', { ascending: false }).order('mes', { ascending: false }),
+      // prp_cartera, no prp_cobros: esta última vive en el esquema `prp` y sus
+      // contrato_id no corresponden a los de public.contratos, así que devolvía
+      // siempre cero filas. Es la misma vista que usa /cobranza.
+      supabase.from('prp_cartera').select('*').eq('contrato_id', id)
+        .order('periodo_anio', { ascending: false }).order('periodo_mes', { ascending: false }),
       supabase.from('documentos').select('*').eq('entidad_tipo', 'ARRENDATARIO').eq('entidad_id', c.arrendatario_id),
       // logo_url no está en la vista; se lee de la tabla.
       supabase.from('arrendatarios').select('logo_url').eq('id', c.arrendatario_id).maybeSingle(),
     ])
 
     setExp(expData)
-    setCobros(cobrosR.data ?? [])
+    setCobros((cobrosR.data ?? []).map(r => ({
+      ...r,
+      mes:               r.periodo_mes,
+      anio:              r.periodo_anio,
+      monto_total:       r.importe,
+      monto_pagado:      r.total_aplicado,
+      estatus:           r.estado,
+      fecha_limite_pago: r.fecha_vencimiento,
+      referencia_pago:   r.concepto,
+    })))
     setDocs(docsR.data ?? [])
     setLogoUrl(arrR.data?.logo_url ?? null)
     setLoading(false)
