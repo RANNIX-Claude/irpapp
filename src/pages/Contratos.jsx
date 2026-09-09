@@ -17,7 +17,6 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, urlFirmada } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
-import { estaOcupado, ultimoPagoPorContrato } from '../lib/operacion'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -57,32 +56,31 @@ const ESTATUS_OPTS = [
   { val: 'RESCISION', label: 'Rescisión', color: '#7C3AED', bg: '#F5F3FF' },
 ]
 
-// El segundo eje: la realidad de la plaza, aparte del papel. Un local puede
-// estar ocupado y pagando con el contrato vencido — ahí es donde está el riesgo,
-// porque se cobra sin respaldo firmado. Ver src/lib/operacion.js.
-function OperacionBadge({ ultimoPago, fechaFin }) {
-  const ocupado = estaOcupado(ultimoPago)
+// El segundo eje: la condición real del local, capturada a mano y aparte del
+// papel. Se pinta en ámbar cuando ocupa y paga con el contrato vencido — ahí
+// está el riesgo, porque se cobra sin respaldo firmado.
+function OperacionBadge({ estatusOperacion, fechaFin }) {
+  const ocupado = estatusOperacion !== 'DESOCUPADO'
   const vencido = fechaFin ? fechaFin.slice(0, 10) < new Date().toISOString().slice(0, 10) : false
+  const est = ocupado
+    ? (vencido
+        ? { txt: 'Ocupado · sin contrato', bg: '#FEF3C7', color: '#92400E', tip: `Ocupa y paga, pero el contrato venció el ${fechaFin?.slice(0, 10)}. Falta formalizar la renovación.` }
+        : { txt: 'Ocupado', bg: '#D1FAE5', color: '#057642', tip: 'En operación' })
+    : { txt: 'Desocupado', bg: '#F3F4F6', color: '#6B7280', tip: 'No entra en lo que se cobra al mes' }
 
-  if (!ocupado) return (
-    <span title={ultimoPago ? `Último pago: ${ultimoPago.slice(0, 10)}` : 'Sin pagos registrados'}
-      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#F3F4F6', color: '#6B7280' }}>
-      Desocupado
-    </span>
-  )
-  if (vencido) return (
-    <span title={`Ocupado y pagando, pero el contrato venció el ${fechaFin.slice(0, 10)}. Falta formalizar la renovación.`}
-      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#FEF3C7', color: '#92400E' }}>
-      Ocupado · sin contrato
-    </span>
-  )
   return (
-    <span title={`Último pago: ${ultimoPago.slice(0, 10)}`}
-      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#057642' }}>
-      Ocupado
+    <span title={est.tip} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: est.bg, color: est.color }}>
+      {est.txt}
     </span>
   )
 }
+
+// Los dos ejes del contrato. El de operación se captura a mano: es la condición
+// real del local, y es la que decide si su renta entra en lo que se cobra al mes.
+const OPERACION_OPTS = [
+  { val: 'OCUPADO',    label: 'Ocupado',    color: '#057642', bg: '#D1FAE5' },
+  { val: 'DESOCUPADO', label: 'Desocupado', color: '#6B7280', bg: '#F3F4F6' },
+]
 
 function EstatusBadge({ c, onChange }) {
   const [open, setOpen] = useState(false)
@@ -155,7 +153,7 @@ function ProcesoBadge({ c, onChange }) {
   )
 }
 
-function ContratoRow({ c, ultimoPago, onView, onEdit, onDelete, onRefresh }) {
+function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh }) {
   const navigate = useNavigate()
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
@@ -194,7 +192,7 @@ function ContratoRow({ c, ultimoPago, onView, onEdit, onDelete, onRefresh }) {
           <ProcesoBadge c={c} onChange={onRefresh} />
         </div>
         <div style={{ marginTop: '4px' }}>
-          <OperacionBadge ultimoPago={ultimoPago} fechaFin={c.fecha_fin} />
+          <OperacionBadge estatusOperacion={estatusOperacion} fechaFin={c.fecha_fin} />
         </div>
       </td>
       <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
@@ -361,6 +359,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
       arr_locatario:              arr?.locatario      ?? c.arrendatario_nombre ?? '',
       arr_nombre_negocio:         arr?.nombre_negocio ?? c.nombre_negocio      ?? '',
       estatus:                    ['VIGENTE','VENCIDO','RENOVADO','RESCISION'].includes(c.estatus) ? c.estatus : 'VIGENTE',
+      estatus_operacion:          c.estatus_operacion === 'DESOCUPADO' ? 'DESOCUPADO' : 'OCUPADO',
       estatus_proceso:            c.estatus_proceso ?? 'EN_EJECUCION',
       renta_mensual:              c.renta_mensual ?? '',
       deposito_garantia:          c.deposito_garantia ?? '',
@@ -391,6 +390,7 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     const payload = {
       numero_contrato: editForm.folio || null,
       estatus:          ESTATUS_VALIDOS.includes(editForm.estatus) ? editForm.estatus : 'VIGENTE',
+      estatus_operacion: editForm.estatus_operacion === 'DESOCUPADO' ? 'DESOCUPADO' : 'OCUPADO',
       estatus_proceso:  editForm.estatus_proceso  || null,
       renta_mensual:    editForm.renta_mensual    ? parseFloat(editForm.renta_mensual)    : null,
       deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
@@ -602,6 +602,14 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                           style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }}>
                           {ESTATUS_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
                         </select>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '4px' }}>Estatus operación</div>
+                        <select value={editForm.estatus_operacion} onChange={e => setEditForm(f => ({ ...f, estatus_operacion: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }}>
+                          {OPERACION_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                        </select>
+                        <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '3px' }}>Los ocupados entran en lo que se cobra al mes</div>
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '4px' }}>Etapa de proceso</div>
@@ -1252,13 +1260,13 @@ export default function Contratos() {
   const [logos, setLogos] = useState({})
   const [generandoFolios, setGenerandoFolios] = useState(false)
 
-  // Último pago de renta por contrato: es lo que determina si el local está en
-  // operación, con independencia de lo que diga el estatus del contrato.
-  const [pagoPorContrato, setPagoPorContrato] = useState({})
+  // prp_contratos no expone estatus_operacion; se lee de la tabla y se indexa.
+  const [operacionPorContrato, setOperacionPorContrato] = useState({})
   useEffect(() => {
-    supabase.from('prp_ingresos').select('contrato_id, tipo, fecha')
-      .then(({ data }) => setPagoPorContrato(ultimoPagoPorContrato(data ?? [])))
-  }, [])
+    supabase.from('contratos').select('id, estatus_operacion').then(({ data }) => {
+      setOperacionPorContrato(Object.fromEntries((data ?? []).map(x => [x.id, x.estatus_operacion])))
+    })
+  }, [refreshKey])
 
   useEffect(() => {
     supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => {
@@ -1601,7 +1609,7 @@ export default function Contratos() {
                     </thead>
                     <tbody>
                       {filtrados.map(c => (
-                        <ContratoRow key={c.id} c={c} ultimoPago={pagoPorContrato[c.id]}
+                        <ContratoRow key={c.id} c={c} estatusOperacion={operacionPorContrato[c.id]}
                           onView={c => { setSelectedInEditMode(false); setSelected(c) }}
                           onEdit={c => { setSelectedInEditMode(true); setSelected(c) }}
                           onDelete={c => setConfirmDelete(c)}

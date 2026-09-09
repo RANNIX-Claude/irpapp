@@ -3,7 +3,17 @@ import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
-import { estaOcupado, ultimoPagoPorContrato } from '../lib/operacion'
+
+// estatus_operacion vive en la tabla; prp_contratos no lo expone todavía.
+function useOperacion() {
+  const [mapa, setMapa] = useState({})
+  useEffect(() => {
+    supabase.from('contratos').select('id, estatus_operacion').then(({ data }) => {
+      setMapa(Object.fromEntries((data ?? []).map(x => [x.id, x.estatus_operacion])))
+    })
+  }, [])
+  return mapa
+}
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
@@ -484,6 +494,7 @@ export default function Ingresos() {
 
   // Lo proyectado sale de los contratos, no de los ingresos: son fuentes distintas.
   const { data: dataContratos } = usePRP('prp_contratos', { select: 'id, estatus, renta_mensual, fecha_inicio, fecha_fin' })
+  const operacion = useOperacion()
   const contratos = dataContratos ?? []
 
   const periodoYYYYMM = `${filtroAnio}-${String(filtroMes).padStart(2, '0')}`
@@ -529,12 +540,10 @@ export default function Ingresos() {
   const totalRenta = suma(delPeriodo.filter(r => r.tipo === 'RENTA'))
   const totalSanciones = suma(delPeriodo.filter(r => r.tipo === 'SANCION'))
 
-  // Proyectado: lo que se debe cobrar, o sea la renta de los locales EN
-  // OPERACIÓN. No se usa `estatus` ni la fecha de fin: hay 8 contratos vencidos
-  // que siguen ocupando y pagando —la renovación no se formalizó— y su renta
-  // se cobra igual. Ver src/lib/operacion.js.
-  const pagoPorContrato = useMemo(() => ultimoPagoPorContrato(lista), [lista])
-  const contratosOcupados = contratos.filter(c => estaOcupado(pagoPorContrato[c.id]))
+  // Por cobrar: la renta de los locales EN OPERACIÓN. No se usa `estatus` ni la
+  // fecha de fin — hay contratos vencidos que siguen ocupando y pagando, y su
+  // renta se cobra igual. El estatus de operación se captura en el contrato.
+  const contratosOcupados = contratos.filter(c => operacion[c.id] !== 'DESOCUPADO' && operacion[c.id])
   const totalProyectado = contratosOcupados.reduce((a, c) => a + (parseFloat(c.renta_mensual) || 0), 0)
   const ocupadosSinContrato = contratosOcupados.filter(c => {
     const fin = (c.fecha_fin || '').slice(0, 10)
