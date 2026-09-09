@@ -3,6 +3,7 @@ import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
+import { estaOcupado, ultimoPagoPorContrato } from '../lib/operacion'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
@@ -528,15 +529,17 @@ export default function Ingresos() {
   const totalRenta = suma(delPeriodo.filter(r => r.tipo === 'RENTA'))
   const totalSanciones = suma(delPeriodo.filter(r => r.tipo === 'SANCION'))
 
-  // Proyectado: renta de los contratos cuya vigencia cubre el mes seleccionado.
-  // Se decide por fechas y no por `estatus`, que es un valor fijo por contrato y
-  // daría el mismo número en todos los períodos.
-  const contratosVigentes = contratos.filter(c => {
-    const ini = (c.fecha_inicio || '').slice(0, 10)
+  // Proyectado: lo que se debe cobrar, o sea la renta de los locales EN
+  // OPERACIÓN. No se usa `estatus` ni la fecha de fin: hay 8 contratos vencidos
+  // que siguen ocupando y pagando —la renovación no se formalizó— y su renta
+  // se cobra igual. Ver src/lib/operacion.js.
+  const pagoPorContrato = useMemo(() => ultimoPagoPorContrato(lista), [lista])
+  const contratosOcupados = contratos.filter(c => estaOcupado(pagoPorContrato[c.id]))
+  const totalProyectado = contratosOcupados.reduce((a, c) => a + (parseFloat(c.renta_mensual) || 0), 0)
+  const ocupadosSinContrato = contratosOcupados.filter(c => {
     const fin = (c.fecha_fin || '').slice(0, 10)
-    return ini && ini <= `${periodoYYYYMM}-31` && (!fin || fin >= `${periodoYYYYMM}-01`)
-  })
-  const totalProyectado = contratosVigentes.reduce((a, c) => a + (parseFloat(c.renta_mensual) || 0), 0)
+    return fin && fin < new Date().toISOString().slice(0, 10)
+  }).length
 
   // Recibido vs. correspondido: `fecha` es cuándo se pagó, `mes`/`anio` a qué renta
   // corresponde. Siempre se parte de la fecha de pago, aunque el toggle esté en período.
@@ -574,9 +577,9 @@ export default function Ingresos() {
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
-        <KPICard title={`Proyectado ${MESES[filtroMes]} ${filtroAnio}`}
+        <KPICard title="Por cobrar (locales ocupados)"
           value={fmtK(totalProyectado)}
-          subtitle={`${contratosVigentes.length} contratos vigentes en el mes`}
+          subtitle={`${contratosOcupados.length} en operación${ocupadosSinContrato ? ` · ${ocupadosSinContrato} sin contrato vigente` : ''}`}
           icon={Target} color="var(--color-primary)" />
         <KPICard title="Rentas cobradas"
           value={fmtK(totalRenta)}

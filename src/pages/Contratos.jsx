@@ -17,6 +17,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, urlFirmada } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
+import { estaOcupado, ultimoPagoPorContrato } from '../lib/operacion'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,33 @@ const ESTATUS_OPTS = [
   { val: 'RENOVADO',  label: 'Renovado',  color: '#0A66C2', bg: '#EBF4FF' },
   { val: 'RESCISION', label: 'Rescisión', color: '#7C3AED', bg: '#F5F3FF' },
 ]
+
+// El segundo eje: la realidad de la plaza, aparte del papel. Un local puede
+// estar ocupado y pagando con el contrato vencido — ahí es donde está el riesgo,
+// porque se cobra sin respaldo firmado. Ver src/lib/operacion.js.
+function OperacionBadge({ ultimoPago, fechaFin }) {
+  const ocupado = estaOcupado(ultimoPago)
+  const vencido = fechaFin ? fechaFin.slice(0, 10) < new Date().toISOString().slice(0, 10) : false
+
+  if (!ocupado) return (
+    <span title={ultimoPago ? `Último pago: ${ultimoPago.slice(0, 10)}` : 'Sin pagos registrados'}
+      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#F3F4F6', color: '#6B7280' }}>
+      Desocupado
+    </span>
+  )
+  if (vencido) return (
+    <span title={`Ocupado y pagando, pero el contrato venció el ${fechaFin.slice(0, 10)}. Falta formalizar la renovación.`}
+      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#FEF3C7', color: '#92400E' }}>
+      Ocupado · sin contrato
+    </span>
+  )
+  return (
+    <span title={`Último pago: ${ultimoPago.slice(0, 10)}`}
+      style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#057642' }}>
+      Ocupado
+    </span>
+  )
+}
 
 function EstatusBadge({ c, onChange }) {
   const [open, setOpen] = useState(false)
@@ -127,7 +155,7 @@ function ProcesoBadge({ c, onChange }) {
   )
 }
 
-function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
+function ContratoRow({ c, ultimoPago, onView, onEdit, onDelete, onRefresh }) {
   const navigate = useNavigate()
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
@@ -164,6 +192,9 @@ function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
         <EstatusBadge c={c} onChange={onRefresh} />
         <div style={{ marginTop: '4px' }}>
           <ProcesoBadge c={c} onChange={onRefresh} />
+        </div>
+        <div style={{ marginTop: '4px' }}>
+          <OperacionBadge ultimoPago={ultimoPago} fechaFin={c.fecha_fin} />
         </div>
       </td>
       <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
@@ -1221,6 +1252,14 @@ export default function Contratos() {
   const [logos, setLogos] = useState({})
   const [generandoFolios, setGenerandoFolios] = useState(false)
 
+  // Último pago de renta por contrato: es lo que determina si el local está en
+  // operación, con independencia de lo que diga el estatus del contrato.
+  const [pagoPorContrato, setPagoPorContrato] = useState({})
+  useEffect(() => {
+    supabase.from('prp_ingresos').select('contrato_id, tipo, fecha')
+      .then(({ data }) => setPagoPorContrato(ultimoPagoPorContrato(data ?? [])))
+  }, [])
+
   useEffect(() => {
     supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => {
       setLogos(Object.fromEntries((data ?? []).filter(a => a.logo_url).map(a => [a.id, a.logo_url])))
@@ -1562,7 +1601,7 @@ export default function Contratos() {
                     </thead>
                     <tbody>
                       {filtrados.map(c => (
-                        <ContratoRow key={c.id} c={c}
+                        <ContratoRow key={c.id} c={c} ultimoPago={pagoPorContrato[c.id]}
                           onView={c => { setSelectedInEditMode(false); setSelected(c) }}
                           onEdit={c => { setSelectedInEditMode(true); setSelected(c) }}
                           onDelete={c => setConfirmDelete(c)}
