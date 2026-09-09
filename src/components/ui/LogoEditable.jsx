@@ -40,17 +40,35 @@ export default function LogoEditable({
       if (inputRef.current) inputRef.current.value = ''
       return
     }
+    if (!registroId) {
+      toast.error('El registro no tiene id: guárdalo antes de agregar la imagen')
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
     setSubiendo(true)
     try {
-      const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+      // Extensión saneada: si el archivo viene sin extensión o con una rara,
+      // se deduce del mime; el path nunca lleva caracteres del nombre original.
+      const porMime = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+      const extBruta = (file.name.split('.').pop() || '').toLowerCase()
+      const ext = /^[a-z0-9]{2,5}$/.test(extBruta) ? extBruta : (porMime[file.type] || 'png')
       const path = `${prefijo}/${registroId}_${Date.now()}.${ext}`
+
       const { error: upErr } = await supabase.storage
-        .from(bucket).upload(path, file, { contentType: file.type, upsert: true })
-      if (upErr) throw upErr
+        .from(bucket).upload(path, file, { contentType: file.type || porMime[ext], upsert: true })
+      if (upErr) {
+        // El mensaje corto de supabase-js oculta la causa; se arma uno completo.
+        const detalle = [upErr.statusCode, upErr.error, upErr.message].filter(Boolean).join(' · ')
+        console.error('[LogoEditable] fallo la subida', { bucket, path, tipo: file.type, tamano: file.size, upErr })
+        throw new Error(detalle || 'error desconocido al subir')
+      }
 
       const nueva = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`
       const { error } = await supabase.from(tabla).update({ [columna]: nueva }).eq('id', registroId)
-      if (error) throw error
+      if (error) {
+        console.error('[LogoEditable] subio el archivo pero fallo el update', { tabla, columna, registroId, error })
+        throw new Error(`archivo subido, pero no se guardó en ${tabla}: ${error.message}`)
+      }
 
       onSubido?.(nueva)
       toast.success('Imagen actualizada')
