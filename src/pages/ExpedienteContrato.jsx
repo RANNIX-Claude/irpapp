@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
+import LogoEditable from '../components/ui/LogoEditable'
 import toast from 'react-hot-toast'
 
 // ── Paleta RANNIX ────────────────────────────────────────────────────────────
@@ -87,37 +88,6 @@ function Th({ children }) {
 
 function Td({ children, mono, bold, small }) {
   return <td style={{ padding: '10px 12px', fontSize: small ? 11 : 13, fontFamily: mono ? 'monospace' : undefined, color: C.text, fontWeight: bold ? 700 : 400, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}>{children}</td>
-}
-
-// ── Logo de la empresa, con iniciales de respaldo ────────────────────────────
-function LogoEmpresa({ nombre, logo, size = 72, uploading, inputRef, onChange }) {
-  const [hover, setHover] = useState(false)
-  const ini = (nombre || 'NN').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase()
-
-  return (
-    <div
-      onClick={() => inputRef?.current?.click()}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      title="Clic para cambiar el logo"
-      style={{
-        width: size, height: size, borderRadius: 14, flexShrink: 0, cursor: 'pointer',
-        position: 'relative', overflow: 'hidden', background: C.surface,
-        border: `3px solid ${C.surface}`, boxShadow: '0 2px 8px rgba(0,0,0,.15)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-      {logo
-        ? <img src={logo} alt={nombre} style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }} />
-        : <span style={{ fontSize: size * 0.3, fontWeight: 800, color: C.primary }}>{ini}</span>
-      }
-      {(hover || uploading) && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: 4 }}>
-          {uploading ? 'Subiendo…' : 'Cambiar logo'}
-        </div>
-      )}
-      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onChange} />
-    </div>
-  )
 }
 
 // ── Modal: subir comprobante de un cobro pendiente ───────────────────────────
@@ -241,10 +211,8 @@ export default function ExpedienteContrato() {
   const [cobros, setCobros] = useState([])
   const [docs, setDocs] = useState([])
   const [logoUrl, setLogoUrl] = useState(null)
-  const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [modalCobro, setModalCobro] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const logoRef = useRef(null)
   const reload = () => setRefreshKey(k => k + 1)
 
   const loadData = useCallback(async () => {
@@ -270,29 +238,6 @@ export default function ExpedienteContrato() {
 
   useEffect(() => { loadData() }, [loadData, refreshKey])
 
-  const handleLogo = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file || !exp) return
-    setSubiendoLogo(true)
-    try {
-      const ext = (file.name.split('.').pop() || 'png').toLowerCase()
-      const path = `${exp.arrendatario_id}_${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('logos-arrendatarios').upload(path, file, { contentType: file.type, upsert: true })
-      if (upErr) throw upErr
-      const base = import.meta.env.VITE_SUPABASE_URL
-      const url = `${base}/storage/v1/object/public/logos-arrendatarios/${path}`
-      const { error } = await supabase.from('arrendatarios').update({ logo_url: url }).eq('id', exp.arrendatario_id)
-      if (error) throw error
-      setLogoUrl(url)
-      toast.success('Logo actualizado')
-    } catch (err) {
-      toast.error('Error: ' + err.message)
-    } finally {
-      setSubiendoLogo(false)
-      if (logoRef.current) logoRef.current.value = ''
-    }
-  }
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12, color: C.muted }}>
@@ -342,7 +287,13 @@ export default function ExpedienteContrato() {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
           <div style={{ height: 90, background: `linear-gradient(135deg, ${C.dark} 0%, ${C.primary} 60%, ${C.primary}99 100%)`, borderRadius: '0 0 12px 12px', marginBottom: '-28px' }} />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, padding: '0 8px 16px' }}>
-            <LogoEmpresa nombre={exp.nombre_completo} logo={logoUrl} uploading={subiendoLogo} inputRef={logoRef} onChange={handleLogo} />
+            <LogoEditable
+              bucket="logos-arrendatarios" prefijo="arrendatarios"
+              tabla="arrendatarios" columna="logo_url"
+              registroId={exp.arrendatario_id} url={logoUrl}
+              nombre={exp.nombre_completo} size={72} redondo={false}
+              onSubido={setLogoUrl}
+            />
             <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: -20, marginBottom: 6 }}>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#FFFFFF', textShadow: '0 1px 3px rgba(0,0,0,.35)' }}>{exp.nombre_completo}</h1>
