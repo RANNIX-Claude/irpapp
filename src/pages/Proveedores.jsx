@@ -1,7 +1,8 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { Truck, Plus, Search, X, Pencil, Check, ChevronDown } from 'lucide-react'
+import { Truck, Plus, Search, X, Pencil, Check, ChevronDown , LayoutGrid, AlignJustify} from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import LogoEditable from '../components/ui/LogoEditable'
 
 const CATEGORIAS = [
   { id: 'VENDING',       label: 'Vending',        color: '#EC4899' },
@@ -106,6 +107,100 @@ function ModalProveedor({ proveedor, onClose, onSaved }) {
   )
 }
 
+
+// ─── Tarjeta de proveedor (vista mosaico) ────────────────────────────────────
+function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
+  const info = catInfo(p.categoria)
+  return (
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)', opacity: p.activo ? 1 : .55 }}>
+      <div style={{ position: 'relative', height: 78, background: `linear-gradient(135deg, ${info.color || '#0A66C2'} 0%, #1A3C5E 130%)`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '9px 11px' }}>
+        <span style={{ background: 'rgba(255,255,255,.18)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5, fontFamily: 'monospace' }}>{p.clave || '—'}</span>
+        {!p.activo && <span style={{ background: 'rgba(255,255,255,.18)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5 }}>INACTIVO</span>}
+        <div style={{ position: 'absolute', left: '50%', bottom: -28, transform: 'translateX(-50%)' }}>
+          <LogoEditable
+            prefijo="proveedores" tabla="cat_proveedores" columna="logo_url"
+            registroId={p.id} url={p.logo_url} nombre={p.nombre} size={58}
+            onSubido={url => onLogo(p.id, url)}
+          />
+        </div>
+      </div>
+
+      <div style={{ padding: '34px 14px 12px', textAlign: 'center', flex: 1 }}>
+        <div style={{ fontWeight: 800, fontSize: 13.5, color: '#111827', lineHeight: 1.25 }}>{p.nombre}</div>
+        <div style={{ marginTop: 6 }}><Badge cat={p.categoria} /></div>
+        <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, fontFamily: 'monospace' }}>{p.rfc || 'Sin RFC'}</div>
+        {p.contacto && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>{p.contacto}</div>}
+        {p.telefono && <div style={{ fontSize: 11, color: '#6B7280' }}>{p.telefono}</div>}
+      </div>
+
+      <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
+        <button onClick={() => onVer(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', borderRight: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A66C2' }}>Ficha</button>
+        <button onClick={() => onEditar(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Editar</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Ficha del proveedor ─────────────────────────────────────────────────────
+function FichaProveedor({ p, onClose, onLogo, onEditar }) {
+  if (!p) return null
+  const info = catInfo(p.categoria)
+  const dato = (l, v, mono) => (
+    <div>
+      <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>{l}</div>
+      <div style={{ fontSize: 13, color: v ? '#111827' : '#9CA3AF', fontWeight: 500, fontFamily: mono ? 'monospace' : undefined }}>{v || '—'}</div>
+    </div>
+  )
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 560, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'relative', height: 96, background: `linear-gradient(135deg, ${info.color || '#0A66C2'} 0%, #1A3C5E 130%)` }}>
+          <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 12, background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: 'white' }}>✕</button>
+          <div style={{ position: 'absolute', left: 24, bottom: -32 }}>
+            <LogoEditable
+              prefijo="proveedores" tabla="cat_proveedores" columna="logo_url"
+              registroId={p.id} url={p.logo_url} nombre={p.nombre} size={72} redondo={false}
+              onSubido={url => onLogo(p.id, url)}
+            />
+          </div>
+        </div>
+
+        <div style={{ padding: '42px 24px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: '#111827' }}>{p.nombre}</h2>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                <Badge cat={p.categoria} />
+                <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</span>
+                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: p.activo ? '#D1FAE5' : '#FEE2E2', color: p.activo ? '#057642' : '#B24020' }}>
+                  {p.activo ? 'ACTIVO' : 'INACTIVO'}
+                </span>
+              </div>
+            </div>
+            <button onClick={() => { onClose(); onEditar(p) }} style={{ padding: '7px 14px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Editar
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginTop: 20, paddingTop: 18, borderTop: '1px solid #F3F4F6' }}>
+            {dato('RFC', p.rfc, true)}
+            {dato('Contacto', p.contacto)}
+            {dato('Teléfono', p.telefono)}
+            {dato('Email', p.email)}
+            {dato('Categoría', info.label || p.categoria)}
+          </div>
+
+          {p.notas && (
+            <div style={{ marginTop: 18, padding: '12px 14px', background: '#F9FAFB', borderRadius: 8, fontSize: 13, color: '#6B7280' }}>
+              📝 {p.notas}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Proveedores() {
   useModuleAudit('PROVEEDORES')
   const [lista, setLista] = useState([])
@@ -114,6 +209,14 @@ export default function Proveedores() {
   const [filtroCat, setFiltroCat] = useState('Todos')
   const [modal, setModal] = useState(null) // null | 'nuevo' | {proveedor}
   const [expanded, setExpanded] = useState(null)
+  const [vistaGrid, setVistaGrid] = useState(true)
+  const [ficha, setFicha] = useState(null)
+
+  // Al subir un logo se refleja en la lista sin recargar.
+  const aplicarLogo = (id, url) => {
+    setLista(prev => prev.map(p => p.id === id ? { ...p, logo_url: url } : p))
+    setFicha(f => f && f.id === id ? { ...f, logo_url: url } : f)
+  }
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -153,9 +256,21 @@ export default function Proveedores() {
             <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Catálogo compartido: Gastos, Mantenimiento, Vending</p>
           </div>
         </div>
-        <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          <Plus size={15} /> Nuevo proveedor
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
+            <button onClick={() => setVistaGrid(false)} title="Vista lista"
+              style={{ padding: '7px 11px', background: !vistaGrid ? '#0A66C2' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <AlignJustify size={15} />
+            </button>
+            <button onClick={() => setVistaGrid(true)} title="Vista mosaico"
+              style={{ padding: '7px 11px', background: vistaGrid ? '#0A66C2' : 'white', color: vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <LayoutGrid size={15} />
+            </button>
+          </div>
+          <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            <Plus size={15} /> Nuevo proveedor
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -189,6 +304,16 @@ export default function Proveedores() {
           <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>
             <Truck size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
             <div>{lista.length === 0 ? 'Agrega el primer proveedor con el botón +' : 'Sin resultados para esta búsqueda'}</div>
+          </div>
+        ) : vistaGrid ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16, padding: 16, background: '#F8FAFC' }}>
+            {filtrados.map(p => (
+              <TarjetaProveedor key={p.id} p={p}
+                onLogo={aplicarLogo}
+                onVer={setFicha}
+                onEditar={setModal}
+              />
+            ))}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -248,6 +373,7 @@ export default function Proveedores() {
           onSaved={() => { setModal(null); cargar() }}
         />
       )}
+      <FichaProveedor p={ficha} onClose={() => setFicha(null)} onLogo={aplicarLogo} onEditar={setModal} />
     </div>
   )
 }
