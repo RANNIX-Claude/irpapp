@@ -16,6 +16,7 @@ import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, urlFirmada } from '../lib/supabase'
+import LogoEditable from '../components/ui/LogoEditable'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
