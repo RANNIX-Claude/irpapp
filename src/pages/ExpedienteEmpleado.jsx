@@ -249,28 +249,40 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
     setSaving(true)
     let archivo_url = null, archivo_path = null, tamano_kb = null, formato = null
     if (file) {
-      const ext = file.name.split('.').pop().toUpperCase()
-      const path = `expedientes/${empleadoId}/${Date.now()}_${file.name}`
+      const ext = (file.name.split('.').pop() || '').toUpperCase()
+      // El nombre original NO puede ir en la ruta: los espacios y acentos de
+      // nombres como "WhatsApp Image 2026-09-08 at 12.24.50 PM.jpeg" hacen que
+      // Storage rechace la firma con "database schema is invalid". Se guarda
+      // saneado; el nombre bonito ya vive en la columna `nombre`.
+      const base_nombre = file.name
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // fuera acentos
+        .replace(/[^\w.-]+/g, '_')                          // resto -> guion bajo
+        .replace(/_+/g, '_')
+        .slice(-60)
+      const path = `expedientes/${empleadoId}/${Date.now()}_${base_nombre}`
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
-      if (token) {
-        const base = import.meta.env.VITE_SUPABASE_URL
-        const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
-        const res = await fetch(`${base}/storage/v1/object/expedientes-docs/${path}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type },
-          body: file,
-        })
-        if (res.ok) {
-          archivo_path = path
-          // El bucket es privado: se guarda la ruta y se firma al abrir.
-          tamano_kb = Math.round(file.size / 1024)
-          formato = ext
-        } else {
-          const errBody = await res.text()
-          toast.error('Error al subir archivo: ' + errBody)
-        }
+      if (!token) {
+        setSaving(false)
+        return toast.error('Sin sesión activa: vuelve a entrar e inténtalo de nuevo')
       }
+      const base = import.meta.env.VITE_SUPABASE_URL
+      const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${base}/storage/v1/object/expedientes-docs/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type },
+        body: file,
+      })
+      if (!res.ok) {
+        // Antes se guardaba el registro aunque el archivo no subiera: quedaban
+        // documentos listados que no se podian descargar.
+        const errBody = await res.text()
+        setSaving(false)
+        return toast.error('No se pudo subir el archivo: ' + errBody.slice(0, 160))
+      }
+      archivo_path = path
+      tamano_kb = Math.round(file.size / 1024)
+      formato = ext
     }
     const { error } = await supabase.from('rh_expediente_documentos').insert({
       empleado_id: empleadoId, tipo: form.tipo, nombre: nombreFinal,
