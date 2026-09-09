@@ -193,7 +193,20 @@ function ContratoRow({ c, onView, onEdit, onDelete, onRefresh }) {
 // ─── Tarjeta de contrato (vista mosaico) ─────────────────────────────────────
 // Misma idea que las tarjetas de empleados en RH, pero con el logo del negocio
 // en lugar de la foto. Si el arrendatario no tiene logo se pintan sus iniciales.
-function TarjetaContrato({ c, logo, onView, onExpediente }) {
+function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
+  const logoRef = useRef(null)
+  const [subiendo, setSubiendo] = useState(false)
+  const [hoverLogo, setHoverLogo] = useState(false)
+
+  const cambiarLogo = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSubiendo(true)
+    await onLogo(c, file)
+    setSubiendo(false)
+    if (logoRef.current) logoRef.current.value = ''
+  }
+
   const vigente = c.estatus === 'VIGENTE'
   const dias = c.dias_restantes
   const nombre = c.nombre_negocio || c.arrendatario_nombre || 'Sin nombre'
@@ -218,10 +231,21 @@ function TarjetaContrato({ c, logo, onView, onExpediente }) {
           {(c.tipo_contrato || '').toUpperCase()}
         </span>
         {/* Logo montado sobre la banda */}
-        <div style={{ position: 'absolute', left: '50%', bottom: -30, transform: 'translateX(-50%)', width: 62, height: 62, borderRadius: '50%', background: 'white', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <div
+          onClick={() => logoRef.current?.click()}
+          onMouseEnter={() => setHoverLogo(true)}
+          onMouseLeave={() => setHoverLogo(false)}
+          title={logo ? 'Clic para cambiar el logo' : 'Clic para agregar el logo'}
+          style={{ position: 'absolute', left: '50%', bottom: -30, transform: 'translateX(-50%)', width: 62, height: 62, borderRadius: '50%', background: 'white', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
           {logo
             ? <img src={logo} alt={nombre} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             : <span style={{ fontSize: 18, fontWeight: 800, color: '#CBD5E1' }}>{ini}</span>}
+          {(hoverLogo || subiendo) && (
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 9, fontWeight: 700, textAlign: 'center', lineHeight: 1.15, padding: 3 }}>
+              {subiendo ? 'Subiendo…' : (logo ? 'Cambiar logo' : 'Agregar logo')}
+            </div>
+          )}
+          <input ref={logoRef} type="file" accept="image/*" style={{ display: 'none' }} onClick={e => e.stopPropagation()} onChange={cambiarLogo} />
         </div>
       </div>
 
@@ -1223,6 +1247,24 @@ export default function Contratos() {
     })
   }, [])
 
+  // Sube el logo del negocio desde la tarjeta. El bucket logos-arrendatarios es
+  // público a propósito, así que se guarda la URL directa.
+  const subirLogo = async (c, file) => {
+    if (!c.arrendatario_id) { alert('El contrato no tiene arrendatario asociado'); return }
+    if (file.size > 2 * 1024 * 1024) { alert('El logo no debe pasar de 2 MB'); return }
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const path = `${c.arrendatario_id}_${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from('logos-arrendatarios').upload(path, file, { contentType: file.type, upsert: true })
+    if (upErr) { alert('No se pudo subir: ' + upErr.message); return }
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/logos-arrendatarios/${path}`
+    const { error } = await supabase.from('arrendatarios').update({ logo_url: url }).eq('id', c.arrendatario_id)
+    if (error) { alert(error.message); return }
+    // Un arrendatario puede tener varios contratos: al indexar por id, el logo
+    // aparece en todas sus tarjetas de inmediato.
+    setLogos(prev => ({ ...prev, [c.arrendatario_id]: url }))
+  }
+
   // Genera folio IWOL-L{locales}-{año} para contratos sin folio estándar
   const ESTATUS_VALIDOS = ['VIGENTE', 'VENCIDO', 'RENOVADO', 'RESCISION']
   const generarFolios = async () => {
@@ -1535,7 +1577,7 @@ export default function Contratos() {
               : vistaGrid
               ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16, padding: 16, background: '#F8FAFC' }}>
                   {filtrados.map(c => (
-                    <TarjetaContrato key={c.id} c={c} logo={logos[c.arrendatario_id]}
+                    <TarjetaContrato key={c.id} c={c} logo={logos[c.arrendatario_id]} onLogo={subirLogo}
                       onView={c => { setSelectedInEditMode(false); setSelected(c) }}
                       onExpediente={c => navigate(`/contratos/${c.id}`)}
                     />
