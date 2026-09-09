@@ -261,7 +261,7 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
         })
         if (res.ok) {
           archivo_path = path
-          archivo_url = `${base}/storage/v1/object/public/expedientes-docs/${path}`
+          // El bucket es privado: se guarda la ruta y se firma al abrir.
           tamano_kb = Math.round(file.size / 1024)
           formato = ext
         } else {
@@ -982,7 +982,7 @@ export default function ExpedienteEmpleado() {
                         </div>
                         {(doc.archivo_url || doc.archivo_path) && (
                           <button onClick={async () => {
-                            const url = doc.archivo_url || await urlFirmada('expedientes-docs', doc.archivo_path)
+                            const url = await urlFirmada('expedientes-docs', doc.archivo_path ?? doc.archivo_url)
                             if (url) window.open(url)
                           }}
                             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 12, color: C.primary }}>
@@ -1312,7 +1312,7 @@ export default function ExpedienteEmpleado() {
                   <div style={{ fontSize: 10, color: C.muted }}>{d.tamano_kb ? d.tamano_kb + ' KB · ' : ''}{fmtD(d.fecha_doc || d.created_at?.slice(0,10))}</div>
                 </div>
                 {(d.archivo_url || d.archivo_path) && (
-                  <button onClick={async () => { const url = d.archivo_url || await urlFirmada('expedientes-docs', d.archivo_path); if (url) window.open(url) }}
+                  <button onClick={async () => { const url = await urlFirmada('expedientes-docs', d.archivo_path ?? d.archivo_url); if (url) window.open(url); else toast.error('No se pudo abrir el documento') }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2 }}>
                     <Download size={13} />
                   </button>
