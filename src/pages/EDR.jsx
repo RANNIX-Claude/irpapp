@@ -341,37 +341,41 @@ export default function EDR() {
     }
   }, [])
 
-  // Carga datos del sistema de estacionamiento (supabaseParking) y vending (main)
+  // Estacionamiento y pensiones viven en el sistema de tickets (proyecto aparte).
+  // Vending NO: es de IRP, se opera en /vending y vive en esta misma base — antes
+  // se buscaba en el proyecto de tickets, donde esa tabla no existe, así que el
+  // renglón salía siempre en cero.
   const loadParkingData = useCallback(async (m, a) => {
-    if (!supabaseParking) return
+    const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
+    const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
 
-    try {
+    // Vending: semanas cuya fecha_inicio cae en el mes seleccionado.
+    const { data: vendingMes, error: errVending } = await supabase
+      .from('vending_semanas').select('venta_pesos')
+      .gte('fecha_inicio', fechaIni).lte('fecha_inicio', fechaFin)
+    if (errVending) console.warn('[EDR] vending:', errVending.message)
+    const vending_mes = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
+
+    let estac_mes = 0, pension_mes = 0
+    if (supabaseParking) {
       const sumField = rows => (rows ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
 
-      // Estacionamiento: pagos_boletos del mes (Sistema de Tickets)
-      const { data: boletosMes } = await supabaseParking
+      // El cliente devuelve { data, error } sin lanzar: hay que revisar `error`
+      // o un 404 pasa por dato vacío y el renglón queda en cero sin aviso.
+      const { data: boletosMes, error: errBoletos } = await supabaseParking
         .from('pagos_boletos').select('monto_pagado, importe, total')
         .eq('periodo_mes', m).eq('periodo_año', a)
-      const estac_mes = sumField(boletosMes)
+      if (errBoletos) console.warn('[EDR] estacionamiento:', errBoletos.message)
+      estac_mes = sumField(boletosMes)
 
-      // Pensiones: pagados en el mes
-      const { data: pagosPension } = await supabaseParking
+      const { data: pagosPension, error: errPension } = await supabaseParking
         .from('pagos_pension').select('monto_pagado')
         .eq('periodo_mes', m).eq('periodo_año', a).eq('estado', 'pagado')
-      const pension_mes = (pagosPension ?? []).reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0)
-
-      // Vending: semanas cuya fecha_inicio cae en el mes seleccionado
-      const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
-      const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
-      const { data: vendingMes } = await supabaseParking
-        .from('vending_semanas').select('venta_pesos')
-        .gte('fecha_inicio', fechaIni).lte('fecha_inicio', fechaFin)
-      const vending_mes = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
-
-      setRealParking({ estac_mes, estac_otros: 0, pension_mes, pension_otros: 0, vending_mes, vending_otros: 0 })
-    } catch (e) {
-      console.warn('[EDR] loadParkingData error:', e.message)
+      if (errPension) console.warn('[EDR] pensiones:', errPension.message)
+      pension_mes = (pagosPension ?? []).reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0)
     }
+
+    setRealParking({ estac_mes, estac_otros: 0, pension_mes, pension_otros: 0, vending_mes, vending_otros: 0 })
   }, [])
 
   const loadProySueldos = useCallback(async (m, a) => {
@@ -400,7 +404,7 @@ export default function EDR() {
 
   // Auto-sincroniza campos _mes/_otros desde ingresos si no hay foto guardada
   // (campo === 0 o null → usa valor de ingresos; si ya tiene valor → respeta la foto)
-  // Prioridad: supabaseParking (estac/pension/vending) > main ingresos > 0
+  // Prioridad: fuente operativa (vending propio, estac/pension del sistema de tickets) > main ingresos > 0
   useEffect(() => {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
@@ -415,7 +419,7 @@ export default function EDR() {
       // Pensiones: supabaseParking pagos_pension > main ingresos
       real_pension_mes:          f.real_pension_mes          || realParking.pension_mes      || realIngByTipo.PENSION?.mes            || 0,
       real_pension_otros:        f.real_pension_otros        || realParking.pension_otros    || realIngByTipo.PENSION?.otros          || 0,
-      // Maquinita/Vending: supabaseParking vending_semanas > main ingresos
+      // Maquinita/Vending: vending_semanas de esta base > main ingresos
       real_maquinita_mes:        f.real_maquinita_mes        || realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes          || 0,
       real_maquinita_otros:      f.real_maquinita_otros      || realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros        || 0,
       // Agua: tabla de ingresos main supabase (tipo='AGUA')
@@ -453,7 +457,7 @@ export default function EDR() {
     const rFactura = ingresosRenta?.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
     const rSinFact = ingresosRenta?.filter(r => !r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
 
-    // 3. Sistema de Tickets (supabaseParking): pensiones, estacionamiento, vending
+    // 3. Pensiones y estacionamiento: sistema de tickets. Vending: esta base.
     let poyPensiones = 0, realPensiones = 0, realEstacParking = 0, realVendingParking = 0
     if (supabaseParking) {
       // Proyectado pensiones: suma de monto_mensual de pensiones activas
@@ -475,24 +479,24 @@ export default function EDR() {
         realEstacParking = (boletosMes ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
       } catch (_) {}
 
-      // Real vending: vending_semanas del mes (sumarizando semanas dentro del mes)
-      try {
-        const fechaIniV = `${anio}-${String(mes).padStart(2,'0')}-01`
-        const fechaFinV = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
-        const { data: vendingMes } = await supabaseParking
-          .from('vending_semanas').select('venta_pesos')
-          .gte('fecha_inicio', fechaIniV).lte('fecha_inicio', fechaFinV)
-        realVendingParking = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
-      } catch (_) {}
-
-      // Actualizar estado realParking con datos frescos
-      setRealParking(p => ({
-        ...p,
-        estac_mes: realEstacParking, estac_otros: 0,
-        pension_mes: realPensiones, pension_otros: 0,
-        vending_mes: realVendingParking, vending_otros: 0,
-      }))
     }
+
+    // Vending: de ESTA base, no del sistema de tickets. Es de IRP y se opera en
+    // /vending, así que se carga exista o no el proyecto de tickets.
+    const fechaIniV = `${anio}-${String(mes).padStart(2,'0')}-01`
+    const fechaFinV = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
+    const { data: vendingMes, error: errV } = await supabase
+      .from('vending_semanas').select('venta_pesos')
+      .gte('fecha_inicio', fechaIniV).lte('fecha_inicio', fechaFinV)
+    if (errV) console.warn('[EDR] vending:', errV.message)
+    realVendingParking = (vendingMes ?? []).reduce((s, v) => s + (parseFloat(v.venta_pesos)||0), 0)
+
+    setRealParking(p => ({
+      ...p,
+      estac_mes: realEstacParking, estac_otros: 0,
+      pension_mes: realPensiones, pension_otros: 0,
+      vending_mes: realVendingParking, vending_otros: 0,
+    }))
     resumen.poyPensiones  = poyPensiones
     resumen.realPensiones = realPensiones
 
@@ -531,7 +535,7 @@ export default function EDR() {
       // Estacionamiento: supabaseParking pagos_boletos (frescos) > main ingresos
       real_estac_mes:              realEstacParking   || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
       real_estac_otros:            0,
-      // Maquinita/Vending: supabaseParking vending_semanas (frescos) > main ingresos
+      // Maquinita/Vending: vending_semanas de esta base (frescos) > main ingresos
       real_maquinita_mes:          realVendingParking || realIngByTipo.MAQUINITA?.mes         || 0,
       real_maquinita_otros:        0,
       // Agua: tabla de ingresos main supabase (tipo='AGUA')
@@ -827,7 +831,7 @@ export default function EDR() {
               proy={pEstac} total={rEstac} rentasMes={rmEstac} otrosPer={opEstac} />
             <PLRow label="Pensiones" detalle="otros_ingresos" onDetalle={setDetalle}
               proy={pPensiones} total={rPensiones} rentasMes={rmPension} otrosPer={opPension} />
-            <PLRow label="Maquinita" detalle="otros_ingresos" onDetalle={setDetalle}
+            <PLRow label="Maquinita" detalle="vending" onDetalle={setDetalle}
               proy={pMaquinita} total={rMaquinita} rentasMes={rmMaquinita} otrosPer={opMaquinita} />
             <PLRow label="Agua" detalle="agua_ingreso" onDetalle={setDetalle}
               proy={pAguaIng} total={rAguaIng} rentasMes={rmAguaIng} otrosPer={opAguaIng} />

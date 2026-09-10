@@ -52,16 +52,38 @@ const FUENTES = {
     cargar: async (m, a) => cobrosDelMes(m, a, ['AGUA']),
   },
   otros_ingresos: {
-    titulo: 'Estacionamiento, pensiones y vending',
+    titulo: 'Estacionamiento y pensiones',
     tabla: 'ingresos',
-    nota: 'Estos conceptos se registran en el sistema de tickets, un proyecto aparte. Aquí solo aparecen los que se hayan capturado como ingreso.',
+    nota: 'Estacionamiento y pensiones se operan en el sistema de tickets, un proyecto aparte. Aquí solo aparecen los que se hayan capturado como ingreso en IRP.',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['tipo', 'Tipo'],
       ['nota', 'Concepto', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMes(m, a, ['ESTACIONAMIENTO', 'PENSION', 'MAQUINITA']),
+    cargar: async (m, a) => cobrosDelMes(m, a, ['ESTACIONAMIENTO', 'PENSION']),
+  },
+  vending: {
+    titulo: 'Vending — semanas del mes',
+    tabla: 'vending_semanas',
+    nota: 'El vending es de IRP y se opera en el módulo Vending. Se suman las semanas cuya fecha de inicio cae en el mes.',
+    columnas: [
+      ['fecha_inicio', 'Semana', fmtD],
+      ['producto', 'Producto', v => v || '—'],
+      ['venta_unidades', 'Unidades', v => v ?? '—', 'num'],
+      ['utilidad', 'Utilidad', fmt, 'num'],
+      ['venta_pesos', 'Venta', fmt, 'num'],
+    ],
+    cargar: async (m, a) => {
+      const ini = `${a}-${String(m).padStart(2, '0')}-01`
+      const fin = `${a}-${String(m).padStart(2, '0')}-${new Date(a, m, 0).getDate()}`
+      const { data, error } = await supabase.from('vending_semanas')
+        .select('id, fecha_inicio, producto, venta_unidades, venta_pesos, utilidad')
+        .gte('fecha_inicio', ini).lte('fecha_inicio', fin)
+        .order('venta_pesos', { ascending: false })
+      if (error) throw error
+      return { filas: data ?? [], campoTotal: 'venta_pesos' }
+    },
   },
   gastos: {
     titulo: 'Gastos operativos del mes',
