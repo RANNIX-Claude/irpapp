@@ -5,7 +5,7 @@ import {
   Search, BarChart3, Settings, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  Package,
+  Package, ClipboardCheck,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -86,6 +86,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Bitácora', path: '/bitacora', icon: ClipboardList },
       { label: 'Utilerías', path: '/utilidades', icon: Database },
+      { label: 'Validación', path: '/validacion', icon: ClipboardCheck },
       { label: 'Configuración', path: '/config', icon: Settings },
     ]
   },

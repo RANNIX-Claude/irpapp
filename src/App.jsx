@@ -32,6 +32,7 @@ import EDR from './pages/EDR.jsx'
 import ResumenSemanal from './pages/ResumenSemanal.jsx'
 import Bitacora from './pages/Bitacora.jsx'
 import Utilidades from './pages/Utilidades.jsx'
+import Validacion from './pages/Validacion.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
 import PortalArrendatario from './pages/PortalArrendatario.jsx'
 import MapaLocales from './pages/MapaLocales.jsx'
@@ -133,6 +134,7 @@ function AppLayout() {
           <Route path="/resumen-semanal" element={<ResumenSemanal />} />
           <Route path="/bitacora" element={<Bitacora />} />
           <Route path="/utilidades" element={<Utilidades />} />
+          <Route path="/validacion" element={<Validacion />} />
           <Route path="/mapa-locales" element={<MapaLocales />} />
           <Route path="/ingresos" element={<Ingresos />} />
           <Route path="/despachos" element={<Despachos />} />

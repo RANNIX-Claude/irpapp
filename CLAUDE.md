@@ -111,6 +111,7 @@ Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`
 - **Estacionamiento**: `estacionamiento_diario`, `estacionamiento_pensiones`
 - **Vending**: `vending_productos`, `vending_semanas`
 - **RH**: `rh_empleados`, `rh_incidencias`, `rh_historial_sueldo`, `rh_historial_nombre`, `rh_historial_cambios`, `rh_expediente_documentos`, `rh_beneficios`, `rh_capacitacion`, `rh_evaluaciones`, `rh_asistencia`, `rh_checadas`, `rh_tipos_incidencia`, `rh_vacaciones_anio`, `rh_vacaciones_detalle`
+- **Validación**: `validacion_puntos`, `validacion_revisiones`, `validacion_reportes`, `validacion_adjuntos`
 - **Catálogos / DW**: `cat_estado_general`, `dw.dim_tiempo_dia`, `dw.dim_tiempo_mes`, `dw.dim_tiempo_anio`
 
 ### Storage
@@ -126,6 +127,7 @@ Estado del cierre de buckets (etapa 2 de `20260829120000_storage_privado_urls_fi
 | `vending-reportes` | **false** | authenticated |
 | `comprobantes-pago` | **false** | authenticated (arrendatario solo su carpeta) |
 | `expedientes-docs` | **false** | authenticated (`20260907100000`) |
+| `validacion-capturas` | **false** | authenticated (`20260910400000`) |
 | `avatars` | **true a propósito** | lectura pública — fotos de empleados |
 
 **Regla de lectura**: salvo `avatars`, ningún archivo se pinta con su URL directa. Se usa
@@ -192,6 +194,7 @@ Registradas en `src/App.jsx`.
 | `/rh` | RH y Nómina | `RH.jsx` |
 | `/rh/empleado/:id` | Expediente Digital de Empleado | `ExpedienteEmpleado.jsx` |
 | `/prospectos` | Prospectos y CRM | `Prospectos.jsx` |
+| `/validacion` | Validación del Sistema | `Validacion.jsx` |
 | `/config` | Configuración | `Configuracion.jsx` |
 | `/portal/prospecto/:token` | Portal público de prospecto | `PortalProspecto.jsx` |
 | `/portal/arrendatario` | Portal de arrendatario | `PortalArrendatario.jsx` |

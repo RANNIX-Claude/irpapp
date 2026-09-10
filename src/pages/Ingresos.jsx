@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers } from 'lucide-react'
+import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
@@ -51,6 +51,41 @@ const VALIDACION = {
   OBSERVADO:   { label: 'Observado',   bg: '#FEE2E2', color: '#991B1B' },
 }
 const VALIDACION_DEFAULT = 'POR_VALIDAR'
+
+/**
+ * Cuadre del depósito contra lo que se repartió en la cartera.
+ *
+ * Tres situaciones, y las tres importan de forma distinta:
+ *   - se aplicó de más  → hay cargos marcados como pagados sin dinero detrás
+ *   - falta por aplicar → hay dinero cobrado que ningún cargo está saldando
+ *   - cuadra            → el depósito está completamente repartido
+ *
+ * El descuadre va en rojo y con signo de admiración porque es lo que hay que
+ * ver de un vistazo sin abrir renglón por renglón.
+ */
+function IconoCuadre({ d }) {
+  if (!d) return (
+    <span title="El depósito está repartido por completo"
+      style={{ display:'inline-flex', color:'#A7D9BF' }}>
+      <CheckCircle2 size={14} />
+    </span>
+  )
+  const sobra = d.problema === 'SOBRE_APLICADO'
+  const dif = Math.abs(parseFloat(d.diferencia) || 0)
+  return (
+    <span title={sobra
+      ? `Se aplicaron ${fmt(dif)} de más: el depósito es de ${fmt(d.importe)} y se repartieron ${fmt(d.total_aplicado)}`
+      : `Faltan ${fmt(dif)} por aplicar: el depósito es de ${fmt(d.importe)} y solo se repartieron ${fmt(d.total_aplicado)}`}
+      style={{
+        display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 7px', borderRadius:'10px',
+        fontSize:'10.5px', fontWeight:700, fontVariantNumeric:'tabular-nums',
+        background: sobra ? '#FEE2E2' : '#FEF3C7',
+        color: sobra ? '#B24020' : '#92400E',
+      }}>
+      <AlertTriangle size={11} /> {sobra ? '+' : '−'}{fmt(dif)}
+    </span>
+  )
+}
 
 function BadgeValidacion({ estatus, size = 11 }) {
   const m = VALIDACION[estatus] || VALIDACION[VALIDACION_DEFAULT]
@@ -784,6 +819,16 @@ export default function Ingresos() {
   const { data, loading } = usePRP('prp_ingresos', { refreshKey })
   const lista = data ?? []
 
+  // Descuadres entre el depósito y lo que se repartió. Se traen aparte porque
+  // prp_ingresos no sabe de aplicaciones: la vista los calcula comparando el
+  // importe con la suma de aplicaciones_pago.
+  const { data: dataDescuadres } = usePRP('prp_ingresos_descuadrados', { refreshKey })
+  const descuadres = useMemo(() => {
+    const m = {}
+    for (const d of dataDescuadres ?? []) m[d.ingreso_id] = d
+    return m
+  }, [dataDescuadres])
+
   // Lo proyectado sale de los contratos, no de los ingresos: son fuentes distintas.
   const { data: dataContratos } = usePRP('prp_contratos', { select: 'id, estatus, renta_mensual, fecha_inicio, fecha_fin' })
   const operacion = useOperacion()
@@ -1000,7 +1045,7 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Validación','Esperado','Cobrado','Nota'].map(h => (
+                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Cuadre','Validación','Esperado','Cobrado','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
@@ -1063,6 +1108,10 @@ export default function Ingresos() {
                               : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin comprobante"><Paperclip size={13} /></span>
                             }
                           </div>
+                        </td>
+                        {/* Cuadre: el depósito contra lo que se repartió en la cartera */}
+                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                          <IconoCuadre d={descuadres[r.id]} />
                         </td>
                         <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}
                           title={r.validado_por ? `Validó ${r.validado_por}${r.validado_en ? ` el ${r.validado_en.slice(0,10)}` : ''}` : undefined}>
