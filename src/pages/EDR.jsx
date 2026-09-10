@@ -380,9 +380,14 @@ export default function EDR() {
 
   const loadProySueldos = useCallback(async (m, a) => {
     const dias = new Date(a, m, 0).getDate()
-    const { data } = await supabase.from('empleados')
-      .select('sueldo_diario').eq('status','ACTIVO').not('sueldo_diario','is',null)
-    if (data) setProySueldos(data.reduce((s, e) => s + ((parseFloat(e.sueldo_diario)||0) * dias), 0))
+    // Leía de 'empleados', que solo existe en el esquema prp: PostgREST devolvía
+    // 404, el guard de `data` se lo tragaba y el sueldo proyectado quedaba
+    // siempre en cero sin decirlo. La tabla real es rh_empleados, con
+    // estado_id y salario_diario.
+    const { data, error } = await supabase.from('rh_empleados')
+      .select('salario_diario').eq('estado_id','ACTIVO').not('salario_diario','is',null)
+    if (error) { console.warn('[EDR] sueldos proyectados:', error.message); return }
+    setProySueldos((data ?? []).reduce((s, e) => s + ((parseFloat(e.salario_diario)||0) * dias), 0))
   }, [])
 
   const loadRegistro = useCallback(async (m, a) => {
