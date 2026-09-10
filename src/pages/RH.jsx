@@ -1318,13 +1318,34 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
     setPreview(parsear(e.target.value))
   }
 
-  const dias = useMemo(() => resumirDias(preview), [preview])
+  // Corrección antes de guardar. Dos cosas fallan seguido en un archivo de
+  // checador: renglones que no se quieren (otra quincena, un visitante) y
+  // gente que el aparato identifica con un número que no está en el catálogo.
+  const [excluidos, setExcluidos] = useState({})   // clave empleado+fecha -> true
+  const [asignados, setAsignados] = useState({})   // numero del checador -> empleado_id
+
+  const claveDia = r => `${r.numero_empleado_ext}_${r._fecha}`
+
+  // Se aplica lo asignado a mano antes de agrupar, para que el resumen del día
+  // ya muestre el nombre corregido.
+  const conAsignacion = useMemo(() => preview.map(e => ({
+    ...e,
+    empleado_id: asignados[e.numero_empleado_ext] ?? e.empleado_id,
+    _nombre_match: asignados[e.numero_empleado_ext]
+      ? empleados.find(x => x.id === asignados[e.numero_empleado_ext])?.nombre_completo
+      : e._nombre_match,
+  })), [preview, asignados, empleados])
+
+  const dias = useMemo(() => resumirDias(conAsignacion), [conAsignacion])
+  const diasIncluidos = dias.filter(d => !excluidos[claveDia(d)])
+  const aImportar = conAsignacion.filter(e => !excluidos[`${e.numero_empleado_ext}_${e._fecha}`])
+  const sinEmpleado = aImportar.filter(e => !e.empleado_id).length
 
   const importar = async () => {
-    if (!preview.length) return
+    if (!aImportar.length) return toast.error('No queda ningún marcaje por importar')
     setImportando(true)
     // Se descartan los campos auxiliares del preview (los que empiezan con _).
-    const rows = preview.map(e => ({
+    const rows = aImportar.map(e => ({
       empleado_id: e.empleado_id, numero_empleado_ext: e.numero_empleado_ext,
       operacion: e.operacion, fecha_hora: e.fecha_hora, origen: e.origen,
     }))
@@ -1333,7 +1354,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
       .upsert(rows, { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
     setImportando(false)
     if (error) return toast.error(error.message)
-    toast.success(`${rows.length} marcajes importados · ${dias.length} días`)
+    toast.success(`${rows.length} marcajes importados · ${diasIncluidos.length} días`)
     onImported()
     onClose()
   }
@@ -1371,26 +1392,59 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
 
         {preview.length > 0 && (
           <div>
-            <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>
-              Vista previa — {preview.length} marcajes en {dias.length} días
+            <h4 style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700 }}>
+              Vista previa — {aImportar.length} marcajes en {diasIncluidos.length} días
+              {aImportar.length !== preview.length && (
+                <span style={{ fontWeight: 500, color: '#9CA3AF' }}> · {preview.length - aImportar.length} excluidos</span>
+              )}
             </h4>
+            <p style={{ margin: '0 0 10px', fontSize: 11, color: '#9CA3AF' }}>
+              Quita el día que no quieras importar, o asigna el trabajador cuando el checador
+              use un número que no está en el catálogo.
+            </p>
+            {sinEmpleado > 0 && (
+              <div style={{ marginBottom: 10, padding: '8px 11px', borderRadius: 7, background: '#FEF3C7', border: '1px solid #FDE68A', fontSize: 11.5, color: '#92400E' }}>
+                {sinEmpleado} marcaje{sinEmpleado === 1 ? '' : 's'} sin trabajador asignado. Se guardan igual —
+                para no perderlos— pero no cuentan en la asistencia hasta que se les asigne alguien.
+              </div>
+            )}
             <div style={{ overflowX: 'auto', maxHeight: 260, border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'auto' }}>
               <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
                 <thead style={{ background:'#F9FAFB',position:'sticky',top:0 }}>
-                  <tr>{['# Ext','Empleado','Fecha','Entrada','Salida','Horas','Marcajes'].map(h => <th key={h} style={{ padding:'8px 10px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{h}</th>)}</tr>
+                  <tr>{['# Ext','Empleado','Fecha','Entrada','Salida','Horas','Marcajes',''].map((h,i) => <th key={i} style={{ padding:'8px 10px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {dias.map((r, i) => (
-                    <tr key={i} style={{ borderTop:'1px solid #F3F4F6' }}>
+                  {dias.map((r, i) => {
+                    const fuera = excluidos[claveDia(r)]
+                    return (
+                    <tr key={i} style={{ borderTop:'1px solid #F3F4F6', opacity: fuera ? .4 : 1, textDecoration: fuera ? 'line-through' : 'none' }}>
                       <td style={{ padding:'7px 10px',fontFamily:'monospace',color:'#0A66C2' }}>{r.numero_empleado_ext}</td>
-                      <td style={{ padding:'7px 10px' }}>{r._nombre_match || <span style={{ color:'#EF4444',fontSize:11 }}>Sin match: {r._nombre}</span>}</td>
+                      <td style={{ padding:'5px 10px' }}>
+                        {r._nombre_match || (
+                          <select value={asignados[r.numero_empleado_ext] ?? ''}
+                            onChange={e => setAsignados(a => ({ ...a, [r.numero_empleado_ext]: e.target.value || undefined }))}
+                            title={`El checador reportó "${r._nombre}"`}
+                            style={{ padding:'4px 6px',border:'1.5px solid #FCA5A5',borderRadius:6,fontSize:11,maxWidth:190,background:'white' }}>
+                            <option value="">Sin asignar: {r._nombre || r.numero_empleado_ext}</option>
+                            {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre_completo}</option>)}
+                          </select>
+                        )}
+                      </td>
                       <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r._fecha}</td>
                       <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.entrada || '—'}</td>
                       <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.salida || '—'}</td>
                       <td style={{ padding:'7px 10px' }}>{r.minutos ? (r.minutos/60).toFixed(1)+'h' : '—'}</td>
                       <td style={{ padding:'7px 10px',textAlign:'center',fontWeight:700,color:'#6B7280' }}>{r.marcajes}</td>
+                      <td style={{ padding:'5px 8px',textAlign:'center' }}>
+                        <button onClick={() => setExcluidos(x => ({ ...x, [claveDia(r)]: !fuera }))}
+                          title={fuera ? 'Volver a incluir este día' : 'No importar este día'}
+                          style={{ border:'none',background:'none',cursor:'pointer',color: fuera ? '#059669' : '#9CA3AF',display:'inline-flex',padding:2 }}>
+                          {fuera ? <RefreshCw size={13} /> : <X size={14} />}
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1402,9 +1456,9 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
-          <button onClick={importar} disabled={!preview.length || importando}
-            style={{ flex:2,padding:10,border:'none',borderRadius:8,background: preview.length?'#0A66C2':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
-            {importando ? 'Importando…' : `Importar ${preview.length} marcajes`}
+          <button onClick={importar} disabled={!aImportar.length || importando}
+            style={{ flex:2,padding:10,border:'none',borderRadius:8,background: aImportar.length?'#0A66C2':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
+            {importando ? 'Importando…' : `Importar ${aImportar.length} marcajes`}
           </button>
         </div>
       </div>

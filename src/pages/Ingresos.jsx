@@ -23,6 +23,25 @@ const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','N
 const TIPOS = ['RENTA','SANCION','AGUA','OTRO']
 const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280' }
 
+// Cada ingreso debe corresponder a un depósito, transferencia o entrega de
+// efectivo real: VALIDADO es el que ya se cotejó contra el banco. OBSERVADO
+// existe porque "revisado y no cuadra" no es lo mismo que "nadie lo ha visto".
+const VALIDACION = {
+  POR_VALIDAR: { label: 'Por validar', bg: '#FEF3C7', color: '#92400E' },
+  VALIDADO:    { label: 'Validado',    bg: '#DCFCE7', color: '#166534' },
+  OBSERVADO:   { label: 'Observado',   bg: '#FEE2E2', color: '#991B1B' },
+}
+const VALIDACION_DEFAULT = 'POR_VALIDAR'
+
+function BadgeValidacion({ estatus, size = 11 }) {
+  const m = VALIDACION[estatus] || VALIDACION[VALIDACION_DEFAULT]
+  return (
+    <span style={{ display:'inline-block', fontSize:`${size}px`, fontWeight:600, padding:'2px 8px', borderRadius:'10px', background:m.bg, color:m.color, whiteSpace:'nowrap' }}>
+      {m.label}
+    </span>
+  )
+}
+
 function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('es-MX', { minimumFractionDigits: 0 }) : '—' }
 function fmtK(n) { return '$' + ((n || 0) / 1000).toFixed(1) + 'K' }
 
@@ -41,6 +60,7 @@ const BLANK = {
   origen: 'TRANSFERENCIA BBVA',
   concepto_origen: '',
   nota: '',
+  estatus_validacion: VALIDACION_DEFAULT,
 }
 
 function IngresoModal({ ingreso = null, onClose, onSaved }) {
@@ -55,6 +75,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     origen:          ingreso.origen || 'TRANSFERENCIA BBVA',
     concepto_origen: ingreso.concepto_origen || '',
     nota:            ingreso.nota || '',
+    estatus_validacion: ingreso.estatus_validacion || VALIDACION_DEFAULT,
   } : BLANK)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
@@ -67,6 +88,13 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const [compFile, setCompFile] = useState(null)
   const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
   const fileRef = useRef()
+  // Aplicaciones que este ingreso ya tenía guardadas. Se necesitan para saber
+  // cuáles hay que BORRAR al guardar: si solo se hace upsert, las que el usuario
+  // quitó de la distribución se quedan vivas y el pago acaba aplicado por más
+  // de lo que valió.
+  const [aplicacionesPrevias, setAplicacionesPrevias] = useState([])
+  // Si el usuario ya movió el combo a mano, adjuntar un comprobante no lo pisa.
+  const estatusTocado = useRef(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -74,6 +102,13 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const totalDist = Object.values(dist).reduce((s, v) => s + (parseFloat(v) || 0), 0)
   const importeTotal = parseFloat(form.importe) || 0
   const saldoLibre = importeTotal - totalDist
+  const excede = saldoLibre < -0.01
+
+  // El `saldo` de prp_cartera ya descuenta lo que este ingreso tiene aplicado.
+  // Al editar hay que devolvérselo, o el cargo que este pago dejó en cero
+  // aparecería con saldo 0 y tope 0 para su propio importe.
+  const previoDeCargo = Object.fromEntries(aplicacionesPrevias.map(a => [a.cargo_id, parseFloat(a.importe_aplicado) || 0]))
+  const disponibleDe = c => (parseFloat(c.saldo) || 0) + (previoDeCargo[c.id] || 0)
 
   useEffect(() => {
     supabase.from('prp_contratos')
@@ -90,23 +125,55 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       })
   }, [])
 
-  // Al cambiar contrato, cargar cargos pendientes
+  // Al cambiar contrato: cargos pendientes + lo que este ingreso ya tenía aplicado.
   useEffect(() => {
-    if (!form.contrato_id) { setCargos([]); setDist({}); return }
+    if (!form.contrato_id) { setCargos([]); setDist({}); setAplicacionesPrevias([]); return }
+    let cancelado = false
     setLoadingCargos(true)
-    supabase.from('prp_cartera')
-      .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
-      .eq('contrato_id', form.contrato_id)
-      .in('estado', ['PENDIENTE', 'PARCIAL'])
-      .order('periodo_anio').order('periodo_mes').order('concepto')
-      .then(({ data }) => {
-        setCargos(data || [])
-        const d = {}
-        ;(data || []).forEach(c => { d[c.id] = '' })
-        setDist(d)
-        setLoadingCargos(false)
-      })
-  }, [form.contrato_id])
+
+    ;(async () => {
+      // 1. Distribución ya guardada de este ingreso.
+      let previas = []
+      if (ingreso?.id) {
+        const { data, error } = await supabase.from('aplicaciones_pago')
+          .select('cargo_id, importe_aplicado').eq('ingreso_id', ingreso.id)
+        if (error) toast.error('No se pudo leer la distribución guardada: ' + error.message)
+        previas = data ?? []
+      }
+      const previoDe = Object.fromEntries(previas.map(a => [a.cargo_id, String(a.importe_aplicado)]))
+
+      // 2. Cargos que siguen debiendo algo.
+      const { data: pendientes, error: errCargos } = await supabase.from('prp_cartera')
+        .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
+        .eq('contrato_id', form.contrato_id)
+        .in('estado', ['PENDIENTE', 'PARCIAL'])
+      if (errCargos) toast.error('No se pudieron leer los cargos: ' + errCargos.message)
+      let lista = pendientes ?? []
+
+      // 3. Un cargo que este mismo ingreso dejó en PAGADO ya no sale como
+      //    pendiente. Hay que traerlo igual o al guardar desaparecería su
+      //    aplicación sin que el usuario lo pidiera.
+      const faltantes = previas.map(a => a.cargo_id).filter(id => !lista.some(c => c.id === id))
+      if (faltantes.length) {
+        const { data: extra } = await supabase.from('prp_cartera')
+          .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
+          .in('id', faltantes)
+        lista = [...lista, ...(extra ?? [])]
+      }
+
+      lista.sort((a, b) =>
+        (a.periodo_anio - b.periodo_anio) || (a.periodo_mes - b.periodo_mes)
+        || (a.concepto || '').localeCompare(b.concepto || ''))
+
+      if (cancelado) return
+      setAplicacionesPrevias(previas)
+      setCargos(lista)
+      setDist(Object.fromEntries(lista.map(c => [c.id, previoDe[c.id] ?? ''])))
+      setLoadingCargos(false)
+    })()
+
+    return () => { cancelado = true }
+  }, [form.contrato_id, ingreso?.id])
 
   const [leyendoOCR, setLeyendoOCR] = useState(false)
   const [ocrData, setOcrData] = useState(null)
@@ -116,6 +183,10 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     if (!file) return
     setCompFile(file)
     setCompPreview(URL.createObjectURL(file))
+    // Adjuntar el comprobante es justo el acto de respaldar el depósito, así que
+    // el estatus salta solo a VALIDADO. Si el usuario ya movió el combo a mano,
+    // manda su decisión: no se le pisa.
+    if (!estatusTocado.current) setForm(f => ({ ...f, estatus_validacion: 'VALIDADO' }))
     setLeyendoOCR(true)
     setOcrData(null)
     setOcrMsg({ ok: null, txt: 'Leyendo comprobante con IA…' })
@@ -149,12 +220,33 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.contrato_id) { setErr('Selecciona el contrato'); return }
     if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a 0'); return }
-    if (saldoLibre < -0.01) { setErr(`El total distribuido ($${totalDist.toLocaleString('es-MX')}) excede el importe recibido`); return }
+    if (excede) {
+      setErr(`La distribución se pasa por ${fmt(Math.abs(saldoLibre))}: estás aplicando ${fmt(totalDist)} de un depósito de ${fmt(importeTotal)}. Baja algún importe o quita un cargo.`)
+      return
+    }
     setSaving(true); setErr(null)
     const [fAnio, fMes] = form.fecha ? form.fecha.split('-').map(Number) : [form.anio, form.mes]
     // Tipo principal = el concepto con mayor distribución, o el seleccionado
     const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.concepto)
     const tipoPrincipal = tiposPrincipales[0] || form.tipo
+
+    // La firma de quién validó solo tiene sentido mientras el ingreso esté en
+    // VALIDADO: al salir de ese estatus se limpia para no dejar un sello viejo
+    // colgado de una revisión que ya no aplica.
+    const validado = form.estatus_validacion === 'VALIDADO'
+    const yaEstabaValidado = ingreso?.estatus_validacion === 'VALIDADO'
+    let validadoPor = null, validadoEn = null
+    if (validado) {
+      if (yaEstabaValidado && ingreso?.validado_por) {
+        validadoPor = ingreso.validado_por
+        validadoEn = ingreso.validado_en
+      } else {
+        const { data: sesion } = await supabase.auth.getUser()
+        validadoPor = sesion?.user?.email || sesion?.user?.id || 'SISTEMA'
+        validadoEn = new Date().toISOString()
+      }
+    }
+
     const payload = {
       fecha:           form.fecha || null,
       contrato_id:     form.contrato_id || null,
@@ -166,6 +258,9 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       origen:          form.origen || null,
       concepto_origen: form.concepto_origen || null,
       nota:            form.nota || null,
+      estatus_validacion: form.estatus_validacion || VALIDACION_DEFAULT,
+      validado_por:       validadoPor,
+      validado_en:        validadoEn,
     }
     let error, data
     if (ingreso) {
@@ -176,11 +271,22 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     }
     if (error) { setSaving(false); setErr(error.message); return }
 
-    // Insertar aplicaciones_pago para cada cargo con importe > 0
+    // La distribución que se guarda REEMPLAZA a la anterior, no se suma a ella.
     const ingresoId = ingreso?.id || data?.id
     const aplicaciones = Object.entries(dist)
       .filter(([, v]) => parseFloat(v) > 0)
       .map(([cargo_id, v]) => ({ cargo_id, ingreso_id: ingresoId, importe_aplicado: parseFloat(v) }))
+    const cargosQueQuedan = new Set(aplicaciones.map(a => a.cargo_id))
+    const cargosABorrar = aplicacionesPrevias.map(a => a.cargo_id).filter(id => !cargosQueQuedan.has(id))
+
+    // Primero se borra y luego se inserta: el guardián de la base compara la
+    // suma contra el importe del depósito en cada sentencia, y al revés la
+    // suma intermedia incluiría las filas viejas y rebotaría el guardado.
+    if (cargosABorrar.length > 0) {
+      const { error: delErr } = await supabase.from('aplicaciones_pago')
+        .delete().eq('ingreso_id', ingresoId).in('cargo_id', cargosABorrar)
+      if (delErr) { setSaving(false); setErr('No se pudieron quitar las aplicaciones anteriores: ' + delErr.message); return }
+    }
     if (aplicaciones.length > 0) {
       const { error: apErr } = await supabase.from('aplicaciones_pago').upsert(aplicaciones, { onConflict: 'cargo_id,ingreso_id' })
       if (apErr) { setSaving(false); setErr('Ingreso guardado pero error al aplicar cargos: ' + apErr.message); return }
@@ -381,6 +487,27 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               <div style={{ marginTop:'4px' }}>{inp('concepto_origen','text','RENTA JUL26')}</div>
             </div>
 
+            {/* Validación contra el banco */}
+            <div>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Validación del pago</label>
+              <select value={form.estatus_validacion}
+                onChange={e => { estatusTocado.current = true; set('estatus_validacion', e.target.value) }}
+                title="VALIDADO = el depósito, la transferencia o la entrega de efectivo ya se verificó contra el banco"
+                style={{ width:'100%', padding:'8px 10px', borderRadius:'6px', fontSize:'13px', marginTop:'4px',
+                  border:'1.5px solid', borderColor: VALIDACION[form.estatus_validacion]?.color || '#D1D5DB',
+                  background: VALIDACION[form.estatus_validacion]?.bg || 'white',
+                  color: VALIDACION[form.estatus_validacion]?.color || 'inherit', fontWeight:700 }}>
+                {Object.entries(VALIDACION).map(([clave, m]) => (
+                  <option key={clave} value={clave}>{m.label}</option>
+                ))}
+              </select>
+              {form.estatus_validacion === 'VALIDADO' && ingreso?.validado_por && ingreso?.estatus_validacion === 'VALIDADO' && (
+                <div style={{ fontSize:'10px', color:'var(--color-text-light)', marginTop:'3px' }}>
+                  Validó {ingreso.validado_por}{ingreso.validado_en ? ` · ${ingreso.validado_en.slice(0,10)}` : ''}
+                </div>
+              )}
+            </div>
+
             {/* ─── Distribución del pago ─── */}
             {form.contrato_id && (
               <div style={{ gridColumn:'1/-1', marginTop:'4px' }}>
@@ -389,8 +516,8 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                     Distribución del pago (cargos pendientes)
                   </label>
                   {importeTotal > 0 && (
-                    <span style={{ fontSize:'12px', fontWeight:600, color: saldoLibre < -0.01 ? 'var(--color-danger)' : saldoLibre > 0.01 ? '#D97706' : 'var(--color-success)' }}>
-                      {saldoLibre < -0.01 ? `Excede ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
+                    <span style={{ fontSize:'12px', fontWeight:600, color: excede ? 'var(--color-danger)' : saldoLibre > 0.01 ? '#D97706' : 'var(--color-success)' }}>
+                      {excede ? `Se pasa por ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
                     </span>
                   )}
                 </div>
@@ -410,11 +537,12 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                     {cargos.map((c, i) => {
                       const aplicando = parseFloat(dist[c.id]) || 0
                       const activo = aplicando > 0
+                      const disponible = disponibleDe(c)
                       return (
                         <div key={c.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 110px', gap:'8px', padding:'8px 12px', alignItems:'center', borderTop: i > 0 ? '1px solid #F3F4F6' : 'none', background: activo ? '#F0FDF4' : 'white', transition:'background 0.15s' }}>
                           {/* Concepto con palomita */}
                           <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-                            <span onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(c.saldo, Math.max(0, importeTotal - totalDist + aplicando))) }))}
+                            <span onClick={() => setDist(d => ({ ...d, [c.id]: activo ? '' : String(Math.min(disponible, Math.max(0, importeTotal - totalDist + aplicando))) }))}
                               style={{ cursor:'pointer', color: activo ? 'var(--color-success)' : '#D1D5DB', flexShrink:0 }}>
                               {activo ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                             </span>
@@ -426,10 +554,10 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                           {/* Periodo */}
                           <span style={{ fontSize:'12px', color:'#6B7280' }}>{MESES[c.periodo_mes]}/{c.periodo_anio}</span>
                           {/* Saldo */}
-                          <span style={{ fontSize:'13px', fontWeight:600, color:'#374151', textAlign:'right' }}>{fmt(c.saldo)}</span>
+                          <span style={{ fontSize:'13px', fontWeight:600, color:'#374151', textAlign:'right' }}>{fmt(disponible)}</span>
                           {/* Input importe a aplicar */}
                           <input
-                            type="number" min="0" max={c.saldo} step="0.01"
+                            type="number" min="0" max={disponible} step="0.01"
                             value={dist[c.id] ?? ''}
                             placeholder="0.00"
                             onChange={e => setDist(d => ({ ...d, [c.id]: e.target.value }))}
@@ -448,6 +576,15 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
                     )}
                   </div>
                 )}
+
+                {/* Un depósito no puede aplicarse por más de lo que vale: se dice
+                    aquí mismo, mientras se distribuye, y no hasta el guardado. */}
+                {excede && (
+                  <div style={{ marginTop:'8px', padding:'8px 12px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:'8px', fontSize:'12px', color:'var(--color-danger)', display:'flex', gap:'7px', alignItems:'center' }}>
+                    <AlertCircle size={14} style={{ flexShrink:0 }} />
+                    <span>Estás aplicando <strong>{fmt(totalDist)}</strong> de un depósito de <strong>{fmt(importeTotal)}</strong>: se pasa por <strong>{fmt(Math.abs(saldoLibre))}</strong>. No se puede guardar así.</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -464,7 +601,9 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 
         <div style={{ padding:'14px 22px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'8px', justifyContent:'flex-end' }}>
           <button onClick={onClose} style={{ padding:'9px 18px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-          <button onClick={guardar} disabled={saving} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 20px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer', opacity:saving ? 0.6 : 1 }}>
+          <button onClick={guardar} disabled={saving || excede}
+            title={excede ? `La distribución se pasa por ${fmt(Math.abs(saldoLibre))} del importe recibido` : undefined}
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 20px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor: excede ? 'not-allowed' : 'pointer', opacity:(saving || excede) ? 0.6 : 1 }}>
             <Save size={14} /> {saving ? 'Guardando...' : ingreso ? 'Guardar cambios' : 'Registrar ingreso'}
           </button>
         </div>
@@ -476,6 +615,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 export default function Ingresos() {
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
+  const [filtroValidacion, setFiltroValidacion] = useState('Todos')
   const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1)
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
   const [filtroModo, setFiltroModo] = useState('periodo') // 'periodo' | 'fecha_pago'
@@ -512,7 +652,9 @@ export default function Ingresos() {
           || (r.locales_display || '').toLowerCase().includes(q)
           || (r.factura || '').toLowerCase().includes(q)
         const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
-        return matchQ && matchT && enPeriodo(r)
+        const matchV = filtroValidacion === 'Todos'
+          || (r.estatus_validacion || VALIDACION_DEFAULT) === filtroValidacion
+        return matchQ && matchT && matchV && enPeriodo(r)
       })
       .sort((a, b) => {
         // Orden default: por local (locales_display), luego por fecha
@@ -521,6 +663,25 @@ export default function Ingresos() {
         if (la !== lb) return la.localeCompare(lb, 'es', { numeric: true })
         return (a.fecha || '').localeCompare(b.fecha || '')
       })
+  }, [lista, search, filtroTipo, filtroValidacion, filtroMes, filtroAnio, filtroModo])
+
+  // Cuántos ingresos hay en cada estatus con el resto de filtros ya puestos: la
+  // cuenta va en la etiqueta de la opción, para ver que faltan 12 por validar
+  // sin tener que seleccionar el filtro para descubrirlo.
+  const conteoValidacion = useMemo(() => {
+    const q = search.toLowerCase()
+    return lista.reduce((acc, r) => {
+      const matchQ = !q
+        || (r.arrendatario_nombre || '').toLowerCase().includes(q)
+        || (r.locales_display || '').toLowerCase().includes(q)
+        || (r.factura || '').toLowerCase().includes(q)
+      const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
+      if (matchQ && matchT && enPeriodo(r)) {
+        const k = r.estatus_validacion || VALIDACION_DEFAULT
+        acc[k] = (acc[k] || 0) + 1
+      }
+      return acc
+    }, {})
   }, [lista, search, filtroTipo, filtroMes, filtroAnio, filtroModo])
 
   const soloImportes = filtrados.filter(r => r.es_principal && r.importe != null)
@@ -648,6 +809,22 @@ export default function Ingresos() {
           }}>{t}</button>
         ))}
 
+        {/* Validación contra el banco */}
+        <select value={filtroValidacion} onChange={e => setFiltroValidacion(e.target.value)}
+          title="Estatus de validación contra el banco"
+          style={{
+            padding:'8px 12px', borderRadius:'8px', fontSize:'13px', border:'1.5px solid',
+            borderColor: filtroValidacion === 'Todos' ? '#E5E7EB' : (VALIDACION[filtroValidacion]?.color || 'var(--color-primary)'),
+            background:  filtroValidacion === 'Todos' ? 'white' : (VALIDACION[filtroValidacion]?.bg || 'white'),
+            color:       filtroValidacion === 'Todos' ? 'inherit' : (VALIDACION[filtroValidacion]?.color || 'inherit'),
+            fontWeight:  filtroValidacion === 'Todos' ? 400 : 700,
+          }}>
+          <option value="Todos">Validación: todos</option>
+          {Object.entries(VALIDACION).map(([clave, m]) => (
+            <option key={clave} value={clave}>{m.label} ({conteoValidacion[clave] || 0})</option>
+          ))}
+        </select>
+
         {/* Búsqueda */}
         <div style={{ position:'relative', flex:1, minWidth:'200px' }}>
           <Search size={14} style={{ position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }} />
@@ -667,7 +844,7 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Tipo','Docs','Esperado','Cobrado','Nota'].map(h => (
+                      {['Fecha pago','Período','Contrato','Tipo','Docs','Validación','Esperado','Cobrado','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
@@ -719,6 +896,10 @@ export default function Ingresos() {
                             }
                           </div>
                         </td>
+                        <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}
+                          title={r.validado_por ? `Validó ${r.validado_por}${r.validado_en ? ` el ${r.validado_en.slice(0,10)}` : ''}` : undefined}>
+                          <BadgeValidacion estatus={r.estatus_validacion} />
+                        </td>
                         <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'12px', color: r.renta_mensual ? '#374151' : '#D1D5DB' }}>
                           {r.renta_mensual ? fmt(r.renta_mensual) : '—'}
                         </td>
@@ -739,7 +920,7 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={5} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
+                      <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'13px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
@@ -808,6 +989,13 @@ export default function Ingresos() {
                     <div style={{ fontSize:'10px', fontWeight:700, color:'#9CA3AF', textTransform:'uppercase' }}>Fecha pago</div>
                     <div style={{ fontSize:'13px', fontWeight:700, color:'#111827' }}>{verDetalle.fecha?.slice(0,10)}</div>
                     {verDetalle.origen && <div style={{ fontSize:'10px', color:'#6B7280', marginTop:'2px' }}>{verDetalle.origen}</div>}
+                    <div style={{ marginTop:'5px' }}><BadgeValidacion estatus={verDetalle.estatus_validacion} /></div>
+                    {verDetalle.estatus_validacion === 'VALIDADO' && verDetalle.validado_por && (
+                      <div style={{ fontSize:'10px', color:'#6B7280', marginTop:'3px' }}>
+                        {verDetalle.validado_por}
+                        {verDetalle.validado_en && <><br />{verDetalle.validado_en.slice(0,10)}</>}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -825,12 +1013,33 @@ export default function Ingresos() {
                           <span style={{ fontSize:'13px', fontWeight:700, color:'var(--color-success)' }}>{fmt(a.importe_aplicado)}</span>
                         </div>
                       ))}
-                      <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 12px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                        <span style={{ fontSize:'12px', fontWeight:700, color:'#374151' }}>Total aplicado</span>
-                        <span style={{ fontSize:'13px', fontWeight:800, color:'var(--color-primary)' }}>
-                          {fmt(detalleAplicaciones.reduce((s, a) => s + (parseFloat(a.importe_aplicado)||0), 0))}
-                        </span>
-                      </div>
+                      {(() => {
+                        const aplicado = detalleAplicaciones.reduce((s, a) => s + (parseFloat(a.importe_aplicado) || 0), 0)
+                        const dif = aplicado - (parseFloat(verDetalle.importe) || 0)
+                        const descuadra = Math.abs(dif) > 0.01
+                        return (
+                          <>
+                            <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 12px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
+                              <span style={{ fontSize:'12px', fontWeight:700, color:'#374151' }}>Total aplicado</span>
+                              <span style={{ fontSize:'13px', fontWeight:800, color: descuadra ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                                {fmt(aplicado)}
+                              </span>
+                            </div>
+                            {/* La distribución tiene que sumar exactamente el depósito. Si no
+                                cuadra, hay cargos dados por pagados con dinero que no entró
+                                (o dinero recibido sin asignar): se dice aquí, no se calla. */}
+                            {descuadra && (
+                              <div style={{ display:'flex', gap:'7px', alignItems:'center', padding:'8px 12px', background:'#FEF2F2', borderTop:'1px solid #FECACA', fontSize:'12px', color:'var(--color-danger)' }}>
+                                <AlertCircle size={14} style={{ flexShrink:0 }} />
+                                <span>
+                                  No cuadra con el depósito de <strong>{fmt(verDetalle.importe)}</strong>:{' '}
+                                  {dif > 0 ? <>se aplicaron <strong>{fmt(dif)}</strong> de más</> : <>faltan <strong>{fmt(Math.abs(dif))}</strong> por aplicar</>}.
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 )}
