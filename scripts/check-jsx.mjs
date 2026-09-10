@@ -1,15 +1,20 @@
 /**
- * Detecta componentes JSX usados pero nunca importados ni definidos.
+ * Dos defectos que dejan la pantalla en blanco y que `vite build` NO detecta,
+ * porque el JSX compila igual y el fallo solo aparece en el navegador:
  *
- *   node scripts/check-jsx.mjs            # revisa src/
- *   node scripts/check-jsx.mjs src/pages/Contratos.jsx
+ *   1. Componente usado en JSX sin importar ni definir
+ *      -> "X is not defined"        (pasó con LogoEditable en Contratos.jsx)
+ *   2. Variable usada antes de declararse, en la zona muerta temporal
+ *      -> "Cannot access 'X' before initialization"
+ *         (pasó con un useEffect que dependía de un useState 54 líneas abajo)
  *
- * Existe porque `vite build` NO atrapa esto: el JSX compila igual y el fallo
- * aparece en el navegador como "X is not defined", con la pantalla en blanco.
- * Pasó con LogoEditable en Contratos.jsx.
+ *   node scripts/check-jsx.mjs                    # revisa src/
+ *   node scripts/check-jsx.mjs src/pages/Foo.jsx  # un archivo
  */
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+
+const NL = String.fromCharCode(10)
 
 function archivos(dir, acc = []) {
   for (const e of readdirSync(dir)) {
@@ -25,11 +30,9 @@ function importados(src) {
   // Cubre imports multilínea: import {\n  A,\n  B,\n} from '...'
   for (const m of src.matchAll(/import\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]/g)) {
     const clausula = m[1]
-    // default y namespace
     const def = clausula.match(/^\s*([A-Za-z_$][\w$]*)/)
     if (def && !clausula.trimStart().startsWith('{')) nombres.add(def[1])
     for (const n of clausula.matchAll(/\*\s+as\s+([A-Za-z_$][\w$]*)/g)) nombres.add(n[1])
-    // nombrados, incluido "X as Y"
     const llaves = clausula.match(/\{([\s\S]*?)\}/)
     if (llaves) {
       for (const parte of llaves[1].split(',')) {
@@ -59,24 +62,75 @@ function definidos(src) {
   return nombres
 }
 
+/**
+ * Dependencias de hooks declaradas más abajo que el propio hook.
+ * Se analiza componente por componente: un nombre puede ser prop de uno y
+ * variable de otro, y compararlos entre sí daría un falso positivo.
+ */
+function usoAntesDeDeclarar(src) {
+  const cortes = [...src.matchAll(new RegExp(NL + 'function\\s+[A-Za-z_$][\\w$]*\\s*\\(', 'g'))].map(m => m.index)
+  if (cortes.length > 1) {
+    const partes = []
+    for (let i = 0; i < cortes.length; i++) {
+      const desde = cortes[i]
+      const hasta = i + 1 < cortes.length ? cortes[i + 1] : src.length
+      partes.push({ texto: src.slice(desde, hasta), offset: desde })
+    }
+    return partes.flatMap(({ texto, offset }) =>
+      enBloque(texto).map(x => ({ ...x, linea: src.slice(0, offset).split(NL).length + x.linea - 1 })))
+  }
+  return enBloque(src)
+}
+
+function enBloque(src) {
+  const problemas = []
+  const declaradaEn = new Map()
+  for (const m of src.matchAll(/\n\s*const\s+(?:\[\s*([\w$]+)[^\]]*\]|([\w$]+))\s*=/g)) {
+    const nombre = m[1] || m[2]
+    if (!declaradaEn.has(nombre)) declaradaEn.set(nombre, m.index)
+  }
+  for (const m of src.matchAll(/\}\s*,\s*\[([^\]]*)\]\s*\)/g)) {
+    for (const dep of m[1].split(',')) {
+      const nombre = dep.trim()
+      if (!/^[a-z_$][\w$]*$/i.test(nombre)) continue
+      const pos = declaradaEn.get(nombre)
+      if (pos !== undefined && pos > m.index) {
+        problemas.push({ nombre, linea: src.slice(0, m.index).split(NL).length })
+      }
+    }
+  }
+  return problemas
+}
+
 const objetivo = process.argv[2]
 const lista = objetivo ? [objetivo] : archivos('src')
 let problemas = 0
+let avisos = 0
 
 for (const f of lista) {
   const src = readFileSync(f, 'utf-8')
   const disponibles = new Set([...importados(src), ...definidos(src)])
   const usados = new Set([...src.matchAll(/<([A-Z][\w$]*)[\s/>]/g)].map(m => m[1]))
   const faltan = [...usados].filter(c => !disponibles.has(c) && !c.includes('.'))
+  const tdz = usoAntesDeDeclarar(src)
+
   if (faltan.length) {
     problemas++
-    console.log(`✗ ${f}`)
+    console.log('x ' + f)
     for (const c of faltan) {
-      const linea = src.slice(0, src.indexOf(`<${c}`)).split('\n').length
-      console.log(`    ${c}  (línea ${linea})`)
+      const linea = src.slice(0, src.indexOf('<' + c)).split(NL).length
+      console.log('    sin definir: ' + c + '  (linea ' + linea + ')')
     }
+  }
+  // El detector de zona muerta no distingue una prop de una variable del mismo
+  // nombre en otro componente, asi que avisa sin marcar fallo: hay que mirarlo.
+  for (const t of tdz) {
+    avisos++
+    console.log('? ' + f + ' - revisar si ' + t.nombre + ' se usa antes de declararse (linea ' + t.linea + ')')
   }
 }
 
-console.log(problemas ? `\n${problemas} archivo(s) con componentes sin definir.` : `✓ ${lista.length} archivos revisados, sin componentes sueltos.`)
+console.log(problemas
+  ? NL + problemas + ' archivo(s) con componentes sin definir.'
+  : 'OK - ' + lista.length + ' archivos revisados' + (avisos ? ', ' + avisos + ' aviso(s) por revisar.' : ', limpios.'))
 process.exit(problemas ? 1 : 0)

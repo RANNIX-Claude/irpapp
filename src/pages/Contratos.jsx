@@ -1260,14 +1260,6 @@ export default function Contratos() {
   const [logos, setLogos] = useState({})
   const [generandoFolios, setGenerandoFolios] = useState(false)
 
-  // prp_contratos no expone estatus_operacion; se lee de la tabla y se indexa.
-  const [operacionPorContrato, setOperacionPorContrato] = useState({})
-  useEffect(() => {
-    supabase.from('contratos').select('id, estatus_operacion').then(({ data }) => {
-      setOperacionPorContrato(Object.fromEntries((data ?? []).map(x => [x.id, x.estatus_operacion])))
-    })
-  }, [refreshKey])
-
   useEffect(() => {
     supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => {
       setLogos(Object.fromEntries((data ?? []).filter(a => a.logo_url).map(a => [a.id, a.logo_url])))
@@ -1321,6 +1313,15 @@ export default function Contratos() {
     if (f) setFiltroEst(f)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // prp_contratos no expone estatus_operacion; se lee de la tabla y se indexa.
+  const [operacionPorContrato, setOperacionPorContrato] = useState({})
+  useEffect(() => {
+    supabase.from('contratos').select('id, estatus_operacion').then(({ data }) => {
+      setOperacionPorContrato(Object.fromEntries((data ?? []).map(x => [x.id, x.estatus_operacion])))
+    })
+  }, [refreshKey])
+
   const [diasAnticip, setDiasAnticip] = useState(60)
   const navigate = useNavigate()
   const [vistaAnual, setVistaAnual] = useState(false)
