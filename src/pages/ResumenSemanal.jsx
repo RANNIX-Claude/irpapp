@@ -1158,10 +1158,29 @@ export default function ResumenSemanal() {
               </>
             )}
 
-            {/* ── TOTAL EFECTIVO A ENTREGAR ── */}
-            <div style={{ background: '#1A3C5E', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 0' }}>
-              <span style={{ fontWeight: 800, fontSize: '13px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Efectivo a Entregar</span>
-              <span style={{ fontWeight: 900, fontSize: '22px', color: '#E8A020', fontFamily: 'monospace' }}>{fmt(totalEfectivo)}</span>
+            {/* ── DESGLOSE POR CONCEPTO + TOTAL EFECTIVO A ENTREGAR ──
+                Los seis conceptos son ingresos, por eso cierran esta columna
+                pegados a su total y no junto al balance del fondo. */}
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '2px solid #E5E7EB', borderBottom: '1px solid #E5E7EB' }}>
+                {[
+                  ['Estacionamiento', totEstac + totParking, '#0A66C2'],
+                  ['Pensiones', totPensiones, '#0A66C2'],
+                  ['Vending', totVending, '#0A66C2'],
+                  ['Rentas', totRentas, 'var(--color-success)'],
+                  ['Agua', totAgua, '#0284C7'],
+                  ['Otros', totOtros, '#6B7280'],
+                ].map(([label, val, color]) => (
+                  <div key={label} style={{ background: 'white', padding: '9px 14px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color, fontFamily: 'monospace', textAlign: 'right' }}>{fmt(val)}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: '#1A3C5E', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 800, fontSize: '13px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Efectivo a Entregar</span>
+                <span style={{ fontWeight: 900, fontSize: '22px', color: '#E8A020', fontFamily: 'monospace' }}>{fmt(totalEfectivo)}</span>
+              </div>
             </div>
 
             {/* ── CÁLCULO FONDO — solo si gastos exceden el fondo fijo ── */}
@@ -1267,22 +1286,6 @@ export default function ResumenSemanal() {
               ))}
             </div>
 
-            {/* Resumen KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '2px solid #E5E7EB' }}>
-              {[
-                ['Estacionamiento', totEstac + totParking, '#0A66C2'],
-                ['Pensiones', totPensiones, '#0A66C2'],
-                ['Vending', totVending, '#0A66C2'],
-                ['Rentas', totRentas, 'var(--color-success)'],
-                ['Agua', totAgua, '#0284C7'],
-                ['Otros', totOtros, '#6B7280'],
-              ].map(([label, val, color]) => (
-                <div key={label} style={{ background: 'white', padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color, fontFamily: 'monospace', textAlign: 'right' }}>{fmt(val)}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
         </div>
