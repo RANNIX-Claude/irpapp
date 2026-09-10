@@ -2414,30 +2414,45 @@ function TabNominaIWOL() {
   const [fechaPago, setFechaPago] = useState(semana.domingo)
   useEffect(() => { setFechaPago(semana.domingo) }, [semana.domingo])
 
-  const generarRecibo = async (r) => {
+  // Los mismos datos alimentan el Word y la impresión, para que no discrepen.
+  const datosRecibo = (r, semanaISO) => {
     const aj = ajustes[r.empleado_id] || {}
+    return {
+      empleado: r.emp,
+      semana: { lunes: semana.lunes, domingo: semana.domingo, numero: semanaISO(semana.lunes) },
+      nomina: {
+        dias_trabajados: 7 - r.faltas,
+        faltas: r.faltas,
+        // Percepción del formato: el sueldo de la semana más los conceptos
+        // que se le sumaron. El descuento por faltas va del lado de deducción.
+        percepcion:  r.percepcion + r.complemento + r.vacaciones + r.prima_vac + r.dia_festivo,
+        bono:        parseFloat(aj.bono || 0),
+        deducciones: r.descuento,
+        neto:        r.total_percepciones,
+        fecha_pago:  fechaPago,
+      },
+    }
+  }
+
+  const generarRecibo = async (r) => {
     // Carga diferida: docx pesa ~380 KB y solo hace falta al pedir un recibo.
     const { descargarRecibo, semanaISO } = await import('../lib/reciboNomina')
     try {
-      const nombre = await descargarRecibo({
-        empleado: r.emp,
-        semana: { lunes: semana.lunes, domingo: semana.domingo, numero: semanaISO(semana.lunes) },
-        nomina: {
-          dias_trabajados: 7 - r.faltas,
-          faltas: r.faltas,
-          // Percepción del formato: el sueldo de la semana más los conceptos
-          // que se le sumaron. El descuento por faltas va del lado de deducción.
-          percepcion:  r.percepcion + r.complemento + r.vacaciones + r.prima_vac + r.dia_festivo,
-          bono:        parseFloat(aj.bono || 0),
-          deducciones: r.descuento,
-          neto:        r.total_percepciones,
-          fecha_pago:  fechaPago,
-        },
-      })
+      const nombre = await descargarRecibo(datosRecibo(r, semanaISO))
       toast.success(nombre)
       logAudit({ modulo: 'Nómina', accion: 'RECIBO', descripcion: `${r.nombre} — semana ${semana.lunes}` })
     } catch (e) {
       toast.error('No se pudo generar el recibo: ' + e.message)
+    }
+  }
+
+  const imprimirReciboDe = async (r) => {
+    const { imprimirRecibo, semanaISO } = await import('../lib/reciboNomina')
+    try {
+      imprimirRecibo(datosRecibo(r, semanaISO))
+      logAudit({ modulo: 'Nómina', accion: 'RECIBO_IMPRESO', descripcion: `${r.nombre} — semana ${semana.lunes}` })
+    } catch (e) {
+      toast.error(e.message)
     }
   }
 
@@ -2760,10 +2775,18 @@ function TabNominaIWOL() {
                     {r.forma_pago === 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
                   </td>
                   <td className="no-print" style={{ padding:'8px 10px',textAlign:'center' }}>
-                    <button onClick={() => generarRecibo(r)} title={`Recibo de nómina de ${r.nombre}`}
-                      style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'1.5px solid #E5E7EB',borderRadius:7,background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#1A3C5E',whiteSpace:'nowrap' }}>
-                      <FileText size={12} /> Recibo
-                    </button>
+                    {/* Word para archivar o corregir; impresora para el caso de
+                        cada semana: imprimir, firmar y entregar. */}
+                    <div style={{ display:'inline-flex',border:'1.5px solid #E5E7EB',borderRadius:7,overflow:'hidden' }}>
+                      <button onClick={() => generarRecibo(r)} title={`Recibo de ${r.nombre} en Word`}
+                        style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'none',background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#1A3C5E',whiteSpace:'nowrap' }}>
+                        <FileText size={12} /> Recibo
+                      </button>
+                      <button onClick={() => imprimirReciboDe(r)} title={`Imprimir el recibo de ${r.nombre}`}
+                        style={{ display:'inline-flex',alignItems:'center',padding:'5px 8px',border:'none',borderLeft:'1.5px solid #E5E7EB',background:'white',cursor:'pointer',color:'#6B7280' }}>
+                        <Printer size={12} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

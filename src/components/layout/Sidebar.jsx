@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, FileText, CreditCard, Users,
   Wrench, HardHat, Truck, UserCheck, Car,
-  Search, BarChart3, Settings, Wallet, RefreshCw,
+  Search, BarChart3, Settings, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   Package,
@@ -41,7 +41,6 @@ const NAV_SECTIONS = [
       { label: 'Estacionamiento', path: '/estacionamiento', icon: Car },
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
-      { label: 'Fondo Revolvente', path: '/fondo-revolvente', icon: Wallet },
       { label: 'Agua Potable', path: '/agua', icon: Droplets },
     ]
   },

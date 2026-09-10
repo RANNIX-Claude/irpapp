@@ -274,3 +274,126 @@ export function semanaISO(fecha) {
   const enero4 = new Date(jueves.getFullYear(), 0, 4)
   return 1 + Math.round(((jueves - enero4) / 86400000 - 3 + ((enero4.getDay() + 6) % 7)) / 7)
 }
+
+// ── Versión imprimible ──────────────────────────────────────────────────────
+/**
+ * El mismo recibo, en HTML, listo para mandar a la impresora.
+ *
+ * El .docx sirve para archivar y corregir; esto es para el caso común de la
+ * semana: imprimir, firmar y entregar, sin abrir Word de por medio. Los dos
+ * salen de los mismos datos para que no puedan discrepar.
+ */
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+
+export function reciboHTML(d) {
+  const { empleado: e, semana: s, nomina: n } = d
+  const hoy = new Date()
+  const sdi = salarioDiarioIntegrado(e.salario_diario, e.dias_antiguedad)
+  const sueldoSemanal = (parseFloat(e.salario_diario) || 0) * 7
+  const anio = new Date(s.lunes + 'T12:00:00').getFullYear()
+
+  const fila = (a, b, c, f) => `<tr>
+    <td class="et">${esc(a)}</td><td class="va">${esc(b)}</td>
+    <td class="et">${esc(c)}</td><td class="va">${esc(f)}</td></tr>`
+
+  const total = (et, val, fuerte) => `<tr class="${fuerte ? 'fuerte' : ''}">
+    <td colspan="3" class="tot-et">${esc(et)}</td><td class="tot-va">${esc(val)}</td></tr>`
+
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Recibo ${esc(e.nombre_completo)} — semana ${s.numero}</title>
+<style>
+  @page { size: letter; margin: 14mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #000; margin: 0; }
+  .enc { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #1A3C5E; padding-bottom: 8px; }
+  .enc img { width: 96px; height: auto; }
+  .enc .datos { flex: 1; text-align: center; line-height: 1.35; }
+  .enc .razon { font-weight: 700; font-size: 12px; }
+  .enc .chico { font-size: 9px; }
+  h1 { font-size: 15px; letter-spacing: .18em; text-align: center; margin: 14px 0 10px; }
+  .lugar { text-align: right; font-size: 9.5px; margin-bottom: 10px; }
+  .empleado { font-weight: 700; font-size: 12px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  .datos-emp td { padding: 2.5px 4px; vertical-align: top; }
+  .datos-emp .et { font-weight: 700; white-space: nowrap; width: 1%; }
+  .datos-emp .va { padding-right: 18px; }
+  .conceptos { margin-top: 12px; }
+  .conceptos th, .conceptos td { border: 1px solid #000; padding: 5px 8px; }
+  .conceptos th { background: #D9D9D9; font-size: 9.5px; text-align: center; }
+  .conceptos .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .conceptos .periodo { font-size: 9px; color: #555; }
+  .totales { margin-top: 12px; }
+  .totales td { border: 1px solid #000; padding: 5px 8px; }
+  .totales .tot-et { text-align: right; font-weight: 700; }
+  .totales .tot-va { text-align: right; font-variant-numeric: tabular-nums; width: 30%; }
+  .totales .fuerte td { background: #D9D9D9; font-weight: 700; }
+  .letra { text-align: center; font-weight: 700; font-size: 10px; margin: 12px 0 14px; }
+  .legal { text-align: justify; font-size: 8.5px; line-height: 1.5; }
+  .firma { margin-top: 46px; text-align: center; }
+  .firma .linea { border-top: 1px solid #000; width: 260px; margin: 0 auto 4px; }
+  .firma .rot { font-weight: 700; font-size: 9.5px; }
+</style></head><body>
+
+<div class="enc">
+  <img src="/logo-alcedines.png" alt="" onerror="this.style.display='none'">
+  <div class="datos">
+    <div class="razon">${esc(PATRON.razon_social)}</div>
+    <div><strong>${esc(PATRON.rfc)}</strong></div>
+    <div class="chico">RÉGIMEN FISCAL: ${esc(PATRON.regimen)}</div>
+    <div class="chico">${esc(PATRON.domicilio)}</div>
+    <div class="chico">${esc(PATRON.telefono)}</div>
+  </div>
+</div>
+
+<h1>R E C I B O &nbsp; D E &nbsp; N Ó M I N A</h1>
+<div class="lugar">${esc(PATRON.ciudad)} A ${hoy.getDate()} DE ${MESES[hoy.getMonth()]} DE ${hoy.getFullYear()}</div>
+<div class="empleado">EMPLEADO: ${esc((e.nombre_completo || '').toUpperCase())}</div>
+
+<table class="datos-emp">
+  ${fila('RFC:', e.rfc || '—', 'INICIO REL. LABORAL:', fechaCorta(e.fecha_ingreso))}
+  ${fila('CURP:', e.curp || '—', 'DÍAS TRABAJADOS:', n.dias_trabajados)}
+  ${fila('PUESTO:', e.puesto || '—', 'FALTAS:', n.faltas)}
+  ${fila('HORARIO:', e.horario_trabajo || '—', 'DESCANSO:', e.dia_descanso || '—')}
+  ${fila('SUELDO:', money(sueldoSemanal), 'FECHA DE PAGO:', fechaCorta(n.fecha_pago))}
+  ${fila('SALARIO D. INTEGRADO:', money(sdi), '', '')}
+</table>
+
+<table class="conceptos">
+  <tr><th style="width:50%">CONCEPTO</th><th style="width:25%">PERCEPCIÓN</th><th style="width:25%">DEDUCCIÓN</th></tr>
+  <tr>
+    <td>SEMANA ${esc(s.numero)} ${anio}
+      <div class="periodo">Del ${fechaCorta(s.lunes)} al ${fechaCorta(s.domingo)}</div></td>
+    <td class="num">${money(n.percepcion)}</td>
+    <td class="num">${n.deducciones ? money(n.deducciones) : '-----'}</td>
+  </tr>
+</table>
+
+<table class="totales">
+  ${total('PERCEPCIÓN:', money(n.percepcion))}
+  ${total('BONO DE PUNTUALIDAD:', n.bono ? money(n.bono) : '------')}
+  ${total('DEDUCCIONES:', n.deducciones ? money(n.deducciones) : '------')}
+  ${total('NETO RECIBIDO:', money(n.neto), true)}
+</table>
+
+<div class="letra">(${esc(numeroALetras(n.neto))})</div>
+
+<div class="legal">Recibí de la empresa que se cita en el encabezado, la cantidad anteriormente descrita,
+con la cual doy por pagadas todas y cada una de las prestaciones incluyendo el 7º día que generé
+durante el presente periodo y anteriores, así mismo, manifiesto a mi entera satisfacción estar de
+acuerdo con los descuentos legales aplicados. De igual forma acepto, que no se me adeuda prestación
+o cantidad alguna por cualquier otro concepto por lo que no me reservo acción o derecho alguno que
+ejercitar en contra de la empresa a la que se hace referencia.</div>
+
+<div class="firma"><div class="linea"></div><div class="rot">NOMBRE Y FIRMA</div></div>
+</body></html>`
+}
+
+/** Abre el recibo en una ventana y manda imprimir. */
+export function imprimirRecibo(datos) {
+  const w = window.open('', '_blank', 'width=850,height=1000')
+  if (!w) throw new Error('El navegador bloqueó la ventana emergente')
+  w.document.write(reciboHTML(datos))
+  w.document.close()
+  // Se espera a que el logo cargue: sin la pausa, la impresión sale sin imagen.
+  setTimeout(() => w.print(), 500)
+}
