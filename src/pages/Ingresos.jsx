@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History } from 'lucide-react'
+import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
-import { supabase, llamarFuncion } from '../lib/supabase'
+import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 
 // estatus_operacion vive en la tabla; prp_contratos no lo expone todavía.
 function useOperacion() {
@@ -17,11 +17,30 @@ function useOperacion() {
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
-import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
+import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-const TIPOS = ['RENTA','SANCION','AGUA','OTRO']
-const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280' }
+const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280', MIXTO: '#7C3AED' }
+
+// Clasificación del ingreso: a qué se aplicó el depósito. La deduce la base a
+// partir de la distribución (un concepto = ese concepto, dos o más = MIXTO) y
+// el usuario la puede sobrescribir. Es un dato distinto de `tipo`, que se dejó
+// intacto porque EDR y ResumenSemanal reparten el dinero con él.
+const CLASIFICACIONES = ['RENTA','SANCION','AGUA','OTRO','MIXTO']
+// Los ingresos viejos sin distribución no tienen clasificación: se muestra su
+// `tipo` para no dejar la columna en blanco.
+const clasifDe = r => r.clasificacion || r.tipo
+
+// El concepto del cargo y la clasificación del ingreso no son el mismo juego de
+// valores: MANTENIMIENTO existe como cargo pero la clasificación cierra en cinco.
+const clasifDeConcepto = c => (['RENTA','SANCION','AGUA'].includes(c) ? c : 'OTRO')
+
+/** Misma regla que fn_clasificacion_desde_aplicaciones en la base. */
+function clasificacionAutomatica(conceptos) {
+  const unicos = [...new Set(conceptos.map(clasifDeConcepto))]
+  if (unicos.length === 0) return null
+  return unicos.length === 1 ? unicos[0] : 'MIXTO'
+}
 
 // Cada ingreso debe corresponder a un depósito, transferencia o entrega de
 // efectivo real: VALIDADO es el que ya se cotejó contra el banco. OBSERVADO
@@ -40,6 +59,93 @@ function BadgeValidacion({ estatus, size = 11 }) {
       {m.label}
     </span>
   )
+}
+
+// ── Visor del comprobante ───────────────────────────────────────────────────
+// No se usa el componente ImagenPrivada a propósito: ese componente pinta lo mismo
+// mientras firma que cuando la firma falla, y para quien valida no es lo mismo
+// "espérate" que "el archivo ya no está". Aquí se separan los dos casos, y
+// además hay que resolver el PDF, que un <img> no sabe pintar.
+const esPDF = v => /\.pdf(\?|$)/i.test(v || '')
+
+function VisorComprobante({ valor, onAmpliar }) {
+  const [url, setUrl] = useState(null)
+  const [estado, setEstado] = useState('cargando') // cargando | listo | sin_archivo | ilegible
+
+  useEffect(() => {
+    if (!valor) { setEstado('sin_archivo'); return }
+    let cancelado = false
+    setEstado('cargando'); setUrl(null)
+    urlFirmada('facturas-cfdi', valor).then(u => {
+      if (cancelado) return
+      if (u) { setUrl(u); setEstado('listo') } else { setEstado('sin_archivo') }
+    })
+    return () => { cancelado = true }
+  }, [valor])
+
+  const caja = (contenido, borde = '#E5E7EB', fondo = '#F9FAFB') => (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'8px',
+      minHeight:'220px', padding:'24px', borderRadius:'10px', border:`1px solid ${borde}`, background:fondo, textAlign:'center' }}>
+      {contenido}
+    </div>
+  )
+
+  if (estado === 'cargando') {
+    return caja(<>
+      <LoadingSpinner />
+      <span style={{ fontSize:'12px', color:'#6B7280' }}>Abriendo el comprobante…</span>
+    </>)
+  }
+
+  if (estado === 'sin_archivo') {
+    return caja(<>
+      <AlertCircle size={20} style={{ color:'var(--color-danger)' }} />
+      <span style={{ fontSize:'12px', fontWeight:700, color:'var(--color-danger)' }}>No se pudo abrir el archivo</span>
+      <span style={{ fontSize:'11px', color:'#6B7280' }}>
+        El ingreso tiene comprobante registrado, pero ya no está en el almacenamiento
+        o tu usuario no tiene permiso de verlo. Vuelve a adjuntarlo desde Editar.
+      </span>
+    </>, '#FECACA', '#FEF2F2')
+  }
+
+  if (estado === 'ilegible') {
+    return caja(<>
+      <AlertCircle size={20} style={{ color:'#D97706' }} />
+      <span style={{ fontSize:'12px', fontWeight:700, color:'#92400E' }}>El archivo no se puede mostrar</span>
+      <span style={{ fontSize:'11px', color:'#6B7280' }}>Se descargó, pero no es una imagen válida.</span>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', fontWeight:700, color:'var(--color-primary)' }}>Abrir en otra pestaña</a>
+    </>, '#FDE68A', '#FFFBEB')
+  }
+
+  const accion = (children, onClick, href) => href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" style={ACCION_VISOR}>{children}</a>
+    : <button type="button" onClick={onClick} style={{ ...ACCION_VISOR, border:'none', cursor:'pointer' }}>{children}</button>
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:'8px', minHeight:0 }}>
+      <div style={{ display:'flex', gap:'8px', justifyContent:'flex-end' }}>
+        {!esPDF(valor) && accion(<><ZoomIn size={12} /> Ampliar</>, () => onAmpliar?.(url))}
+        {accion(<><ExternalLink size={12} /> Abrir en otra pestaña</>, null, url)}
+      </div>
+      {esPDF(valor)
+        // Un PDF no se pinta con <img>: se incrusta el visor del navegador, que
+        // además trae su propio zoom y paginado.
+        ? <iframe src={url} title="Comprobante en PDF"
+            style={{ width:'100%', height:'62vh', border:'1px solid #E5E7EB', borderRadius:'10px', background:'#F9FAFB' }} />
+        : <div style={{ overflow:'auto', maxHeight:'62vh', borderRadius:'10px', border:'1px solid #E5E7EB', background:'#F9FAFB' }}>
+            <img src={url} alt="Comprobante de pago" onError={() => setEstado('ilegible')}
+              onClick={() => onAmpliar?.(url)}
+              title="Clic para ampliar"
+              style={{ display:'block', width:'100%', height:'auto', cursor:'zoom-in' }} />
+          </div>
+      }
+    </div>
+  )
+}
+
+const ACCION_VISOR = {
+  display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:700,
+  color:'var(--color-primary)', background:'#EFF6FF', padding:'4px 9px', borderRadius:'8px', textDecoration:'none',
 }
 
 function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('es-MX', { minimumFractionDigits: 0 }) : '—' }
@@ -61,6 +167,7 @@ const BLANK = {
   concepto_origen: '',
   nota: '',
   estatus_validacion: VALIDACION_DEFAULT,
+  clasificacion: '',
 }
 
 function IngresoModal({ ingreso = null, onClose, onSaved }) {
@@ -76,6 +183,10 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     concepto_origen: ingreso.concepto_origen || '',
     nota:            ingreso.nota || '',
     estatus_validacion: ingreso.estatus_validacion || VALIDACION_DEFAULT,
+    // '' = automática (la deduce la distribución). Solo se precarga un valor si
+    // el usuario ya la había fijado a mano; si no, el combo queda en automática
+    // aunque la fila traiga clasificación deducida.
+    clasificacion:   ingreso.clasificacion_manual ? (ingreso.clasificacion || '') : '',
   } : BLANK)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
@@ -230,6 +341,17 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.concepto)
     const tipoPrincipal = tiposPrincipales[0] || form.tipo
 
+    // Clasificación: si el usuario eligió una, esa manda y queda marcada como
+    // manual para que ningún recálculo posterior la pise. Si dejó "automática",
+    // se deduce de la distribución que se está guardando —el trigger de la base
+    // hará lo mismo al escribir las aplicaciones, pero así la fila queda
+    // correcta también cuando la distribución no cambió en esta edición.
+    const manual = !!form.clasificacion
+    const clasifAuto = clasificacionAutomatica(tiposPrincipales)
+    const clasificacion = manual
+      ? form.clasificacion
+      : (clasifAuto ?? (ingreso?.clasificacion_manual ? null : ingreso?.clasificacion ?? null))
+
     // La firma de quién validó solo tiene sentido mientras el ingreso esté en
     // VALIDADO: al salir de ese estatus se limpia para no dejar un sello viejo
     // colgado de una revisión que ya no aplica.
@@ -261,6 +383,8 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       estatus_validacion: form.estatus_validacion || VALIDACION_DEFAULT,
       validado_por:       validadoPor,
       validado_en:        validadoEn,
+      clasificacion:        clasificacion,
+      clasificacion_manual: manual,
     }
     let error, data
     if (ingreso) {
@@ -508,6 +632,36 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
               )}
             </div>
 
+            {/* Clasificación del ingreso */}
+            <div>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Clasificación</label>
+              {(() => {
+                const auto = clasificacionAutomatica(cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.concepto))
+                const efectiva = form.clasificacion || auto
+                return (
+                  <>
+                    <select value={form.clasificacion} onChange={e => set('clasificacion', e.target.value)}
+                      title="Automática = se deduce de la distribución del pago. Si eliges un valor, se respeta aunque la distribución cambie."
+                      style={{ width:'100%', padding:'8px 10px', borderRadius:'6px', fontSize:'13px', marginTop:'4px',
+                        border:'1.5px solid', borderColor: efectiva ? (TIPO_COLOR[efectiva] || '#D1D5DB') : '#D1D5DB',
+                        background: efectiva ? (TIPO_COLOR[efectiva] || '#6B7280') + '14' : 'white',
+                        color: efectiva ? (TIPO_COLOR[efectiva] || 'inherit') : 'inherit',
+                        fontWeight: form.clasificacion ? 700 : 400 }}>
+                      <option value="">Automática{auto ? ` — ${auto}` : ''}</option>
+                      {CLASIFICACIONES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <div style={{ fontSize:'10px', color:'var(--color-text-light)', marginTop:'3px' }}>
+                      {form.clasificacion
+                        ? 'Elegida a mano: no se recalcula sola.'
+                        : auto
+                          ? 'Sale de la distribución del pago.'
+                          : 'Sin distribución todavía — se calculará al aplicar el pago a algún cargo.'}
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
             {/* ─── Distribución del pago ─── */}
             {form.contrato_id && (
               <div style={{ gridColumn:'1/-1', marginTop:'4px' }}>
@@ -623,6 +777,8 @@ export default function Ingresos() {
   const [verDetalle, setVerDetalle] = useState(null)
   const [detalleAplicaciones, setDetalleAplicaciones] = useState([])
   const [confirmDel, setConfirmDel] = useState(null)
+  // URL firmada del comprobante que se está viendo a pantalla completa.
+  const [zoomComprobante, setZoomComprobante] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const { data, loading } = usePRP('prp_ingresos', { refreshKey })
@@ -651,7 +807,7 @@ export default function Ingresos() {
           || (r.arrendatario_nombre || '').toLowerCase().includes(q)
           || (r.locales_display || '').toLowerCase().includes(q)
           || (r.factura || '').toLowerCase().includes(q)
-        const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
+        const matchT = filtroTipo === 'Todos' || clasifDe(r) === filtroTipo
         const matchV = filtroValidacion === 'Todos'
           || (r.estatus_validacion || VALIDACION_DEFAULT) === filtroValidacion
         return matchQ && matchT && matchV && enPeriodo(r)
@@ -675,7 +831,7 @@ export default function Ingresos() {
         || (r.arrendatario_nombre || '').toLowerCase().includes(q)
         || (r.locales_display || '').toLowerCase().includes(q)
         || (r.factura || '').toLowerCase().includes(q)
-      const matchT = filtroTipo === 'Todos' || r.tipo === filtroTipo
+      const matchT = filtroTipo === 'Todos' || clasifDe(r) === filtroTipo
       if (matchQ && matchT && enPeriodo(r)) {
         const k = r.estatus_validacion || VALIDACION_DEFAULT
         acc[k] = (acc[k] || 0) + 1
@@ -799,8 +955,8 @@ export default function Ingresos() {
           {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
-        {/* Tipo */}
-        {['Todos', ...TIPOS].map(t => (
+        {/* Clasificación */}
+        {['Todos', ...CLASIFICACIONES].map(t => (
           <button key={t} onClick={() => setFiltroTipo(t)} style={{
             padding:'7px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', border:'1.5px solid',
             borderColor: filtroTipo === t ? (TIPO_COLOR[t] || 'var(--color-primary)') : '#E5E7EB',
@@ -844,7 +1000,7 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Tipo','Docs','Validación','Esperado','Cobrado','Nota'].map(h => (
+                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Validación','Esperado','Cobrado','Nota'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
@@ -876,7 +1032,19 @@ export default function Ingresos() {
                           )}
                         </td>
                         <td style={{ padding:'10px 14px' }}>
-                          <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'10px', background: (TIPO_COLOR[r.tipo] || '#6B7280') + '18', color: TIPO_COLOR[r.tipo] || '#6B7280' }}>{r.tipo}</span>
+                          {(() => {
+                            const cl = clasifDe(r)
+                            const mixto = cl === 'MIXTO'
+                            return (
+                              <span
+                                title={mixto
+                                  ? 'El depósito se repartió entre dos o más conceptos — abre el detalle para ver la distribución'
+                                  : r.clasificacion_manual ? 'Clasificación elegida a mano' : undefined}
+                                style={{ display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'10px', background: (TIPO_COLOR[cl] || '#6B7280') + '18', color: TIPO_COLOR[cl] || '#6B7280' }}>
+                                {mixto && <Layers size={11} />}{cl}
+                              </span>
+                            )
+                          })()}
                         </td>
                         {/* Docs: factura + comprobante */}
                         <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}>
@@ -950,10 +1118,15 @@ export default function Ingresos() {
             .eq('ingreso_id', verDetalle.id)
             .then(({ data }) => setDetalleAplicaciones(Object.assign(data || [], { _ingresoId: verDetalle.id })))
         }
+        // El comprobante manda el ancho: con él, el modal se abre a dos columnas
+        // (≈620 px de datos + ≈620 px de comprobante, que es lo mínimo para leer
+        // la referencia de una transferencia sin ampliar). Sin comprobante se
+        // queda angosto: ensancharlo de gancho solo dejaría medio modal vacío.
+        const tieneComprobante = !!verDetalle.comprobante_url
         return (
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
             onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }}>
-            <div style={{ background:'white', borderRadius:'14px', width:'90vw', maxWidth:'960px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+            <div style={{ background:'white', borderRadius:'14px', width: tieneComprobante ? '96vw' : '90vw', maxWidth: tieneComprobante ? '1280px' : '720px', maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
               onClick={e => e.stopPropagation()}>
 
               {/* Header */}
@@ -967,7 +1140,12 @@ export default function Ingresos() {
                 <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
               </div>
 
-              <div style={{ flex:1, overflowY:'auto', padding:'16px 20px' }}>
+              <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'grid',
+                gridTemplateColumns: tieneComprobante ? 'minmax(0, 1fr) minmax(0, 1fr)' : '1fr',
+                gap:'18px', alignItems:'start' }}>
+
+                {/* Columna de datos */}
+                <div style={{ minWidth:0 }}>
 
                 {/* ── BLOQUE 1: Local + Importe + Fecha ── */}
                 <div style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:'10px', alignItems:'center', padding:'14px 16px', background:'#F0FDF4', borderRadius:'12px', border:'1px solid #BBF7D0', marginBottom:'14px' }}>
@@ -976,7 +1154,15 @@ export default function Ingresos() {
                     {verDetalle.locales_display && (
                       <span style={{ display:'block', fontSize:'13px', fontWeight:800, color:'#0A66C2', background:'#EFF6FF', padding:'4px 10px', borderRadius:'10px' }}>{verDetalle.locales_display}</span>
                     )}
-                    <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'8px', background: (TIPO_COLOR[verDetalle.tipo]||'#6B7280')+'18', color: TIPO_COLOR[verDetalle.tipo]||'#6B7280', marginTop:'4px', display:'inline-block' }}>{verDetalle.tipo}</span>
+                    {(() => {
+                      const cl = clasifDe(verDetalle)
+                      return (
+                        <span title={verDetalle.clasificacion_manual ? 'Clasificación elegida a mano' : 'Clasificación deducida de la distribución'}
+                          style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'8px', background: (TIPO_COLOR[cl]||'#6B7280')+'18', color: TIPO_COLOR[cl]||'#6B7280', marginTop:'4px', display:'inline-flex', alignItems:'center', gap:'4px' }}>
+                          {cl === 'MIXTO' && <Layers size={11} />}{cl}
+                        </span>
+                      )
+                    })()}
                   </div>
                   {/* Importe */}
                   <div style={{ textAlign:'center' }}>
@@ -1044,21 +1230,23 @@ export default function Ingresos() {
                   </div>
                 )}
 
-                {/* ── BLOQUE 3: Imagen comprobante ── */}
-                <div style={{ marginBottom:'14px' }}>
-                  <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'6px', display:'flex', alignItems:'center', gap:'5px' }}>
-                    <Paperclip size={11} /> Comprobante
+                {/* Sin comprobante no hay evidencia que mirar, y este modal es
+                    justo donde se decide si el pago se valida. Se dice aquí. */}
+                {!tieneComprobante && (
+                  <div style={{ marginBottom:'14px', padding:'12px 14px', borderRadius:'10px',
+                    border:`1.5px dashed ${verDetalle.estatus_validacion === 'VALIDADO' ? '#D1D5DB' : '#FDE68A'}`,
+                    background: verDetalle.estatus_validacion === 'VALIDADO' ? '#F9FAFB' : '#FFFBEB',
+                    display:'flex', gap:'8px', alignItems:'flex-start' }}>
+                    <Paperclip size={14} style={{ flexShrink:0, marginTop:'2px', color: verDetalle.estatus_validacion === 'VALIDADO' ? '#9CA3AF' : '#D97706' }} />
+                    <div style={{ fontSize:'12px', color: verDetalle.estatus_validacion === 'VALIDADO' ? '#6B7280' : '#92400E' }}>
+                      <div style={{ fontWeight:700, marginBottom:'2px' }}>Sin comprobante adjunto</div>
+                      {(verDetalle.estatus_validacion || VALIDACION_DEFAULT) === 'POR_VALIDAR'
+                        ? <>Este ingreso está <strong>por validar</strong> y no tiene con qué: pide la ficha
+                            o la captura de la transferencia y adjúntala desde <strong>Editar</strong> antes de darlo por validado.</>
+                        : 'Puedes adjuntarlo desde Editar.'}
+                    </div>
                   </div>
-                  {verDetalle.comprobante_url
-                    ? <div style={{ overflowX:'auto', overflowY:'auto', maxHeight:'55vh', borderRadius:'10px', border:'1px solid #E5E7EB', background:'#F9FAFB' }}>
-                        <ImagenPrivada bucket="facturas-cfdi" valor={verDetalle.comprobante_url} alt="comprobante"
-                          style={{ display:'block', maxWidth:'none', height:'auto', minWidth:'100%' }} />
-                      </div>
-                    : <div style={{ padding:'16px', background:'#F9FAFB', borderRadius:'10px', border:'1.5px dashed #D1D5DB', textAlign:'center', fontSize:'12px', color:'#9CA3AF' }}>
-                        Sin comprobante adjunto
-                      </div>
-                  }
-                </div>
+                )}
 
                 {/* ── BLOQUE 4: Otros datos ── */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 16px' }}>
@@ -1079,6 +1267,18 @@ export default function Ingresos() {
                     <span style={{ fontWeight:700 }}>Nota: </span>{verDetalle.nota}
                   </div>
                 )}
+                </div>
+
+                {/* Columna del comprobante — la evidencia queda al costado de los
+                    datos, a la vista mientras se decide si el pago se valida. */}
+                {tieneComprobante && (
+                  <div style={{ minWidth:0, position:'sticky', top:0 }}>
+                    <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'6px', display:'flex', alignItems:'center', gap:'5px' }}>
+                      <Paperclip size={11} /> Comprobante
+                    </div>
+                    <VisorComprobante valor={verDetalle.comprobante_url} onAmpliar={u => setZoomComprobante(u)} />
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -1096,6 +1296,26 @@ export default function Ingresos() {
           </div>
         )
       })()}
+      {/* Comprobante a pantalla completa: la letra chica de una transferencia no
+          se lee en el panel. Se pinta al tamaño natural y se puede desplazar. */}
+      {zoomComprobante && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', zIndex:400, overflow:'auto', padding:'24px' }}
+          onClick={() => setZoomComprobante(null)}>
+          <div style={{ position:'fixed', top:'14px', right:'18px', display:'flex', gap:'8px', zIndex:401 }}>
+            <a href={zoomComprobante} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+              style={{ ...ACCION_VISOR, background:'rgba(255,255,255,0.92)' }}>
+              <ExternalLink size={12} /> Abrir en otra pestaña
+            </a>
+            <button type="button" onClick={() => setZoomComprobante(null)}
+              style={{ ...ACCION_VISOR, background:'rgba(255,255,255,0.92)', border:'none', cursor:'pointer' }}>
+              <X size={12} /> Cerrar
+            </button>
+          </div>
+          <img src={zoomComprobante} alt="Comprobante de pago ampliado" onClick={e => e.stopPropagation()}
+            style={{ display:'block', margin:'40px auto 0', maxWidth:'none', background:'white', borderRadius:'8px' }} />
+        </div>
+      )}
+
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
           <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'400px', width:'100%' }} onClick={e => e.stopPropagation()}>
