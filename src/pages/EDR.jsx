@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, Plus, Save, BarChart2, FileText, Printer, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase, supabaseParking } from '../lib/supabase'
+import DetalleEDR from '../components/ui/DetalleEDR'
 import toast from 'react-hot-toast'
 
 const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -57,7 +58,7 @@ function InfoRow({ label, proy = 0, indent = 0 }) {
 
 /* ── Fila normal P&L ───────────────────────────────────────────────────────── */
 function PLRow({ label, proy = 0, total = 0, rentasMes = 0, otrosPer = 0,
-                 indent = 0, isNeg = false, noTotal = false }) {
+                 indent = 0, isNeg = false, noTotal = false, detalle, onDetalle }) {
   const p  = parseFloat(proy) || 0
   const t  = parseFloat(total) || 0
   const rm = parseFloat(rentasMes) || 0
@@ -67,11 +68,16 @@ function PLRow({ label, proy = 0, total = 0, rentasMes = 0, otrosPer = 0,
     <div style={{ display:'grid', gridTemplateColumns: COLS, gap:0,
       padding:'5px 16px', borderTop:'1px solid #F3F4F6',
       transition:'background 0.1s' }}
+      onClick={detalle ? () => onDetalle({ concepto: detalle, valor: t }) : undefined}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       <div style={{ fontSize:'12px', color: isNeg ? '#B91C1C' : '#374151',
-        paddingLeft: indent * 16 + 'px', display:'flex', alignItems:'center' }}>
+        paddingLeft: indent * 16 + 'px', display:'flex', alignItems:'center', gap:5,
+        cursor: detalle ? 'pointer' : 'default' }}>
         {label}
+        {detalle && <span title="Ver el detalle que suma este renglón"
+          style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE', background:'#EFF6FF',
+            borderRadius:4, padding:'0 4px', fontWeight:700, letterSpacing:'.04em' }}>DETALLE</span>}
       </div>
       <div style={{ textAlign:'right', fontSize:'12px', color: p < 0 ? '#B91C1C' : '#374151', padding:'0 8px' }}>
         {p !== 0 ? fmt(p) : ''}
@@ -276,6 +282,8 @@ export default function EDR() {
   const [anio, setAnio] = useState(now.getFullYear())
   const [mes,  setMes]  = useState(now.getMonth() + 1)
   const [tab,  setTab]  = useState('tablero')
+  // Renglón cuyo detalle se está viendo. Ver src/components/ui/DetalleEDR.jsx
+  const [detalle, setDetalle] = useState(null)
 
   const [registro,      setRegistro]      = useState(null)
   const [form,          setForm]          = useState({})
@@ -798,12 +806,12 @@ export default function EDR() {
               <InfoRow label="** Locales (L10, L22, Financiera L24,25,26)" proy={Math.abs(pVacantes)} indent={2} />
             )}
 
-            <PLRow label="Rentas brutas"
+            <PLRow label="Rentas brutas" detalle="rentas" onDetalle={setDetalle}
               proy={pRentasBrutas} total={rRentasBrutas}
               rentasMes={rmRentasBrutas} otrosPer={opRentasBrutas} />
             <PLRow label="Rentas sin Factura" indent={1}
               total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
-            <PLRow label="Penalizaciones" indent={1}
+            <PLRow label="Penalizaciones" indent={1} detalle="sanciones" onDetalle={setDetalle}
               total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
               proy={parseFloat(r.proy_iva)||0} total={rIva}
@@ -815,13 +823,13 @@ export default function EDR() {
               rentasMes={rmRentasBrutas + (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
               otrosPer={opRentasBrutas  + (rIva !== 0 ? Math.round(rIva * (opRentasBrutas  / (rRentasBrutas || 1))) : 0)} />
 
-            <PLRow label="Estacionamiento"
+            <PLRow label="Estacionamiento" detalle="otros_ingresos" onDetalle={setDetalle}
               proy={pEstac} total={rEstac} rentasMes={rmEstac} otrosPer={opEstac} />
-            <PLRow label="Pensiones"
+            <PLRow label="Pensiones" detalle="otros_ingresos" onDetalle={setDetalle}
               proy={pPensiones} total={rPensiones} rentasMes={rmPension} otrosPer={opPension} />
-            <PLRow label="Maquinita"
+            <PLRow label="Maquinita" detalle="otros_ingresos" onDetalle={setDetalle}
               proy={pMaquinita} total={rMaquinita} rentasMes={rmMaquinita} otrosPer={opMaquinita} />
-            <PLRow label="Agua"
+            <PLRow label="Agua" detalle="agua_ingreso" onDetalle={setDetalle}
               proy={pAguaIng} total={rAguaIng} rentasMes={rmAguaIng} otrosPer={opAguaIng} />
 
             <SubRow label="Total Ingresos" highlight
@@ -832,14 +840,14 @@ export default function EDR() {
             {/* ── GASTOS VARIABLES ─────────────────────────────────────────── */}
             <SectionHeader label="Gastos Variables" bg="#1A3C5E" />
 
-            <PLRow label="Sueldos"          proy={pSueldos}  total={rSueldos} />
-            <PLRow label="Fondo Revolvente" proy={pFondo}    total={rFondo} />
+            <PLRow label="Sueldos" detalle="sueldos" onDetalle={setDetalle}          proy={pSueldos}  total={rSueldos} />
+            <PLRow label="Fondo Revolvente" detalle="gastos" onDetalle={setDetalle} proy={pFondo}    total={rFondo} />
             {rExcedente !== 0 && (
               <PLRow label="Gasto Excedente" indent={1} total={rExcedente} />
             )}
-            <PLRow label="Luz"   proy={pLuz}   total={rLuz} />
+            <PLRow label="Luz" detalle="gastos" onDetalle={setDetalle}   proy={pLuz}   total={rLuz} />
             <PLRow label="Agua"  proy={pAguaG} total={rAguaG} />
-            <PLRow label="Otros" proy={pOtros} total={rOtros} />
+            <PLRow label="Otros" detalle="gastos" onDetalle={setDetalle} proy={pOtros} total={rOtros} />
 
             <SubRow label="Total Gastos Variables"
               proy={pTotalG} total={rTotalG} />
@@ -1043,6 +1051,11 @@ export default function EDR() {
           })()
         )}
       </div>
+
+      {detalle && (
+        <DetalleEDR concepto={detalle.concepto} valorTablero={detalle.valor}
+          mes={mes} anio={anio} onClose={() => setDetalle(null)} />
+      )}
     </>
   )
 }
