@@ -592,6 +592,7 @@ export default function Cobranza() {
   const [tab, setTab] = useState('cartera')
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
+  const [filtroConcepto, setFiltroConcepto] = useState('Todos')
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1)
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
   const [refreshKey, setRefreshKey] = useState(0)
@@ -665,7 +666,7 @@ export default function Cobranza() {
   const ingresosLibres = ingresosRaw.filter(i => !i.tiene_aplicacion).length
 
   // Filtros cartera
-  const carteraFiltrada = lista.filter(c => {
+  const pasaFiltrosBase = c => {
     const q = search.toLowerCase()
     const matchQ = !q || (c.arrendatario_nombre || '').toLowerCase().includes(q)
       || (c.descripcion || '').toLowerCase().includes(q)
@@ -674,7 +675,18 @@ export default function Cobranza() {
       || (filtroEstado === 'VENCIDA' && c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy)
     const matchMes = mesFiltro === 0 || (c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro)
     return matchQ && matchEst && matchMes
-  })
+  }
+
+  const carteraFiltrada = lista.filter(c =>
+    pasaFiltrosBase(c) && (filtroConcepto === 'Todos' || c.concepto === filtroConcepto))
+
+  // Cuántos cargos hay de cada concepto con los demás filtros ya aplicados.
+  // Va en la etiqueta de cada opción: así se ve que en agosto sí hay una
+  // sanción sin tener que seleccionarla para descubrir que no hay nada.
+  const conteoPorConcepto = lista.reduce((acc, c) => {
+    if (pasaFiltrosBase(c)) acc[c.concepto] = (acc[c.concepto] || 0) + 1
+    return acc
+  }, {})
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
@@ -741,6 +753,23 @@ export default function Cobranza() {
               )}
             </select>
 
+            <select value={filtroConcepto} onChange={e => setFiltroConcepto(e.target.value)}
+              title="Tipo de cargo"
+              style={{
+                padding: '9px 12px', border: '1.5px solid', borderRadius: '8px', fontSize: '13px', minWidth: '150px',
+                borderColor: filtroConcepto === 'Todos' ? '#E5E7EB' : 'var(--color-primary)',
+                color: filtroConcepto === 'Todos' ? 'inherit' : 'var(--color-primary)',
+                fontWeight: filtroConcepto === 'Todos' ? 400 : 700,
+                background: 'white',
+              }}>
+              <option value="Todos">Todos los conceptos</option>
+              {Object.entries(CONCEPTO_META).map(([clave, m]) => (
+                <option key={clave} value={clave}>
+                  {m.label === 'Mant.' ? 'Mantenimiento' : m.label} ({conteoPorConcepto[clave] || 0})
+                </option>
+              ))}
+            </select>
+
             <div style={{ display: 'flex', gap: '6px' }}>
               {[
                 { key: 'Todos', label: 'Todos' },
@@ -757,6 +786,24 @@ export default function Cobranza() {
                 }}>{label}</button>
               ))}
             </div>
+          </div>
+
+          {/* Qué se está viendo. Con filtros puestos, el total de lo filtrado
+              es la respuesta que se busca: cuánto suman las sanciones de agosto. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px', fontSize: '12.5px', color: 'var(--color-text-light)', flexWrap: 'wrap' }}>
+            <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong> de {lista.length} cargos</span>
+            <span>Cargo <strong style={{ color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
+              ${carteraFiltrada.reduce((a, c) => a + (parseFloat(c.importe) || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </strong></span>
+            <span>Saldo <strong style={{ color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>
+              ${carteraFiltrada.reduce((a, c) => a + (parseFloat(c.saldo) || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </strong></span>
+            {(filtroConcepto !== 'Todos' || filtroEstado !== 'Todos' || mesFiltro !== 0 || search) && (
+              <button onClick={() => { setFiltroConcepto('Todos'); setFiltroEstado('Todos'); setMesFiltro(0); setSearch('') }}
+                style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--color-primary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                Limpiar filtros
+              </button>
+            )}
           </div>
 
           <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
