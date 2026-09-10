@@ -2,11 +2,12 @@ import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
-  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown
+  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, CalendarPlus
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
+import NuevoCargoModal from '../components/ui/NuevoCargoModal'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 
@@ -595,6 +596,7 @@ export default function Cobranza() {
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
   const [refreshKey, setRefreshKey] = useState(0)
   const [modalIngreso, setModalIngreso] = useState(false)
+  const [modalCargo, setModalCargo] = useState(false)
   const [modalAplicar, setModalAplicar] = useState(null) // ingreso seleccionado
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
@@ -682,10 +684,16 @@ export default function Cobranza() {
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Cobranza y Conciliación</h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cargos en cartera</p>
         </div>
-        <button onClick={() => setModalIngreso(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <Plus size={15} /> Ingreso
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setModalCargo(true)} title="Registrar un cargo por cobrar"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', color: 'var(--color-primary)', border: '1.5px solid var(--color-primary)', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <CalendarPlus size={15} /> Agregar cobro
+          </button>
+          <button onClick={() => setModalIngreso(true)} title="Registrar un pago recibido"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <Plus size={15} /> Ingreso
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -806,6 +814,10 @@ export default function Cobranza() {
       )}
       {modalAplicar && (
         <AplicarIngresoModal ingreso={modalAplicar} onClose={() => setModalAplicar(null)} onSaved={onSaved} />
+      )}
+
+      {modalCargo && (
+        <NuevoCargoModal onClose={() => setModalCargo(false)} onSaved={onSaved} />
       )}
     </div>
   )
