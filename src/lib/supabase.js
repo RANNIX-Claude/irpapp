@@ -46,3 +46,25 @@ export async function urlFirmada(bucket, path, expiraEnSegundos = 3600) {
   }
   return data?.signedUrl ?? null
 }
+
+/**
+ * Llama a una Netlify Function pasando el token de la sesión actual.
+ *
+ * Las funciones que usan la service_role key verifican ese token antes de
+ * hacer nada: sin él, saltarían todas las políticas RLS para quien sea.
+ *
+ * @param {string} nombre  nombre del archivo en netlify/functions, sin .js
+ * @param {object} body
+ * @returns {Promise<Response>}
+ */
+export async function llamarFuncion(nombre, body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  return fetch(`/.netlify/functions/${nombre}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+}

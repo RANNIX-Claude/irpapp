@@ -1,5 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Search, Plus, AlertTriangle, CheckCircle, Clock, TrendingUp,
@@ -14,6 +14,7 @@ import ExcelJS from 'exceljs'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 import ImportadorDocumento from '../components/ui/ImportadorDocumento'
+import ConsultaChecadas from '../components/ui/ConsultaChecadas'
 import toast from 'react-hot-toast'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -1228,78 +1229,76 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   const [importando, setImportando] = useState(false)
   const fileRef = useRef()
 
+  // Cada renglón del checador es un MARCAJE, no un día. Antes se consolidaba
+  // aquí mismo y las checadas intermedias —la salida a comer, el regreso— se
+  // perdían. Ahora se guardan todas en rh_checadas y el día lo arma la base.
+  const esHora = v => /^\d{1,2}:\d{2}/.test((v || '').trim())
+  const hhmm   = v => { const [h, m] = v.trim().split(':'); return `${h.padStart(2,'0')}:${m.slice(0,2)}` }
+
   const parsear = (texto) => {
     const lineas = texto.trim().split('\n').filter(l => l.trim())
-    const rows = []
+    const eventos = []
+
     lineas.forEach(linea => {
       const cols = linea.split(/[,\t;]/).map(c => c.trim().replace(/"/g, ''))
       if (cols.length < 4) return
-      // Formato ZKTeco: No./Emp, Nombre, Fecha, Hora, Status(0=entrada,1=salida)
-      // Formato alternativo: EmpCode, Nombre, Fecha, HoraEntrada, HoraSalida
       const [col0, col1, col2, col3, col4] = cols
-      const fechaRaw = col2
-      const horaRaw = col3
 
-      // Skip header
+      // Encabezado
       if (isNaN(parseInt(col0)) && !col0.toLowerCase().includes('e0')) return
 
       const numero = col0.toString().trim()
       const nombre = col1 || ''
-      const fecha = fechaRaw?.replace(/\//g,'-') || ''
+      const fecha  = (col2 || '').replace(/\//g, '-')
+      if (!fecha || !esHora(col3)) return
 
-      // Determinar si es entrada o salida
-      const status = col4?.trim()
-      const esEntrada = !status || ['0','in','entrada','check in','i','e'].includes(status.toLowerCase())
-      const esSalida  = ['1','out','salida','check out','o','s'].includes((status||'').toLowerCase())
-
-      // Si hay columna hora salida separada (formato completo)
-      if (col4 && !['0','1','in','out'].includes((status||'').toLowerCase())) {
-        rows.push({ numero, nombre, fecha, hora_entrada: col3, hora_salida: col4, tipo: 'COMPLETO' })
+      // Formato de dos horarios: EmpCode,Nombre,Fecha,HoraEntrada,HoraSalida
+      if (esHora(col4)) {
+        eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion: 'ENTRADA' })
+        eventos.push({ numero, nombre, fecha, hora: hhmm(col4), operacion: 'SALIDA' })
         return
       }
-      rows.push({ numero, nombre, fecha, hora: horaRaw, esEntrada, tipo: 'PUNCH' })
+      // Formato de marcaje: No,Nombre,Fecha,Hora,Status (0=entrada, 1=salida)
+      const st = (col4 || '').trim().toLowerCase()
+      const operacion = ['1','out','salida','check out','o','s'].includes(st) ? 'SALIDA' : 'ENTRADA'
+      eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion })
     })
 
-    // Consolidar PUNCH pairs → entrada/salida
-    const porEmpFecha = {}
-    rows.forEach(r => {
-      if (r.tipo === 'COMPLETO') {
-        porEmpFecha[`${r.numero}_${r.fecha}`] = r
-        return
-      }
-      const key = `${r.numero}_${r.fecha}`
-      if (!porEmpFecha[key]) porEmpFecha[key] = { numero: r.numero, nombre: r.nombre, fecha: r.fecha, hora_entrada: null, hora_salida: null }
-      if (r.esEntrada && !porEmpFecha[key].hora_entrada) porEmpFecha[key].hora_entrada = r.hora
-      if (!r.esEntrada) porEmpFecha[key].hora_salida = r.hora
-    })
-
-    return Object.values(porEmpFecha).map(r => {
-      const emp = empleados.find(e => e.numero_empleado === r.numero || (e.nombre_completo||'').toLowerCase().includes((r.nombre||'').toLowerCase().split(' ')[0]))
-      const minutos = (r.hora_entrada && r.hora_salida) ? (() => {
-        const [h1, m1] = r.hora_entrada.split(':').map(Number)
-        const [h2, m2] = r.hora_salida.split(':').map(Number)
-        return (h2 * 60 + m2) - (h1 * 60 + m1)
-      })() : null
-      const horaEntradaRef = [8, 0] // 08:00
-      const retardo = r.hora_entrada ? (() => {
-        const [h, m] = r.hora_entrada.split(':').map(Number)
-        const diff = (h * 60 + m) - (horaEntradaRef[0] * 60 + horaEntradaRef[1])
-        return diff > 5 ? diff : 0
-      })() : 0
+    return eventos.map(ev => {
+      const primerNombre = (ev.nombre || '').toLowerCase().split(' ')[0]
+      const emp = empleados.find(e => e.numero_empleado === ev.numero
+        || (primerNombre && (e.nombre_completo || '').toLowerCase().includes(primerNombre)))
       return {
         empleado_id: emp?.id || null,
-        numero_empleado_ext: r.numero,
-        empleado_nombre: r.nombre,
-        fecha: r.fecha,
-        hora_entrada: r.hora_entrada || null,
-        hora_salida: r.hora_salida || null,
-        minutos_trabajados: minutos,
-        minutos_retardo: retardo,
-        estado: !r.hora_entrada ? 'FALTA' : retardo > 10 ? 'RETARDO' : 'PRESENTE',
-        fuente: 'ZKTeco_CSV',
+        numero_empleado_ext: ev.numero,
+        operacion: ev.operacion,
+        fecha_hora: `${ev.fecha} ${ev.hora}:00`,
+        origen: 'ZKTeco_CSV',
+        _fecha: ev.fecha,
+        _hora: ev.hora,
+        _nombre: ev.nombre,
         _nombre_match: emp?.nombre_completo,
       }
     })
+  }
+
+  // Vista previa por día: lo que verá el usuario, aunque se guarde por marcaje.
+  const resumirDias = (evs) => {
+    const porDia = {}
+    evs.forEach(e => {
+      const k = `${e.numero_empleado_ext}_${e._fecha}`
+      if (!porDia[k]) porDia[k] = { ...e, entradas: [], salidas: [] }
+      ;(e.operacion === 'ENTRADA' ? porDia[k].entradas : porDia[k].salidas).push(e._hora)
+    })
+    return Object.values(porDia).map(r => {
+      const entrada = [...r.entradas].sort()[0] || null
+      const salida  = [...r.salidas].sort().slice(-1)[0] || null
+      const min = (entrada && salida)
+        ? (() => { const [h1,m1] = entrada.split(':').map(Number), [h2,m2] = salida.split(':').map(Number)
+                   return (h2*60+m2) - (h1*60+m1) })()
+        : null
+      return { ...r, entrada, salida, minutos: min, marcajes: r.entradas.length + r.salidas.length }
+    }).sort((a, b) => (a._fecha + a.numero_empleado_ext).localeCompare(b._fecha + b.numero_empleado_ext))
   }
 
   const onFileChange = (e) => {
@@ -1319,14 +1318,22 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
     setPreview(parsear(e.target.value))
   }
 
+  const dias = useMemo(() => resumirDias(preview), [preview])
+
   const importar = async () => {
     if (!preview.length) return
     setImportando(true)
-    const rows = preview.map(({ _nombre_match, ...r }) => r)
-    const { error } = await supabase.from('rh_asistencia').upsert(rows.filter(r => r.fecha), { onConflict: 'empleado_id,fecha', ignoreDuplicates: false })
+    // Se descartan los campos auxiliares del preview (los que empiezan con _).
+    const rows = preview.map(e => ({
+      empleado_id: e.empleado_id, numero_empleado_ext: e.numero_empleado_ext,
+      operacion: e.operacion, fecha_hora: e.fecha_hora, origen: e.origen,
+    }))
+    // ignoreDuplicates: volver a cargar el mismo archivo no duplica marcajes.
+    const { error } = await supabase.from('rh_checadas')
+      .upsert(rows, { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
     setImportando(false)
     if (error) return toast.error(error.message)
-    toast.success(`${rows.length} registros importados`)
+    toast.success(`${rows.length} marcajes importados · ${dias.length} días`)
     onImported()
     onClose()
   }
@@ -1364,29 +1371,32 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
 
         {preview.length > 0 && (
           <div>
-            <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Vista previa ({preview.length} registros)</h4>
+            <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>
+              Vista previa — {preview.length} marcajes en {dias.length} días
+            </h4>
             <div style={{ overflowX: 'auto', maxHeight: 260, border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'auto' }}>
               <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
                 <thead style={{ background:'#F9FAFB',position:'sticky',top:0 }}>
-                  <tr>{['# Ext','Empleado','Fecha','Entrada','Salida','Horas','Estado'].map(h => <th key={h} style={{ padding:'8px 10px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{h}</th>)}</tr>
+                  <tr>{['# Ext','Empleado','Fecha','Entrada','Salida','Horas','Marcajes'].map(h => <th key={h} style={{ padding:'8px 10px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {preview.map((r, i) => (
+                  {dias.map((r, i) => (
                     <tr key={i} style={{ borderTop:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'7px 10px',fontFamily:'monospace',color:'#0A66C2' }}>{r.numero_empleado_ext}</td>
-                      <td style={{ padding:'7px 10px' }}>{r._nombre_match || <span style={{ color:'#EF4444',fontSize:11 }}>Sin match: {r.empleado_nombre}</span>}</td>
-                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.fecha}</td>
-                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.hora_entrada || '—'}</td>
-                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.hora_salida || '—'}</td>
-                      <td style={{ padding:'7px 10px' }}>{r.minutos_trabajados ? (r.minutos_trabajados/60).toFixed(1)+'h' : '—'}</td>
-                      <td style={{ padding:'7px 10px' }}>
-                        <span style={{ padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:700, background: r.estado==='PRESENTE'?'#dcfce7':r.estado==='RETARDO'?'#fef3c7':'#fee2e2', color: r.estado==='PRESENTE'?'#166534':r.estado==='RETARDO'?'#92400e':'#991b1b' }}>{r.estado}</span>
-                      </td>
+                      <td style={{ padding:'7px 10px' }}>{r._nombre_match || <span style={{ color:'#EF4444',fontSize:11 }}>Sin match: {r._nombre}</span>}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r._fecha}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.entrada || '—'}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace' }}>{r.salida || '—'}</td>
+                      <td style={{ padding:'7px 10px' }}>{r.minutos ? (r.minutos/60).toFixed(1)+'h' : '—'}</td>
+                      <td style={{ padding:'7px 10px',textAlign:'center',fontWeight:700,color:'#6B7280' }}>{r.marcajes}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <p style={{ margin:'8px 0 0',fontSize:11,color:'#9CA3AF' }}>
+              Se guardan los {preview.length} marcajes individuales; el estado del día (presente, retardo, falta) lo calcula la base.
+            </p>
           </div>
         )}
 
@@ -1394,7 +1404,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
           <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
           <button onClick={importar} disabled={!preview.length || importando}
             style={{ flex:2,padding:10,border:'none',borderRadius:8,background: preview.length?'#0A66C2':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
-            {importando ? 'Importando…' : `Importar ${preview.length} registros`}
+            {importando ? 'Importando…' : `Importar ${preview.length} marcajes`}
           </button>
         </div>
       </div>
@@ -1407,6 +1417,7 @@ function TabAsistencia() {
   const hoy = new Date().toISOString().split('T')[0]
   const [fecha, setFecha] = useState(() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })
   const [showImport, setShowImport] = useState(false)
+  const [showConsulta, setShowConsulta] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const { data: asistencia, loading } = usePRP('prp_asistencia', { filters: [['fecha','eq',fecha]], order: { col: 'nombre_completo' }, refreshKey })
   const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
@@ -1427,6 +1438,10 @@ function TabAsistencia() {
           <input type="date" value={fecha} max={hoy} onChange={e => setFecha(e.target.value)}
             style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
         </div>
+        <button onClick={() => setShowConsulta(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', background: 'white', cursor: 'pointer' }}>
+          <Search size={14} /> Consultar marcajes
+        </button>
         <button onClick={() => setShowImport(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #0A66C2', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#0A66C2', background: 'white', cursor: 'pointer' }}>
           <Upload size={14} /> Importar desde Checador
@@ -1492,6 +1507,9 @@ function TabAsistencia() {
 
       {showImport && (
         <ImportChecadorModal empleados={empleados ?? []} onClose={() => setShowImport(false)} onImported={() => { setRefreshKey(k=>k+1); setShowImport(false) }} />
+      )}
+      {showConsulta && (
+        <ConsultaChecadas empleados={empleados ?? []} onClose={() => setShowConsulta(false)} />
       )}
     </div>
   )
@@ -1992,6 +2010,19 @@ function generarSemanas(n = 12) {
   return semanas
 }
 
+// ── Helpers asistencia semanal ──────────────────────────────────────────────
+// La semana del reporte va de lunes a domingo, igual que isodow en Postgres.
+const DIAS_ABREV = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']   // índice = isodow - 1
+const ISO_POR_DIA = { lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6, domingo:7 }
+
+// dia_descanso se captura como texto ('Sábado', 'Domingo', '-'). Se normaliza
+// quitando acentos para no depender de cómo se escribió.
+function isoDelDia(txt) {
+  const k = (txt || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return ISO_POR_DIA[k] ?? null
+}
+const soloHora = t => (t ? String(t).slice(0, 5) : null)
+
 const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 function labelSemana(lunes, domingo) {
   const l = new Date(lunes + 'T12:00:00')
@@ -2246,16 +2277,36 @@ function TabNominaIWOL() {
     filters: [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]],
     refreshKey,
   })
+  // Entradas y salidas de la semana, un renglón por empleado y día.
+  const { data: asistencia } = usePRP('prp_asistencia_semana', {
+    filters: [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]],
+    refreshKey,
+  })
   // Ajustes manuales: { [empleadoId]: { complemento, vacaciones, prima_vac, dia_festivo, transferencia } }
   const [ajustes, setAjustes] = useState({})
   const semana = SEMANAS[semanaIdx]
 
   const activos = (empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
   const incs = incidencias ?? []
+  const marcajes = asistencia ?? []
 
   // Calcular renglones
   const renglones = activos.map((emp, idx) => {
     const faltas = incs.filter(i => i.empleado_id === emp.id && i.afecta_nomina).length
+
+    // Asistencia de lunes a domingo. El día de descanso no se pinta: no se
+    // espera marcaje ese día y ponerlo en blanco se leería como una falta.
+    const descanso = isoDelDia(emp.dia_descanso)
+    const delEmpleado = marcajes.filter(m => m.empleado_id === emp.id)
+    const asistenciaSemana = [1, 2, 3, 4, 5, 6, 7]
+      .filter(d => d !== descanso)
+      .map(d => {
+        const m = delEmpleado.find(x => x.dia_semana === d)
+        return { dia: d, abrev: DIAS_ABREV[d - 1], entrada: soloHora(m?.entrada), salida: soloHora(m?.salida) }
+      })
+    const asistenciaTexto = asistenciaSemana
+      .map(a => `${a.abrev} ${a.entrada ? a.entrada + '–' + (a.salida || '?') : '—'}`)
+      .join('\n')
     const salDia = parseFloat(emp.salario_diario) || 0
     const percepcion = Math.round(salDia * 7 * 100) / 100
     const descuento = Math.round(salDia * faltas * 100) / 100
@@ -2271,9 +2322,12 @@ function TabNominaIWOL() {
     return {
       no: idx + 1,
       empleado_id: emp.id,
+      emp,                       // se necesita completo para el recibo (RFC, CURP, ingreso)
       nombre: emp.nombre_completo,
       horario: emp.horario_trabajo || '—',
       descanso: emp.dia_descanso || '—',
+      asistencia: asistenciaSemana,
+      asistencia_texto: asistenciaTexto,
       faltas,
       percepcion,
       descuento,
@@ -2300,6 +2354,43 @@ function TabNominaIWOL() {
     [empId]: { ...(prev[empId] || {}), [k]: v },
   }))
 
+  // ── Recibo de nómina individual ───────────────────────────────────────────
+  // El formato del cliente lleva una FECHA DE PAGO que no siempre es el
+  // domingo, así que se pide una vez arriba y aplica a todos los recibos.
+  const [fechaPago, setFechaPago] = useState(semana.domingo)
+  useEffect(() => { setFechaPago(semana.domingo) }, [semana.domingo])
+
+  const generarRecibo = async (r) => {
+    const aj = ajustes[r.empleado_id] || {}
+    // Carga diferida: docx pesa ~380 KB y solo hace falta al pedir un recibo.
+    const { descargarRecibo, semanaISO } = await import('../lib/reciboNomina')
+    try {
+      const nombre = await descargarRecibo({
+        empleado: r.emp,
+        semana: { lunes: semana.lunes, domingo: semana.domingo, numero: semanaISO(semana.lunes) },
+        nomina: {
+          dias_trabajados: 7 - r.faltas,
+          faltas: r.faltas,
+          // Percepción del formato: el sueldo de la semana más los conceptos
+          // que se le sumaron. El descuento por faltas va del lado de deducción.
+          percepcion:  r.percepcion + r.complemento + r.vacaciones + r.prima_vac + r.dia_festivo,
+          bono:        parseFloat(aj.bono || 0),
+          deducciones: r.descuento,
+          neto:        r.total_percepciones,
+          fecha_pago:  fechaPago,
+        },
+      })
+      toast.success(nombre)
+      logAudit({ modulo: 'Nómina', accion: 'RECIBO', descripcion: `${r.nombre} — semana ${semana.lunes}` })
+    } catch (e) {
+      toast.error('No se pudo generar el recibo: ' + e.message)
+    }
+  }
+
+  const generarTodos = async () => {
+    for (const r of renglones) await generarRecibo(r)
+  }
+
   const exportarExcel = async () => {
     const wb = new ExcelJS.Workbook()
     wb.creator = 'IRP — RANNIX Consulting'
@@ -2309,9 +2400,12 @@ function TabNominaIWOL() {
     // Formato monetario idéntico al archivo original
     const MONEY = '_-"$"* #,##0.00_-;\\-"$"* #,##0.00_-;_-"$"* "-"??_-;_-@_-'
 
-    // Anchos de columna (en caracteres, igual al original)
-    const COL_W = [4, 34.88, 21.33, 17.44, 12.88, 17.88, 26.55, 14, 18.44, 21.44, 22.33, 21.33, 14.88]
+    // Anchos de columna. Los del archivo original, más la de asistencia que se
+    // insertó en quinto lugar (columna E), junto al horario y el descanso.
+    const COL_W = [4, 34.88, 21.33, 17.44, 20, 12.88, 17.88, 26.55, 14, 18.44, 21.44, 22.33, 21.33, 14.88]
     COL_W.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+    const COL_ASIST = 4          // índice 0-based de la columna de asistencia
+    const COL_DINERO = 6         // de aquí en adelante, formato moneda
 
     // Borde fino para todas las celdas de datos
     const thinBorder = {
@@ -2324,7 +2418,7 @@ function TabNominaIWOL() {
     // ── Fila 1: vacía ──────────────────────────────────────────────────
 
     // ── Fila 2: título fusionado A2:M2 ─────────────────────────────────
-    ws.mergeCells('A2:M2')
+    ws.mergeCells('A2:N2')
     const titulo = `NÓMINA PLAZA IWOL DEL ${labelSemana(semana.lunes, semana.domingo).toUpperCase()}`
     const tCell = ws.getCell('A2')
     tCell.value = titulo
@@ -2336,7 +2430,8 @@ function TabNominaIWOL() {
 
     // ── Fila 4: encabezados ────────────────────────────────────────────
     const HDRS = [
-      'No.', 'NOMBRE DEL TRABAJADOR', 'HORARIO', 'DESCANSO', 'FALTAS',
+      'No.', 'NOMBRE DEL TRABAJADOR', 'HORARIO', 'DESCANSO',
+      'ASISTENCIA LUN-DOM (ENTRADA-SALIDA)', 'FALTAS',
       'PERCEPCIÓN', 'COMPLEMENTO DE PAGO DE NOMINA', 'VACACIONES',
       'PRIMA VACACIONAL', 'DIA FESTIVO', 'TOTAL PERCEPCIONES', 'TRANFERENCIA', 'EFECTIVO',
     ]
@@ -2356,7 +2451,9 @@ function TabNominaIWOL() {
     renglones.forEach((r, idx) => {
       const rowNum = 5 + idx
       const row = ws.getRow(rowNum)
-      row.height = 18
+      // La celda de asistencia lleva un renglón por día; se le da altura para
+      // que se vean los seis o siete sin tener que ampliar la fila a mano.
+      row.height = Math.max(18, 12 * (r.asistencia.length || 1))
       // Alternar fondo blanco / azul muy claro
       const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFEBF3FB'
 
@@ -2365,6 +2462,7 @@ function TabNominaIWOL() {
         r.nombre,
         r.horario,
         r.descanso,
+        r.asistencia_texto || '—',
         r.faltas,
         r.percepcion,
         r.complemento  || null,
@@ -2377,17 +2475,17 @@ function TabNominaIWOL() {
       ]
       vals.forEach((v, i) => {
         const c = row.getCell(i + 1)
-        c.value = v === 0 && i >= 5 ? 0 : (v || null)  // mantener 0 en columnas dinero
+        c.value = v === 0 && i >= COL_DINERO ? 0 : (v || null)  // mantener 0 en columnas dinero
         c.border = thinBorder
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
         // Alineación
         c.alignment = {
-          horizontal: [0, 3, 4].includes(i) ? 'center' : i === 1 ? 'left' : i >= 5 ? 'right' : 'left',
-          vertical: 'middle',
-          wrapText: i === 2,   // horario puede ser largo
+          horizontal: [0, 3, 5].includes(i) ? 'center'
+            : i >= COL_DINERO ? 'right' : 'left',
+          vertical: i === COL_ASIST ? 'top' : 'middle',
+          wrapText: i === 2 || i === COL_ASIST,   // horario y asistencia son multilínea
         }
-        // Formato monetario en columnas F–M (índices 5–12)
-        if (i >= 5) c.numFmt = MONEY
+        if (i >= COL_DINERO) c.numFmt = MONEY
       })
     })
 
@@ -2395,7 +2493,7 @@ function TabNominaIWOL() {
     const totRowNum = 5 + renglones.length
     const totRow = ws.getRow(totRowNum)
     totRow.height = 18
-    ;[null, null, null, null, 'TOTALES:',
+    ;[null, null, null, null, null, 'TOTALES:',
       totales.percepcion, null, null, null, null,
       totales.total_percepciones, totales.transferencia, totales.efectivo,
     ].forEach((v, i) => {
@@ -2405,10 +2503,10 @@ function TabNominaIWOL() {
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }
       c.font = { bold: true, size: 10, name: 'Calibri' }
       c.alignment = {
-        horizontal: i === 4 ? 'right' : i >= 5 ? 'right' : 'center',
+        horizontal: i >= 5 ? 'right' : 'center',
         vertical: 'middle',
       }
-      if (i >= 5) c.numFmt = MONEY
+      if (i >= COL_DINERO) c.numFmt = MONEY
     })
 
     // ── Generar y descargar ────────────────────────────────────────────
@@ -2440,7 +2538,16 @@ function TabNominaIWOL() {
           </select>
         </div>
         <span style={{ fontSize:12,color:'var(--color-text-light)' }}>{semana.lunes} al {semana.domingo}</span>
+        <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'4px 10px' }}>
+          <span style={{ fontSize:12,fontWeight:600,color:'#6B7280' }}>Fecha de pago:</span>
+          <input type="date" value={fechaPago} onChange={e => setFechaPago(e.target.value)}
+            style={{ border:'none',background:'transparent',fontSize:12.5,fontWeight:600,color:'var(--color-primary)',outline:'none',padding:'4px 0' }} />
+        </div>
         <div style={{ marginLeft:'auto',display:'flex',gap:8 }}>
+          <button onClick={generarTodos}
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'8px 12px',border:'1.5px solid #1A3C5E',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:'white',color:'#1A3C5E' }}>
+            <FileText size={13} /> Recibos de todos
+          </button>
           <button onClick={() => setRefreshKey(k => k+1)}
             style={{ display:'flex',alignItems:'center',gap:5,padding:'8px 12px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:'white' }}>
             <RefreshCw size={13} /> Actualizar
@@ -2477,21 +2584,26 @@ function TabNominaIWOL() {
           #nomina-iwol-print thead th { padding: 5px 4px !important; font-size: 8px !important; white-space: normal !important; }
           #nomina-iwol-print tbody td { padding: 5px 4px !important; font-size: 9px !important; }
 
-          /* Anchos fijos por columna (suma ≈ 335mm) */
+          /* Anchos fijos por columna. El horario cede espacio a la asistencia,
+             que necesita ancho para los siete renglones de entrada-salida. */
           #nomina-iwol-print table colgroup { display: table-column-group; }
           #nomina-iwol-print th:nth-child(1),  #nomina-iwol-print td:nth-child(1)  { width: 14px;  } /* No */
-          #nomina-iwol-print th:nth-child(2),  #nomina-iwol-print td:nth-child(2)  { width: 52px;  } /* Nombre */
-          #nomina-iwol-print th:nth-child(3),  #nomina-iwol-print td:nth-child(3)  { width: 52px;  } /* Horario */
-          #nomina-iwol-print th:nth-child(4),  #nomina-iwol-print td:nth-child(4)  { width: 20px;  } /* Descanso */
-          #nomina-iwol-print th:nth-child(5),  #nomina-iwol-print td:nth-child(5)  { width: 16px;  } /* Faltas */
-          #nomina-iwol-print th:nth-child(6),  #nomina-iwol-print td:nth-child(6)  { width: 28px;  } /* Percepción */
-          #nomina-iwol-print th:nth-child(7),  #nomina-iwol-print td:nth-child(7)  { width: 28px;  } /* Complem. */
-          #nomina-iwol-print th:nth-child(8),  #nomina-iwol-print td:nth-child(8)  { width: 24px;  } /* Vacaciones */
-          #nomina-iwol-print th:nth-child(9),  #nomina-iwol-print td:nth-child(9)  { width: 24px;  } /* Prima Vac */
-          #nomina-iwol-print th:nth-child(10), #nomina-iwol-print td:nth-child(10) { width: 24px;  } /* Día Festivo */
-          #nomina-iwol-print th:nth-child(11), #nomina-iwol-print td:nth-child(11) { width: 30px;  } /* Total Perc */
-          #nomina-iwol-print th:nth-child(12), #nomina-iwol-print td:nth-child(12) { width: 28px;  } /* Transferencia */
-          #nomina-iwol-print th:nth-child(13), #nomina-iwol-print td:nth-child(13) { width: 24px;  } /* Efectivo */
+          #nomina-iwol-print th:nth-child(2),  #nomina-iwol-print td:nth-child(2)  { width: 50px;  } /* Nombre */
+          #nomina-iwol-print th:nth-child(3),  #nomina-iwol-print td:nth-child(3)  { width: 40px;  } /* Horario */
+          #nomina-iwol-print th:nth-child(4),  #nomina-iwol-print td:nth-child(4)  { width: 18px;  } /* Descanso */
+          #nomina-iwol-print th:nth-child(5),  #nomina-iwol-print td:nth-child(5)  { width: 40px;  } /* Asistencia */
+          #nomina-iwol-print th:nth-child(6),  #nomina-iwol-print td:nth-child(6)  { width: 16px;  } /* Faltas */
+          #nomina-iwol-print th:nth-child(7),  #nomina-iwol-print td:nth-child(7)  { width: 28px;  } /* Percepción */
+          #nomina-iwol-print th:nth-child(8),  #nomina-iwol-print td:nth-child(8)  { width: 26px;  } /* Complem. */
+          #nomina-iwol-print th:nth-child(9),  #nomina-iwol-print td:nth-child(9)  { width: 22px;  } /* Vacaciones */
+          #nomina-iwol-print th:nth-child(10), #nomina-iwol-print td:nth-child(10) { width: 22px;  } /* Prima Vac */
+          #nomina-iwol-print th:nth-child(11), #nomina-iwol-print td:nth-child(11) { width: 22px;  } /* Día Festivo */
+          #nomina-iwol-print th:nth-child(12), #nomina-iwol-print td:nth-child(12) { width: 30px;  } /* Total Perc */
+          #nomina-iwol-print th:nth-child(13), #nomina-iwol-print td:nth-child(13) { width: 28px;  } /* Transferencia */
+          #nomina-iwol-print th:nth-child(14), #nomina-iwol-print td:nth-child(14) { width: 24px;  } /* Efectivo */
+
+          /* La celda de asistencia se aprieta: es una rejilla de 7 renglones */
+          #nomina-iwol-print td:nth-child(5) div { font-size: 7px !important; line-height: 1.25 !important; }
 
           /* Inputs → valor de texto */
           #nomina-iwol-print input { display: none !important; }
@@ -2543,9 +2655,10 @@ function TabNominaIWOL() {
           <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
             <thead>
               <tr style={{ background:'#1A3C5E',color:'white' }}>
-                {['No.','Nombre del Trabajador','Horario','Descanso','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (
+                {['No.','Nombre del Trabajador','Horario','Descanso','Asistencia Lun–Dom','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (
                   <th key={h} style={{ padding:'10px 12px',textAlign:'left',fontWeight:600,fontSize:11,whiteSpace:'nowrap' }}>{h}</th>
                 ))}
+                <th className="no-print" style={{ padding:'10px 12px',textAlign:'center',fontWeight:600,fontSize:11 }}>Recibo</th>
               </tr>
             </thead>
             <tbody>
@@ -2555,6 +2668,18 @@ function TabNominaIWOL() {
                   <td style={{ padding:'10px 12px',fontWeight:600 }}>{r.nombre}</td>
                   <td style={{ padding:'10px 12px',fontSize:11,color:'#6B7280',maxWidth:180 }}>{r.horario}</td>
                   <td style={{ padding:'10px 12px',fontSize:11 }}>{r.descanso}</td>
+                  <td style={{ padding:'6px 10px' }}>
+                    <div style={{ display:'grid',gridTemplateColumns:'auto 1fr',gap:'1px 6px',fontSize:10.5,fontVariantNumeric:'tabular-nums',lineHeight:1.4 }}>
+                      {r.asistencia.map(a => (
+                        <Fragment key={a.dia}>
+                          <span style={{ fontWeight:700,color:'#9CA3AF' }}>{a.abrev}</span>
+                          <span style={{ color: a.entrada ? '#374151' : '#D1D5DB' }}>
+                            {a.entrada ? `${a.entrada}–${a.salida || '?'}` : '—'}
+                          </span>
+                        </Fragment>
+                      ))}
+                    </div>
+                  </td>
                   <td style={{ padding:'10px 12px',textAlign:'center',fontWeight:700,color:r.faltas>0?'#B24020':'#374151' }}>{r.faltas}</td>
                   <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:600,color:'#374151' }}>${r.percepcion.toLocaleString('es-MX')}</td>
                   <td style={{ padding:'8px 10px', textAlign:'right' }}>
@@ -2580,22 +2705,30 @@ function TabNominaIWOL() {
                   <td style={{ padding:'10px 12px',textAlign:'right',color:'#166534',fontWeight:600 }}>
                     {r.forma_pago === 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
                   </td>
+                  <td className="no-print" style={{ padding:'8px 10px',textAlign:'center' }}>
+                    <button onClick={() => generarRecibo(r)} title={`Recibo de nómina de ${r.nombre}`}
+                      style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'1.5px solid #E5E7EB',borderRadius:7,background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#1A3C5E',whiteSpace:'nowrap' }}>
+                      <FileText size={12} /> Recibo
+                    </button>
+                  </td>
                 </tr>
               ))}
               {/* Totales */}
               <tr className="print-total-row" style={{ background:'#1A3C5E',color:'white',fontWeight:700 }}>
-                <td colSpan={4} style={{ padding:'10px 12px' }}></td>
+                <td colSpan={5} style={{ padding:'10px 12px' }}></td>
                 <td style={{ padding:'10px 12px',textAlign:'center' }}>TOTALES:</td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.percepcion.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                 <td colSpan={4}></td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                <td className="no-print"></td>
               </tr>
             </tbody>
           </table>
         </div>
         <div style={{ padding:'10px 14px',fontSize:11,color:'#9CA3AF',borderTop:'1px solid #F3F4F6' }}>
+          Asistencia: primera entrada y última salida de cada día, del checador · el día de descanso no se muestra · «—» es día sin marcaje<br />
           Complemento, Vacaciones, Prima Vacacional y Día Festivo son ajustes manuales · Transferencia editable (el resto va en Efectivo)
         </div>
       </div>

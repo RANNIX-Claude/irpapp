@@ -101,7 +101,7 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 ### Convención de acceso: vistas `prp_*`
 El frontend **lee siempre desde vistas `prp_*`**, nunca de las tablas base. Las escrituras sí van a la tabla base correspondiente (p. ej. actualizar `foto_url` va a `rh_empleados`, no a `prp_empleados`).
 
-Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`, `prp_cartera`, `prp_cobros`, `prp_gastos`, `prp_ingresos`, `prp_incidencias`, `prp_asistencia`, `prp_prenomina`, `prp_vacantes`, `prp_bitacora`, `prp_proveedores`, `prp_movimientos_bancarios`, `prp_estacionamiento`, `prp_estacionamiento_mensual`, `prp_pensiones_estacionamiento`, `prp_vending_semanas`, `prp_fondos_revolventes`, `prp_fondo_semana`, `prp_fondo_revolvente_cierres`, `prp_mapa_locales`, `prp_notas_contrato`, `prp_expediente_arrendatario`.
+Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`, `prp_cartera`, `prp_cobros`, `prp_gastos`, `prp_ingresos`, `prp_incidencias`, `prp_asistencia`, `prp_prenomina`, `prp_vacantes`, `prp_bitacora`, `prp_proveedores`, `prp_movimientos_bancarios`, `prp_estacionamiento`, `prp_estacionamiento_mensual`, `prp_pensiones_estacionamiento`, `prp_vending_semanas`, `prp_fondos_revolventes`, `prp_fondo_semana`, `prp_fondo_revolvente_cierres`, `prp_mapa_locales`, `prp_notas_contrato`, `prp_expediente_arrendatario`, `prp_checadas`, `prp_asistencia_semana`, `prp_tipos_incidencia`, `prp_vacaciones_anio`, `prp_vacaciones_detalle`, `prp_historico_sueldos`.
 
 ### Tablas principales
 - **Inmobiliario**: `cat_locales`, `contratos`, `contratos_locales`, `arrendatarios`
@@ -110,7 +110,7 @@ Vistas en uso: `prp_contratos`, `prp_empleados`, `prp_unidades`, `prp_inmuebles`
 - **Operación**: `ordenes_trabajo`, `cat_proveedores`, `cat_productos`
 - **Estacionamiento**: `estacionamiento_diario`, `estacionamiento_pensiones`
 - **Vending**: `vending_productos`, `vending_semanas`
-- **RH**: `rh_empleados`, `rh_incidencias`, `rh_historial_sueldo`, `rh_historial_nombre`, `rh_historial_cambios`, `rh_expediente_documentos`, `rh_beneficios`, `rh_capacitacion`, `rh_evaluaciones`
+- **RH**: `rh_empleados`, `rh_incidencias`, `rh_historial_sueldo`, `rh_historial_nombre`, `rh_historial_cambios`, `rh_expediente_documentos`, `rh_beneficios`, `rh_capacitacion`, `rh_evaluaciones`, `rh_asistencia`, `rh_checadas`, `rh_tipos_incidencia`, `rh_vacaciones_anio`, `rh_vacaciones_detalle`
 - **Catálogos / DW**: `cat_estado_general`, `dw.dim_tiempo_dia`, `dw.dim_tiempo_mes`, `dw.dim_tiempo_anio`
 
 ### Storage
@@ -145,6 +145,14 @@ cinco buckets que quedaban abiertos. Es reversible: si algo deja de verse, se vu
 ### Migraciones — dos carriles
 - `migrations/NNN_*.sql` — numeradas, serie histórica del proyecto (hasta `035_fix_avatars_policy.sql`)
 - `supabase/migrations/<timestamp>_*.sql` — carril del CLI de Supabase, el usado para lo reciente
+
+### Asistencia — modelo de eventos
+
+`rh_checadas` guarda **cada marcaje** del biométrico (`operacion` ENTRADA/SALIDA + `fecha_hora`).
+Un trigger consolida el día en `rh_asistencia` (primera entrada, última salida, retardo contra
+el horario del empleado). Se escribe en `rh_checadas`, nunca en `rh_asistencia` directamente.
+`prp_asistencia_semana` da un renglón por empleado y día (`dia_semana`: 1=lunes … 7=domingo)
+y es la que alimenta la columna de asistencia del reporte semanal de nómina.
 
 ### RLS
 Habilitado en todas las tablas. Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver `20260820910000_notify_pgrst_reload.sql`).
@@ -216,7 +224,7 @@ Registradas en `src/App.jsx`.
 | `generar-sanciones.js` | Cálculo/generación de sanciones |
 | `crear-acceso-inquilino.js` | Alta de acceso al portal de arrendatario |
 | `portal-prospecto.js` | Backend anónimo del portal de prospectos (firma URLs) |
-| `subir-comprobante.js` | Carga de comprobantes de pago |
+| `subir-comprobante.js` | Carga de comprobantes de pago (exige JWT de sesión activa) |
 | `admin-ajuste-vending.js` | Ajustes administrativos de vending |
 
 Todas usan `claude-sonnet-4-6`; `max_tokens` va de 800 a 4096 según la función.

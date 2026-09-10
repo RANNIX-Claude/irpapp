@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, llamarFuncion } from '../lib/supabase'
 
 // estatus_operacion vive en la tabla; prp_contratos no lo expone todavía.
 function useOperacion() {
@@ -194,11 +194,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
         })
         const ext = compFile.name.split('.').pop() || 'jpg'
         const filePath = `comprobantes/${ingresoId}/comp.${ext}`
-        const resp = await fetch('/.netlify/functions/subir-comprobante', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bucket: 'facturas-cfdi', path: filePath, file_base64: b64, mime_type: compFile.type || 'image/jpeg', ingreso_id: ingresoId }),
-        })
+        const resp = await llamarFuncion('subir-comprobante', { bucket: 'facturas-cfdi', path: filePath, file_base64: b64, mime_type: compFile.type || 'image/jpeg', ingreso_id: ingresoId })
         if (!resp.ok) {
           const j = await resp.json().catch(() => ({}))
           toast.error('Error al subir comprobante: ' + (j.error || resp.status))

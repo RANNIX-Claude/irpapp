@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
-import { supabase, urlFirmada } from '../lib/supabase'
+import { supabase, urlFirmada, llamarFuncion } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
 import { ImagenPrivada } from '../components/ui/ArchivoPrivado'
@@ -645,11 +645,7 @@ function ModalCargaMasiva({ onClose, onSaved }) {
           const ext  = t.mtype === 'application/pdf' ? 'pdf' : (t.mtype.split('/')[1] || 'jpg')
           const filePath = `restaurante/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
           try {
-            const upResp = await fetch('/.netlify/functions/subir-comprobante', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ bucket: 'tickets-gastos', path: filePath, file_base64: t.b64, mime_type: t.mtype }),
-            })
+            const upResp = await llamarFuncion('subir-comprobante', { bucket: 'tickets-gastos', path: filePath, file_base64: t.b64, mime_type: t.mtype })
             if (upResp.ok) {
               const upData = await upResp.json()
               ticket_url = upData.url || null
@@ -820,10 +816,7 @@ export default function RestauranteGastos() {
       if (!img) { toast.error('No se pudo leer el archivo'); return }
       const ext  = img.mtype === 'application/pdf' ? 'pdf' : (img.mtype.split('/')[1] || 'jpg')
       const filePath = `restaurante/${gastoId}-retro-${Date.now()}.${ext}`
-      const upResp = await fetch('/.netlify/functions/subir-comprobante', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bucket: 'tickets-gastos', path: filePath, file_base64: img.b64, mime_type: img.mtype }),
-      })
+      const upResp = await llamarFuncion('subir-comprobante', { bucket: 'tickets-gastos', path: filePath, file_base64: img.b64, mime_type: img.mtype })
       if (!upResp.ok) { const e = await upResp.json().catch(() => ({})); toast.error(`Error al subir: ${e.error || upResp.status}`); return }
       const { url: ticket_url } = await upResp.json()
       await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
