@@ -110,8 +110,14 @@ async function cargarPensionesParking(ini, fin) {
     .order('estado')  // pagado primero
 
   const todas      = todasMes ?? []
-  const cobradas   = todas.filter(p => p.estado === 'pagado' || p.estado === 'validado')
   const pendientes = todas.filter(p => p.estado !== 'pagado' && p.estado !== 'validado')
+  // "Cobradas" del corte semanal: solo las que se pagaron dentro de la
+  // semana que se está informando (por fecha_pago), no todas las del mes —
+  // si no, aparecían aquí pagos de semanas anteriores ya reportados.
+  const cobradas = todas.filter(p =>
+    (p.estado === 'pagado' || p.estado === 'validado') &&
+    p.fecha_pago && p.fecha_pago.slice(0, 10) >= ini && p.fecha_pago.slice(0, 10) <= fin
+  )
 
   return { cobradas, pendientes, esperadas: todas, mes, anio }
 }
