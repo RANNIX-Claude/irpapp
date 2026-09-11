@@ -300,6 +300,23 @@ export default function DetalleEDR({ concepto, composicion, mes, anio, valorTabl
   const conceptoActivo = bajada?.concepto ?? concepto
   const fuente = FUENTES[conceptoActivo]
 
+  // El efecto va ANTES de cualquier return condicional. Al bajar de un total a
+  // uno de sus sumandos se deja de tomar la salida temprana, y si el hook
+  // viviera despues React contaria distinto numero de hooks entre un render y
+  // el siguiente: error #310, pantalla en blanco.
+  useEffect(() => {
+    if (!fuente) return
+    let cancelado = false
+    setFilas(null); setError(null)
+    fuente.cargar(mes, anio)
+      .then(({ filas, campoTotal }) => {
+        if (cancelado) return
+        setFilas(filas); setCampoTotal(campoTotal)
+      })
+      .catch(e => { if (!cancelado) setError(e.message) })
+    return () => { cancelado = true }
+  }, [conceptoActivo, mes, anio])
+
   if (composicion && !bajada) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
@@ -320,19 +337,6 @@ export default function DetalleEDR({ concepto, composicion, mes, anio, valorTabl
       </div>
     )
   }
-
-  useEffect(() => {
-    if (!fuente) return
-    let cancelado = false
-    setFilas(null); setError(null)
-    fuente.cargar(mes, anio)
-      .then(({ filas, campoTotal }) => {
-        if (cancelado) return
-        setFilas(filas); setCampoTotal(campoTotal)
-      })
-      .catch(e => { if (!cancelado) setError(e.message) })
-    return () => { cancelado = true }
-  }, [conceptoActivo, mes, anio])
 
   if (!fuente) return null
 

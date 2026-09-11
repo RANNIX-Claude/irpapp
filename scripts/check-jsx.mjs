@@ -102,6 +102,52 @@ function enBloque(src) {
   return problemas
 }
 
+/**
+ * Hook despues de un return condicional.
+ *
+ * React exige que el numero de hooks sea el mismo en cada render. Si un
+ * componente sale temprano con `if (algo) return ...` y despues llama a un
+ * hook, el render que NO toma esa salida cuenta un hook de mas: error #310 y
+ * pantalla en blanco. `vite build` no lo detecta porque el codigo es valido.
+ * Paso en DetalleEDR al bajar de un total a uno de sus sumandos.
+ *
+ * Solo se marca la SALIDA TEMPRANA —un return gobernado por un `if` de primer
+ * nivel— y no el return final del componente, que por definicion no deja
+ * hooks despues. Un return dentro de un useMemo o de un inicializador de
+ * useState tambien queda indentado a cuatro espacios: por eso no basta con
+ * mirar la indentacion, hay que exigir el `if` que lo precede.
+ */
+function hookTrasReturn(src) {
+  const problemas = []
+  // Cualquier declaracion de primer nivel corta el analisis: los hooks de una
+  // funcion no se cuentan contra el return de otra.
+  const inicios = [...src.matchAll(/^(?:export default )?(?:function|const|let)\s+([A-Za-z_$][\w$]*)/gm)]
+
+  for (let i = 0; i < inicios.length; i++) {
+    const nombre = inicios[i][1]
+    if (!/^[A-Z]/.test(nombre)) continue          // solo componentes
+    const desde = inicios[i].index
+    const hasta = i + 1 < inicios.length ? inicios[i + 1].index : src.length
+    const cuerpo = src.slice(desde, hasta)
+
+    // Los hooks del componente viven SIEMPRE a dos espacios de indentacion:
+    // mas adentro ya es otra funcion, y esos no cuentan para React.
+    const hooks = [...cuerpo.matchAll(/^  (?:const\s+[^=]+=\s*)?use(?:State|Effect|Memo|Callback|Ref|Context|Reducer)\s*\(/gm)]
+    if (!hooks.length) continue
+
+    // La salida temprana: un `if` de primer nivel cuyo cuerpo es un return,
+    // en una linea o en dos.
+    const salidas = [...cuerpo.matchAll(/^  if \(.*?\)\s*\{?[^\S\n]*\n?[^\S\n]*return[\s(;]/gm)]
+    if (!salidas.length) continue
+
+    const ultimoHook = hooks[hooks.length - 1].index
+    if (salidas[0].index < ultimoHook) {
+      problemas.push({ nombre, linea: src.slice(0, desde + ultimoHook + 1).split(NL).length })
+    }
+  }
+  return problemas
+}
+
 const objetivo = process.argv[2]
 const lista = objetivo ? [objetivo] : archivos('src')
 let problemas = 0
@@ -113,6 +159,7 @@ for (const f of lista) {
   const usados = new Set([...src.matchAll(/<([A-Z][\w$]*)[\s/>]/g)].map(m => m[1]))
   const faltan = [...usados].filter(c => !disponibles.has(c) && !c.includes('.'))
   const tdz = usoAntesDeDeclarar(src)
+  const hooks = hookTrasReturn(src)
 
   if (faltan.length) {
     problemas++
@@ -124,6 +171,11 @@ for (const f of lista) {
   }
   // El detector de zona muerta no distingue una prop de una variable del mismo
   // nombre en otro componente, asi que avisa sin marcar fallo: hay que mirarlo.
+  for (const h of hooks) {
+    problemas++
+    console.log('x ' + f)
+    console.log('    hook despues de un return condicional en ' + h.nombre + '  (linea ' + h.linea + ')')
+  }
   for (const t of tdz) {
     avisos++
     console.log('? ' + f + ' - revisar si ' + t.nombre + ' se usa antes de declararse (linea ' + t.linea + ')')
@@ -131,6 +183,6 @@ for (const f of lista) {
 }
 
 console.log(problemas
-  ? NL + problemas + ' archivo(s) con componentes sin definir.'
+  ? NL + problemas + ' archivo(s) con fallas que dejan la pantalla en blanco.'
   : 'OK - ' + lista.length + ' archivos revisados' + (avisos ? ', ' + avisos + ' aviso(s) por revisar.' : ', limpios.'))
 process.exit(problemas ? 1 : 0)

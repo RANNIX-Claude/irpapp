@@ -392,9 +392,12 @@ function OTCard({ ot, onClick }) {
 
 // ── OT Modal principal ─────────────────────────────────────────────────────────
 function OTModal({ ot, onClose, onUpdate }) {
+  // El hook va antes del return de salida: si `ot` pasa de null a un valor
+  // real entre renders, el conteo de hooks debe ser el mismo en los dos, o
+  // React truena con el error #310 (pantalla en blanco).
+  const [subModal, setSubModal] = useState(null) // 'reasignar' | 'evidencias' | 'oc'
   if (!ot) return null
   const p = PRIORIDAD_STYLE[ot.prioridad] || {}
-  const [subModal, setSubModal] = useState(null) // 'reasignar' | 'evidencias' | 'oc'
 
   const marcarCompletada = () => {
     onUpdate({ ...ot, estado: 'COMPLETADO', fecha_cierre_real: new Date().toISOString().split('T')[0], costo_real: ot.costo_est })
