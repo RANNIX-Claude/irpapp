@@ -923,6 +923,7 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Tipo de contrato" value={emp.tipo_contrato_nombre || TIPO_CONTRATO[emp.tipo_contrato_id]} />
                     <Campo label="Fecha fin contrato" value={emp.contrato_fin ? fmtD(emp.contrato_fin) : 'Sin vencimiento'} />
                     <Campo label="Tipo de jornada" value={emp.tipo_jornada} />
+                    <Campo label="Tipo de contratación" value={emp.tipo_contratacion} />
                   </Grid4>
                 </Section>
                 <Section title="Compensación y pago" icon={DollarSign}>
@@ -931,6 +932,8 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Sueldo mensual aprox." value={fmt$(salMensual)} />
                     <Campo label="Forma de pago" value={emp.forma_pago} />
                     <Campo label="Banco / CLABE" value={[emp.banco, emp.cuenta_clabe].filter(Boolean).join(' · ')} mono />
+                    <Campo label="Bono" value={emp.bono ? fmt$(emp.bono) : '—'} />
+                    <Campo label="Forma de pago del bono" value={emp.bono ? emp.forma_pago_bono : '—'} />
                   </Grid4>
                 </Section>
                 <Section title="Horario" icon={Clock}>

@@ -263,6 +263,7 @@ const DIAS_DESCANSO = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado
 const ESTADOS_CIVILES = ['Soltero(a)','Casado(a)','Unión libre','Divorciado(a)','Viudo(a)']
 const ESCOLARIDADES = ['Primaria','Secundaria','Preparatoria','Técnico','Licenciatura','Posgrado']
 const TIPOS_JORNADA = ['Jornada completa','Media jornada','Jornada reducida','Turno nocturno','Fin de semana']
+const TIPOS_CONTRATACION = ['Por tiempo determinado','Indeterminado','Por obra']
 const BANCOS = [
   'BBVA','Banorte','Santander','Banamex','HSBC','Scotiabank','Inbursa',
   'Azteca','BanCoppel','Afirme','BanBajío','Banregio','Nu','Klar','Otro',
@@ -285,8 +286,8 @@ const CAMPOS_EMPLEADO = [
   'nombre','apellido_pat','apellido_mat','sexo','rfc','curp','nss',
   'fecha_nacimiento','estado_civil','nacionalidad','lugar_nacimiento','escolaridad',
   'fecha_ingreso','puesto','area','departamento','centro_trabajo','supervisor',
-  'tipo_jornada',
-  'salario_diario','forma_pago','banco','cuenta_clabe',
+  'tipo_jornada','tipo_contratacion',
+  'salario_diario','forma_pago','bono','forma_pago_bono','banco','cuenta_clabe',
   'email','celular','telefono_fijo',
   'calle','numero_ext','numero_int','colonia','municipio','estado_domicilio',
   'codigo_postal','referencias_domicilio','direccion',
@@ -299,7 +300,7 @@ const CAMPOS_FECHA     = ['fecha_nacimiento','fecha_ingreso']
 
 function EditarEmpleadoModal({ emp, onClose, onSaved }) {
   const vacio = Object.fromEntries(CAMPOS_EMPLEADO.map(k => [k, '']))
-  const [form, setForm] = useState({ ...vacio, sexo: 'M', forma_pago: 'TRANSFERENCIA' })
+  const [form, setForm] = useState({ ...vacio, sexo: 'M', forma_pago: 'TRANSFERENCIA', forma_pago_bono: 'TRANSFERENCIA', tipo_contratacion: 'Indeterminado' })
   const [cargando, setCargando] = useState(true)
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -442,6 +443,12 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
               ...TIPOS_JORNADA.map(v => <option key={v} value={v}>{v}</option>),
             ])}
           </F>
+          <F label="Tipo de contratación">
+            {sel('tipo_contratacion', [
+              <option key="" value="">— Seleccionar —</option>,
+              ...TIPOS_CONTRATACION.map(v => <option key={v} value={v}>{v}</option>),
+            ])}
+          </F>
           <F label="Horario de trabajo" span>
             <input value={form.horario_trabajo} onChange={e => set('horario_trabajo', e.target.value)}
               placeholder="Ej: Lunes a Sábado 8-16 hrs"
@@ -466,6 +473,17 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
               <option key="T" value="TRANSFERENCIA">Transferencia</option>,
               <option key="E" value="EFECTIVO">Efectivo</option>,
               <option key="M" value="MIXTO">Mixto (Transfer + Efectivo)</option>,
+            ])}
+          </F>
+          <F label="Bono ($)">
+            <input type="number" step="0.01" value={form.bono} onChange={e => set('bono', e.target.value)}
+              placeholder="0.00"
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="Forma de pago del bono">
+            {sel('forma_pago_bono', [
+              <option key="T" value="TRANSFERENCIA">Transferencia</option>,
+              <option key="E" value="EFECTIVO">Efectivo</option>,
             ])}
           </F>
           <F label="Banco">
@@ -2369,8 +2387,17 @@ function TabNominaIWOL() {
     const vacaciones    = parseFloat(aj.vacaciones    || 0)
     const prima_vac     = parseFloat(aj.prima_vac     || 0)
     const dia_festivo   = parseFloat(aj.dia_festivo   || 0)
-    const totalPerc     = percepcion - descuento + complemento + vacaciones + prima_vac + dia_festivo
-    const defaultTransfer = emp.forma_pago === 'EFECTIVO' ? 0 : totalPerc
+    // El bono es un dato del empleado (recurrente); se puede ajustar por
+    // semana desde el panel de nómina igual que los demás conceptos.
+    const bono          = parseFloat(aj.bono !== undefined ? aj.bono : (emp.bono || 0))
+    const totalPerc     = percepcion - descuento + complemento + vacaciones + prima_vac + dia_festivo + bono
+    // Sueldo y bono pueden pagarse por vías distintas (p.ej. sueldo en
+    // efectivo y bono en transferencia), así que el default se arma sumando
+    // cada parte según su propia forma de pago, no todo el total en bloque.
+    const formaPagoBono = emp.forma_pago_bono || emp.forma_pago || 'TRANSFERENCIA'
+    const defaultTransfer =
+      (emp.forma_pago === 'EFECTIVO' ? 0 : (totalPerc - bono)) +
+      (formaPagoBono === 'EFECTIVO' ? 0 : bono)
     const transferencia = parseFloat(aj.transferencia !== undefined ? aj.transferencia : defaultTransfer)
     const efectivo      = Math.round((totalPerc - transferencia) * 100) / 100
     return {
@@ -2389,18 +2416,22 @@ function TabNominaIWOL() {
       vacaciones,
       prima_vac,
       dia_festivo,
+      bono,
       total_percepciones: totalPerc,
       transferencia,
       efectivo,
       forma_pago: emp.forma_pago || 'TRANSFERENCIA',
+      forma_pago_bono: formaPagoBono,
     }
   })
 
   const totales = {
     percepcion:         renglones.reduce((s, r) => s + r.percepcion, 0),
     total_percepciones: renglones.reduce((s, r) => s + r.total_percepciones, 0),
-    transferencia:      renglones.reduce((s, r) => s + (r.forma_pago !== 'EFECTIVO' ? r.total_percepciones : 0), 0),
-    efectivo:           renglones.reduce((s, r) => s + (r.forma_pago === 'EFECTIVO' ? r.total_percepciones : 0), 0),
+    // Suma el split real de cada empleado (sueldo y bono pueden ir por vías
+    // distintas), no un todo-o-nada según una sola forma de pago.
+    transferencia:      renglones.reduce((s, r) => s + r.transferencia, 0),
+    efectivo:           renglones.reduce((s, r) => s + r.efectivo, 0),
   }
 
   const setAj = (empId, k, v) => setAjustes(prev => ({
@@ -2416,7 +2447,6 @@ function TabNominaIWOL() {
 
   // Los mismos datos alimentan el Word y la impresión, para que no discrepen.
   const datosRecibo = (r, semanaISO) => {
-    const aj = ajustes[r.empleado_id] || {}
     return {
       empleado: r.emp,
       semana: { lunes: semana.lunes, domingo: semana.domingo, numero: semanaISO(semana.lunes) },
@@ -2426,7 +2456,7 @@ function TabNominaIWOL() {
         // Percepción del formato: el sueldo de la semana más los conceptos
         // que se le sumaron. El descuento por faltas va del lado de deducción.
         percepcion:  r.percepcion + r.complemento + r.vacaciones + r.prima_vac + r.dia_festivo,
-        bono:        parseFloat(aj.bono || 0),
+        bono:        r.bono,
         deducciones: r.descuento,
         neto:        r.total_percepciones,
         fecha_pago:  fechaPago,
@@ -2769,10 +2799,10 @@ function TabNominaIWOL() {
                   </td>
                   <td style={{ padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#057642' }}>${r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                   <td style={{ padding:'10px 12px',textAlign:'right',color:'#1D4ED8',fontWeight:600 }}>
-                    {r.forma_pago !== 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                    {r.transferencia ? '$'+r.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
                   </td>
                   <td style={{ padding:'10px 12px',textAlign:'right',color:'#166534',fontWeight:600 }}>
-                    {r.forma_pago === 'EFECTIVO' ? '$'+r.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
+                    {r.efectivo ? '$'+r.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
                   </td>
                   <td className="no-print" style={{ padding:'8px 10px',textAlign:'center' }}>
                     {/* Word para archivar o corregir; impresora para el caso de
