@@ -1,11 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, Building2, FileText, CreditCard, Users,
-  Wrench, HardHat, Truck, UserCheck, Car,
-  Search, BarChart3, Settings, RefreshCw,
-  Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
+  LayoutDashboard, FileText, CreditCard, Users,
+  UserCheck, Car,
+  BarChart3, Settings,
+  ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  Package, ClipboardCheck, Calculator,
+  ClipboardCheck, Calculator,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -13,7 +13,7 @@ const NAV_SECTIONS = [
   {
     label: null,
     items: [
-      { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+      { label: 'Dashboard', path: '/edr', icon: LayoutDashboard },
     ]
   },
   {
@@ -30,7 +30,7 @@ const NAV_SECTIONS = [
     label: 'CARTERA',
     items: [
       { label: 'Cobranza',      path: '/cobranza',      icon: CreditCard    },
-      { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft },
+      { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft, disabled: true },
       { label: 'Ingresos',      path: '/ingresos',      icon: TrendingUp    },
     ]
   },
@@ -41,24 +41,12 @@ const NAV_SECTIONS = [
       { label: 'Estacionamiento', path: '/estacionamiento', icon: Car },
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
-      { label: 'Agua Potable', path: '/agua', icon: Droplets },
     ]
   },
   {
     label: 'RESTAURANTE',
     items: [
       { label: 'Gastos', path: '/restaurante/gastos', icon: UtensilsCrossed },
-    ]
-  },
-  {
-    label: 'INMUEBLE',
-    items: [
-      { label: 'Mapa de Locales', path: '/mapa-locales', icon: Map },
-      { label: 'Inmuebles', path: '/inmuebles', icon: Building2 },
-      { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
-      { label: 'Proyectos', path: '/proyectos', icon: HardHat },
-      { label: 'Proveedores', path: '/proveedores', icon: Truck },
-      { label: 'Productos', path: '/productos', icon: Package },
     ]
   },
   {
@@ -77,7 +65,6 @@ const NAV_SECTIONS = [
   {
     label: 'ANÁLISIS',
     items: [
-      { label: 'Est. Resultados', path: '/edr', icon: TrendingUp },
       { label: 'Reportes', path: '/reportes', icon: BarChart3 },
     ]
   },
@@ -142,11 +129,29 @@ export default function Sidebar() {
             {section.label && !sidebarOpen && si > 0 && (
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '6px 8px' }} />
             )}
-            {section.items.map(({ label, path, icon: Icon }) => {
+            {section.items.map(({ label, path, icon: Icon, disabled }) => {
               const [basePath, qs] = path.split('?')
               const isActive = qs
                 ? location.pathname === basePath && location.search.includes(qs.split('=')[1])
                 : location.pathname === basePath && !location.search
+
+              if (disabled) {
+                return (
+                  <div key={path} title="Deshabilitado" style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '9px 16px',
+                    color: 'rgba(255,255,255,0.28)',
+                    borderLeft: '3px solid transparent',
+                    fontSize: '13px', fontWeight: 400,
+                    whiteSpace: 'nowrap', cursor: 'not-allowed',
+                    margin: '1px 8px 1px 0',
+                  }}>
+                    <Icon size={17} style={{ flexShrink: 0, marginLeft: '1px' }} />
+                    {sidebarOpen && <span>{label}</span>}
+                  </div>
+                )
+              }
+
               return (
                 <NavLink key={path} to={path} end style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
