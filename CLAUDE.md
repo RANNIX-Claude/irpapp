@@ -194,6 +194,7 @@ Registradas en `src/App.jsx`.
 | `/rh` | RH y Nómina | `RH.jsx` |
 | `/rh/empleado/:id` | Expediente Digital de Empleado | `ExpedienteEmpleado.jsx` |
 | `/prospectos` | Prospectos y CRM | `Prospectos.jsx` |
+| `/calculos` | Cálculos del Sistema (documentación) | `Calculos.jsx` |
 | `/validacion` | Validación del Sistema | `Validacion.jsx` |
 | `/config` | Configuración | `Configuracion.jsx` |
 | `/portal/prospecto/:token` | Portal público de prospecto | `PortalProspecto.jsx` |

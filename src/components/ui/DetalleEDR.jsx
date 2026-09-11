@@ -28,6 +28,67 @@ const FUENTES = {
     ],
     cargar: async (m, a) => cobrosDelMes(m, a, ['RENTA']),
   },
+  // La renta se parte en dos por el número de factura, que es exactamente como
+  // el EDR arma los renglones: lo facturado se lee, y lo no facturado se
+  // obtiene por diferencia. Aquí se ve renglón por renglón cuál cayó en cuál.
+  rentas_factura: {
+    titulo: 'Rentas con factura',
+    tabla: 'ingresos',
+    nota: 'Cobros de renta del mes que traen número de factura capturado.',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['folio', 'Contrato'],
+      ['factura', 'Factura'],
+      ['origen', 'Origen', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => {
+      const { filas } = await cobrosDelMes(m, a, ['RENTA'])
+      return { filas: filas.filter(r => r.factura), campoTotal: 'importe' }
+    },
+  },
+  rentas_sin_factura: {
+    titulo: 'Rentas sin factura',
+    tabla: 'ingresos',
+    nota: 'El EDR no lee este renglón: lo calcula restando lo facturado del total de renta cobrada. Estos son los cobros de renta del mes a los que NO se les capturó número de factura — que es lo mismo que esa diferencia.',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['folio', 'Contrato'],
+      ['origen', 'Origen', v => v || '—'],
+      ['nota', 'Nota', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => {
+      const { filas } = await cobrosDelMes(m, a, ['RENTA'])
+      return { filas: filas.filter(r => !r.factura), campoTotal: 'importe' }
+    },
+  },
+  estacionamiento: {
+    titulo: 'Estacionamiento',
+    tabla: 'ingresos',
+    nota: 'El tablero toma el estacionamiento del sistema de tickets IwolPark, que es una base aparte. Aquí solo aparece lo que además se capturó como ingreso en IRP, así que puede no cuadrar con el renglón.',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['nota', 'Concepto', v => v || '—'],
+      ['origen', 'Origen', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMes(m, a, ['ESTACIONAMIENTO']),
+  },
+  pensiones: {
+    titulo: 'Pensiones',
+    tabla: 'ingresos',
+    nota: 'El tablero toma las pensiones del sistema de tickets IwolPark, contando solo las que están en estado «pagado». Aquí solo aparece lo que además se capturó como ingreso en IRP.',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['nota', 'Concepto', v => v || '—'],
+      ['origen', 'Origen', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMes(m, a, ['PENSION']),
+  },
   sanciones: {
     titulo: 'Penalizaciones cobradas',
     tabla: 'ingresos',
@@ -164,12 +225,101 @@ async function cobrosDelMes(mes, anio, tipos) {
 
 export const CONCEPTOS_CON_DETALLE = Object.keys(FUENTES)
 
-export default function DetalleEDR({ concepto, mes, anio, valorTablero, onClose }) {
+/**
+ * Un total calculado no tiene registros detrás: tiene sumandos. Su detalle es
+ * la fórmula y el valor de cada parte, y desde ahí se puede seguir bajando a
+ * la parte que sí venga de una tabla.
+ */
+function Composicion({ comp, onBajar }) {
+  return (
+    <div style={{ padding: '18px 22px' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 7 }}>
+        Cómo se calcula
+      </div>
+      <div style={{ fontFamily: 'monospace', fontSize: 13, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '11px 13px', marginBottom: 18, color: '#166534' }}>
+        {comp.formula}
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 7 }}>
+        Los sumandos de este mes
+      </div>
+      <div style={{ border: '1px solid #E5E7EB', borderRadius: 9, overflow: 'hidden' }}>
+        {comp.partes.map((p, i) => {
+          const puedeBajar = !!p.concepto
+          return (
+            <div key={i}
+              onClick={puedeBajar ? () => onBajar(p.concepto, p.valor) : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                borderTop: i ? '1px solid #F3F4F6' : 'none',
+                cursor: puedeBajar ? 'pointer' : 'default',
+                background: 'white',
+              }}
+              onMouseEnter={e => { if (puedeBajar) e.currentTarget.style.background = '#F9FAFB' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white' }}>
+              <span style={{ fontSize: 13.5, color: '#374151', fontWeight: p.fuerte ? 700 : 400 }}>
+                {p.signo === '-' && <span style={{ color: '#B91C1C', fontWeight: 700, marginRight: 5 }}>−</span>}
+                {p.label}
+              </span>
+              {puedeBajar && (
+                <span style={{ fontSize: 9, color: '#0A66C2', border: '1px solid #BFDBFE', background: '#EFF6FF', borderRadius: 4, padding: '0 4px', fontWeight: 700, letterSpacing: '.04em' }}>
+                  DETALLE
+                </span>
+              )}
+              {p.nota && <span style={{ fontSize: 11, color: '#9CA3AF' }}>{p.nota}</span>}
+              <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 13, fontWeight: p.fuerte ? 700 : 600, color: p.valor < 0 ? '#B91C1C' : '#374151', fontVariantNumeric: 'tabular-nums' }}>
+                {fmt(p.valor)}
+              </span>
+            </div>
+          )
+        })}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '11px 14px', borderTop: '2px solid #E5E7EB', background: '#F9FAFB' }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>{comp.etiquetaTotal || 'Total'}</span>
+          <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: comp.total < 0 ? '#B91C1C' : '#057642', fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(comp.total)}
+          </span>
+        </div>
+      </div>
+
+      {comp.nota && (
+        <div style={{ marginTop: 14, fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }}>
+          {comp.nota}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function DetalleEDR({ concepto, composicion, mes, anio, valorTablero, onClose }) {
   const [filas, setFilas] = useState(null)
   const [campoTotal, setCampoTotal] = useState('importe')
   const [error, setError] = useState(null)
+  // Bajar de un total a uno de sus sumandos sin cerrar y volver a abrir.
+  const [bajada, setBajada] = useState(null)
 
-  const fuente = FUENTES[concepto]
+  const conceptoActivo = bajada?.concepto ?? concepto
+  const fuente = FUENTES[conceptoActivo]
+
+  if (composicion && !bajada) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        onClick={onClose}>
+        <div style={{ background: 'white', borderRadius: 14, width: 660, maxWidth: '96vw', maxHeight: '90vh', overflowY: 'auto' }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{composicion.titulo}</h3>
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>
+                {String(mes).padStart(2, '0')}/{anio} · renglón calculado, no viene de una tabla
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
+          </div>
+          <Composicion comp={composicion} onBajar={(c, v) => setBajada({ concepto: c, valor: v })} />
+        </div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     if (!fuente) return
@@ -182,12 +332,13 @@ export default function DetalleEDR({ concepto, mes, anio, valorTablero, onClose 
       })
       .catch(e => { if (!cancelado) setError(e.message) })
     return () => { cancelado = true }
-  }, [concepto, mes, anio])
+  }, [conceptoActivo, mes, anio])
 
   if (!fuente) return null
 
   const total = (filas ?? []).reduce((s, r) => s + (parseFloat(r[campoTotal]) || 0), 0)
-  const difiere = valorTablero != null && Math.abs(total - valorTablero) > 1
+  const refTablero = bajada ? bajada.valor : valorTablero
+  const difiere = refTablero != null && Math.abs(total - refTablero) > 1
 
   const exportar = () => {
     const cab = fuente.columnas.map(c => c[1])

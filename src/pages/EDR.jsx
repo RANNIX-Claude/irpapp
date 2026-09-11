@@ -98,7 +98,7 @@ function PLRow({ label, proy = 0, total = 0, rentasMes = 0, otrosPer = 0,
 
 /* ── Fila subtotal / bold ──────────────────────────────────────────────────── */
 function SubRow({ label, proy = 0, total = 0, rentasMes = 0, otrosPer = 0,
-                  highlight = false, big = false }) {
+                  highlight = false, big = false, composicion, onDetalle }) {
   const p  = parseFloat(proy) || 0
   const t  = parseFloat(total) || 0
   const rm = parseFloat(rentasMes) || 0
@@ -107,12 +107,22 @@ function SubRow({ label, proy = 0, total = 0, rentasMes = 0, otrosPer = 0,
   const bgColor = highlight ? (t >= 0 ? '#F0FDF4' : '#FEF2F2') : '#F9FAFB'
   const sz = big ? '14px' : '12px'
   const fw = big ? 900 : 700
+  // Un subtotal no sale de una tabla: sale de otros renglones. Su detalle es la
+  // fórmula y el valor de cada sumando, y desde ahí se baja al que sí tiene
+  // registros detrás.
+  const clicable = !!composicion
   return (
     <div style={{ display:'grid', gridTemplateColumns: COLS, gap:0,
       padding: big ? '12px 16px' : '8px 16px', background: bgColor,
-      borderTop: big ? '3px solid ' + (t >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB' }}>
-      <div style={{ fontSize: sz, fontWeight: fw, color: big ? (t >= 0 ? '#057642' : '#B91C1C') : '#111827' }}>
+      borderTop: big ? '3px solid ' + (t >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB',
+      cursor: clicable ? 'pointer' : 'default' }}
+      onClick={clicable ? () => onDetalle({ composicion }) : undefined}>
+      <div style={{ fontSize: sz, fontWeight: fw, color: big ? (t >= 0 ? '#057642' : '#B91C1C') : '#111827',
+        display:'flex', alignItems:'center', gap:6 }}>
         {label}
+        {clicable && <span title="Ver cómo se calcula este renglón"
+          style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE', background:'#EFF6FF',
+            borderRadius:4, padding:'0 4px', fontWeight:700, letterSpacing:'.04em' }}>CÁLCULO</span>}
       </div>
       <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#374151', padding:'0 8px' }}>
         {p !== 0 ? fmt(p) : ''}
@@ -178,16 +188,25 @@ function SecHdr({ label, bg = '#1A3C5E' }) {
     </div>
   )
 }
-function SubTot({ label, proy, real, mes = 0, otros = 0, highlight = false, big = false }) {
+function SubTot({ label, proy, real, mes = 0, otros = 0, highlight = false, big = false,
+                  composicion, onDetalle }) {
   const bg  = highlight ? (real >= 0 ? '#F0FDF4' : '#FEF2F2') : '#F5F5F5'
   const clr = big ? (real >= 0 ? '#057642' : '#B91C1C') : '#111827'
   const sz  = big ? '14px' : '12px', fw = big ? 900 : 700
   const ratio = pct(real, proy)
+  const clicable = !!composicion
   return (
     <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
       padding: big ? '10px 12px' : '7px 12px', background: bg,
-      borderTop: big ? '3px solid ' + (real >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB' }}>
-      <div style={{ fontSize: sz, fontWeight: fw, color: clr }}>{label}</div>
+      borderTop: big ? '3px solid ' + (real >= 0 ? '#057642' : '#B91C1C') : '2px solid #E5E7EB',
+      cursor: clicable ? 'pointer' : 'default' }}
+      onClick={clicable ? () => onDetalle({ composicion }) : undefined}>
+      <div style={{ fontSize: sz, fontWeight: fw, color: clr, display:'flex', alignItems:'center', gap:6 }}>
+        {label}
+        {clicable && <span title="Ver cómo se calcula este renglón"
+          style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE', background:'#EFF6FF',
+            borderRadius:4, padding:'0 4px', fontWeight:700, letterSpacing:'.04em' }}>CÁLCULO</span>}
+      </div>
       <div style={{ textAlign:'right', fontSize: sz, fontWeight: fw, color:'#6B7280', padding:'0 6px' }}>
         {proy !== 0 ? fmt(proy) : ''}
       </div>
@@ -226,7 +245,8 @@ function InfoRowE({ label, proy = 0, indent = 0 }) {
 /* EditRow para ingresos: fieldMes + fieldOtros → Total auto
    EditRow para gastos:   fieldR → Total editable, Mes/Otros vacíos */
 function EditRow({ label, fieldP, fieldMes, fieldOtros, fieldR, form, setField,
-                   indent = 0, hintP, hintMes, hintOtros, hintR, negLabel = false }) {
+                   indent = 0, hintP, hintMes, hintOtros, hintR, negLabel = false,
+                   detalle, onDetalle }) {
   const isSplit = !!fieldMes
   const mes   = isSplit ? (parseFloat(form[fieldMes])   || 0) : 0
   const otros = isSplit ? (parseFloat(form[fieldOtros]) || 0) : 0
@@ -240,8 +260,18 @@ function EditRow({ label, fieldP, fieldMes, fieldOtros, fieldR, form, setField,
       onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
       onMouseLeave={e => e.currentTarget.style.background = 'white'}>
       <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
-        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center' }}>
+        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center', gap:5 }}>
         {label}
+        {/* El campo se captura, pero el detalle deja ver de dónde salió el
+            número que se propuso, para capturar con fundamento y no a ciegas. */}
+        {detalle && (
+          <button type="button" onClick={e => { e.stopPropagation(); onDetalle({ concepto: detalle, valor: total }) }}
+            title="Ver los registros que integran este importe"
+            style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE', background:'#EFF6FF',
+              borderRadius:4, padding:'1px 4px', fontWeight:700, letterSpacing:'.04em', cursor:'pointer' }}>
+            DETALLE
+          </button>
+        )}
       </div>
       {/* Proyectado */}
       <div style={{ padding:'2px 4px' }}>
@@ -586,9 +616,13 @@ export default function EDR() {
 
   // Proyectado
   const pRentas    = parseFloat(r.proy_rentas_contratos) || proyRentas
+  // El restaurante SE RESTA, no se suma. El formato del cliente lo dice en su
+  // propio renglón: «Rentas disponibles (locales − Restaurant)». Sumarlo daba
+  // una renta proyectada de $925,870 donde el anexo de julio dice $459,775.
   const pRestaurant= parseFloat(r.proy_restaurant) || 0
   const pVacantes  = -(Math.abs(parseFloat(r.proy_locales_vacantes) || 0))
-  const pRentasBrutas = pRentas + pRestaurant + pVacantes
+  const pDisponibles  = pRentas - pRestaurant           // locales sin el restaurante
+  const pRentasBrutas = pDisponibles + pVacantes        // menos los locales vacíos
   const pEstac     = parseFloat(r.proy_estacionamiento) || 0
   const pPensiones = parseFloat(r.proy_pensiones) || 0
   const pMaquinita = parseFloat(r.proy_maquinita) || 0
@@ -648,13 +682,24 @@ export default function EDR() {
     ? -(rmIva + opIva)
     : -(Math.abs(parseFloat(r.real_iva) || 0))
   const rIva        = rIvaTotal
-  const rRentasBrutas = rRentaFact + rRentaSin + rPenaliz
 
+  // Estructura del anexo del cliente:
+  //   Rentas brutas      solo lo facturado
+  //   Rentas sin Factura lo cobrado en efectivo, sin comprobante
+  //   Total Rentas       la suma de las dos  ← este renglon faltaba
+  //   Penalizaciones     las sanciones por mora
+  //   Ingresos Netos     Total Rentas + Penalizaciones + IVA
+  const rTotalRentas  = rRentaFact + rRentaSin
+  const rmTotalRentas = rmRentaFact + rmRentaSin
+  const opTotalRentas = opRentaFact + opRentaSin
+
+  // La base sobre la que se prorratea el IVA entre mes y otros periodos.
+  const rRentasBrutas = rTotalRentas + rPenaliz
   const rmRentasBrutas = hasFoto(r.real_rentas_factura_mes, r.real_rsf_mes)
-    ? rmRentaFact + rmRentaSin + rmPenaliz
+    ? rmTotalRentas + rmPenaliz
     : (realRentas.rentas_mes    || 0)
   const opRentasBrutas = hasFoto(r.real_rentas_factura_otros, r.real_rsf_otros)
-    ? opRentaFact + opRentaSin + opPenaliz
+    ? opTotalRentas + opPenaliz
     : (realRentas.otros_periodos || 0)
 
   const rIngNeto   = rRentasBrutas + rIva
@@ -683,6 +728,102 @@ export default function EDR() {
   const rUtilBruta = rTotalIng - rTotalG
   const rTotalImp  = pTotalImp
   const rUtilNeta  = rUtilBruta - rTotalImp
+
+  /* ── Composición de los renglones calculados ────────────────────────────────
+     Cada subtotal declara su fórmula y sus sumandos con el valor de este mes.
+     Los que tienen `concepto` dejan seguir bajando hasta los registros. */
+  const parte = (label, valor, concepto, extra = {}) => ({ label, valor, concepto, ...extra })
+
+  const compTotalRentas = {
+    titulo: 'Total Rentas',
+    formula: 'Rentas brutas (facturadas) + Rentas sin factura',
+    partes: [
+      parte('Rentas brutas — con factura', rRentaFact, 'rentas_factura'),
+      parte('Rentas sin factura — cobradas en efectivo', rRentaSin, 'rentas_sin_factura'),
+    ],
+    total: rTotalRentas,
+    etiquetaTotal: 'Total Rentas',
+    nota: 'Las rentas sin factura no se leen de ninguna tabla: son los cobros de renta del mes a los que no se les capturó número de factura.',
+  }
+
+  const compIngNeto = {
+    titulo: 'Ingresos Netos Renta',
+    formula: 'Total Rentas + Penalizaciones − IVA retenido',
+    partes: [
+      parte('Total Rentas', rTotalRentas),
+      parte('Penalizaciones por mora', rPenaliz, 'sanciones'),
+      parte('IVA retenido', rIva, null, { signo: rIva < 0 ? '' : '-' }),
+    ],
+    total: rIngNeto,
+    etiquetaTotal: 'Ingresos Netos Renta',
+    nota: 'El IVA solo existe del lado real: no se proyecta. Por eso el proyectado de este renglón es igual a las rentas brutas y no es comparable al real uno contra uno.',
+  }
+
+  const compTotalIng = {
+    titulo: 'Total Ingresos',
+    formula: 'Ingresos Netos Renta + Estacionamiento + Pensiones + Maquinita + Agua',
+    partes: [
+      parte('Ingresos Netos Renta', rIngNeto),
+      parte('Estacionamiento', rEstac, 'estacionamiento'),
+      parte('Pensiones', rPensiones, 'pensiones'),
+      parte('Maquinita / Vending', rMaquinita, 'vending'),
+      parte('Agua cobrada', rAguaIng, 'agua_ingreso'),
+    ],
+    total: rTotalIng,
+    etiquetaTotal: 'Total Ingresos',
+  }
+
+  const compTotalG = {
+    titulo: 'Total Gastos Variables',
+    formula: 'Sueldos + Fondo Revolvente + Gasto Excedente + Luz + Agua + Otros',
+    partes: [
+      parte('Sueldos', rSueldos, 'sueldos'),
+      parte('Fondo Revolvente', rFondo, 'gastos'),
+      parte('Gasto Excedente', rExcedente),
+      parte('Luz', rLuz, 'gastos'),
+      parte('Agua (gasto)', rAguaG),
+      parte('Otros gastos', rOtros, 'gastos'),
+    ],
+    total: rTotalG,
+    etiquetaTotal: 'Total Gastos Variables',
+    nota: 'El real lleva un sumando que el proyectado no tiene: el Gasto Excedente. Por eso el real puede pasarse del presupuesto sin que ningún renglón individual se haya pasado.',
+  }
+
+  const compUtilBruta = {
+    titulo: 'Utilidad Bruta',
+    formula: 'Total Ingresos − Total Gastos Variables',
+    partes: [
+      parte('Total Ingresos', rTotalIng),
+      parte('Total Gastos Variables', rTotalG, null, { signo: '-' }),
+    ],
+    total: rUtilBruta,
+    etiquetaTotal: 'Utilidad Bruta',
+  }
+
+  const compTotalImp = {
+    titulo: 'Total Impuestos',
+    formula: 'Predial + Transporte de Residuos + Licencia de Estacionamiento + Anuncio Publicitario',
+    partes: [
+      parte('Predial', pPredial),
+      parte('Transporte de Residuos Sólidos', pTransp),
+      parte('Licencia de Estacionamiento', pLicencia),
+      parte('Anuncio Publicitario IWOL', pAnuncio),
+    ],
+    total: pTotalImp,
+    etiquetaTotal: 'Total Impuestos',
+    nota: 'Los cuatro se capturan en un solo campo que sirve para proyectado y para real: son el mismo dato mostrado dos veces. En el anexo del cliente estos impuestos se prorratean entre los doce meses del año.',
+  }
+
+  const compUtilNeta = {
+    titulo: 'Utilidad Neta',
+    formula: 'Utilidad Bruta − Total Impuestos',
+    partes: [
+      parte('Utilidad Bruta', rUtilBruta),
+      parte('Total Impuestos', rTotalImp, null, { signo: '-' }),
+    ],
+    total: rUtilNeta,
+    etiquetaTotal: 'Utilidad Neta',
+  }
 
   const thSt = { padding:'9px 16px', fontSize:'10px', fontWeight:700, color:'#6B7280',
     textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'right',
@@ -810,16 +951,20 @@ export default function EDR() {
             {pRestaurant !== 0 && (
               <InfoRow label={`• Restaurant; Ampliación ($276 mt² pp)`} proy={pRestaurant} indent={1} />
             )}
-            <InfoRow label="Rentas disponibles (locales-Restau)" proy={pRentas - pRestaurant} indent={1} />
+            <InfoRow label="Rentas disponibles (locales-Restau)" proy={pDisponibles} indent={1} />
             {pVacantes !== 0 && (
               <InfoRow label="** Locales (L10, L22, Financiera L24,25,26)" proy={Math.abs(pVacantes)} indent={2} />
             )}
 
-            <PLRow label="Rentas brutas" detalle="rentas" onDetalle={setDetalle}
-              proy={pRentasBrutas} total={rRentasBrutas}
-              rentasMes={rmRentasBrutas} otrosPer={opRentasBrutas} />
-            <PLRow label="Rentas sin Factura" indent={1}
+            <PLRow label="Rentas brutas" detalle="rentas_factura" onDetalle={setDetalle}
+              proy={pRentasBrutas} total={rRentaFact}
+              rentasMes={rmRentaFact} otrosPer={opRentaFact} />
+            <PLRow label="Rentas sin Factura" indent={1} detalle="rentas_sin_factura" onDetalle={setDetalle}
               total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
+            <SubRow label="Total Rentas"
+              proy={pRentasBrutas} total={rTotalRentas}
+              rentasMes={rmTotalRentas} otrosPer={opTotalRentas}
+              composicion={compTotalRentas} onDetalle={setDetalle} />
             <PLRow label="Penalizaciones" indent={1} detalle="sanciones" onDetalle={setDetalle}
               total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
@@ -827,7 +972,7 @@ export default function EDR() {
               rentasMes={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -rmIva : (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
               otrosPer={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -opIva : (rIva !== 0 ? Math.round(rIva * (opRentasBrutas / (rRentasBrutas || 1))) : 0)} />
 
-            <SubRow label="Ingresos Netos Renta" highlight
+            <SubRow label="Ingresos Netos Renta" highlight composicion={compIngNeto} onDetalle={setDetalle}
               proy={pIngNeto} total={rIngNeto}
               rentasMes={rmRentasBrutas + (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
               otrosPer={opRentasBrutas  + (rIva !== 0 ? Math.round(rIva * (opRentasBrutas  / (rRentasBrutas || 1))) : 0)} />
@@ -841,7 +986,7 @@ export default function EDR() {
             <PLRow label="Agua" detalle="agua_ingreso" onDetalle={setDetalle}
               proy={pAguaIng} total={rAguaIng} rentasMes={rmAguaIng} otrosPer={opAguaIng} />
 
-            <SubRow label="Total Ingresos" highlight
+            <SubRow label="Total Ingresos" highlight composicion={compTotalIng} onDetalle={setDetalle}
               proy={pTotalIng} total={rTotalIng}
               rentasMes={rmRentasBrutas + rmEstac + rmPension + rmMaquinita + rmAguaIng}
               otrosPer={opRentasBrutas  + opEstac + opPension + opMaquinita + opAguaIng} />
@@ -858,11 +1003,11 @@ export default function EDR() {
             <PLRow label="Agua"  proy={pAguaG} total={rAguaG} />
             <PLRow label="Otros" detalle="gastos" onDetalle={setDetalle} proy={pOtros} total={rOtros} />
 
-            <SubRow label="Total Gastos Variables"
+            <SubRow label="Total Gastos Variables" composicion={compTotalG} onDetalle={setDetalle}
               proy={pTotalG} total={rTotalG} />
 
             {/* ── UTILIDAD BRUTA ── */}
-            <SubRow label="Utilidad Bruta" highlight
+            <SubRow label="Utilidad Bruta" highlight composicion={compUtilBruta} onDetalle={setDetalle}
               proy={pUtilBruta} total={rUtilBruta} />
 
             {/* ── IMPUESTOS Y GASTOS FIJOS ─────────────────────────────────── */}
@@ -873,11 +1018,11 @@ export default function EDR() {
             <PLRow label="Licencia de Estacionamiento"    proy={pLicencia} total={pLicencia} />
             <PLRow label="Anuncio Publicitario IWOL"      proy={pAnuncio}  total={pAnuncio} />
 
-            <SubRow label="Total Impuestos"
+            <SubRow label="Total Impuestos" composicion={compTotalImp} onDetalle={setDetalle}
               proy={pTotalImp} total={rTotalImp} />
 
             {/* ── UTILIDAD NETA ── */}
-            <SubRow label="Utilidad Neta" highlight big
+            <SubRow label="Utilidad Neta" highlight big composicion={compUtilNeta} onDetalle={setDetalle}
               proy={pUtilNeta} total={rUtilNeta} />
 
             {/* Footer */}
@@ -915,7 +1060,10 @@ export default function EDR() {
             const eIvaMes     = parseFloat(fForm.real_iva_mes)   || 0
             const eIvaOtros   = parseFloat(fForm.real_iva_otros)  || 0
             const eIva        = -(eIvaMes + eIvaOtros) || -(Math.abs(parseFloat(fForm.real_iva)||0))
-            const eRentasBrutas = eRentaFact + eRentaSin + ePenaliz
+            // Misma estructura que el anexo del cliente: las rentas facturadas
+            // y las de efectivo suman Total Rentas; la penalización va aparte.
+            const eTotalRentas  = eRentaFact + eRentaSin
+            const eRentasBrutas = eTotalRentas + ePenaliz
             const eRmRentas   = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)   + (parseFloat(fForm.real_penaliz_mes)||0)
             const eOpRentas   = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0) + (parseFloat(fForm.real_penaliz_otros)||0)
             const eIngNeto    = eRentasBrutas + eIva
@@ -958,7 +1106,7 @@ export default function EDR() {
 
                 <SecHdr label="Ingresos" />
                 {/* Sección proyectada — referencia de presupuesto */}
-                <EditRow label="* Rentas totales"
+                <EditRow label="* Rentas totales" detalle="proyectado" onDetalle={setDetalle}
                   fieldP="proy_rentas_contratos"
                   fieldMes="real_rentas_factura_mes" fieldOtros="real_rentas_factura_otros"
                   form={fForm} setField={sf}
@@ -975,13 +1123,13 @@ export default function EDR() {
                   form={fForm} setField={sf} indent={2} />
 
                 {/* Subtotal + desglose real (igual orden que Tablero) */}
-                <SubTot label="Rentas brutas" proy={pRentasBrutas} real={eRentasBrutas}
+                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
                   mes={eRmRentas} otros={eOpRentas} />
-                <EditRow label="Rentas sin Factura"
+                <EditRow label="Rentas sin Factura" detalle="rentas_sin_factura" onDetalle={setDetalle}
                   fieldP="proy_rsf"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
                   form={fForm} setField={sf} indent={1} />
-                <EditRow label="Penalizaciones"
+                <EditRow label="Penalizaciones" detalle="sanciones" onDetalle={setDetalle}
                   fieldP="proy_penaliz"
                   fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
                   form={fForm} setField={sf} indent={1} />
@@ -990,39 +1138,39 @@ export default function EDR() {
                   fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
                   form={fForm} setField={sf} indent={1} negLabel />
 
-                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight />
+                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle} />
 
-                <EditRow label="Estacionamiento"
+                <EditRow label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
                   fieldP="proy_estacionamiento"
                   fieldMes="real_estac_mes" fieldOtros="real_estac_otros"
                   form={fForm} setField={sf} />
-                <EditRow label="Pensiones"
+                <EditRow label="Pensiones" detalle="pensiones" onDetalle={setDetalle}
                   fieldP="proy_pensiones"
                   fieldMes="real_pension_mes" fieldOtros="real_pension_otros"
                   form={fForm} setField={sf} />
-                <EditRow label="Maquinita/Vending"
+                <EditRow label="Maquinita/Vending" detalle="vending" onDetalle={setDetalle}
                   fieldP="proy_maquinita"
                   fieldMes="real_maquinita_mes" fieldOtros="real_maquinita_otros"
                   form={fForm} setField={sf} />
-                <EditRow label="Agua (cobro)"
+                <EditRow label="Agua (cobro)" detalle="agua_ingreso" onDetalle={setDetalle}
                   fieldP="proy_agua_ingresos"
                   fieldMes="real_agua_ing_mes" fieldOtros="real_agua_ing_otros"
                   form={fForm} setField={sf} />
 
-                <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight
+                <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight composicion={compTotalIng} onDetalle={setDetalle}
                   mes={eRmEstac + eRmPension + eRmMaq + eRmAgua + eRmRentas}
                   otros={eOpEstac + eOpPension + eOpMaq + eOpAgua + eOpRentas} />
 
                 <SecHdr label="Gastos Variables" />
-                <EditRow label="Sueldos"          fieldP="proy_sueldos"          fieldR="real_sueldos"          form={fForm} setField={sf} hintP={`RH: ${fmt(proySueldos)}`} />
-                <EditRow label="Fondo Revolvente"  fieldP="proy_fondo_revolvente" fieldR="real_fondo_revolvente" form={fForm} setField={sf} />
+                <EditRow label="Sueldos" detalle="sueldos" onDetalle={setDetalle}          fieldP="proy_sueldos"          fieldR="real_sueldos"          form={fForm} setField={sf} hintP={`RH: ${fmt(proySueldos)}`} />
+                <EditRow label="Fondo Revolvente" detalle="gastos" onDetalle={setDetalle}  fieldP="proy_fondo_revolvente" fieldR="real_fondo_revolvente" form={fForm} setField={sf} />
                 <EditRow label="Gasto Excedente"  fieldP={null}                  fieldR="real_gasto_excedente"  form={fForm} setField={sf} indent={1} />
-                <EditRow label="Luz"              fieldP="proy_luz"              fieldR="real_luz"              form={fForm} setField={sf} />
+                <EditRow label="Luz" detalle="gastos" onDetalle={setDetalle}              fieldP="proy_luz"              fieldR="real_luz"              form={fForm} setField={sf} />
                 <EditRow label="Agua (gasto)"     fieldP="proy_agua_gastos"      fieldR="real_agua_gastos"      form={fForm} setField={sf} />
-                <EditRow label="Otros gastos"     fieldP="proy_otros_gastos"     fieldR="real_otros_gastos"     form={fForm} setField={sf} />
+                <EditRow label="Otros gastos" detalle="gastos" onDetalle={setDetalle}     fieldP="proy_otros_gastos"     fieldR="real_otros_gastos"     form={fForm} setField={sf} />
 
-                <SubTot label="Total Gastos Variables" proy={pTotalG} real={rTotalG} />
-                <SubTot label="Utilidad Bruta"         proy={pUtilBruta} real={rUtilBruta} highlight />
+                <SubTot label="Total Gastos Variables" proy={pTotalG} real={rTotalG} composicion={compTotalG} onDetalle={setDetalle} />
+                <SubTot label="Utilidad Bruta"         proy={pUtilBruta} real={rUtilBruta} highlight composicion={compUtilBruta} onDetalle={setDetalle} />
 
                 <SecHdr label="Impuestos y Gastos Fijos" bg="#4B5563" />
                 <EditRow label="Predial"                     fieldP="predial"                  fieldR="predial"                  form={fForm} setField={sf} />
@@ -1030,8 +1178,8 @@ export default function EDR() {
                 <EditRow label="Licencia de Estacionamiento" fieldP="licencia_estacionamiento"  fieldR="licencia_estacionamiento"  form={fForm} setField={sf} />
                 <EditRow label="Anuncio Publicitario IWOL"   fieldP="anuncio_publicitario"      fieldR="anuncio_publicitario"      form={fForm} setField={sf} />
 
-                <SubTot label="Total Impuestos" proy={pTotalImp} real={rTotalImp} />
-                <SubTot label="Utilidad Neta"   proy={pUtilNeta} real={rUtilNeta} highlight big />
+                <SubTot label="Total Impuestos" proy={pTotalImp} real={rTotalImp} composicion={compTotalImp} onDetalle={setDetalle} />
+                <SubTot label="Utilidad Neta"   proy={pUtilNeta} real={rUtilNeta} highlight big composicion={compUtilNeta} onDetalle={setDetalle} />
 
                 <div style={{ padding:'14px 16px', borderTop:'2px solid #E5E7EB', background:'#F9FAFB',
                   display:'grid', gridTemplateColumns:'1fr auto', gap:'16px', alignItems:'start' }}>
@@ -1062,7 +1210,7 @@ export default function EDR() {
       </div>
 
       {detalle && (
-        <DetalleEDR concepto={detalle.concepto} valorTablero={detalle.valor}
+        <DetalleEDR concepto={detalle.concepto} composicion={detalle.composicion} valorTablero={detalle.valor}
           mes={mes} anio={anio} onClose={() => setDetalle(null)} />
       )}
     </>

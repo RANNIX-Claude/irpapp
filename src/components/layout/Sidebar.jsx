@@ -5,7 +5,7 @@ import {
   Search, BarChart3, Settings, RefreshCw,
   Droplets, ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database, Map,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  Package, ClipboardCheck,
+  Package, ClipboardCheck, Calculator,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -85,9 +85,18 @@ const NAV_SECTIONS = [
     label: null,
     items: [
       { label: 'Bitácora', path: '/bitacora', icon: ClipboardList },
-      { label: 'Utilerías', path: '/utilidades', icon: Database },
-      { label: 'Validación', path: '/validacion', icon: ClipboardCheck },
       { label: 'Configuración', path: '/config', icon: Settings },
+    ]
+  },
+  {
+    // El integrador se explica a sí mismo: de dónde sale cada número y en
+    // qué quedó cada prueba. Consultar la base es una utilería más, no el
+    // nombre de la sección.
+    label: 'UTILERÍAS',
+    items: [
+      { label: 'Cálculos del Sistema', path: '/calculos', icon: Calculator },
+      { label: 'Validación', path: '/validacion', icon: ClipboardCheck },
+      { label: 'Consulta a Base de Datos', path: '/utilidades', icon: Database },
     ]
   },
 ]
