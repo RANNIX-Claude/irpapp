@@ -19,6 +19,10 @@
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
+// Node < 22 no trae WebSocket global; @supabase/supabase-js lo necesita para
+// inicializar su cliente de Realtime aunque este script no lo use.
+import WebSocket from 'ws'
+globalThis.WebSocket ??= WebSocket
 
 function cargarEnv() {
   const env = { ...process.env }
