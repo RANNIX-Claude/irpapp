@@ -1599,18 +1599,20 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   )
 }
 
-// ── Programar guardia (rol semanal Humberto/Demetrio) ───────────────────────
-// El administrador indica quién cubre cada día de guardia de 24h. Sirve
-// para cruzar contra la asistencia real y contra el respaldo de IwolPark.
-function ModalProgramarGuardia({ onClose, onSaved }) {
-  const hoyD = new Date()
-  const lunes = new Date(hoyD)
-  lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))   // lunes de esta semana
-  const [inicio, setInicio] = useState(lunes.toISOString().slice(0, 10))
+// ── Tab Horarios de Guardia (rol semanal Humberto/Demetrio) ─────────────────
+// El gerente de la plaza captura aquí quién cubre cada día de guardia de
+// 24h — sabe con anticipación los turnos de la semana, así que esto NO se
+// deriva del cruce con IwolPark (ese cruce solo sirve como apoyo visual en
+// Asistencia): esta pantalla es la fuente que el gerente alimenta a mano.
+const DIAS_ES_GUARDIA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+
+function TabHorariosGuardia() {
+  const lunesDe = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10) }
+  const [inicio, setInicio] = useState(() => lunesDe(new Date().toISOString().slice(0, 10)))
   const [guardias, setGuardias] = useState([])
   const [asignaciones, setAsignaciones] = useState({})   // fecha -> empleado_id ('' = sin asignar)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [guardandoFecha, setGuardandoFecha] = useState(null)
 
   const dias = useMemo(() => {
     const d0 = new Date(inicio + 'T12:00:00')
@@ -1620,92 +1622,80 @@ function ModalProgramarGuardia({ onClose, onSaved }) {
     })
   }, [inicio])
 
-  useEffect(() => {
-    let cancelado = false
+  const cargar = useCallback(async () => {
     setLoading(true)
-    ;(async () => {
-      const [{ data: emps }, { data: turnos }] = await Promise.all([
-        supabase.from('rh_empleados').select('id, nombre, apellido_pat').eq('cruza_medianoche', true).eq('estado_id', 'ACTIVO').order('nombre'),
-        supabase.from('rh_turnos_guardia').select('fecha, empleado_id').gte('fecha', dias[0]).lte('fecha', dias[6]),
-      ])
-      if (cancelado) return
-      setGuardias(emps ?? [])
-      setAsignaciones(Object.fromEntries((turnos ?? []).map(t => [t.fecha, t.empleado_id])))
-      setLoading(false)
-    })()
-    return () => { cancelado = true }
+    const [{ data: emps }, { data: turnos }] = await Promise.all([
+      supabase.from('rh_empleados').select('id, nombre, apellido_pat').eq('cruza_medianoche', true).eq('estado_id', 'ACTIVO').order('nombre'),
+      supabase.from('rh_turnos_guardia').select('fecha, empleado_id').gte('fecha', dias[0]).lte('fecha', dias[6]),
+    ])
+    setGuardias(emps ?? [])
+    setAsignaciones(Object.fromEntries((turnos ?? []).map(t => [t.fecha, t.empleado_id])))
+    setLoading(false)
   }, [dias])
 
-  const guardar = async () => {
-    setSaving(true)
-    const filas = dias.filter(f => asignaciones[f]).map(f => ({ fecha: f, empleado_id: asignaciones[f] }))
-    const sinAsignar = dias.filter(f => !asignaciones[f])
-    if (filas.length) {
-      const { error } = await supabase.from('rh_turnos_guardia').upsert(filas, { onConflict: 'fecha' })
-      if (error) { setSaving(false); return toast.error(error.message) }
-    }
-    if (sinAsignar.length) {
-      const { error } = await supabase.from('rh_turnos_guardia').delete().in('fecha', sinAsignar)
-      if (error) { setSaving(false); return toast.error(error.message) }
-    }
-    setSaving(false)
-    toast.success('Guardia programada')
-    onSaved(); onClose()
+  useEffect(() => { cargar() }, [cargar])
+
+  // Se guarda al momento de elegir, renglón por renglón — el gerente va
+  // llenando la semana y cada cambio queda capturado de una vez.
+  const asignar = async (fecha, empleadoId) => {
+    setAsignaciones(a => ({ ...a, [fecha]: empleadoId }))
+    setGuardandoFecha(fecha)
+    const { error } = empleadoId
+      ? await supabase.from('rh_turnos_guardia').upsert({ fecha, empleado_id: empleadoId }, { onConflict: 'fecha' })
+      : await supabase.from('rh_turnos_guardia').delete().eq('fecha', fecha)
+    setGuardandoFecha(null)
+    if (error) return toast.error(error.message)
   }
 
-  const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+  const cambiarSemana = delta => {
+    const d = new Date(inicio + 'T12:00:00'); d.setDate(d.getDate() + delta * 7)
+    setInicio(d.toISOString().slice(0, 10))
+  }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
-      <div style={{ background:'white', borderRadius:14, width:480, maxWidth:'95vw', maxHeight:'90vh', overflow:'auto', padding:24 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-          <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>Programar guardia de 24h</h3>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={18} /></button>
+    <div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:10 }}>
+        <div>
+          <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>Rol de guardia — turnos de 24h</h3>
+          <p style={{ margin:'4px 0 0', fontSize:12.5, color:'var(--color-text-light)' }}>
+            Quién cubre cada día. Esto lo captura el gerente de la plaza con anticipación; el cruce con IwolPark en Asistencia es solo un apoyo para validar, no reemplaza esto.
+          </p>
         </div>
-        <p style={{ margin:'0 0 14px', fontSize:12, color:'var(--color-text-light)' }}>
-          Quién cubre cada día de guardia — se cruza contra la asistencia real y el respaldo de IwolPark.
-        </p>
-
-        <div style={{ marginBottom:14 }}>
-          <label style={{ fontSize:11, fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Semana a partir de</label>
-          <input type="date" value={inicio} onChange={e => setInicio(e.target.value)}
-            style={{ display:'block', marginTop:4, padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13 }} />
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign:'center', padding:30, color:'#9CA3AF' }}>Cargando…</div>
-        ) : guardias.length === 0 ? (
-          <div style={{ padding:'14px 16px', background:'#FEF3C7', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E' }}>
-            No hay empleados marcados con "Turno cruza medianoche" — actívalo en su expediente (RH → Empleados → Editar → Datos laborales) para que aparezcan aquí.
-          </div>
-        ) : (
-          <div style={{ display:'grid', gap:8 }}>
-            {dias.map(f => {
-              const d = new Date(f + 'T12:00:00')
-              return (
-                <div key={f} style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:10, alignItems:'center' }}>
-                  <div style={{ fontSize:12.5 }}>
-                    <div style={{ fontWeight:600 }}>{DIAS_ES[d.getDay()]}</div>
-                    <div style={{ color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{f}</div>
-                  </div>
-                  <select value={asignaciones[f] || ''} onChange={e => setAsignaciones(a => ({ ...a, [f]: e.target.value }))}
-                    style={{ padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13, background:'white' }}>
-                    <option value="">— Sin asignar —</option>
-                    {guardias.map(g => <option key={g.id} value={g.id}>{g.nombre} {g.apellido_pat}</option>)}
-                  </select>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        <div style={{ display:'flex', gap:10, marginTop:18 }}>
-          <button onClick={onClose} style={{ flex:1, padding:10, border:'1.5px solid #E5E7EB', borderRadius:8, background:'white', cursor:'pointer', fontWeight:600 }}>Cancelar</button>
-          <button onClick={guardar} disabled={saving || loading} style={{ flex:2, padding:10, border:'none', borderRadius:8, background:'#0A66C2', color:'white', cursor:'pointer', fontWeight:700, opacity: saving?0.7:1 }}>
-            {saving ? 'Guardando…' : 'Guardar guardia'}
-          </button>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <button onClick={() => cambiarSemana(-1)} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, background:'white', cursor:'pointer' }}>‹</button>
+          <input type="date" value={inicio} onChange={e => setInicio(lunesDe(e.target.value))}
+            style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13 }} />
+          <button onClick={() => cambiarSemana(1)} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, background:'white', cursor:'pointer' }}>›</button>
         </div>
       </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>Cargando…</div>
+      ) : guardias.length === 0 ? (
+        <div style={{ padding:'14px 16px', background:'#FEF3C7', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E' }}>
+          No hay empleados marcados con "Turno cruza medianoche" — actívalo en su expediente (RH → Empleados → Editar → Datos laborales) para que aparezcan aquí.
+        </div>
+      ) : (
+        <div style={{ background:'white', borderRadius:10, border:'1px solid #E5E7EB', overflow:'hidden' }}>
+          {dias.map((f, i) => {
+            const d = new Date(f + 'T12:00:00')
+            return (
+              <div key={f} style={{ display:'grid', gridTemplateColumns:'160px 1fr 24px', gap:14, alignItems:'center', padding:'12px 16px', borderTop: i>0 ? '1px solid #F3F4F6' : 'none' }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:13.5 }}>{DIAS_ES_GUARDIA[d.getDay()]}</div>
+                  <div style={{ color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{f}</div>
+                </div>
+                <select value={asignaciones[f] || ''} onChange={e => asignar(f, e.target.value)}
+                  style={{ padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13, background:'white', maxWidth:320 }}>
+                  <option value="">— Sin asignar —</option>
+                  {guardias.map(g => <option key={g.id} value={g.id}>{g.nombre} {g.apellido_pat}</option>)}
+                </select>
+                <div style={{ width:16, fontSize:10, color:'#9CA3AF' }}>{guardandoFecha === f && '…'}</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -1716,7 +1706,6 @@ function TabAsistencia() {
   const [fecha, setFecha] = useState(() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })
   const [showImport, setShowImport] = useState(false)
   const [showConsulta, setShowConsulta] = useState(false)
-  const [showGuardia, setShowGuardia] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const { data: asistencia, loading } = usePRP('prp_asistencia', { filters: [['fecha','eq',fecha]], order: { col: 'nombre_completo' }, refreshKey })
   const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
@@ -1789,10 +1778,6 @@ function TabAsistencia() {
           <input type="date" value={fecha} max={hoy} onChange={e => setFecha(e.target.value)}
             style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
         </div>
-        <button onClick={() => setShowGuardia(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', background: 'white', cursor: 'pointer' }}>
-          <UserCheck size={14} /> Programar guardia
-        </button>
         <button onClick={() => setShowConsulta(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', background: 'white', cursor: 'pointer' }}>
           <Search size={14} /> Consultar marcajes
@@ -1879,9 +1864,6 @@ function TabAsistencia() {
       )}
       {showConsulta && (
         <ConsultaChecadas empleados={empleados ?? []} onClose={() => setShowConsulta(false)} />
-      )}
-      {showGuardia && (
-        <ModalProgramarGuardia onClose={() => setShowGuardia(false)} onSaved={() => setRefreshKey(k => k+1)} />
       )}
     </div>
   )
@@ -3146,7 +3128,7 @@ function TabNominaIWOL() {
 // ── Página principal ────────────────────────────────────────────────────────
 export default function RH() {
   useModuleAudit('RH')
-  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Incidencias', 'Nómina', 'Nómina IWOL']
+  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Nómina', 'Nómina IWOL']
   const [tab, setTab] = useState('Empleados')
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -3180,6 +3162,7 @@ export default function RH() {
       {tab === 'Empleados'     && <TabEmpleados onNuevo={() => setShowNuevo(true)} />}
       {tab === 'Reclutamiento' && <TabReclutamiento />}
       {tab === 'Asistencia'    && <TabAsistencia />}
+      {tab === 'Horarios de Guardia' && <TabHorariosGuardia />}
       {tab === 'Incidencias'   && <TabIncidencias />}
       {tab === 'Nómina'        && <TabNomina />}
       {tab === 'Nómina IWOL'   && <TabNominaIWOL />}
