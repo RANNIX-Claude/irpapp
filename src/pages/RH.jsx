@@ -12,7 +12,7 @@ import {
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseParking } from '../lib/supabase'
 import ImportadorDocumento from '../components/ui/ImportadorDocumento'
 import ConsultaChecadas from '../components/ui/ConsultaChecadas'
 import toast from 'react-hot-toast'
@@ -1599,15 +1599,165 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   )
 }
 
+// ── Programar guardia (rol semanal Humberto/Demetrio) ───────────────────────
+// El administrador indica quién cubre cada día de guardia de 24h. Sirve
+// para cruzar contra la asistencia real y contra el respaldo de IwolPark.
+function ModalProgramarGuardia({ onClose, onSaved }) {
+  const hoyD = new Date()
+  const lunes = new Date(hoyD)
+  lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))   // lunes de esta semana
+  const [inicio, setInicio] = useState(lunes.toISOString().slice(0, 10))
+  const [guardias, setGuardias] = useState([])
+  const [asignaciones, setAsignaciones] = useState({})   // fecha -> empleado_id ('' = sin asignar)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const dias = useMemo(() => {
+    const d0 = new Date(inicio + 'T12:00:00')
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(d0); d.setDate(d.getDate() + i)
+      return d.toISOString().slice(0, 10)
+    })
+  }, [inicio])
+
+  useEffect(() => {
+    let cancelado = false
+    setLoading(true)
+    ;(async () => {
+      const [{ data: emps }, { data: turnos }] = await Promise.all([
+        supabase.from('rh_empleados').select('id, nombre, apellido_pat').eq('cruza_medianoche', true).eq('estado_id', 'ACTIVO').order('nombre'),
+        supabase.from('rh_turnos_guardia').select('fecha, empleado_id').gte('fecha', dias[0]).lte('fecha', dias[6]),
+      ])
+      if (cancelado) return
+      setGuardias(emps ?? [])
+      setAsignaciones(Object.fromEntries((turnos ?? []).map(t => [t.fecha, t.empleado_id])))
+      setLoading(false)
+    })()
+    return () => { cancelado = true }
+  }, [dias])
+
+  const guardar = async () => {
+    setSaving(true)
+    const filas = dias.filter(f => asignaciones[f]).map(f => ({ fecha: f, empleado_id: asignaciones[f] }))
+    const sinAsignar = dias.filter(f => !asignaciones[f])
+    if (filas.length) {
+      const { error } = await supabase.from('rh_turnos_guardia').upsert(filas, { onConflict: 'fecha' })
+      if (error) { setSaving(false); return toast.error(error.message) }
+    }
+    if (sinAsignar.length) {
+      const { error } = await supabase.from('rh_turnos_guardia').delete().in('fecha', sinAsignar)
+      if (error) { setSaving(false); return toast.error(error.message) }
+    }
+    setSaving(false)
+    toast.success('Guardia programada')
+    onSaved(); onClose()
+  }
+
+  const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={onClose}>
+      <div style={{ background:'white', borderRadius:14, width:480, maxWidth:'95vw', maxHeight:'90vh', overflow:'auto', padding:24 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+          <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>Programar guardia de 24h</h3>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={18} /></button>
+        </div>
+        <p style={{ margin:'0 0 14px', fontSize:12, color:'var(--color-text-light)' }}>
+          Quién cubre cada día de guardia — se cruza contra la asistencia real y el respaldo de IwolPark.
+        </p>
+
+        <div style={{ marginBottom:14 }}>
+          <label style={{ fontSize:11, fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Semana a partir de</label>
+          <input type="date" value={inicio} onChange={e => setInicio(e.target.value)}
+            style={{ display:'block', marginTop:4, padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13 }} />
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:'center', padding:30, color:'#9CA3AF' }}>Cargando…</div>
+        ) : guardias.length === 0 ? (
+          <div style={{ padding:'14px 16px', background:'#FEF3C7', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E' }}>
+            No hay empleados marcados con "Turno cruza medianoche" — actívalo en su expediente (RH → Empleados → Editar → Datos laborales) para que aparezcan aquí.
+          </div>
+        ) : (
+          <div style={{ display:'grid', gap:8 }}>
+            {dias.map(f => {
+              const d = new Date(f + 'T12:00:00')
+              return (
+                <div key={f} style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:10, alignItems:'center' }}>
+                  <div style={{ fontSize:12.5 }}>
+                    <div style={{ fontWeight:600 }}>{DIAS_ES[d.getDay()]}</div>
+                    <div style={{ color:'#9CA3AF', fontFamily:'monospace', fontSize:11 }}>{f}</div>
+                  </div>
+                  <select value={asignaciones[f] || ''} onChange={e => setAsignaciones(a => ({ ...a, [f]: e.target.value }))}
+                    style={{ padding:'8px 10px', border:'1.5px solid #E5E7EB', borderRadius:7, fontSize:13, background:'white' }}>
+                    <option value="">— Sin asignar —</option>
+                    {guardias.map(g => <option key={g.id} value={g.id}>{g.nombre} {g.apellido_pat}</option>)}
+                  </select>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div style={{ display:'flex', gap:10, marginTop:18 }}>
+          <button onClick={onClose} style={{ flex:1, padding:10, border:'1.5px solid #E5E7EB', borderRadius:8, background:'white', cursor:'pointer', fontWeight:600 }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving || loading} style={{ flex:2, padding:10, border:'none', borderRadius:8, background:'#0A66C2', color:'white', cursor:'pointer', fontWeight:700, opacity: saving?0.7:1 }}>
+            {saving ? 'Guardando…' : 'Guardar guardia'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Tab Asistencia ──────────────────────────────────────────────────────────
 function TabAsistencia() {
   const hoy = new Date().toISOString().split('T')[0]
   const [fecha, setFecha] = useState(() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })
   const [showImport, setShowImport] = useState(false)
   const [showConsulta, setShowConsulta] = useState(false)
+  const [showGuardia, setShowGuardia] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const { data: asistencia, loading } = usePRP('prp_asistencia', { filters: [['fecha','eq',fecha]], order: { col: 'nombre_completo' }, refreshKey })
   const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
+  const { data: guardiaDia } = usePRP('prp_turnos_guardia', { filters: [['fecha','eq',fecha]], refreshKey })
+
+  // Respaldo de IwolPark: quién operó la caseta como cajero ese día, según el
+  // sistema de estacionamiento (proyecto Supabase separado). El reloj
+  // biométrico no siempre marca bien los turnos de 24h, así que esto sirve
+  // para validar si la asistencia real corresponde a quien entró.
+  const [casetaParking, setCasetaParking] = useState({})   // nombre en minúsculas -> { entrada, salida }
+  useEffect(() => {
+    if (!supabaseParking) { setCasetaParking({}); return }
+    let cancelado = false
+    supabaseParking.from('tickets')
+      .select('cajero_entrada, cajero_salida, hora_entrada_at, hora_salida_at')
+      .eq('fecha_op', fecha)
+      .then(({ data }) => {
+        if (cancelado) return
+        const acc = {}
+        for (const t of data ?? []) {
+          if (t.cajero_entrada) {
+            const k = t.cajero_entrada.toLowerCase()
+            acc[k] = acc[k] || {}
+            if (!acc[k].entrada || t.hora_entrada_at < acc[k].entrada) acc[k].entrada = t.hora_entrada_at
+          }
+          if (t.cajero_salida) {
+            const k = t.cajero_salida.toLowerCase()
+            acc[k] = acc[k] || {}
+            if (t.hora_salida_at && (!acc[k].salida || t.hora_salida_at > acc[k].salida)) acc[k].salida = t.hora_salida_at
+          }
+        }
+        setCasetaParking(acc)
+      })
+    return () => { cancelado = true }
+  }, [fecha])
+
+  const horaLocal = iso => iso ? new Date(iso).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', hour12:false }) : null
+  const casetaDe = nombreCompleto => {
+    const primerNombre = (nombreCompleto || '').toLowerCase().split(' ')[0]
+    return casetaParking[primerNombre] || null
+  }
 
   const lista = asistencia ?? []
   const presentes = lista.filter(a => a.estado === 'PRESENTE').length
@@ -1615,7 +1765,21 @@ function TabAsistencia() {
   const faltas    = lista.filter(a => a.estado === 'FALTA').length
   const totalHoras = lista.reduce((s, a) => s + (parseFloat(a.horas_trabajadas)||0), 0)
 
-  const COLORES_ESTADO = { PRESENTE: ['#dcfce7','#166534'], RETARDO: ['#fef3c7','#92400e'], FALTA: ['#fee2e2','#991b1b'], VACACIONES: ['#dbeafe','#1d4ed8'], INCAPACIDAD: ['#F3F4F6','#6B7280'] }
+  const COLORES_ESTADO = { PRESENTE: ['#dcfce7','#166534'], RETARDO: ['#fef3c7','#92400e'], FALTA: ['#fee2e2','#991b1b'], VACACIONES: ['#dbeafe','#1d4ed8'], INCAPACIDAD: ['#F3F4F6','#6B7280'], SIN_MARCAJE: ['#EFF6FF','#1D4ED8'] }
+
+  const guardiaHoy = (guardiaDia ?? [])[0] || null
+  // Si el guardia programado no tiene renglón de asistencia (el reloj no lo
+  // marcó), se agrega uno vacío para que igual se vea junto al respaldo de
+  // IwolPark — si no, desaparecería de la tabla por completo.
+  const listaConGuardia = useMemo(() => {
+    if (!guardiaHoy) return lista
+    const primerNombre = guardiaHoy.nombre_completo.split(' ')[0].toLowerCase()
+    if (lista.some(a => (a.nombre_completo || '').toLowerCase().includes(primerNombre))) return lista
+    return [...lista, {
+      id: `guardia-${guardiaHoy.id}`, nombre_completo: guardiaHoy.nombre_completo, numero_empleado: guardiaHoy.numero_empleado,
+      puesto: 'Guardia (programado)', hora_entrada: null, hora_salida: null, horas_trabajadas: null, minutos_retardo: 0, estado: 'SIN_MARCAJE',
+    }]
+  }, [lista, guardiaHoy])
 
   return (
     <div>
@@ -1625,6 +1789,10 @@ function TabAsistencia() {
           <input type="date" value={fecha} max={hoy} onChange={e => setFecha(e.target.value)}
             style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
         </div>
+        <button onClick={() => setShowGuardia(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', background: 'white', cursor: 'pointer' }}>
+          <UserCheck size={14} /> Programar guardia
+        </button>
         <button onClick={() => setShowConsulta(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', background: 'white', cursor: 'pointer' }}>
           <Search size={14} /> Consultar marcajes
@@ -1634,6 +1802,12 @@ function TabAsistencia() {
           <Upload size={14} /> Importar desde Checador
         </button>
       </div>
+
+      {guardiaHoy && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, padding:'8px 14px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:8, fontSize:12.5, color:'#1D4ED8' }}>
+          <UserCheck size={14} /> Guardia programada para el {fecha}: <strong>{guardiaHoy.nombre_completo}</strong>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
         {[[presentes,'Presentes','#057642',CheckCircle],[retardos,'Retardos','#F59E0B',Clock],[faltas,'Faltas','#B24020',AlertTriangle],[totalHoras.toFixed(1)+'h','Horas Totales','#0A66C2',TrendingUp]].map(([v,t,c,Icon]) => (
@@ -1649,7 +1823,7 @@ function TabAsistencia() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF' }}>Cargando…</div>
-      ) : lista.length === 0 ? (
+      ) : listaConGuardia.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF', background: 'white', borderRadius: 10, border: '1px solid #E5E7EB' }}>
           <Upload size={36} style={{ display:'block',margin:'0 auto 12px',opacity:.3 }} />
           <p style={{ margin:0,fontWeight:600 }}>Sin registros para {fecha}</p>
@@ -1661,14 +1835,15 @@ function TabAsistencia() {
             <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
               <thead>
                 <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
-                  {['Empleado','# Emp','Puesto','Entrada','Salida','Horas','Retardo','Estado'].map(h => (
+                  {['Empleado','# Emp','Puesto','Entrada','Salida','Horas','Retardo','Estado','Caseta (IwolPark)'].map(h => (
                     <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {lista.map(a => {
+                {listaConGuardia.map(a => {
                   const [bg, fg] = COLORES_ESTADO[a.estado] || ['#F3F4F6','#6B7280']
+                  const caseta = casetaDe(a.nombre_completo)
                   return (
                     <tr key={a.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'11px 14px',fontWeight:500 }}>{a.nombre_completo}</td>
@@ -1681,7 +1856,14 @@ function TabAsistencia() {
                         {a.minutos_retardo > 0 ? `+${a.minutos_retardo} min` : '—'}
                       </td>
                       <td style={{ padding:'11px 14px' }}>
-                        <span style={{ padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:700,background:bg,color:fg }}>{a.estado}</span>
+                        <span style={{ padding:'3px 10px',borderRadius:12,fontSize:11,fontWeight:700,background:bg,color:fg }}>{a.estado === 'SIN_MARCAJE' ? 'SIN MARCAJE' : a.estado}</span>
+                      </td>
+                      <td style={{ padding:'11px 14px',fontSize:11.5 }}>
+                        {caseta
+                          ? <span style={{ color:'#166534',fontWeight:600 }} title="Operó la caseta según IwolPark — respaldo, no reemplaza el checador">
+                              {horaLocal(caseta.entrada) || '?'}–{horaLocal(caseta.salida) || '?'}
+                            </span>
+                          : <span style={{ color:'#D1D5DB' }}>—</span>}
                       </td>
                     </tr>
                   )
@@ -1697,6 +1879,9 @@ function TabAsistencia() {
       )}
       {showConsulta && (
         <ConsultaChecadas empleados={empleados ?? []} onClose={() => setShowConsulta(false)} />
+      )}
+      {showGuardia && (
+        <ModalProgramarGuardia onClose={() => setShowGuardia(false)} onSaved={() => setRefreshKey(k => k+1)} />
       )}
     </div>
   )
