@@ -148,6 +148,24 @@ cinco buckets que quedaban abiertos. Es reversible: si algo deja de verse, se vu
 - `migrations/NNN_*.sql` — numeradas, serie histórica del proyecto (hasta `035_fix_avatars_policy.sql`)
 - `supabase/migrations/<timestamp>_*.sql` — carril del CLI de Supabase, el usado para lo reciente
 
+### Esquema `prp` (legado, todavía vivo)
+Además del esquema `public` (donde viven las tablas base y la mayoría de las vistas `prp_*`), la base de datos
+tiene un esquema **`prp`** más antiguo con ~38 tablas base (`prp.arrendatarios`, `prp.contratos_arrendamiento`,
+`prp.empleados`, etc.) de una arquitectura previa del proyecto. **No está muerto**: varias vistas `prp_*` en
+`public` (`prp_cobros`, `prp_kpis`, `prp_mapa_locales`, `prp_expediente_arrendatario`, `prp_conciliacion_cobros`,
+`prp_adendums`, `prp_bitacora`, `prp_estacionamiento`, `prp_fondos_revolventes`, `prp_movimientos_bancarios`,
+`prp_notas_contrato`, `prp_prospectos`, `prp_proveedores`, `prp_cat_estado_general`, `prp_cat_grupo_gasto`,
+`prp_documentos`, `prp_pensiones_estacionamiento`, `prp_cajones_estacionamiento`,
+`prp_fondo_revolvente_cierres`) leen directamente de tablas del esquema `prp`, no de `public`. El archivo
+`reset_database.sql` en la raíz del repo referencia un proyecto de Supabase distinto/antiguo
+(`ywashdlhkbvleigakjus`) y una arquitectura `prp`/`dw` diferente a la actual — **no usarlo** para reconstruir
+esquema; está obsoleto y no coincide con la estructura real de producción.
+
+Para reconstruir el esquema completo desde cero (p. ej. para un ambiente nuevo) usar
+`scripts/dump-schema.mjs` (introspección vía `pg_catalog`, sin depender de `pg_dump`/Docker) — genera
+`supabase/qa-bootstrap/schema.sql` a partir de producción, cubriendo ambos esquemas (`prp` + `public`),
+tablas, constraints, FKs, índices, vistas (ordenadas topológicamente), funciones, triggers y políticas RLS.
+
 ### Asistencia — modelo de eventos
 
 `rh_checadas` guarda **cada marcaje** del biométrico (`operacion` ENTRADA/SALIDA + `fecha_hora`).
@@ -273,13 +291,50 @@ npm run preview    # Vista previa del build
 ## Deploy
 
 - **URL producción**: https://irpapp.netlify.app
+- **URL QA**: https://irpapp-qa.netlify.app
 - **GitHub**: https://github.com/RANNIX-Claude/irpapp
-- **Ramas**: `master` (producción), `develop`, `demo`
+- **Ramas**: `master` (producción), `develop` (QA), `demo`
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
 - **Functions directory**: `netlify/functions`
 - **Node version**: 20
 - **SPA redirect**: `/*` → `/index.html` (200)
+
+---
+
+## Ambiente QA (staging)
+
+Ambiente paralelo completo para pruebas antes de llegar a producción — base de datos, sitio Netlify y rama
+de git independientes, con datos reales replicados (no dummy).
+
+| Componente | Valor |
+|---|---|
+| Proyecto Supabase QA | `wijcjdbmdbxzmwpdxoal` (región distinta a producción — conexión directa `db.wijcjdbmdbxzmwpdxoal.supabase.co:5432`, no pooler) |
+| Sitio Netlify QA | `irpapp-qa` (id `59764536-8357-4a8d-89c9-ee4d752fa159`) — https://irpapp-qa.netlify.app |
+| Rama de git | `develop` |
+| `VITE_AMBIENTE` | `QA` (activa el badge morado "QA" en `Header.jsx`) |
+
+**Estado del vínculo Netlify↔GitHub**: pendiente de vincular manualmente el sitio `irpapp-qa` a la rama
+`develop` desde el dashboard de Netlify (Site configuration → Build & deploy → Continuous deployment) — no
+hay operación de API/MCP para esto.
+
+### Credenciales
+`SUPABASE_DB_PASSWORD` (producción) y `QA_SUPABASE_DB_PASSWORD` (QA) viven únicamente en `.env.local`
+(gitignored), nunca en el repo ni en el chat. Las demás env vars de QA (`VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` — esta última compartida con
+producción a propósito) están configuradas directamente en Netlify.
+
+### Cómo reconstruir QA desde cero
+1. `node scripts/dump-schema.mjs` — introspecciona producción (`prp` + `public`) y escribe
+   `supabase/qa-bootstrap/schema.sql`.
+2. `node scripts/apply-schema-qa.mjs` — aplica ese esquema a la base de datos QA (requiere que esté vacía;
+   si no, primero `DROP SCHEMA public/prp CASCADE; CREATE SCHEMA ...`).
+3. `node scripts/clone-data-to-qa.mjs` — copia los datos reales de producción a QA tabla por tabla
+   (`session_replication_role = replica` para no pelear con FKs durante la carga; reajusta secuencias al
+   final). Pensado para correr sobre un esquema recién aplicado (no trunca antes de insertar).
+
+Estos tres scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
+`pg_catalog`/`information_schema` directamente vía el paquete `pg` de Node.
 
 ---
 
