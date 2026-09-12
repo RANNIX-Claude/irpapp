@@ -91,6 +91,12 @@ const NAV_SECTIONS = [
 // Rol restaurante: solo ve su sección
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
+// Roles con menú acotado a rutas puntuales (no una sección completa): se
+// filtra ítem por ítem y se descartan las secciones que se quedan vacías.
+const RUTAS_POR_ROL = {
+  corporativo: ['/edr', '/contratos', '/resumen-semanal', '/rh', '/reportes'],
+}
+
 export default function Sidebar() {
   const { sidebarOpen, perfil, user } = useApp()
   const location = useLocation()
@@ -98,8 +104,13 @@ export default function Sidebar() {
   // Checa perfil de BD y también metadata del JWT como fallback inmediato
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const esRestaurante = rolId === 'restaurante'
+  const rutasPermitidas = RUTAS_POR_ROL[rolId]
   const sections = esRestaurante
     ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
+    : rutasPermitidas
+    ? NAV_SECTIONS
+        .map(s => ({ ...s, items: s.items.filter(i => rutasPermitidas.includes(i.path)) }))
+        .filter(s => s.items.length > 0)
     : NAV_SECTIONS
 
   return (

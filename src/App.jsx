@@ -100,6 +100,35 @@ function AppLayout() {
     )
   }
 
+  // Rol corporativo → solo Dashboard (EDR), Contratos, Resumen Semanal,
+  // RH/Nómina y Reportes; el resto redirige al dashboard.
+  if (perfil?.rol_id === 'corporativo') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <Header />
+        <Sidebar />
+        <main style={{
+          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginTop: 'var(--header-height)',
+          minHeight: 'calc(100vh - var(--header-height) - 48px)',
+          transition: 'margin-left 0.2s ease',
+        }}>
+          <Routes>
+            <Route path="/edr" element={<EDR />} />
+            <Route path="/contratos" element={<Contratos />} />
+            <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+            <Route path="/resumen-semanal" element={<ResumenSemanal />} />
+            <Route path="/rh" element={<RH />} />
+            <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
+            <Route path="/reportes" element={<Reportes />} />
+            <Route path="*" element={<Navigate to="/edr" replace />} />
+          </Routes>
+        </main>
+        <Toaster position="top-right" />
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
       <Header />
