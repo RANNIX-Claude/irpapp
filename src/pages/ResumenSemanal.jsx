@@ -61,7 +61,9 @@ function labelCorto(ini, fin) {
   return `${dI} — ${dF}`
 }
 
-// Genera la tabla de semanas desde ORIGEN hasta hoy+4 semanas (más reciente primero)
+// Genera la tabla de semanas desde ORIGEN hasta la semana actual (nunca a
+// futuro: no puede existir un corte de una semana que aún no termina), y
+// solo conserva las últimas 10 — más reciente primero.
 function generarTablaSemanas() {
   const ORIGEN_INI = '2026-06-27'   // primer Sábado registrado
   const hoy = new Date()
@@ -71,18 +73,17 @@ function generarTablaSemanas() {
   const sabHoy = new Date(hoy)
   sabHoy.setDate(sabHoy.getDate() - diasHastaSab)
   const sabHoyLocal = `${sabHoy.getFullYear()}-${String(sabHoy.getMonth()+1).padStart(2,'0')}-${String(sabHoy.getDate()).padStart(2,'0')}`
-  const limiteIso = addDays(sabHoyLocal, 4 * 7)
 
   const semanas = []
   let cur = ORIGEN_INI
-  while (cur <= limiteIso) {
+  while (cur <= sabHoyLocal) {
     const fin = addDays(cur, 6)          // Vie = Sáb + 6
     const iniEstac = addDays(cur, -1)    // Vie anterior = Sáb - 1
     semanas.push({ ini: cur, fin, iniEstac, label: labelCorto(cur, fin) })
     cur = addDays(cur, 7)
   }
   semanas.reverse()   // más reciente primero
-  return semanas
+  return semanas.slice(0, 10)
 }
 
 // Sábado de la semana que contiene una fecha dada
