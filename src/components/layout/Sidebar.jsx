@@ -112,9 +112,15 @@ export default function Sidebar() {
   // Checa perfil de BD y también metadata del JWT como fallback inmediato
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const esRestaurante = rolId === 'restaurante'
+  const esLocatario = rolId === 'locatario'
   const menuRol = MENUS_POR_ROL[rolId]
   const sections = esRestaurante
     ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
+    // Locatario: un solo ítem que va a SU contrato (perfil.contrato_id), no a
+    // la ruta genérica /contratos — de ahí que no viva en MENUS_POR_ROL, que
+    // asume rutas fijas.
+    : esLocatario
+    ? [{ label: null, items: [{ label: 'Mi Expediente', path: `/contratos/${perfil?.contrato_id || ''}`, icon: FolderOpen }] }]
     : menuRol
     ? [{ label: null, items: menuRol }]
     : NAV_SECTIONS

@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, FileText, CreditCard, BarChart2, Phone, Mail,
   Calendar, Hash, Upload, ChevronRight, Printer, Shield, AlertTriangle,
-  CheckCircle, Clock, Download, MapPin, Plus,
+  CheckCircle, Clock, Download, MapPin, Plus, X, Save,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, llamarFuncion } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import LogoEditable from '../components/ui/LogoEditable'
 import { IngresoModal } from './Ingresos'
+import { useApp } from '../context/AppContext'
+import toast from 'react-hot-toast'
 
 // ── Paleta RANNIX ────────────────────────────────────────────────────────────
 const C = {
@@ -90,10 +92,129 @@ function Td({ children, mono, bold, small }) {
   return <td style={{ padding: '10px 12px', fontSize: small ? 11 : 13, fontFamily: mono ? 'monospace' : undefined, color: C.text, fontWeight: bold ? 700 : 400, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}>{children}</td>
 }
 
+// ── Modal: el locatario solo sube el comprobante, no reparte el pago ────────
+// A diferencia de IngresoModal (para staff), este NO crea aplicaciones_pago:
+// el ingreso entra "Por validar" y un administrador lo revisa y lo aplica
+// a los cargos correspondientes desde /ingresos.
+function ModalSubirComprobanteLocatario({ cobro, contratoId, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    fecha: hoyISO(),
+    monto: cobro.saldo ?? cobro.monto_total ?? '',
+    origen: 'TRANSFERENCIA BBVA',
+    referencia: '',
+    notas: '',
+  })
+  const [file, setFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const guardar = async () => {
+    if (!form.monto || parseFloat(form.monto) <= 0) return toast.error('Indica el monto pagado')
+    setSaving(true)
+    try {
+      const { data, error } = await supabase.from('ingresos').insert({
+        contrato_id:     contratoId,
+        fecha:           form.fecha || null,
+        tipo:            cobro.referencia_pago || 'RENTA',
+        mes:             cobro.mes,
+        anio:            cobro.anio,
+        importe:         parseFloat(form.monto),
+        origen:          form.origen || null,
+        concepto_origen: form.referencia || null,
+        nota:            form.notas || null,
+        estatus_validacion: 'POR_VALIDAR',
+      }).select('id').single()
+      if (error) throw error
+
+      if (file) {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
+        })
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+        const resp = await llamarFuncion('subir-comprobante', {
+          bucket: 'facturas-cfdi', path: `comprobantes/${data.id}/comp.${ext}`,
+          file_base64: b64, mime_type: file.type || 'image/jpeg', ingreso_id: data.id,
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          toast.error('El pago se registró, pero el comprobante no se pudo subir: ' + (j.error || resp.status))
+        }
+      }
+
+      toast.success('Comprobante enviado — un administrador lo va a validar')
+      onSaved(); onClose()
+    } catch (e) {
+      toast.error(e.message)
+    } finally { setSaving(false) }
+  }
+
+  const inp = { width: '100%', padding: '9px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }
+  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 480, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Subir comprobante de pago</h3>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+              {MESES[cobro.mes]} {cobro.anio} · {fmt$(cobro.saldo ?? cobro.monto_total)}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: '18px 22px', display: 'grid', gap: 14 }}>
+          <div>
+            <label style={lbl}>Comprobante (foto o PDF)</label>
+            <input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files[0])}
+              style={{ ...inp, padding: 8, border: `1.5px dashed ${C.border}`, cursor: 'pointer' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>Fecha del pago</label>
+              <input type="date" value={form.fecha} onChange={e => sf('fecha', e.target.value)} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Monto pagado</label>
+              <input type="number" step="0.01" value={form.monto} onChange={e => sf('monto', e.target.value)} style={inp} />
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Forma de pago</label>
+            <select value={form.origen} onChange={e => sf('origen', e.target.value)} style={{ ...inp, background: 'white' }}>
+              {['TRANSFERENCIA BBVA','DEPOSITO','EFECTIVO','CHEQUE','TARJETA'].map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Referencia / No. de operación</label>
+            <input value={form.referencia} onChange={e => sf('referencia', e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Notas</label>
+            <input value={form.notas} onChange={e => sf('notas', e.target.value)} style={inp} />
+          </div>
+        </div>
+
+        <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 10, border: `1.5px solid ${C.border}`, borderRadius: 8, background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Cancelar</button>
+          <button onClick={guardar} disabled={saving}
+            style={{ flex: 2, padding: 10, border: 'none', borderRadius: 8, background: C.success, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 14, opacity: saving ? .7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Save size={15} /> {saving ? 'Enviando…' : 'Enviar comprobante'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Página ───────────────────────────────────────────────────────────────────
 export default function ExpedienteContrato() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { perfil, user } = useApp()
+  const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
+  const esLocatario = rolId === 'locatario'
   const [exp, setExp] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('resumen')
@@ -177,6 +298,15 @@ export default function ExpedienteContrato() {
     </div>
   )
 
+  // Un locatario solo puede ver SU contrato. App.jsx ya lo manda para acá,
+  // pero la ruta acepta cualquier :id — sin este guard, con solo editar la
+  // URL vería el expediente de otro arrendatario.
+  if (esLocatario && perfil?.contrato_id !== id) return (
+    <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>
+      No tienes acceso a este expediente.
+    </div>
+  )
+
   const vigente = exp.contrato_estatus === 'VIGENTE'
   const enMora = c => c.estatus !== 'PAGADO' && !!c.fecha_limite_pago && c.fecha_limite_pago < hoyISO()
   const pendientes = cobros.filter(c => c.estatus !== 'PAGADO')
@@ -192,10 +322,14 @@ export default function ExpedienteContrato() {
 
       {/* Barra superior */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 10, position: 'sticky', top: 0, zIndex: 100 }}>
-        <button onClick={() => navigate('/contratos')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', cursor: 'pointer', color: C.muted, fontSize: 13 }}>
-          <ArrowLeft size={13} /> Contratos
-        </button>
-        <ChevronRight size={13} color={C.muted} />
+        {!esLocatario && (
+          <>
+            <button onClick={() => navigate('/contratos')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', cursor: 'pointer', color: C.muted, fontSize: 13 }}>
+              <ArrowLeft size={13} /> Contratos
+            </button>
+            <ChevronRight size={13} color={C.muted} />
+          </>
+        )}
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{exp.nombre_completo}</span>
         <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{exp.folio || exp.numero_local}</span>
         <div style={{ flex: 1 }} />
@@ -469,12 +603,21 @@ export default function ExpedienteContrato() {
       </div>
 
       {modalCobro && (
-        <IngresoModal
-          contratoFijo={exp.contrato_id}
-          cargoObjetivo={modalCobro}
-          onClose={() => setModalCobro(null)}
-          onSaved={reload}
-        />
+        esLocatario ? (
+          <ModalSubirComprobanteLocatario
+            cobro={modalCobro}
+            contratoId={exp.contrato_id}
+            onClose={() => setModalCobro(null)}
+            onSaved={reload}
+          />
+        ) : (
+          <IngresoModal
+            contratoFijo={exp.contrato_id}
+            cargoObjetivo={modalCobro}
+            onClose={() => setModalCobro(null)}
+            onSaved={reload}
+          />
+        )
       )}
     </div>
   )

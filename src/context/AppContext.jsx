@@ -5,7 +5,7 @@ const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [user, setUser]         = useState(null)
-  const [perfil, setPerfil]     = useState(null)   // { rol_id, nombre, apellido }
+  const [perfil, setPerfil]     = useState(null)   // { rol_id, nombre, apellido, contrato_id }
   const [loading, setLoading]   = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -14,7 +14,7 @@ export function AppProvider({ children }) {
   const cargarPerfil = async (userId, userMeta) => {
     const { data, error } = await supabase
       .from('irp_usuarios')
-      .select('rol_id, nombre, apellido, activo')
+      .select('rol_id, nombre, apellido, activo, contrato_id')
       .eq('id', userId)
       .single()
 

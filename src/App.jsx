@@ -129,6 +129,39 @@ function AppLayout() {
     )
   }
 
+  // Rol locatario → solo el expediente de SU propio contrato. Si su perfil no
+  // trae contrato_id (falta vincularlo en irp_usuarios), no hay a dónde
+  // mandarlo: se avisa en vez de redirigir a una ruta vacía.
+  if (perfil?.rol_id === 'locatario') {
+    if (!perfil.contrato_id) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-text-light)', fontSize: 14 }}>
+            Tu cuenta todavía no está vinculada a ningún contrato.<br />Pide a un administrador que la vincule.
+          </p>
+        </div>
+      )
+    }
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <Header />
+        <Sidebar />
+        <main style={{
+          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginTop: 'var(--header-height)',
+          minHeight: 'calc(100vh - var(--header-height) - 48px)',
+          transition: 'margin-left 0.2s ease',
+        }}>
+          <Routes>
+            <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+            <Route path="*" element={<Navigate to={`/contratos/${perfil.contrato_id}`} replace />} />
+          </Routes>
+        </main>
+        <Toaster position="top-right" />
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
       <Header />
