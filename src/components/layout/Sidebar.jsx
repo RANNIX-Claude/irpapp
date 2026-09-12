@@ -91,6 +91,13 @@ const NAV_SECTIONS = [
 // Rol restaurante: solo ve su sección
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
+// Vista general (staff sin rol acotado): estos ya no se ofrecen desde aquí.
+// No se quitan de NAV_SECTIONS porque el rol restaurante sigue filtrando por
+// esa sección (SECTIONS_RESTAURANTE) — si se borrara de ahí, ese rol se
+// quedaría sin menú.
+const SECCIONES_OCULTAS_ADMIN = ['RESTAURANTE', 'ARRENDATARIO']
+const RUTAS_OCULTAS_ADMIN = ['/estacionamiento']
+
 // Roles con un menú propio y acotado: se define aparte (no filtrando
 // NAV_SECTIONS por ruta) porque necesitan etiquetas y orden distintos, y
 // porque filtrar por ruta duplicaba "Contratos" — comparte path con
@@ -124,6 +131,8 @@ export default function Sidebar() {
     : menuRol
     ? [{ label: null, items: menuRol }]
     : NAV_SECTIONS
+        .filter(s => !SECCIONES_OCULTAS_ADMIN.includes(s.label))
+        .map(s => ({ ...s, items: s.items.filter(i => !RUTAS_OCULTAS_ADMIN.includes(i.path)) }))
 
   return (
     <aside style={{
