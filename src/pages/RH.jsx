@@ -287,6 +287,7 @@ const CAMPOS_EMPLEADO = [
   'fecha_nacimiento','estado_civil','nacionalidad','lugar_nacimiento','escolaridad',
   'fecha_ingreso','puesto','area','departamento','centro_trabajo','supervisor',
   'tipo_jornada','tipo_contratacion',
+  'hora_entrada_prog','hora_salida_prog','cruza_medianoche',
   'salario_diario','forma_pago','bono','forma_pago_bono','banco','cuenta_clabe',
   'email','celular','telefono_fijo',
   'calle','numero_ext','numero_int','colonia','municipio','estado_domicilio',
@@ -327,6 +328,10 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
         ),
         sexo:       fila.sexo       || 'M',
         forma_pago: fila.forma_pago || 'TRANSFERENCIA',
+        // Postgres regresa TIME como "07:00:00"; el input type="time" quiere "07:00".
+        hora_entrada_prog: fila.hora_entrada_prog ? String(fila.hora_entrada_prog).slice(0, 5) : '',
+        hora_salida_prog:  fila.hora_salida_prog  ? String(fila.hora_salida_prog).slice(0, 5)  : '',
+        cruza_medianoche:  fila.cruza_medianoche ? 'true' : 'false',
       })
       setCargando(false)
     })()
@@ -350,6 +355,11 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
     payload.forma_pago     = form.forma_pago || 'TRANSFERENCIA'
     payload.sexo           = form.sexo
     payload.cuenta_clabe   = form.cuenta_clabe ? form.cuenta_clabe.replace(/\s/g, '') : null
+    // Booleano real: el mapeo genérico de arriba lo dejaría como el string
+    // "false" (truthy), que se guardaría como si estuviera marcado.
+    payload.cruza_medianoche  = form.cruza_medianoche === 'true'
+    payload.hora_entrada_prog = form.hora_entrada_prog || null
+    payload.hora_salida_prog  = form.hora_salida_prog || null
 
     const { error } = await supabase
       .from('rh_empleados')
@@ -459,6 +469,21 @@ function EditarEmpleadoModal({ emp, onClose, onSaved }) {
               <option key="" value="">— Seleccionar —</option>,
               ...DIAS_DESCANSO.map(d => <option key={d} value={d}>{d}</option>),
             ])}
+          </F>
+          <F label="Hora entrada programada">
+            <input type="time" value={form.hora_entrada_prog} onChange={e => set('hora_entrada_prog', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="Hora salida programada">
+            <input type="time" value={form.hora_salida_prog} onChange={e => set('hora_salida_prog', e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />
+          </F>
+          <F label="Turno cruza medianoche">
+            <label style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 0',fontSize:13,cursor:'pointer' }}>
+              <input type="checkbox" checked={form.cruza_medianoche === 'true'}
+                onChange={e => set('cruza_medianoche', e.target.checked ? 'true' : 'false')} />
+              Sale al día siguiente (ej. turno de 24h)
+            </label>
           </F>
 
           {/* ── Compensación y pago ── */}
@@ -1315,13 +1340,15 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
       eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion })
     })
 
-    // Los marcajes crudos no traen estatus: se agrupan por empleado+día, se
-    // ordenan por hora y se alternan ENTRADA/SALIDA (1er marcaje del día =
-    // entrada, 2º = salida, 3º = entrada de nuevo si hubo salida a comer...).
-    const porDia = {}
-    sinEstatus.forEach(ev => { (porDia[`${ev.numero}_${ev.fecha}`] ||= []).push(ev) })
-    Object.values(porDia).forEach(grupo => {
-      grupo.sort((a, b) => a.hora.localeCompare(b.hora))
+    // Los marcajes crudos no traen estatus: se alternan ENTRADA/SALIDA por
+    // EMPLEADO (cronológico completo, cruzando días), no por empleado+día.
+    // Agrupar por día rompía los turnos de 24h que ponchan una sola vez
+    // (entra 7:00 un día, sale 7:00 al siguiente): cada marcaje quedaba
+    // como "el primero de su día" y todos salían ENTRADA, nunca SALIDA.
+    const porEmpleado = {}
+    sinEstatus.forEach(ev => { (porEmpleado[ev.numero] ||= []).push(ev) })
+    Object.values(porEmpleado).forEach(grupo => {
+      grupo.sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
       grupo.forEach((ev, i) => eventos.push({ ...ev, operacion: i % 2 === 0 ? 'ENTRADA' : 'SALIDA' }))
     })
 
