@@ -1253,11 +1253,17 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   const esHora = v => /^\d{1,2}:\d{2}/.test((v || '').trim())
   const hhmm   = v => { const [h, m] = v.trim().split(':'); return `${h.padStart(2,'0')}:${m.slice(0,2)}` }
 
-  // Reloj checador crudo: "ID Nombre Depto AAAA-MM-DD HH:MM:SS IDdispositivo",
-  // separado solo por espacios (Depto puede traer más de una palabra, ej.
-  // "Not Set1") y sin columna de estatus — no dice si el marcaje fue entrada
-  // o salida, así que se infiere después alternando por orden cronológico.
-  const RE_MARCAJE_CRUDO = /^(\d+)\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})\s+\d+\s*$/
+  // Reloj checador crudo (ej. "ID. Nombre Depart. Tiempo IDdispositivo"):
+  // fecha y hora vienen JUNTAS en una sola columna separadas por varios
+  // espacios, y el orden de columnas no es el mismo que ZKTeco/BioTime
+  // (aquí "Depart." va antes que la fecha, no después). Sin columna de
+  // estatus, así que se infiere después alternando por orden cronológico.
+  // Se busca la columna con esta forma sin importar en qué posición caiga,
+  // en vez de asumir un orden fijo de columnas.
+  const RE_FECHA_HORA_JUNTAS = /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})$/
+  // Variante sin ningún separador de columna real (todo quedó como una sola
+  // cadena, p.ej. al pegar texto que perdió los tabs).
+  const RE_MARCAJE_SIN_COLUMNAS = /^(\d+)\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})\s+\d+\s*$/
 
   const parsear = (texto) => {
     const lineas = texto.trim().split('\n').filter(l => l.trim())
@@ -1266,8 +1272,21 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
 
     lineas.forEach(linea => {
       const cols = linea.split(/[,\t;]/).map(c => c.trim().replace(/"/g, ''))
+
+      // Reloj: alguna columna trae "AAAA-MM-DD  HH:MM:SS" junta (sin importar
+      // qué haya en las demás columnas ni en qué orden vengan).
+      if (cols.length >= 2) {
+        const idxFechaHora = cols.findIndex(c => RE_FECHA_HORA_JUNTAS.test(c))
+        if (idxFechaHora >= 0 && !isNaN(parseInt(cols[0]))) {
+          const [, fecha, hora] = cols[idxFechaHora].match(RE_FECHA_HORA_JUNTAS)
+          const nombre = (cols[1] || '').trim().split(/\s+/)[0]
+          if (nombre) sinEstatus.push({ numero: cols[0].trim(), nombre, fecha, hora: hhmm(hora) })
+          return
+        }
+      }
+
       if (cols.length < 4) {
-        const m = linea.trim().match(RE_MARCAJE_CRUDO)
+        const m = linea.trim().match(RE_MARCAJE_SIN_COLUMNAS)
         if (m) {
           const [, numero, nombreDepto, fecha, hora] = m
           sinEstatus.push({ numero, nombre: nombreDepto.trim().split(/\s+/)[0], fecha, hora: hhmm(hora) })
