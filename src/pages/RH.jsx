@@ -7,7 +7,7 @@ import {
   UserPlus, Link, Calendar, Phone, Mail, ArrowRight, RefreshCw,
   Upload, Filter, MoreVertical, ChevronDown, Edit2, Save,
   DollarSign, Send, Eye, ChevronUp, Printer, AlertCircle,
-  LayoutGrid, LayoutList, MapPin, Award
+  LayoutGrid, LayoutList, MapPin, Award, Trash2
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
@@ -1253,13 +1253,27 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   const esHora = v => /^\d{1,2}:\d{2}/.test((v || '').trim())
   const hhmm   = v => { const [h, m] = v.trim().split(':'); return `${h.padStart(2,'0')}:${m.slice(0,2)}` }
 
+  // Reloj checador crudo: "ID Nombre Depto AAAA-MM-DD HH:MM:SS IDdispositivo",
+  // separado solo por espacios (Depto puede traer más de una palabra, ej.
+  // "Not Set1") y sin columna de estatus — no dice si el marcaje fue entrada
+  // o salida, así que se infiere después alternando por orden cronológico.
+  const RE_MARCAJE_CRUDO = /^(\d+)\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})\s+\d+\s*$/
+
   const parsear = (texto) => {
     const lineas = texto.trim().split('\n').filter(l => l.trim())
     const eventos = []
+    const sinEstatus = []
 
     lineas.forEach(linea => {
       const cols = linea.split(/[,\t;]/).map(c => c.trim().replace(/"/g, ''))
-      if (cols.length < 4) return
+      if (cols.length < 4) {
+        const m = linea.trim().match(RE_MARCAJE_CRUDO)
+        if (m) {
+          const [, numero, nombreDepto, fecha, hora] = m
+          sinEstatus.push({ numero, nombre: nombreDepto.trim().split(/\s+/)[0], fecha, hora: hhmm(hora) })
+        }
+        return
+      }
       const [col0, col1, col2, col3, col4] = cols
 
       // Encabezado
@@ -1280,6 +1294,16 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
       const st = (col4 || '').trim().toLowerCase()
       const operacion = ['1','out','salida','check out','o','s'].includes(st) ? 'SALIDA' : 'ENTRADA'
       eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion })
+    })
+
+    // Los marcajes crudos no traen estatus: se agrupan por empleado+día, se
+    // ordenan por hora y se alternan ENTRADA/SALIDA (1er marcaje del día =
+    // entrada, 2º = salida, 3º = entrada de nuevo si hubo salida a comer...).
+    const porDia = {}
+    sinEstatus.forEach(ev => { (porDia[`${ev.numero}_${ev.fecha}`] ||= []).push(ev) })
+    Object.values(porDia).forEach(grupo => {
+      grupo.sort((a, b) => a.hora.localeCompare(b.hora))
+      grupo.forEach((ev, i) => eventos.push({ ...ev, operacion: i % 2 === 0 ? 'ENTRADA' : 'SALIDA' }))
     })
 
     return eventos.map(ev => {
@@ -1377,6 +1401,25 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
     onClose()
   }
 
+  // Reimportar un archivo corregido del checador no sirve de nada si los
+  // marcajes viejos (mal leídos, duplicados por un archivo repetido) se
+  // quedan mezclados con los nuevos. Esto limpia los últimos 7 días para
+  // volver a cargar limpio.
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+  const desdeUltimaSemana = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const eliminarUltimaSemana = async () => {
+    setBorrando(true)
+    const { error, count } = await supabase.from('rh_checadas')
+      .delete({ count: 'exact' }).gte('fecha_hora', desdeUltimaSemana)
+    setBorrando(false)
+    setConfirmarBorrado(false)
+    if (error) return toast.error(error.message)
+    toast.success(`${count ?? 0} marcaje(s) eliminados desde el ${desdeUltimaSemana}`)
+    onImported()
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: 14, width: 720, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
@@ -1393,8 +1436,34 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
           <strong>Formatos aceptados:</strong><br />
           <code style={{ fontSize:11, display:'block', marginTop:4, color:'#374151' }}>
             No.,Nombre,Fecha,Hora,Status — (Status: 0=Entrada, 1=Salida)<br />
-            EmpCode,Nombre,Fecha,HoraEntrada,HoraSalida — (formato de 2 columnas horario)
+            EmpCode,Nombre,Fecha,HoraEntrada,HoraSalida — (formato de 2 columnas horario)<br />
+            ID Nombre Depto AAAA-MM-DD HH:MM:SS IDdispositivo — (reloj, sin comas; entrada/salida se infiere por orden)
           </code>
+        </div>
+
+        {/* Limpiar antes de reimportar un archivo corregido */}
+        <div style={{ marginBottom: 14 }}>
+          {!confirmarBorrado ? (
+            <button onClick={() => setConfirmarBorrado(true)}
+              style={{ display:'flex',alignItems:'center',gap:6,padding:'7px 12px',border:'1px solid #FECACA',borderRadius:8,fontSize:12,fontWeight:600,color:'#B91C1C',background:'#FFF5F5',cursor:'pointer' }}>
+              <Trash2 size={13} /> Eliminar marcajes de la última semana
+            </button>
+          ) : (
+            <div style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:8 }}>
+              <AlertCircle size={15} color="#B91C1C" style={{ flexShrink:0 }} />
+              <span style={{ fontSize:12, color:'#991B1B', flex:1 }}>
+                Borra todos los marcajes desde el {desdeUltimaSemana}, de cualquier empleado. No se puede deshacer.
+              </span>
+              <button onClick={() => setConfirmarBorrado(false)} disabled={borrando}
+                style={{ padding:'6px 12px',background:'white',border:'1px solid #FECACA',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer',color:'#6B7280' }}>
+                Cancelar
+              </button>
+              <button onClick={eliminarUltimaSemana} disabled={borrando}
+                style={{ padding:'6px 12px',background:'#B91C1C',border:'none',borderRadius:6,fontSize:12,fontWeight:700,cursor:'pointer',color:'white',opacity:borrando?0.7:1 }}>
+                {borrando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
