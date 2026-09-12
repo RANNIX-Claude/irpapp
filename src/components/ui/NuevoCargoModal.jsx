@@ -26,12 +26,12 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280',
  * formulario permite registrarlo a mano. El cargo entra como PENDIENTE y desde
  * ahí sigue el flujo normal de aplicación de pagos.
  */
-export default function NuevoCargoModal({ onClose, onSaved }) {
+export default function NuevoCargoModal({ onClose, onSaved, contratoFijo = null }) {
   const hoy = new Date()
   const [contratos, setContratos] = useState([])
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    contrato_id: '',
+    contrato_id: contratoFijo?.id || '',
     concepto: 'RENTA',
     periodo_mes: hoy.getMonth() + 1,
     periodo_anio: hoy.getFullYear(),
@@ -40,14 +40,15 @@ export default function NuevoCargoModal({ onClose, onSaved }) {
     descripcion: '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const contrato = contratos.find(c => c.id === form.contrato_id)
+  const contrato = contratoFijo || contratos.find(c => c.id === form.contrato_id)
 
   useEffect(() => {
+    if (contratoFijo) return  // ya sabemos el contrato, no hace falta el catálogo completo
     supabase.from('prp_contratos')
       .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago')
       .order('locales_display', { ascending: true, nullsFirst: false })
       .then(({ data }) => setContratos(data ?? []))
-  }, [])
+  }, [contratoFijo])
 
   // Al elegir contrato o cambiar el período, se proponen importe y vencimiento:
   // la renta del contrato y su día de pago. Ambos siguen siendo editables.
@@ -111,15 +112,21 @@ export default function NuevoCargoModal({ onClose, onSaved }) {
         <div style={{ padding: '18px 22px', display: 'grid', gap: 14 }}>
           <div>
             <label style={lbl}>Contrato *</label>
-            <select value={form.contrato_id} onChange={e => set('contrato_id', e.target.value)}
-              style={{ ...inp, background: 'white' }}>
-              <option value="">— Seleccionar —</option>
-              {contratos.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.locales_display ? `${c.locales_display} · ` : ''}{c.arrendatario_nombre}
-                </option>
-              ))}
-            </select>
+            {contratoFijo ? (
+              <div style={{ ...inp, background: '#F9FAFB', color: '#374151', display: 'flex', alignItems: 'center' }}>
+                {contratoFijo.locales_display ? `${contratoFijo.locales_display} · ` : ''}{contratoFijo.arrendatario_nombre}
+              </div>
+            ) : (
+              <select value={form.contrato_id} onChange={e => set('contrato_id', e.target.value)}
+                style={{ ...inp, background: 'white' }}>
+                <option value="">— Seleccionar —</option>
+                {contratos.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.locales_display ? `${c.locales_display} · ` : ''}{c.arrendatario_nombre}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>

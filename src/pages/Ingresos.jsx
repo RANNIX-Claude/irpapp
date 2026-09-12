@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
@@ -18,6 +18,7 @@ import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
+import NuevoCargoModal from '../components/ui/NuevoCargoModal'
 
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280', MIXTO: '#7C3AED' }
@@ -229,6 +230,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
   const [cargos, setCargos] = useState([])
   const [dist, setDist] = useState({})
   const [loadingCargos, setLoadingCargos] = useState(false)
+  const [modalNuevoCargo, setModalNuevoCargo] = useState(false)
   const [contratoSearch, setContratoSearch] = useState('')
   const [contratoOpen, setContratoOpen] = useState(false)
   const [compFile, setCompFile] = useState(null)
@@ -258,7 +260,7 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
 
   useEffect(() => {
     supabase.from('prp_contratos')
-      .select('id, folio, arrendatario_nombre, locales_display')
+      .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago')
       .order('locales_display', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         // Ordenar: primero los que tienen local, luego el resto por nombre
@@ -271,55 +273,57 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
       })
   }, [])
 
-  // Al cambiar contrato: cargos pendientes + lo que este ingreso ya tenía aplicado.
-  useEffect(() => {
+  // Cargos pendientes del contrato + lo que este ingreso ya tenía aplicado.
+  // Se extrae de un efecto a una función aparte para poder volver a llamarla
+  // cuando se agrega un cobro nuevo (botón "+ Agregar cobro"), sin depender
+  // de un cambio de contrato para refrescar la lista.
+  const cargarCargos = useCallback(async () => {
     if (!form.contrato_id) { setCargos([]); setDist({}); setAplicacionesPrevias([]); return }
-    let cancelado = false
     setLoadingCargos(true)
 
-    ;(async () => {
-      // 1. Distribución ya guardada de este ingreso.
-      let previas = []
-      if (ingreso?.id) {
-        const { data, error } = await supabase.from('aplicaciones_pago')
-          .select('cargo_id, importe_aplicado').eq('ingreso_id', ingreso.id)
-        if (error) toast.error('No se pudo leer la distribución guardada: ' + error.message)
-        previas = data ?? []
-      }
-      const previoDe = Object.fromEntries(previas.map(a => [a.cargo_id, String(a.importe_aplicado)]))
+    // 1. Distribución ya guardada de este ingreso.
+    let previas = []
+    if (ingreso?.id) {
+      const { data, error } = await supabase.from('aplicaciones_pago')
+        .select('cargo_id, importe_aplicado').eq('ingreso_id', ingreso.id)
+      if (error) toast.error('No se pudo leer la distribución guardada: ' + error.message)
+      previas = data ?? []
+    }
+    const previoDe = Object.fromEntries(previas.map(a => [a.cargo_id, String(a.importe_aplicado)]))
 
-      // 2. Cargos que siguen debiendo algo.
-      const { data: pendientes, error: errCargos } = await supabase.from('prp_cartera')
+    // 2. Cargos que siguen debiendo algo.
+    const { data: pendientes, error: errCargos } = await supabase.from('prp_cartera')
+      .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
+      .eq('contrato_id', form.contrato_id)
+      .in('estado', ['PENDIENTE', 'PARCIAL'])
+    if (errCargos) toast.error('No se pudieron leer los cargos: ' + errCargos.message)
+    let lista = pendientes ?? []
+
+    // 3. Un cargo que este mismo ingreso dejó en PAGADO ya no sale como
+    //    pendiente. Hay que traerlo igual o al guardar desaparecería su
+    //    aplicación sin que el usuario lo pidiera.
+    const faltantes = previas.map(a => a.cargo_id).filter(id => !lista.some(c => c.id === id))
+    if (faltantes.length) {
+      const { data: extra } = await supabase.from('prp_cartera')
         .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
-        .eq('contrato_id', form.contrato_id)
-        .in('estado', ['PENDIENTE', 'PARCIAL'])
-      if (errCargos) toast.error('No se pudieron leer los cargos: ' + errCargos.message)
-      let lista = pendientes ?? []
+        .in('id', faltantes)
+      lista = [...lista, ...(extra ?? [])]
+    }
 
-      // 3. Un cargo que este mismo ingreso dejó en PAGADO ya no sale como
-      //    pendiente. Hay que traerlo igual o al guardar desaparecería su
-      //    aplicación sin que el usuario lo pidiera.
-      const faltantes = previas.map(a => a.cargo_id).filter(id => !lista.some(c => c.id === id))
-      if (faltantes.length) {
-        const { data: extra } = await supabase.from('prp_cartera')
-          .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, estado')
-          .in('id', faltantes)
-        lista = [...lista, ...(extra ?? [])]
-      }
+    lista.sort((a, b) =>
+      (a.periodo_anio - b.periodo_anio) || (a.periodo_mes - b.periodo_mes)
+      || (a.concepto || '').localeCompare(b.concepto || ''))
 
-      lista.sort((a, b) =>
-        (a.periodo_anio - b.periodo_anio) || (a.periodo_mes - b.periodo_mes)
-        || (a.concepto || '').localeCompare(b.concepto || ''))
-
-      if (cancelado) return
-      setAplicacionesPrevias(previas)
-      setCargos(lista)
-      setDist(Object.fromEntries(lista.map(c => [c.id, previoDe[c.id] ?? ''])))
-      setLoadingCargos(false)
-    })()
-
-    return () => { cancelado = true }
+    setAplicacionesPrevias(previas)
+    setCargos(lista)
+    // Conserva lo que el usuario ya venía tecleando en la distribución (por si
+    // este refresco lo dispara un cobro nuevo agregado a medio llenado), y solo
+    // para cargos que no tenía tocados cae al valor guardado o vacío.
+    setDist(prevDist => Object.fromEntries(lista.map(c => [c.id, prevDist[c.id] ?? previoDe[c.id] ?? ''])))
+    setLoadingCargos(false)
   }, [form.contrato_id, ingreso?.id])
+
+  useEffect(() => { cargarCargos() }, [cargarCargos])
 
   const [leyendoOCR, setLeyendoOCR] = useState(false)
   const [ocrData, setOcrData] = useState(null)
@@ -700,15 +704,22 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
             {/* ─── Distribución del pago ─── */}
             {form.contrato_id && (
               <div style={{ gridColumn:'1/-1', marginTop:'4px' }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px', gap:'8px' }}>
                   <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>
                     Distribución del pago (cargos pendientes)
                   </label>
-                  {importeTotal > 0 && (
-                    <span style={{ fontSize:'12px', fontWeight:600, color: excede ? 'var(--color-danger)' : saldoLibre > 0.01 ? '#D97706' : 'var(--color-success)' }}>
-                      {excede ? `Se pasa por ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
-                    </span>
-                  )}
+                  <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                    {importeTotal > 0 && (
+                      <span style={{ fontSize:'12px', fontWeight:600, color: excede ? 'var(--color-danger)' : saldoLibre > 0.01 ? '#D97706' : 'var(--color-success)' }}>
+                        {excede ? `Se pasa por ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
+                      </span>
+                    )}
+                    <button type="button" onClick={() => setModalNuevoCargo(true)}
+                      title="Agregar un cargo que falte en la lista (p. ej. una sanción) para poder aplicarle este pago"
+                      style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', border:'1px solid var(--color-primary)', borderRadius:'6px', background:'white', color:'var(--color-primary)', fontSize:'11px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+                      <Plus size={13} /> Agregar cobro
+                    </button>
+                  </div>
                 </div>
 
                 {loadingCargos ? (
@@ -797,6 +808,19 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
           </button>
         </div>
       </div>
+
+      {modalNuevoCargo && (
+        // Aislado del onClick={onClose} del backdrop de este modal: sin esto,
+        // un click en el fondo de "Agregar cobro" burbujea y también cerraría
+        // "Editar Ingreso" por estar anidado dentro de su mismo div.
+        <div onClick={e => e.stopPropagation()}>
+          <NuevoCargoModal
+            contratoFijo={contratos.find(c => c.id === form.contrato_id) || null}
+            onClose={() => setModalNuevoCargo(false)}
+            onSaved={cargarCargos}
+          />
+        </div>
+      )}
     </div>
   )
 }
