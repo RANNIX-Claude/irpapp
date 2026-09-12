@@ -1,5 +1,5 @@
 import { useModuleAudit } from '../hooks/useAudit'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart2, DollarSign, Users, FileText, Download, Printer } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import { usePRP } from '../hooks/usePRP'
@@ -7,9 +7,6 @@ import { usePRP } from '../hooks/usePRP'
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-const COBRANZA_MENSUAL = [185000, 192000, 178000, 205000, 198000, 215000, 0, 0, 0, 0, 0, 0]
-const OCUPACION_MENSUAL = [82, 85, 83, 88, 87, 90, 0, 0, 0, 0, 0, 0]
-const maxCobranza = Math.max(...COBRANZA_MENSUAL.filter(v => v > 0))
 
 const REPORTES_CAT = [
   {
@@ -87,8 +84,66 @@ export default function Reportes() {
   const [tab, setTab] = useState('dashboard')
   const [year, setYear] = useState('2026')
 
-  const { data: cobros } = usePRP('prp_cobros', { filters: [['estatus', 'eq', 'PAGADO']] })
-  const ingresosReal = (cobros || []).reduce((a, b) => a + (parseFloat(b.monto_pagado) || 0), 0)
+  // Todo el Dashboard Ejecutivo sale de estas tres vistas — nada de números
+  // fijos: si no hay datos para el año elegido, los paneles simplemente
+  // muestran cero/vacío en vez de una cifra inventada.
+  const { data: ingresosData }  = usePRP('prp_ingresos')
+  const { data: contratosData } = usePRP('prp_contratos')
+  const { data: inmueblesData } = usePRP('prp_inmuebles')
+
+  const ingresos   = ingresosData ?? []
+  const contratos  = contratosData ?? []
+  const inmuebles  = inmueblesData ?? []
+
+  const ingresosDelAnio = useMemo(
+    () => ingresos.filter(i => String(i.anio) === year),
+    [ingresos, year]
+  )
+
+  const ingresosAcumulados = useMemo(
+    () => ingresosDelAnio.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0),
+    [ingresosDelAnio]
+  )
+
+  const cobranzaMensual = useMemo(() => {
+    const porMes = Array(12).fill(0)
+    for (const i of ingresosDelAnio) {
+      const m = parseInt(i.mes)
+      if (m >= 1 && m <= 12) porMes[m - 1] += parseFloat(i.importe) || 0
+    }
+    return porMes
+  }, [ingresosDelAnio])
+  const maxCobranza = Math.max(1, ...cobranzaMensual)
+
+  const totalUnidades = inmuebles.reduce((a, b) => a + (parseInt(b.unidades_total) || 0), 0)
+  const totalOcupadas = inmuebles.reduce((a, b) => a + (parseInt(b.unidades_ocupadas) || 0), 0)
+  const ocupacionPromedio = totalUnidades > 0 ? Math.round((totalOcupadas / totalUnidades) * 100) : 0
+
+  const arrendatariosActivos = useMemo(
+    () => new Set(contratos.filter(c => c.estatus === 'VIGENTE').map(c => c.arrendatario_id)).size,
+    [contratos]
+  )
+
+  // No hay tabla de CFDI/timbrado conectada a este modelo todavía (la que
+  // existe vive en un esquema `prp` legacy sin relación a estos contratos):
+  // el proxy real disponible es el número de ingresos del año con folio de
+  // factura capturado.
+  const facturasDelAnio = useMemo(
+    () => ingresosDelAnio.filter(i => (i.factura || '').trim() !== '').length,
+    [ingresosDelAnio]
+  )
+
+  const topArrendatarios = useMemo(() => {
+    const porArrendatario = {}
+    for (const i of ingresosDelAnio) {
+      const nombre = i.arrendatario_nombre || 'Sin nombre'
+      porArrendatario[nombre] = (porArrendatario[nombre] || 0) + (parseFloat(i.importe) || 0)
+    }
+    return Object.entries(porArrendatario).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  }, [ingresosDelAnio])
+  const maxTop = Math.max(1, ...topArrendatarios.map(([, v]) => v))
+
+  const fmtK = n => n > 0 ? `$${(n / 1000).toFixed(0)}K` : '$0'
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
@@ -108,10 +163,10 @@ export default function Reportes() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
-        <KPICard title="Ingresos Acumulados" value={ingresosReal > 0 ? `$${(ingresosReal/1000).toFixed(0)}K` : '$215K'} icon={DollarSign} color="var(--color-success)" />
-        <KPICard title="Ocupación Promedio" value="87%" icon={BarChart2} color="var(--color-primary)" />
-        <KPICard title="Arrendatarios Activos" value="24" icon={Users} color="var(--color-secondary)" />
-        <KPICard title="CFDI Emitidos" value="48" icon={FileText} color="var(--color-warning)" />
+        <KPICard title={`Ingresos ${year}`} value={fmtK(ingresosAcumulados)} icon={DollarSign} color="var(--color-success)" />
+        <KPICard title="Ocupación Actual" value={`${ocupacionPromedio}%`} icon={BarChart2} color="var(--color-primary)" />
+        <KPICard title="Arrendatarios Activos" value={String(arrendatariosActivos)} icon={Users} color="var(--color-secondary)" />
+        <KPICard title="Facturas Registradas" value={String(facturasDelAnio)} icon={FileText} color="var(--color-warning)" />
       </div>
 
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '2px solid #E5E7EB' }}>
@@ -131,7 +186,7 @@ export default function Reportes() {
             <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Cobranza Mensual {year}</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '140px' }}>
               {MESES.map((mes, i) => {
-                const val = COBRANZA_MENSUAL[i]
+                const val = cobranzaMensual[i]
                 const h = val ? Math.round((val / maxCobranza) * 120) : 0
                 return (
                   <div key={mes} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
@@ -149,30 +204,41 @@ export default function Reportes() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', padding: '20px' }}>
-              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Ocupación mensual {year}</div>
-              {MESES.slice(0, 6).map((mes, i) => (
-                <div key={mes} style={{ marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                    <span>{mes}</span><span style={{ fontWeight: 700 }}>{OCUPACION_MENSUAL[i]}%</span>
+              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Ocupación por Inmueble</div>
+              {/* No hay historial de ocupación por mes en la base — esta es la
+                  ocupación real y actual de cada inmueble, no una tendencia. */}
+              {inmuebles.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--color-text-light)', textAlign: 'center', padding: '20px 0' }}>Sin inmuebles registrados</div>
+              ) : inmuebles.map(inm => {
+                const tot = parseInt(inm.unidades_total) || 0
+                const ocu = parseInt(inm.unidades_ocupadas) || 0
+                const pct = tot > 0 ? Math.round((ocu / tot) * 100) : 0
+                return (
+                  <div key={inm.id} style={{ marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                      <span>{inm.nombre}</span><span style={{ fontWeight: 700 }}>{pct}% ({ocu}/{tot})</span>
+                    </div>
+                    <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '4px' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-primary)', borderRadius: '4px' }} />
+                    </div>
                   </div>
-                  <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '4px' }}>
-                    <div style={{ height: '100%', width: `${OCUPACION_MENSUAL[i]}%`, background: 'var(--color-primary)', borderRadius: '4px' }} />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', padding: '20px' }}>
-              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Top Arrendatarios por Ingreso</div>
-              {[['Tacos El Norteño', 42000], ['Farmacia Similares', 38500], ['Banco Azteca', 35000], ['Tiendas 3B', 28000], ['Óptica Devlyn', 22000]].map(([nombre, monto], i) => (
+              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Top Arrendatarios por Ingreso {year}</div>
+              {topArrendatarios.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--color-text-light)', textAlign: 'center', padding: '20px 0' }}>Sin ingresos registrados en {year}</div>
+              ) : topArrendatarios.map(([nombre, monto], i) => (
                 <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                   <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '3px' }}>{nombre}</div>
                     <div style={{ height: '5px', background: '#F3F4F6', borderRadius: '4px' }}>
-                      <div style={{ height: '100%', width: `${(monto / 42000) * 100}%`, background: 'var(--color-secondary)', borderRadius: '4px' }} />
+                      <div style={{ height: '100%', width: `${(monto / maxTop) * 100}%`, background: 'var(--color-secondary)', borderRadius: '4px' }} />
                     </div>
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-success)' }}>${(monto / 1000).toFixed(0)}K</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-success)' }}>{fmtK(monto)}</div>
                 </div>
               ))}
             </div>
