@@ -91,10 +91,18 @@ const NAV_SECTIONS = [
 // Rol restaurante: solo ve su sección
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
-// Roles con menú acotado a rutas puntuales (no una sección completa): se
-// filtra ítem por ítem y se descartan las secciones que se quedan vacías.
-const RUTAS_POR_ROL = {
-  corporativo: ['/edr', '/contratos', '/resumen-semanal', '/rh', '/reportes'],
+// Roles con un menú propio y acotado: se define aparte (no filtrando
+// NAV_SECTIONS por ruta) porque necesitan etiquetas y orden distintos, y
+// porque filtrar por ruta duplicaba "Contratos" — comparte path con
+// "Expedientes" (sección ARRENDATARIO) y ambos pasaban el filtro.
+const MENUS_POR_ROL = {
+  corporativo: [
+    { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
+    { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
+    { label: 'Contratos',            path: '/contratos',       icon: FileText       },
+    { label: 'RH / Nómina',          path: '/rh',               icon: UserCheck      },
+    { label: 'Reportes',             path: '/reportes',        icon: BarChart3      },
+  ],
 }
 
 export default function Sidebar() {
@@ -104,13 +112,11 @@ export default function Sidebar() {
   // Checa perfil de BD y también metadata del JWT como fallback inmediato
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const esRestaurante = rolId === 'restaurante'
-  const rutasPermitidas = RUTAS_POR_ROL[rolId]
+  const menuRol = MENUS_POR_ROL[rolId]
   const sections = esRestaurante
     ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
-    : rutasPermitidas
-    ? NAV_SECTIONS
-        .map(s => ({ ...s, items: s.items.filter(i => rutasPermitidas.includes(i.path)) }))
-        .filter(s => s.items.length > 0)
+    : menuRol
+    ? [{ label: null, items: menuRol }]
     : NAV_SECTIONS
 
   return (
