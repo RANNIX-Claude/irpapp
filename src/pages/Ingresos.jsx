@@ -206,7 +206,11 @@ const BLANK = {
   clasificacion: '',
 }
 
-function IngresoModal({ ingreso = null, onClose, onSaved }) {
+// contratoFijo: precarga el contrato cuando se abre desde el expediente de un
+// contrato específico (no hace falta buscarlo). cargoObjetivo: el cargo/cobro
+// puntual que se está por pagar — precarga el importe con su saldo y, en
+// cuanto cargan los cargos pendientes, lo deja ya aplicado.
+export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = null, cargoObjetivo = null }) {
   const [form, setForm] = useState(ingreso ? {
     fecha:           ingreso.fecha ? ingreso.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
     contrato_id:     ingreso.contrato_id || '',
@@ -223,7 +227,11 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     // el usuario ya la había fijado a mano; si no, el combo queda en automática
     // aunque la fila traiga clasificación deducida.
     clasificacion:   ingreso.clasificacion_manual ? (ingreso.clasificacion || '') : '',
-  } : BLANK)
+  } : {
+    ...BLANK,
+    contrato_id: contratoFijo || '',
+    importe: cargoObjetivo ? String(parseFloat(cargoObjetivo.saldo ?? cargoObjetivo.monto_total ?? 0) || '') : '',
+  })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [contratos, setContratos] = useState([])
@@ -318,8 +326,18 @@ function IngresoModal({ ingreso = null, onClose, onSaved }) {
     setCargos(lista)
     // Conserva lo que el usuario ya venía tecleando en la distribución (por si
     // este refresco lo dispara un cobro nuevo agregado a medio llenado), y solo
-    // para cargos que no tenía tocados cae al valor guardado o vacío.
-    setDist(prevDist => Object.fromEntries(lista.map(c => [c.id, prevDist[c.id] ?? previoDe[c.id] ?? ''])))
+    // para cargos que no tenía tocados cae al valor guardado o vacío. El cargo
+    // puntual con el que se abrió el modal (cargoObjetivo) se deja ya aplicado
+    // la primera vez, para no obligar a marcarlo a mano.
+    setDist(prevDist => Object.fromEntries(lista.map(c => {
+      if (prevDist[c.id] !== undefined) return [c.id, prevDist[c.id]]
+      if (previoDe[c.id] !== undefined) return [c.id, previoDe[c.id]]
+      if (cargoObjetivo && c.id === cargoObjetivo.id) {
+        const disponible = parseFloat(c.saldo) || 0
+        return [c.id, String(Math.min(disponible, parseFloat(form.importe) || disponible))]
+      }
+      return [c.id, '']
+    })))
     setLoadingCargos(false)
   }, [form.contrato_id, ingreso?.id])
 

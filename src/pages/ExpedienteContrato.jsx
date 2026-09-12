@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, FileText, CreditCard, BarChart2, Phone, Mail,
   Calendar, Hash, Upload, ChevronRight, Printer, Shield, AlertTriangle,
-  CheckCircle, Clock, Download, MapPin, Plus, X, Save,
+  CheckCircle, Clock, Download, MapPin, Plus,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import LogoEditable from '../components/ui/LogoEditable'
-import toast from 'react-hot-toast'
+import { IngresoModal } from './Ingresos'
 
 // ── Paleta RANNIX ────────────────────────────────────────────────────────────
 const C = {
@@ -88,117 +88,6 @@ function Th({ children }) {
 
 function Td({ children, mono, bold, small }) {
   return <td style={{ padding: '10px 12px', fontSize: small ? 11 : 13, fontFamily: mono ? 'monospace' : undefined, color: C.text, fontWeight: bold ? 700 : 400, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}>{children}</td>
-}
-
-// ── Modal: subir comprobante de un cobro pendiente ───────────────────────────
-function ModalComprobante({ cobro, arrendatarioId, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    fecha_pago: hoyISO(),
-    monto: cobro.monto_total ?? '',
-    banco: '',
-    referencia: '',
-    forma_pago: 'TRANSFERENCIA',
-    notas: '',
-  })
-  const [file, setFile] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const guardar = async () => {
-    if (!form.monto) return toast.error('Indica el monto pagado')
-    setSaving(true)
-    try {
-      let imagen_path = null
-      if (file) {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-        const path = `${arrendatarioId}/${cobro.id}_${Date.now()}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('comprobantes-pago').upload(path, file, { contentType: file.type, upsert: false })
-        if (upErr) throw new Error('No se pudo subir la imagen: ' + upErr.message)
-        imagen_path = path
-      }
-      const { error } = await supabase.from('comprobantes_pago').insert({
-        cobro_id: cobro.id,
-        arrendatario_id: arrendatarioId,
-        imagen_path,
-        fecha_pago: form.fecha_pago || null,
-        monto: parseFloat(form.monto) || null,
-        banco: form.banco || null,
-        referencia: form.referencia || null,
-        forma_pago: form.forma_pago || null,
-        notas: form.notas || null,
-        estado: 'ENVIADO',
-      })
-      if (error) throw error
-      toast.success('Comprobante enviado — queda pendiente de validación')
-      onSaved(); onClose()
-    } catch (e) {
-      toast.error(e.message)
-    } finally { setSaving(false) }
-  }
-
-  const inp = { width: '100%', padding: '9px 12px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }
-  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 14, width: 520, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Subir comprobante de pago</h3>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-              {MESES[cobro.mes]} {cobro.anio} · {fmt$(cobro.monto_total)}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
-        </div>
-
-        <div style={{ padding: '18px 22px', display: 'grid', gap: 14 }}>
-          <div>
-            <label style={lbl}>Comprobante (foto o PDF)</label>
-            <input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files[0])}
-              style={{ ...inp, padding: 8, border: `1.5px dashed ${C.border}`, cursor: 'pointer' }} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={lbl}>Fecha del pago</label>
-              <input type="date" value={form.fecha_pago} onChange={e => sf('fecha_pago', e.target.value)} style={inp} />
-            </div>
-            <div>
-              <label style={lbl}>Monto pagado</label>
-              <input type="number" step="0.01" value={form.monto} onChange={e => sf('monto', e.target.value)} style={inp} />
-            </div>
-            <div>
-              <label style={lbl}>Banco</label>
-              <input value={form.banco} onChange={e => sf('banco', e.target.value)} placeholder="BBVA, Santander…" style={inp} />
-            </div>
-            <div>
-              <label style={lbl}>Forma de pago</label>
-              <select value={form.forma_pago} onChange={e => sf('forma_pago', e.target.value)} style={{ ...inp, background: 'white' }}>
-                {['TRANSFERENCIA','DEPOSITO','EFECTIVO','CHEQUE','TARJETA'].map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label style={lbl}>Referencia / No. de operación</label>
-            <input value={form.referencia} onChange={e => sf('referencia', e.target.value)} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Notas</label>
-            <input value={form.notas} onChange={e => sf('notas', e.target.value)} style={inp} />
-          </div>
-        </div>
-
-        <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: 10, border: `1.5px solid ${C.border}`, borderRadius: 8, background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Cancelar</button>
-          <button onClick={guardar} disabled={saving}
-            style={{ flex: 2, padding: 10, border: 'none', borderRadius: 8, background: C.success, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 14, opacity: saving ? .7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Save size={15} /> {saving ? 'Enviando…' : 'Enviar comprobante'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // ── Página ───────────────────────────────────────────────────────────────────
@@ -580,9 +469,9 @@ export default function ExpedienteContrato() {
       </div>
 
       {modalCobro && (
-        <ModalComprobante
-          cobro={modalCobro}
-          arrendatarioId={exp.arrendatario_id}
+        <IngresoModal
+          contratoFijo={exp.contrato_id}
+          cargoObjetivo={modalCobro}
           onClose={() => setModalCobro(null)}
           onSaved={reload}
         />
