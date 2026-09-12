@@ -19,6 +19,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import NuevoCargoModal from '../components/ui/NuevoCargoModal'
+import { useApp } from '../context/AppContext'
 
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const TIPO_COLOR = { RENTA: 'var(--color-success)', SANCION: 'var(--color-danger)', AGUA: '#0284C7', OTRO: '#6B7280', MIXTO: '#7C3AED' }
@@ -239,6 +240,14 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   const [dist, setDist] = useState({})
   const [loadingCargos, setLoadingCargos] = useState(false)
   const [modalNuevoCargo, setModalNuevoCargo] = useState(false)
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+  // Borrar el ingreso desde aquí mismo es una operación delicada (afecta
+  // cartera y aplicaciones ya cuadradas): solo super_admin / admin_inmobiliaria
+  // lo ven, y solo aplica editando uno ya existente (no al registrar uno nuevo).
+  const { perfil, user } = useApp()
+  const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
+  const puedeEliminar = !!ingreso && ['super_admin', 'admin_inmobiliaria'].includes(rolId)
   const [contratoSearch, setContratoSearch] = useState('')
   const [contratoOpen, setContratoOpen] = useState(false)
   const [compFile, setCompFile] = useState(null)
@@ -496,6 +505,17 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     onClose()
   }
 
+  const eliminarIngreso = async () => {
+    if (!ingreso?.id) return
+    setBorrando(true)
+    const { error } = await supabase.from('ingresos').delete().eq('id', ingreso.id)
+    setBorrando(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Ingreso eliminado')
+    onSaved()
+    onClose()
+  }
+
   const inp = (k, type='text', placeholder='') => (
     <input type={type} value={form[k]} placeholder={placeholder}
       onChange={e => set(k, e.target.value)}
@@ -510,8 +530,33 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
 
         <div style={{ padding:'18px 22px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontWeight:700, fontSize:'15px' }}>{ingreso ? 'Editar Ingreso' : 'Registrar Ingreso'}</div>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'white' }}><X size={18} /></button>
+          <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+            {puedeEliminar && (
+              <button onClick={() => setConfirmarBorrado(true)} title="Eliminar este ingreso"
+                style={{ background:'none', border:'none', cursor:'pointer', color:'white', opacity:0.85, display:'flex', alignItems:'center', padding:'4px' }}>
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'white', display:'flex', alignItems:'center', padding:'4px' }}><X size={18} /></button>
+          </div>
         </div>
+
+        {confirmarBorrado && (
+          <div style={{ padding:'12px 22px', background:'#FEF2F2', borderBottom:'1px solid #FECACA', display:'flex', alignItems:'center', gap:'10px' }}>
+            <AlertCircle size={16} color="var(--color-danger)" style={{ flexShrink:0 }} />
+            <span style={{ fontSize:'12.5px', color:'#991B1B', flex:1 }}>
+              Esto borra el ingreso y su distribución aplicada a la cartera. No se puede deshacer.
+            </span>
+            <button onClick={() => setConfirmarBorrado(false)} disabled={borrando}
+              style={{ padding:'6px 12px', background:'white', border:'1px solid #FECACA', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', color:'#6B7280' }}>
+              Cancelar
+            </button>
+            <button onClick={eliminarIngreso} disabled={borrando}
+              style={{ padding:'6px 12px', background:'var(--color-danger)', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer', color:'white', opacity: borrando ? 0.7 : 1 }}>
+              {borrando ? 'Eliminando…' : 'Sí, eliminar'}
+            </button>
+          </div>
+        )}
 
         <div style={{ flex:1, overflowY:'auto', padding:'18px 22px' }}>
 
