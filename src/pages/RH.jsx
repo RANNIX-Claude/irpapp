@@ -696,7 +696,7 @@ function TabEmpleados({ onNuevo }) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [filtroArea, setFiltroArea] = useState('Todos')
-  const [vistaGrid, setVistaGrid] = useState(false)
+  const [vistaGrid, setVistaGrid] = useState(true)
   // Documentos de todos los empleados, en una consulta, para el medidor de
   // cada tarjeta sin pedirlos uno por uno.
   const [docsPorEmpleado, setDocsPorEmpleado] = useState({})
@@ -755,13 +755,13 @@ function TabEmpleados({ onNuevo }) {
         </div>
         {/* Toggle vista */}
         <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
-          <button onClick={() => setVistaGrid(false)} title="Vista tabla"
-            style={{ padding: '7px 11px', background: !vistaGrid ? '#0A66C2' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <LayoutList size={16} />
-          </button>
           <button onClick={() => setVistaGrid(true)} title="Vista tarjetas"
             style={{ padding: '7px 11px', background: vistaGrid ? '#0A66C2' : 'white', color: vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <LayoutGrid size={16} />
+          </button>
+          <button onClick={() => setVistaGrid(false)} title="Vista tabla"
+            style={{ padding: '7px 11px', background: !vistaGrid ? '#0A66C2' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <LayoutList size={16} />
           </button>
         </div>
         <button onClick={onNuevo} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>

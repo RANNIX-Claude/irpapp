@@ -1254,7 +1254,7 @@ export default function Contratos() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [showNuevo, setShowNuevo] = useState(false)
-  const [vistaGrid, setVistaGrid] = useState(false)
+  const [vistaGrid, setVistaGrid] = useState(true)
   // logo_url vive en arrendatarios y prp_contratos no lo expone; se carga aparte
   // y se indexa por arrendatario para pintarlo en las tarjetas.
   const [logos, setLogos] = useState({})
@@ -1408,13 +1408,13 @@ export default function Contratos() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {/* Toggle lista / vista anual */}
           <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
-            <button onClick={() => { setVistaAnual(false); setVistaGrid(false) }} title="Vista lista"
-              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: !vistaAnual && !vistaGrid ? 'var(--color-primary)' : 'white', color: !vistaAnual && !vistaGrid ? 'white' : '#6B7280' }}>
-              <AlignJustify size={16} />
-            </button>
             <button onClick={() => { setVistaAnual(false); setVistaGrid(true) }} title="Vista mosaico"
-              style={{ padding: '8px 12px', border: 'none', borderLeft: '1px solid #E5E7EB', cursor: 'pointer', background: vistaGrid && !vistaAnual ? 'var(--color-primary)' : 'white', color: vistaGrid && !vistaAnual ? 'white' : '#6B7280' }}>
+              style={{ padding: '8px 12px', border: 'none', cursor: 'pointer', background: vistaGrid && !vistaAnual ? 'var(--color-primary)' : 'white', color: vistaGrid && !vistaAnual ? 'white' : '#6B7280' }}>
               <LayoutGrid size={16} />
+            </button>
+            <button onClick={() => { setVistaAnual(false); setVistaGrid(false) }} title="Vista lista"
+              style={{ padding: '8px 12px', border: 'none', borderLeft: '1px solid #E5E7EB', cursor: 'pointer', background: !vistaAnual && !vistaGrid ? 'var(--color-primary)' : 'white', color: !vistaAnual && !vistaGrid ? 'white' : '#6B7280' }}>
+              <AlignJustify size={16} />
             </button>
             <button onClick={() => setVistaAnual(true)} title="Vista anual de vencimientos"
               style={{ padding: '8px 12px', border: 'none', borderLeft: '1px solid #E5E7EB', cursor: 'pointer', background: vistaAnual ? 'var(--color-primary)' : 'white', color: vistaAnual ? 'white' : '#6B7280' }}>
