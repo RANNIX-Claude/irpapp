@@ -2972,7 +2972,7 @@ function TabNominaIWOL() {
           #nomina-iwol-print th:nth-child(2),  #nomina-iwol-print td:nth-child(2)  { width: 50px;  } /* Nombre */
           #nomina-iwol-print th:nth-child(3),  #nomina-iwol-print td:nth-child(3)  { width: 40px;  } /* Horario */
           #nomina-iwol-print th:nth-child(4),  #nomina-iwol-print td:nth-child(4)  { width: 18px;  } /* Descanso */
-          #nomina-iwol-print th:nth-child(5),  #nomina-iwol-print td:nth-child(5)  { width: 40px;  } /* Asistencia */
+          #nomina-iwol-print th:nth-child(5),  #nomina-iwol-print td:nth-child(5)  { display: none !important; } /* Asistencia: oculta en impresión */
           #nomina-iwol-print th:nth-child(6),  #nomina-iwol-print td:nth-child(6)  { width: 16px;  } /* Faltas */
           #nomina-iwol-print th:nth-child(7),  #nomina-iwol-print td:nth-child(7)  { width: 28px;  } /* Percepción */
           #nomina-iwol-print th:nth-child(8),  #nomina-iwol-print td:nth-child(8)  { width: 26px;  } /* Complem. */

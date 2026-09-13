@@ -100,7 +100,15 @@ export function salarioDiarioIntegrado(salarioDiario, diasAntiguedad) {
 }
 
 // ── Piezas del documento ────────────────────────────────────────────────────
-const txt = (t, o = {}) => new TextRun({ text: String(t ?? ''), font: 'Arial', size: o.size ?? 18, bold: o.bold, color: o.color })
+// Ajustes de fuente: Calisto MT para títulos (como el formato original),
+// Arial para datos generales, Segoe UI cuando esté explícito.
+const txt = (t, o = {}) => new TextRun({
+  text: String(t ?? ''),
+  font: o.font ?? 'Arial',
+  size: o.size ?? 18,
+  bold: o.bold,
+  color: o.color,
+})
 const par = (runs, o = {}) => new Paragraph({
   children: Array.isArray(runs) ? runs : [runs],
   alignment: o.align ?? AlignmentType.LEFT,
@@ -155,8 +163,8 @@ export async function construirRecibo(d) {
         { width: 22 },
       ),
       celda([
-        par(txt(PATRON.razon_social, { bold: true, size: 20 }), { align: AlignmentType.CENTER }),
-        par(txt(PATRON.rfc, { bold: true }), { align: AlignmentType.CENTER }),
+        par(txt(PATRON.razon_social, { bold: true, size: 20, font: 'Calisto MT' }), { align: AlignmentType.CENTER }),
+        par(txt(PATRON.rfc, { bold: true, font: 'Calisto MT' }), { align: AlignmentType.CENTER }),
         par(txt('RÉGIMEN FISCAL: ' + PATRON.regimen, { size: 15 }), { align: AlignmentType.CENTER }),
         par(txt(PATRON.domicilio, { size: 15 }), { align: AlignmentType.CENTER }),
         par(txt(PATRON.telefono, { size: 15 }), { align: AlignmentType.CENTER }),
@@ -222,12 +230,17 @@ export async function construirRecibo(d) {
 
   return new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
+      properties: {
+        page: {
+          // Márgenes similares al formato Word original: 2.5" (1800 twips) arriba/abajo, 3" (2160 twips) izq/der
+          margin: { top: 1440, bottom: 1440, left: 1728, right: 1728, header: 720, footer: 720 }
+        }
+      },
       children: [
         encabezado,
         par(txt(''), { after: 120 }),
-        par(txt('R E C I B O   D E   N Ó M I N A', { bold: true, size: 24 }), { align: AlignmentType.CENTER, after: 160 }),
-        par(txt(`${PATRON.ciudad} A ${hoy.getDate()} DE ${MESES[hoy.getMonth()]} DE ${hoy.getFullYear()}`, { size: 17 }),
+        par(txt('R E C I B O   D E   N Ó M I N A', { bold: true, size: 28, font: 'Calisto MT' }), { align: AlignmentType.CENTER, after: 160 }),
+        par(txt(`${PATRON.ciudad} A ${hoy.getDate()} DE ${MESES[hoy.getMonth()]} DE ${hoy.getFullYear()}`, { size: 18 }),
           { align: AlignmentType.RIGHT, after: 160 }),
         par([txt('EMPLEADO: ', { bold: true }), txt((e.nombre_completo || '').toUpperCase(), { bold: true, size: 20 })], { after: 120 }),
         datos,
@@ -302,15 +315,15 @@ export function reciboHTML(d) {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>Recibo ${esc(e.nombre_completo)} — semana ${s.numero}</title>
 <style>
-  @page { size: letter; margin: 14mm 16mm; }
+  @page { size: letter; margin: 64mm 76mm 64mm 76mm; }
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #000; margin: 0; }
   .enc { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #1A3C5E; padding-bottom: 8px; }
   .enc img { width: 96px; height: auto; }
   .enc .datos { flex: 1; text-align: center; line-height: 1.35; }
-  .enc .razon { font-weight: 700; font-size: 12px; }
+  .enc .razon { font-weight: 700; font-size: 12px; font-family: 'Calisto MT', serif; }
   .enc .chico { font-size: 9px; }
-  h1 { font-size: 15px; letter-spacing: .18em; text-align: center; margin: 14px 0 10px; }
+  h1 { font-size: 15px; letter-spacing: .18em; text-align: center; margin: 14px 0 10px; font-family: 'Calisto MT', serif; }
   .lugar { text-align: right; font-size: 9.5px; margin-bottom: 10px; }
   .empleado { font-weight: 700; font-size: 12px; margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; }
