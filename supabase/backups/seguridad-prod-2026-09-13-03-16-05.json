@@ -1,0 +1,5101 @@
+{
+ "fecha": "2026-09-13T03:16:05.164Z",
+ "ambiente": "prod",
+ "policies": [
+  {
+   "schemaname": "prp",
+   "tablename": "accesos_estacionamiento",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "adendums",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "agua_lecturas",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "agua_recibos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "arrendatarios",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "bitacora",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "cajones_estacionamiento",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "cat_estado_general",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "cat_grupo_gasto",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "cobros_programados",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "cobros_turno",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "conciliaciones_sesiones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "contrato_unidades",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "contratos_arrendamiento",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "contratos_documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "edr_conceptos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "empleados",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "estado_resultados_mensual",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "fondo_revolvente_cierres",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "fondos_revolventes",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "gastos_fijos_anuales",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "gastos_operativos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "inmuebles",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "movimientos_bancarios",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "notas_contrato",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "pensiones_estacionamiento",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "precios_unidad",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "presupuesto_mensual",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos",
+   "policyname": "anon_prospecto_read",
+   "permissive": "PERMISSIVE",
+   "roles": "{anon}",
+   "cmd": "SELECT",
+   "qual": "(id IN ( SELECT prospectos_tokens.prospecto_id\n   FROM prp.prospectos_tokens\n  WHERE ((prospectos_tokens.fecha_expiracion > now()) AND (NOT prospectos_tokens.usado))))",
+   "with_check": null
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos_documentos",
+   "policyname": "anon_doc_insert",
+   "permissive": "PERMISSIVE",
+   "roles": "{anon}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(prospecto_id IN ( SELECT prospectos_tokens.prospecto_id\n   FROM prp.prospectos_tokens\n  WHERE ((prospectos_tokens.fecha_expiracion > now()) AND (NOT prospectos_tokens.usado))))"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos_documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos_tokens",
+   "policyname": "anon_token_read",
+   "permissive": "PERMISSIVE",
+   "roles": "{anon}",
+   "cmd": "SELECT",
+   "qual": "((fecha_expiracion > now()) AND (NOT usado))",
+   "with_check": null
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "prospectos_tokens",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "proveedores",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "recibos_efectivo",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "roles",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "unidades",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "vending_cierres_semanales",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "prp",
+   "tablename": "vending_productos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "aplicaciones_pago",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(cargo_id IN ( SELECT cargos_programados.id\n   FROM cargos_programados\n  WHERE (cargos_programados.contrato_id = mi_contrato_id())))",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "aplicaciones_pago",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "arrendatarios",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(id = mi_arrendatario_id())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "arrendatarios",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cargos_programados",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(contrato_id = mi_contrato_id())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cargos_programados",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_despachos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_locales",
+   "policyname": "auth_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "true",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_locales",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_parametros",
+   "policyname": "auth_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "true",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_parametros",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_productos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_productos_vending",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_proveedores",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_tipo_deduccion",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_tipo_otro_pago",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "cat_tipo_percepcion",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "comprobantes_pago",
+   "policyname": "comp_arrendatario",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "(arrendatario_id = _comp_mi_arr_id())",
+   "with_check": "(arrendatario_id = _comp_mi_arr_id())"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "comprobantes_pago",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contratos",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(id = mi_contrato_id())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contratos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contratos_locales",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(contrato_id = mi_contrato_id())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "contratos_locales",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "documentos",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "((entidad_tipo = 'ARRENDATARIO'::text) AND (entidad_id = mi_arrendatario_id()))",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "er_mensual",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "estacionamiento_diario",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "estacionamiento_pensiones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "gasto_detalle",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "gastos_operativos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "ingresos",
+   "policyname": "locatario_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(contrato_id = mi_contrato_id())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "ingresos",
+   "policyname": "locatario_sube_comprobante",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "((contrato_id = mi_contrato_id()) AND (estatus_validacion = 'POR_VALIDAR'::text))"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "ingresos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_roles",
+   "policyname": "auth_lee",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "true",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_roles",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_usuarios",
+   "policyname": "admin_administra_usuarios",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "es_admin()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_usuarios",
+   "policyname": "admin_borra_usuarios",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "es_admin()",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_usuarios",
+   "policyname": "admin_lee_todos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "es_admin()",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_usuarios",
+   "policyname": "usuarios_actualizan_su_ficha",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "((id = auth.uid()) OR es_admin())",
+   "with_check": "((id = auth.uid()) OR es_admin())"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "irp_usuarios",
+   "policyname": "usuarios_leen_su_ficha",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(id = auth.uid())",
+   "with_check": null
+  },
+  {
+   "schemaname": "public",
+   "tablename": "nomina_deducciones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "nomina_empleado",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "nomina_otros_pagos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "nomina_percepciones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "nomina_periodos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "notas_contrato",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "ordenes_trabajo",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "pagos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "prospecto_documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "prospecto_historial",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "prospecto_magic_links",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "prospecto_personas",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "prospectos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "restaurante_gasto_detalle",
+   "policyname": "restaurante_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "(mi_rol() = 'restaurante'::text)",
+   "with_check": "(mi_rol() = 'restaurante'::text)"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "restaurante_gasto_detalle",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "restaurante_gastos",
+   "policyname": "restaurante_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "(mi_rol() = 'restaurante'::text)",
+   "with_check": "(mi_rol() = 'restaurante'::text)"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "restaurante_gastos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_asistencia",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_beneficios",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_candidatos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_capacitacion",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_checadas",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_contratos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_documentos_empleado",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_empleados",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_evaluaciones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_expediente_documentos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_historial_cambios",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_historial_nombre",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_historial_sueldo",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_incidencias",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_tipos_incidencia",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_turnos_guardia",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_vacaciones_anio",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_vacaciones_detalle",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "rh_vacantes",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "sat_subsidio_empleo",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "sat_tarifa_isr",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "validacion_adjuntos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "validacion_puntos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "validacion_reportes",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "validacion_revisiones",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "vending_inventario_semanal",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "vending_movimientos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "vending_productos",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "vending_semana_producto",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "public",
+   "tablename": "vending_semanas",
+   "policyname": "staff_all",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "es_staff()",
+   "with_check": "es_staff()"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "Autenticados actualizan prospecto-docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'prospecto-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "Autenticados leen prospecto-docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'prospecto-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "Autenticados suben prospecto-docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'prospecto-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "anon_insert_prospecto_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{anon}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "((bucket_id = 'prospecto-docs'::text) AND ((storage.foldername(name))[1] = 'prospectos'::text))"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "arr_read_comp",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "((bucket_id = 'comprobantes-pago'::text) AND (((storage.foldername(name))[1] = (_comp_mi_arr_id())::text) OR es_staff()))",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "arr_upload_comp",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "((bucket_id = 'comprobantes-pago'::text) AND ((storage.foldername(name))[1] = (_comp_mi_arr_id())::text))"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-insert-facturas-cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'facturas-cfdi'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-insert-tickets-gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'tickets-gastos'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-insert-vending-reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'vending-reportes'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-select-facturas-cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'facturas-cfdi'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-select-tickets-gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'tickets-gastos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-select-vending-reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'vending-reportes'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-update-facturas-cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'facturas-cfdi'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-update-tickets-gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'tickets-gastos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth-update-vending-reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'vending-reportes'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_delete_contratos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'contratos-firmados'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_delete_expedientes_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'expedientes-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_delete_ot_evidencias",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'ot-evidencias'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_delete_prospecto_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'prospecto-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_contratos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'contratos-firmados'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_expedientes_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'expedientes-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_facturas_cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'facturas-cfdi'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_ot_evidencias",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'ot-evidencias'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_prospecto_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'prospecto-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_tickets_gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'tickets-gastos'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_insert_vending_reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'vending-reportes'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_contratos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'contratos-firmados'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_expedientes_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'expedientes-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_facturas_cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'facturas-cfdi'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_ot_evidencias",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'ot-evidencias'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_prospecto_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'prospecto-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_tickets_gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'tickets-gastos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_select_vending_reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'vending-reportes'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_contratos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'contratos-firmados'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_expedientes_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'expedientes-docs'::text)",
+   "with_check": "(bucket_id = 'expedientes-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_facturas_cfdi",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'facturas-cfdi'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_ot_evidencias",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'ot-evidencias'::text)",
+   "with_check": "(bucket_id = 'ot-evidencias'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_prospecto_docs",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'prospecto-docs'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_tickets_gastos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'tickets-gastos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_update_vending_reportes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'vending-reportes'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "auth_upload_expedientes",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'expedientes-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "authenticated_upload_contratos",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'contratos-docs'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "avatars_delete",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'avatars'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "avatars_insert",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'avatars'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "avatars_public_read",
+   "permissive": "PERMISSIVE",
+   "roles": "{public}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'avatars'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "avatars_update",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'avatars'::text)",
+   "with_check": "(bucket_id = 'avatars'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "catalogos_auth_delete",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'catalogos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "catalogos_auth_insert",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'catalogos'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "catalogos_auth_update",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'catalogos'::text)",
+   "with_check": "(bucket_id = 'catalogos'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "catalogos_public_read",
+   "permissive": "PERMISSIVE",
+   "roles": "{public}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'catalogos'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "logos_auth_delete",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "DELETE",
+   "qual": "(bucket_id = 'logos-arrendatarios'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "logos_auth_insert",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "INSERT",
+   "qual": null,
+   "with_check": "(bucket_id = 'logos-arrendatarios'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "logos_auth_update",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "UPDATE",
+   "qual": "(bucket_id = 'logos-arrendatarios'::text)",
+   "with_check": "(bucket_id = 'logos-arrendatarios'::text)"
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "logos_public_read",
+   "permissive": "PERMISSIVE",
+   "roles": "{public}",
+   "cmd": "SELECT",
+   "qual": "(bucket_id = 'logos-arrendatarios'::text)",
+   "with_check": null
+  },
+  {
+   "schemaname": "storage",
+   "tablename": "objects",
+   "policyname": "val_capturas_auth",
+   "permissive": "PERMISSIVE",
+   "roles": "{authenticated}",
+   "cmd": "ALL",
+   "qual": "(bucket_id = 'validacion-capturas'::text)",
+   "with_check": "(bucket_id = 'validacion-capturas'::text)"
+  }
+ ],
+ "rls": [
+  {
+   "schema": "prp",
+   "tabla": "accesos_estacionamiento",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "adendums",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "agua_lecturas",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "agua_recibos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "arrendatarios",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "bitacora",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "cajones_estacionamiento",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "cat_estado_general",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "cat_grupo_gasto",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "cobros_programados",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "cobros_turno",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "conciliaciones_sesiones",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "contrato_unidades",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "contratos_arrendamiento",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "contratos_documentos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "documentos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "edr_conceptos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "empleados",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "estado_resultados_mensual",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "fondo_revolvente_cierres",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "fondos_revolventes",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "gastos_fijos_anuales",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "gastos_operativos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "inmuebles",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "movimientos_bancarios",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "notas_contrato",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "pensiones_estacionamiento",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "precios_unidad",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "presupuesto_mensual",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "prospectos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "prospectos_documentos",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "prospectos_tokens",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "proveedores",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "recibos_efectivo",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "roles",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "unidades",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "vending_cierres_semanales",
+   "rls": true
+  },
+  {
+   "schema": "prp",
+   "tabla": "vending_productos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "aplicaciones_pago",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "arrendatarios",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cargos_programados",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_despachos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_locales",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_parametros",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_productos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_productos_vending",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_proveedores",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_tipo_deduccion",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_tipo_otro_pago",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "cat_tipo_percepcion",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "comprobantes_pago",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "contratos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "contratos_locales",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "documentos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "er_mensual",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "estacionamiento_diario",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "estacionamiento_pensiones",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "gasto_detalle",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "gastos_operativos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "ingresos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "irp_roles",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "irp_usuarios",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "nomina_deducciones",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "nomina_empleado",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "nomina_otros_pagos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "nomina_percepciones",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "nomina_periodos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "notas_contrato",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "ordenes_trabajo",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "pagos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "prospecto_documentos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "prospecto_historial",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "prospecto_magic_links",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "prospecto_personas",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "prospectos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "restaurante_gasto_detalle",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "restaurante_gastos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_asistencia",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_beneficios",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_candidatos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_capacitacion",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_checadas",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_contratos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_documentos_empleado",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_empleados",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_evaluaciones",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_expediente_documentos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_historial_cambios",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_historial_nombre",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_historial_sueldo",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_incidencias",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_tipos_incidencia",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_turnos_guardia",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_vacaciones_anio",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_vacaciones_detalle",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "rh_vacantes",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "sat_subsidio_empleo",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "sat_tarifa_isr",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "validacion_adjuntos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "validacion_puntos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "validacion_reportes",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "validacion_revisiones",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "vending_inventario_semanal",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "vending_movimientos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "vending_productos",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "vending_semana_producto",
+   "rls": true
+  },
+  {
+   "schema": "public",
+   "tabla": "vending_semanas",
+   "rls": true
+  }
+ ],
+ "table_grants": [
+  {
+   "table_schema": "prp",
+   "table_name": "accesos_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "accesos_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "adendums",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "adendums",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "agua_lecturas",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "agua_lecturas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "agua_recibos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "agua_recibos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "arrendatarios",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "arrendatarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "bitacora",
+   "grantee": "anon",
+   "privs": "INSERT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "bitacora",
+   "grantee": "authenticated",
+   "privs": "INSERT,SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "bitacora",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cajones_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cajones_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cat_estado_general",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cat_estado_general",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cat_grupo_gasto",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cat_grupo_gasto",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cobros_programados",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cobros_programados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cobros_turno",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "cobros_turno",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "conciliaciones_sesiones",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "conciliaciones_sesiones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contrato_unidades",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contrato_unidades",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contratos_arrendamiento",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contratos_arrendamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contratos_documentos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "contratos_documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "documentos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,SELECT,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "edr_conceptos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "edr_conceptos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "empleados",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "empleados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "estado_resultados_mensual",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "estado_resultados_mensual",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "fondo_revolvente_cierres",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "fondo_revolvente_cierres",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "fondos_revolventes",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "fondos_revolventes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "gastos_fijos_anuales",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "gastos_fijos_anuales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "gastos_operativos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "gastos_operativos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "inmuebles",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "inmuebles",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "movimientos_bancarios",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "movimientos_bancarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "notas_contrato",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,SELECT,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "notas_contrato",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "pensiones_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "pensiones_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "precios_unidad",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "precios_unidad",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "presupuesto_mensual",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "presupuesto_mensual",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos_documentos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos_documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos_tokens",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "prospectos_tokens",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "proveedores",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "proveedores",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "recibos_efectivo",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "recibos_efectivo",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "roles",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "roles",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "unidades",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "unidades",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "vending_cierres_semanales",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "vending_cierres_semanales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "vending_productos",
+   "grantee": "authenticated",
+   "privs": "SELECT"
+  },
+  {
+   "table_schema": "prp",
+   "table_name": "vending_productos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "aplicaciones_pago",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "aplicaciones_pago",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "arrendatarios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "arrendatarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cargos_programados",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cargos_programados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_despachos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_despachos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_locales",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_locales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_parametros",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_parametros",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_productos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_productos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_productos_vending",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_productos_vending",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_proveedores",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_proveedores",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_deduccion",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_deduccion",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_otro_pago",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_otro_pago",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_percepcion",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "cat_tipo_percepcion",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "comprobantes_pago",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "comprobantes_pago",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "contratos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "contratos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "contratos_locales",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "contratos_locales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "documentos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "er_mensual",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "er_mensual",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "estacionamiento_diario",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "estacionamiento_diario",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "estacionamiento_pensiones",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "estacionamiento_pensiones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "gasto_detalle",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "gasto_detalle",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "gastos_operativos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "gastos_operativos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "ingresos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "ingresos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "irp_roles",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "irp_roles",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "irp_usuarios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "irp_usuarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_deducciones",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_deducciones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_empleado",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_empleado",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_otros_pagos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_otros_pagos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_percepciones",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_percepciones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_periodos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "nomina_periodos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "notas_contrato",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "notas_contrato",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "ordenes_trabajo",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "ordenes_trabajo",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "pagos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "pagos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_documentos",
+   "grantee": "anon",
+   "privs": "SELECT,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_documentos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_historial",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_historial",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_magic_links",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_magic_links",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_personas",
+   "grantee": "anon",
+   "privs": "SELECT,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_personas",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospecto_personas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospectos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prospectos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_adendums",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_adendums",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_arrendatarios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_arrendatarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_asistencia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_asistencia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_asistencia_semana",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_asistencia_semana",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_bitacora",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_bitacora",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cajones_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cajones_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_candidatos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_candidatos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cartera",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cartera",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cat_estado_general",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cat_estado_general",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cat_grupo_gasto",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cat_grupo_gasto",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_checadas",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_checadas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cobros",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_cobros",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_conciliacion_cobros",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_conciliacion_cobros",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_contratos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_contratos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_documentos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_empleados",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_empleados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_estacionamiento_mensual",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_estacionamiento_mensual",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_expediente_arrendatario",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_expediente_arrendatario",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_fondo_revolvente_cierres",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_fondo_revolvente_cierres",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_fondos_revolventes",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_fondos_revolventes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_gastos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_gastos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_gastos_mensual",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_gastos_mensual",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_historico_sueldos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_historico_sueldos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_incidencias",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_incidencias",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_ingresos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_ingresos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_ingresos_descuadrados",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_ingresos_descuadrados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_inmuebles",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_inmuebles",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_kpis",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_kpis",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_locales",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_locales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_mapa_locales",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_mapa_locales",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_movimientos_bancarios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_movimientos_bancarios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_nomina_transferencias",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_nomina_transferencias",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_notas_contrato",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_notas_contrato",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_pensiones_estacionamiento",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_pensiones_estacionamiento",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_prenomina",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_prenomina",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_prospectos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_prospectos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_proveedores",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_proveedores",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_tipos_incidencia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_tipos_incidencia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_turnos_guardia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_turnos_guardia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_unidades",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_unidades",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacaciones_anio",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacaciones_anio",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacaciones_detalle",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacaciones_detalle",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacantes",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vacantes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_validacion_puntos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_validacion_puntos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_validacion_reportes",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_validacion_reportes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vending_semana",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vending_semana",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vending_semanas",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "prp_vending_semanas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "restaurante_gasto_detalle",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "restaurante_gasto_detalle",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "restaurante_gastos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "restaurante_gastos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_asistencia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_asistencia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_beneficios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_beneficios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_candidatos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_candidatos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_capacitacion",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_capacitacion",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_checadas",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_checadas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_contratos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_contratos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_documentos_empleado",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_documentos_empleado",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_empleados",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_empleados",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_evaluaciones",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_evaluaciones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_expediente_documentos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_expediente_documentos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_cambios",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_cambios",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_nombre",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_nombre",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_sueldo",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_historial_sueldo",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_incidencias",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_incidencias",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_tipos_incidencia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_tipos_incidencia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_turnos_guardia",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_turnos_guardia",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacaciones_anio",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacaciones_anio",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacaciones_detalle",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacaciones_detalle",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacantes",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "rh_vacantes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "sat_subsidio_empleo",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "sat_subsidio_empleo",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "sat_tarifa_isr",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "sat_tarifa_isr",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "v_prospecto_docs_status",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "v_prospecto_docs_status",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_adjuntos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_adjuntos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_puntos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_puntos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_reportes",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_reportes",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_revisiones",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "validacion_revisiones",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_inventario_semanal",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_inventario_semanal",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_movimientos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_movimientos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_productos",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_productos",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_semana_producto",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_semana_producto",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_semanas",
+   "grantee": "authenticated",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
+   "table_schema": "public",
+   "table_name": "vending_semanas",
+   "grantee": "service_role",
+   "privs": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  }
+ ],
+ "schema_acl": [
+  {
+   "nspname": "public",
+   "nspacl": "{pg_database_owner=UC/pg_database_owner,=U/pg_database_owner,postgres=U/pg_database_owner,anon=U/pg_database_owner,authenticated=U/pg_database_owner,service_role=U/pg_database_owner}"
+  },
+  {
+   "nspname": "prp",
+   "nspacl": "{postgres=UC/postgres,authenticated=U/postgres,service_role=U/postgres}"
+  }
+ ],
+ "functions": [
+  {
+   "schema": "prp",
+   "proname": "fn_portal_url",
+   "args": "",
+   "secdef": false,
+   "acl": null,
+   "def": "CREATE OR REPLACE FUNCTION prp.fn_portal_url()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE v_nombre TEXT;\nBEGIN\n  SELECT nombre INTO v_nombre FROM prp.prospectos WHERE id = NEW.prospecto_id;\n  NEW.url_portal := 'https://priwoi.netlify.app/portal/prospecto/' || NEW.token;\n  NEW.whatsapp_msg := 'Hola ' || v_nombre || ', sube tu documentación aquí: https://priwoi.netlify.app/portal/prospecto/' || NEW.token || ' (válido 72 hrs)';\n  RETURN NEW;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "prp",
+   "proname": "fn_referencia_cobro",
+   "args": "",
+   "secdef": false,
+   "acl": null,
+   "def": "CREATE OR REPLACE FUNCTION prp.fn_referencia_cobro()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE v_num VARCHAR(20);\nBEGIN\n  SELECT numero_local INTO v_num FROM prp.unidades WHERE id = NEW.unidad_id;\n  NEW.referencia_pago := 'CP-' || NEW.anio::TEXT\n    || '-' || LPAD(NEW.mes::TEXT, 2, '0')\n    || '-' || REPLACE(REPLACE(UPPER(v_num), ' ', ''), '-', '');\n  RETURN NEW;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "prp",
+   "proname": "generar_cobros_contrato",
+   "args": "p_contrato_id uuid",
+   "secdef": true,
+   "acl": null,
+   "def": "CREATE OR REPLACE FUNCTION prp.generar_cobros_contrato(p_contrato_id uuid)\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_c        prp.contratos_arrendamiento%ROWTYPE;\n  v_inicio   DATE;\n  v_fecha    DATE;\n  v_mes      INT;\n  v_anio     INT;\n  v_meses    INT;\n  v_contador INT := 0;\nBEGIN\n  SELECT * INTO v_c FROM prp.contratos_arrendamiento WHERE id = p_contrato_id;\n  v_inicio := v_c.fecha_inicio + COALESCE(v_c.periodo_gracia_dias, 0);\n  v_meses := EXTRACT(YEAR FROM AGE(v_c.fecha_fin, v_inicio)) * 12\n           + EXTRACT(MONTH FROM AGE(v_c.fecha_fin, v_inicio));\n  FOR i IN 1..v_meses LOOP\n    v_fecha := v_inicio + ((i-1) || ' months')::INTERVAL;\n    v_mes   := EXTRACT(MONTH FROM v_fecha);\n    v_anio  := EXTRACT(YEAR FROM v_fecha);\n    INSERT INTO prp.cobros_programados (\n      contrato_id, unidad_id, arrendatario_id,\n      mes, anio, pagare_numero, fecha_limite_pago,\n      monto_renta, monto_iva, monto_total, referencia_pago\n    ) VALUES (\n      p_contrato_id, v_c.unidad_id, v_c.arrendatario_id,\n      v_mes, v_anio, i,\n      MAKE_DATE(v_anio, v_mes, COALESCE(v_c.dia_limite_pago, 5)),\n      v_c.renta_mensual, v_c.renta_mensual * 0.16, v_c.renta_mensual * 1.16,\n      'TEMP-' || LPAD(i::TEXT, 2, '0')\n    ) ON CONFLICT (contrato_id, mes, anio) DO NOTHING;\n    v_contador := v_contador + 1;\n  END LOOP;\n  RETURN v_contador;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "_comp_mi_arr_id",
+   "args": "",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public._comp_mi_arr_id()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\nAS $function$\n  SELECT id FROM public.arrendatarios WHERE auth_user_id = auth.uid() LIMIT 1\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "autorizar_periodo_nomina",
+   "args": "p_periodo_id uuid",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.autorizar_periodo_nomina(p_periodo_id uuid)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  UPDATE public.nomina_periodos SET\n    estado         = 'AUTORIZADA',\n    autorizado_por = auth.uid(),\n    autorizado_at  = NOW(),\n    updated_at     = NOW()\n  WHERE id = p_periodo_id AND estado = 'CALCULADA';\n  RETURN FOUND;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "calcular_nomina_periodo",
+   "args": "p_periodo_id uuid",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.calcular_nomina_periodo(p_periodo_id uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_periodo      public.nomina_periodos%ROWTYPE;\n  v_emp          RECORD;\n  v_nom_id       UUID;\n  v_dias         DECIMAL;\n  v_faltas       DECIMAL;\n  v_sal_periodo  DECIMAL;\n  v_base_mensual DECIMAL;\n  v_isr_mensual  DECIMAL;\n  v_subsidio_m   DECIMAL;\n  v_isr_periodo  DECIMAL;\n  v_subsidio_p   DECIMAL;\n  v_isr_retener  DECIMAL;\n  v_imss         DECIMAL;\n  v_neto         DECIMAL;\n  v_cuota_fija   DECIMAL;\n  v_tasa_exc     DECIMAL;\n  v_lim_inf      DECIMAL;\n  v_divisor      DECIMAL;\n  v_count        INTEGER := 0;\n  v_tot_perc     DECIMAL := 0;\n  v_tot_ded      DECIMAL := 0;\n  v_tot_neto     DECIMAL := 0;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  SELECT * INTO v_periodo FROM public.nomina_periodos WHERE id = p_periodo_id;\n  IF NOT FOUND THEN RAISE EXCEPTION 'Período % no encontrado', p_periodo_id; END IF;\n  IF v_periodo.estado NOT IN ('BORRADOR','CALCULADA') THEN\n    RAISE EXCEPTION 'Solo BORRADOR o CALCULADA puede recalcularse';\n  END IF;\n\n  -- Días naturales del período (inclusivo)\n  v_dias := (v_periodo.fecha_fin - v_periodo.fecha_inicio) + 1;\n\n  -- Divisor para convertir ISR mensual → período\n  v_divisor := CASE v_periodo.periodicidad\n    WHEN 'SEMANAL'   THEN 4.333\n    WHEN 'QUINCENAL' THEN 2.0\n    WHEN 'MENSUAL'   THEN 1.0\n    ELSE 2.0\n  END;\n\n  -- Limpiar cálculos anteriores (solo no timbrados)\n  DELETE FROM public.nomina_percepciones np\n    USING public.nomina_empleado ne\n    WHERE np.nomina_emp_id = ne.id\n      AND ne.periodo_id = p_periodo_id\n      AND ne.estatus_cfdi = 'PENDIENTE';\n  DELETE FROM public.nomina_deducciones nd\n    USING public.nomina_empleado ne\n    WHERE nd.nomina_emp_id = ne.id\n      AND ne.periodo_id = p_periodo_id\n      AND ne.estatus_cfdi = 'PENDIENTE';\n  DELETE FROM public.nomina_otros_pagos no2\n    USING public.nomina_empleado ne\n    WHERE no2.nomina_emp_id = ne.id\n      AND ne.periodo_id = p_periodo_id\n      AND ne.estatus_cfdi = 'PENDIENTE';\n  DELETE FROM public.nomina_empleado\n    WHERE periodo_id = p_periodo_id AND estatus_cfdi = 'PENDIENTE';\n\n  -- ── Iterar TODOS los empleados activos con salario ──────────────────────\n  -- Sin filtro de periodicidad: el período define el rango; todos participan.\n  FOR v_emp IN\n    SELECT\n      e.id,\n      e.nombre || ' ' || e.apellido_pat AS nombre_completo,\n      e.rfc,\n      e.nss,\n      -- Salario: preferir el del contrato vigente, si no el del empleado\n      COALESCE(\n        (SELECT rc.salario_diario FROM public.rh_contratos rc\n         WHERE rc.empleado_id = e.id AND rc.activo = TRUE\n         ORDER BY rc.created_at DESC LIMIT 1),\n        e.salario_diario, 0\n      ) AS salario_diario,\n      (SELECT rc.id FROM public.rh_contratos rc\n       WHERE rc.empleado_id = e.id AND rc.activo = TRUE\n       ORDER BY rc.created_at DESC LIMIT 1\n      ) AS contrato_id\n    FROM public.rh_empleados e\n    WHERE e.estado_id = 'ACTIVO'\n  LOOP\n    -- Saltar empleados sin salario configurado\n    IF COALESCE(v_emp.salario_diario, 0) <= 0 THEN CONTINUE; END IF;\n\n    -- ── Faltas del período ───────────────────────────────────────────────\n    SELECT COALESCE(COUNT(*), 0) INTO v_faltas\n    FROM public.rh_asistencia\n    WHERE empleado_id = v_emp.id\n      AND fecha BETWEEN v_periodo.fecha_inicio AND v_periodo.fecha_fin\n      AND estado = 'FALTA';\n\n    -- ── Salario del período ──────────────────────────────────────────────\n    v_sal_periodo := ROUND(v_emp.salario_diario * (v_dias - v_faltas), 2);\n\n    -- ── ISR ─────────────────────────────────────────────────────────────\n    -- Proyectar al mes para buscar en tarifa\n    v_base_mensual := ROUND(v_sal_periodo * v_divisor, 2);\n\n    SELECT cuota_fija, tasa_excedente, limite_inferior\n    INTO v_cuota_fija, v_tasa_exc, v_lim_inf\n    FROM public.sat_tarifa_isr\n    WHERE anio = 2026\n      AND v_base_mensual >= limite_inferior\n      AND (limite_superior IS NULL OR v_base_mensual <= limite_superior)\n    ORDER BY limite_inferior DESC LIMIT 1;\n\n    v_isr_mensual := ROUND(\n      COALESCE(v_cuota_fija, 0)\n      + ((v_base_mensual - COALESCE(v_lim_inf, 0)) * COALESCE(v_tasa_exc, 0)),\n      2\n    );\n\n    -- ── Subsidio al empleo ───────────────────────────────────────────────\n    SELECT subsidio_mensual INTO v_subsidio_m\n    FROM public.sat_subsidio_empleo\n    WHERE anio = 2026\n      AND v_base_mensual >= limite_inferior\n      AND (limite_superior IS NULL OR v_base_mensual <= limite_superior)\n    ORDER BY limite_inferior DESC LIMIT 1;\n    v_subsidio_m := COALESCE(v_subsidio_m, 0);\n\n    -- Convertir ISR y subsidio al período\n    v_isr_periodo  := ROUND(v_isr_mensual / v_divisor, 2);\n    v_subsidio_p   := ROUND(v_subsidio_m  / v_divisor, 2);\n    v_isr_retener  := GREATEST(0, v_isr_periodo - v_subsidio_p);\n\n    -- ── IMSS obrero (porcentaje simplificado 2026 ~3.675%) ───────────────\n    v_imss := ROUND(v_emp.salario_diario * (v_dias - v_faltas) * 0.03675, 2);\n\n    -- ── Neto ─────────────────────────────────────────────────────────────\n    v_neto := ROUND(v_sal_periodo - v_isr_retener - v_imss, 2);\n\n    -- Insertar en nomina_empleado\n    INSERT INTO public.nomina_empleado (\n      periodo_id, empleado_id, contrato_id,\n      dias_periodo, dias_trabajados, dias_falta,\n      salario_diario, salario_periodo,\n      total_percepciones, total_deducciones,\n      isr_base_mensual, isr_periodo, subsidio_empleo, isr_a_retener,\n      imss_obrero, neto_pagar\n    ) VALUES (\n      p_periodo_id, v_emp.id, v_emp.contrato_id,\n      v_dias, v_dias - v_faltas, v_faltas,\n      v_emp.salario_diario, v_sal_periodo,\n      v_sal_periodo,\n      v_isr_retener + v_imss,\n      v_base_mensual, v_isr_periodo, v_subsidio_p, v_isr_retener,\n      v_imss, v_neto\n    )\n    RETURNING id INTO v_nom_id;\n\n    -- Percepción: salario ordinario\n    INSERT INTO public.nomina_percepciones\n      (nomina_emp_id, tipo_percepcion, concepto, importe_gravado, dias_pagados)\n    VALUES\n      (v_nom_id, '001', 'Salario ordinario', v_sal_periodo, v_dias - v_faltas);\n\n    -- Deducción: IMSS obrero\n    IF v_imss > 0 THEN\n      INSERT INTO public.nomina_deducciones\n        (nomina_emp_id, tipo_deduccion, concepto, importe)\n      VALUES (v_nom_id, '001', 'Cuotas IMSS obrero', v_imss);\n    END IF;\n\n    -- Deducción: ISR\n    IF v_isr_retener > 0 THEN\n      INSERT INTO public.nomina_deducciones\n        (nomina_emp_id, tipo_deduccion, concepto, importe)\n      VALUES (v_nom_id, '002', 'ISR retenido', v_isr_retener);\n    END IF;\n\n    -- Deducción: faltas\n    IF v_faltas > 0 THEN\n      INSERT INTO public.nomina_deducciones\n        (nomina_emp_id, tipo_deduccion, concepto, importe)\n      VALUES (\n        v_nom_id, '006',\n        'Descuento por ' || v_faltas::TEXT || ' falta(s)',\n        ROUND(v_emp.salario_diario * v_faltas, 2)\n      );\n    END IF;\n\n    -- Subsidio al empleo (otro pago)\n    IF v_subsidio_p > 0 THEN\n      INSERT INTO public.nomina_otros_pagos\n        (nomina_emp_id, tipo_otro_pago, concepto, importe)\n      VALUES (v_nom_id, '002', 'Subsidio para el empleo', v_subsidio_p);\n    END IF;\n\n    v_count    := v_count + 1;\n    v_tot_perc := v_tot_perc + v_sal_periodo;\n    v_tot_ded  := v_tot_ded  + v_isr_retener + v_imss;\n    v_tot_neto := v_tot_neto + v_neto;\n  END LOOP;\n\n  -- Actualizar totales del período\n  UPDATE public.nomina_periodos SET\n    estado             = 'CALCULADA',\n    total_empleados    = v_count,\n    total_percepciones = ROUND(v_tot_perc, 2),\n    total_deducciones  = ROUND(v_tot_ded,  2),\n    total_neto         = ROUND(v_tot_neto, 2),\n    updated_at         = NOW()\n  WHERE id = p_periodo_id;\n\n  RETURN jsonb_build_object(\n    'ok',                TRUE,\n    'empleados',         v_count,\n    'total_percepciones', ROUND(v_tot_perc, 2),\n    'total_deducciones',  ROUND(v_tot_ded,  2),\n    'total_neto',         ROUND(v_tot_neto, 2)\n  );\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "confirmar_cobro",
+   "args": "p_cobro_id uuid, p_fecha_pago_real date, p_monto_pagado numeric, p_forma_pago text, p_numero_operacion text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.confirmar_cobro(p_cobro_id uuid, p_fecha_pago_real date, p_monto_pagado numeric, p_forma_pago text, p_numero_operacion text DEFAULT NULL::text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  UPDATE prp.cobros_programados\n  SET\n    estatus               = 'PAGADO',\n    conciliado            = TRUE,\n    fecha_pago_real       = p_fecha_pago_real,\n    monto_pagado          = p_monto_pagado,\n    forma_pago            = p_forma_pago,\n    numero_operacion_banco = p_numero_operacion,\n    updated_at            = NOW()\n  WHERE id = p_cobro_id;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "confirmar_cobros_batch",
+   "args": "p_matches jsonb",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.confirmar_cobros_batch(p_matches jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_item   JSONB;\n  v_ok     INT := 0;\n  v_fail   INT := 0;\n  v_errors TEXT[] := '{}';\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  FOR v_item IN SELECT * FROM jsonb_array_elements(p_matches)\n  LOOP\n    BEGIN\n      UPDATE prp.cobros_programados\n      SET\n        estatus               = 'PAGADO',\n        conciliado            = TRUE,\n        fecha_pago_real       = (v_item->>'fecha')::DATE,\n        monto_pagado          = (v_item->>'monto')::NUMERIC,\n        forma_pago            = 'TRANSFERENCIA',\n        numero_operacion_banco = LEFT(v_item->>'descripcion', 120),\n        updated_at            = NOW()\n      WHERE id = (v_item->>'cobro_id')::UUID\n        AND estatus = 'PENDIENTE';\n\n      IF FOUND THEN\n        v_ok := v_ok + 1;\n      ELSE\n        -- cobro ya pagado o no encontrado: igualmente cuenta como ok\n        v_ok := v_ok + 1;\n      END IF;\n\n    EXCEPTION WHEN OTHERS THEN\n      v_fail := v_fail + 1;\n      v_errors := array_append(v_errors, SQLERRM);\n    END;\n  END LOOP;\n\n  RETURN jsonb_build_object('ok', v_ok, 'fail', v_fail, 'errors', to_jsonb(v_errors));\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "crear_empleado",
+   "args": "p_nombre text, p_apellido_pat text, p_apellido_mat text, p_sexo text, p_rfc text, p_curp text, p_nss text, p_fecha_nacimiento date, p_fecha_ingreso date, p_puesto text, p_area text, p_departamento text, p_salario_diario numeric, p_email text, p_celular text, p_tipo_contrato text, p_fecha_fin_contrato date, p_horario_trabajo text, p_dia_descanso text, p_forma_pago text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.crear_empleado(p_nombre text, p_apellido_pat text, p_apellido_mat text DEFAULT NULL::text, p_sexo text DEFAULT 'M'::text, p_rfc text DEFAULT NULL::text, p_curp text DEFAULT NULL::text, p_nss text DEFAULT NULL::text, p_fecha_nacimiento date DEFAULT NULL::date, p_fecha_ingreso date DEFAULT CURRENT_DATE, p_puesto text DEFAULT NULL::text, p_area text DEFAULT NULL::text, p_departamento text DEFAULT NULL::text, p_salario_diario numeric DEFAULT NULL::numeric, p_email text DEFAULT NULL::text, p_celular text DEFAULT NULL::text, p_tipo_contrato text DEFAULT 'TEMPORAL_3SEM'::text, p_fecha_fin_contrato date DEFAULT NULL::date, p_horario_trabajo text DEFAULT NULL::text, p_dia_descanso text DEFAULT NULL::text, p_forma_pago text DEFAULT 'TRANSFERENCIA'::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\n      DECLARE\n        v_emp_id UUID;\n      BEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n        INSERT INTO public.rh_empleados (\n          nombre, apellido_pat, apellido_mat, sexo,\n          rfc, curp, nss, fecha_nacimiento,\n          fecha_ingreso, puesto, area, departamento,\n          salario_diario, email, celular, estado_id,\n          horario_trabajo, dia_descanso, forma_pago\n        ) VALUES (\n          p_nombre, p_apellido_pat, NULLIF(p_apellido_mat, ''), p_sexo,\n          NULLIF(p_rfc,''), NULLIF(p_curp,''), NULLIF(p_nss,''), p_fecha_nacimiento,\n          COALESCE(p_fecha_ingreso, CURRENT_DATE),\n          NULLIF(p_puesto,''), NULLIF(p_area,''), NULLIF(p_departamento,''),\n          p_salario_diario, NULLIF(p_email,''), NULLIF(p_celular,''), 'ACTIVO',\n          NULLIF(p_horario_trabajo,''), NULLIF(p_dia_descanso,''),\n          COALESCE(p_forma_pago, 'TRANSFERENCIA')\n        ) RETURNING id INTO v_emp_id;\n\n        IF p_tipo_contrato IS NOT NULL THEN\n          INSERT INTO public.rh_contratos (\n            empleado_id, tipo_contrato, fecha_inicio, fecha_fin,\n            salario_diario, activo\n          ) VALUES (\n            v_emp_id, p_tipo_contrato,\n            COALESCE(p_fecha_ingreso, CURRENT_DATE), p_fecha_fin_contrato,\n            p_salario_diario, TRUE\n          );\n        END IF;\n\n        RETURN v_emp_id;\n      END;\n      $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "crear_empleado",
+   "args": "p_nombre text, p_apellido_pat text, p_apellido_mat text, p_sexo character, p_rfc text, p_curp text, p_nss text, p_fecha_nacimiento date, p_fecha_ingreso date, p_puesto text, p_area text, p_departamento text, p_salario_diario numeric, p_email text, p_celular text, p_tipo_contrato text, p_fecha_fin_contrato date",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.crear_empleado(p_nombre text, p_apellido_pat text, p_apellido_mat text DEFAULT ''::text, p_sexo character DEFAULT 'M'::bpchar, p_rfc text DEFAULT NULL::text, p_curp text DEFAULT NULL::text, p_nss text DEFAULT NULL::text, p_fecha_nacimiento date DEFAULT NULL::date, p_fecha_ingreso date DEFAULT CURRENT_DATE, p_puesto text DEFAULT NULL::text, p_area text DEFAULT NULL::text, p_departamento text DEFAULT NULL::text, p_salario_diario numeric DEFAULT NULL::numeric, p_email text DEFAULT NULL::text, p_celular text DEFAULT NULL::text, p_tipo_contrato text DEFAULT 'TEMPORAL_3SEM'::text, p_fecha_fin_contrato date DEFAULT NULL::date)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE v_emp_id UUID;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  INSERT INTO public.rh_empleados\n    (nombre, apellido_pat, apellido_mat, sexo, rfc, curp, nss,\n     fecha_nacimiento, fecha_ingreso, puesto, area, departamento,\n     salario_diario, email, celular)\n  VALUES\n    (p_nombre, p_apellido_pat, NULLIF(p_apellido_mat,''), p_sexo,\n     NULLIF(p_rfc,''), NULLIF(p_curp,''), NULLIF(p_nss,''),\n     p_fecha_nacimiento, p_fecha_ingreso,\n     NULLIF(p_puesto,''), NULLIF(p_area,''), NULLIF(p_departamento,''),\n     p_salario_diario, NULLIF(p_email,''), NULLIF(p_celular,''))\n  RETURNING id INTO v_emp_id;\n\n  IF p_tipo_contrato IS NOT NULL THEN\n    INSERT INTO public.rh_contratos (empleado_id, tipo_contrato, fecha_inicio, fecha_fin, salario_diario, activo)\n    VALUES (v_emp_id, p_tipo_contrato, p_fecha_ingreso, p_fecha_fin_contrato, p_salario_diario, TRUE);\n  END IF;\n\n  RETURN v_emp_id;\nEND;$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "crear_periodo_nomina",
+   "args": "p_periodicidad text, p_fecha_inicio date, p_fecha_fin date, p_fecha_pago date, p_tipo_nomina text, p_descripcion text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.crear_periodo_nomina(p_periodicidad text, p_fecha_inicio date, p_fecha_fin date, p_fecha_pago date, p_tipo_nomina text DEFAULT 'O'::text, p_descripcion text DEFAULT NULL::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_id   UUID;\n  v_folio TEXT;\n  v_seq  INTEGER;\n  v_prefix TEXT;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  v_prefix := CASE p_periodicidad\n    WHEN 'SEMANAL'   THEN 'S'\n    WHEN 'MENSUAL'   THEN 'M'\n    ELSE 'Q'\n  END;\n\n  SELECT COALESCE(MAX(\n    CAST(SUBSTR(folio, LENGTH(folio), 1) AS INTEGER)\n  ), 0) + 1\n  INTO v_seq\n  FROM public.nomina_periodos\n  WHERE periodicidad = p_periodicidad\n    AND EXTRACT(YEAR  FROM fecha_inicio) = EXTRACT(YEAR  FROM p_fecha_inicio)\n    AND EXTRACT(MONTH FROM fecha_inicio) = EXTRACT(MONTH FROM p_fecha_inicio);\n\n  v_folio := 'NOM-' || TO_CHAR(p_fecha_inicio, 'YYYY-MM') || '-' || v_prefix || v_seq;\n\n  INSERT INTO public.nomina_periodos (\n    folio, periodicidad, fecha_inicio, fecha_fin, fecha_pago,\n    tipo_nomina, descripcion, created_by\n  ) VALUES (\n    v_folio, p_periodicidad, p_fecha_inicio, p_fecha_fin, p_fecha_pago,\n    p_tipo_nomina, p_descripcion, auth.uid()\n  )\n  RETURNING id INTO v_id;\n\n  RETURN v_id;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "desmarcar_cobros",
+   "args": "p_cobro_ids uuid[]",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.desmarcar_cobros(p_cobro_ids uuid[])\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE v_count INT;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  UPDATE prp.cobros_programados\n  SET\n    estatus               = 'PENDIENTE',\n    conciliado            = FALSE,\n    fecha_pago_real       = NULL,\n    monto_pagado          = NULL,\n    forma_pago            = NULL,\n    numero_operacion_banco = NULL,\n    updated_at            = NOW()\n  WHERE id = ANY(p_cobro_ids);\n  GET DIAGNOSTICS v_count = ROW_COUNT;\n  RETURN v_count;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "docs_requeridos_por_tipo",
+   "args": "p_tipo text",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.docs_requeridos_por_tipo(p_tipo text)\n RETURNS text[]\n LANGUAGE sql\n IMMUTABLE\nAS $function$ SELECT CASE p_tipo WHEN 'INQUILINO' THEN ARRAY['INE_FRENTE','INE_REVERSO','COMPROBANTE_INGRESOS_1','COMPROBANTE_INGRESOS_2','COMPROBANTE_INGRESOS_3','SOLICITUD_FIRMADA'] WHEN 'OBLIGADO_SOLIDARIO' THEN ARRAY['INE_FRENTE','INE_REVERSO','COMPROBANTE_INGRESOS_1','COMPROBANTE_INGRESOS_2','COMPROBANTE_INGRESOS_3','COMPROBANTE_DOMICILIO','SOLICITUD_FIRMADA'] WHEN 'FIADOR' THEN ARRAY['INE_FRENTE','INE_REVERSO','COMPROBANTE_INGRESOS_1','COMPROBANTE_INGRESOS_2','COMPROBANTE_INGRESOS_3','COMPROBANTE_DOMICILIO','ESCRITURA_INMUEBLE','SOLICITUD_FIRMADA'] ELSE ARRAY[]::text[] END $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "documentos_touch",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.documentos_touch()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.updated_at = now();\r\n  RETURN NEW;\r\nEND $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "es_admin",
+   "args": "",
+   "secdef": true,
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.es_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\n  SELECT COALESCE(\r\n    (SELECT rol_id IN ('super_admin','admin_inmobiliaria','gerente_plaza')\r\n       FROM public.irp_usuarios WHERE id = auth.uid()),\r\n    false)\r\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "es_staff",
+   "args": "",
+   "secdef": true,
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.es_staff()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  SELECT COALESCE(\n    (SELECT rol_id NOT IN ('arrendatario','prospecto','restaurante','locatario')\n       FROM public.irp_usuarios WHERE id = auth.uid()),\n    false)\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_actualizar_estado_cargo",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_actualizar_estado_cargo()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\ndeclare\n  v_cargos uuid[];\n  v_cargo  uuid;\n  v_importe  numeric;\n  v_aplicado numeric;\n  v_estado   text;\nbegin\n  -- Un UPDATE puede mover la aplicación de un cargo a otro: hay que recalcular\n  -- los dos, el que la recibe y el que la pierde.\n  v_cargos := array_remove(array[\n    case when tg_op in ('INSERT','UPDATE') then new.cargo_id end,\n    case when tg_op in ('DELETE','UPDATE') then old.cargo_id end\n  ], null);\n\n  foreach v_cargo in array v_cargos loop\n    select importe into v_importe from public.cargos_programados where id = v_cargo;\n    if v_importe is null then continue; end if;\n\n    select coalesce(sum(importe_aplicado), 0) into v_aplicado\n      from public.aplicaciones_pago where cargo_id = v_cargo;\n\n    if    v_aplicado >= v_importe - 0.01 then v_estado := 'PAGADO';\n    elsif v_aplicado > 0                 then v_estado := 'PARCIAL';\n    else                                      v_estado := 'PENDIENTE';\n    end if;\n\n    update public.cargos_programados\n       set estado = v_estado, updated_at = now()\n     where id = v_cargo and estado is distinct from v_estado;\n  end loop;\n\n  return coalesce(new, old);\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_cerrar_sueldo_anterior",
+   "args": "",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_cerrar_sueldo_anterior()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  UPDATE public.rh_historial_sueldo\n     SET fecha_fin = NEW.fecha - 1\n   WHERE empleado_id = NEW.empleado_id\n     AND id <> NEW.id\n     AND fecha < NEW.fecha\n     AND fecha_fin IS NULL;\n  RETURN NULL;\nEND $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_clasificacion_desde_aplicaciones",
+   "args": "p_ingreso bigint",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_clasificacion_desde_aplicaciones(p_ingreso bigint)\n RETURNS text\n LANGUAGE plpgsql\n STABLE\nAS $function$\ndeclare v_conceptos text[];\nbegin\n  select array_agg(distinct\n           case when c.concepto in ('RENTA','SANCION','AGUA') then c.concepto else 'OTRO' end)\n    into v_conceptos\n    from public.aplicaciones_pago a\n    join public.cargos_programados c on c.id = a.cargo_id\n   where a.ingreso_id = p_ingreso\n     and coalesce(a.importe_aplicado, 0) > 0;\n\n  -- Sin aplicaciones no hay distribución de la cual deducir nada: se devuelve\n  -- NULL y quien llama deja la clasificación como estaba, sin inventarla.\n  if v_conceptos is null or array_length(v_conceptos, 1) = 0 then\n    return null;\n  end if;\n  if array_length(v_conceptos, 1) = 1 then\n    return v_conceptos[1];\n  end if;\n  return 'MIXTO';\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_consolidar_dia_asistencia",
+   "args": "",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_consolidar_dia_asistencia()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  v_emp    uuid;\n  v_op     text;\n  v_fecha_marcaje date;\n  v_cruza  boolean;\n  v_entrada_prog time;\n  v_shift  date;   -- día de turno a consolidar (puede no ser v_fecha_marcaje)\n  v_ent    timestamp;\n  v_sal    timestamp;\n  v_ref    time;\n  v_min    integer;\n  v_ret    integer;\nBEGIN\n  v_emp          := COALESCE(NEW.empleado_id, OLD.empleado_id);\n  v_op           := COALESCE(NEW.operacion,   OLD.operacion);\n  v_fecha_marcaje := COALESCE(NEW.fecha,      OLD.fecha);\n  IF v_emp IS NULL THEN RETURN NULL; END IF;\n\n  SELECT cruza_medianoche, hora_entrada_prog INTO v_cruza, v_entrada_prog\n    FROM public.rh_empleados WHERE id = v_emp;\n  v_cruza := COALESCE(v_cruza, false);\n\n  v_shift := CASE WHEN v_cruza AND v_op = 'SALIDA' THEN v_fecha_marcaje - 1 ELSE v_fecha_marcaje END;\n\n  IF v_cruza THEN\n    -- El turno de v_shift junta la ENTRADA de v_shift con la SALIDA del día\n    -- siguiente (v_shift + 1), sin importar la hora exacta de cada una.\n    SELECT min(fecha_hora) FILTER (WHERE operacion = 'ENTRADA' AND fecha = v_shift),\n           max(fecha_hora) FILTER (WHERE operacion = 'SALIDA'  AND fecha = v_shift + 1)\n      INTO v_ent, v_sal\n      FROM public.rh_checadas\n     WHERE empleado_id = v_emp AND fecha IN (v_shift, v_shift + 1);\n  ELSE\n    SELECT min(fecha_hora) FILTER (WHERE operacion = 'ENTRADA'),\n           max(fecha_hora) FILTER (WHERE operacion = 'SALIDA')\n      INTO v_ent, v_sal\n      FROM public.rh_checadas\n     WHERE empleado_id = v_emp AND fecha = v_shift;\n  END IF;\n\n  IF v_ent IS NULL AND v_sal IS NULL THEN\n    DELETE FROM public.rh_asistencia WHERE empleado_id = v_emp AND fecha = v_shift;\n    RETURN NULL;\n  END IF;\n\n  -- El horario programado manda si existe; si no, se sigue leyendo el\n  -- primer HH:MM del texto libre (compatibilidad con quien no lo tenga\n  -- capturado todavía).\n  SELECT COALESCE(\n           v_entrada_prog,\n           (substring(horario_trabajo from '(\\d{1,2}:\\d{2})'))::time,\n           ((substring(horario_trabajo from '(\\d{1,2})\\s*[-–]\\s*\\d') || ':00'))::time,\n           '08:00'::time)\n    INTO v_ref FROM public.rh_empleados WHERE id = v_emp;\n  v_ref := COALESCE(v_ref, '08:00'::time);\n\n  -- Con timestamp completo (no solo ::time) el cálculo de minutos trabajados\n  -- da bien aunque la salida caiga al día siguiente.\n  v_min := CASE WHEN v_ent IS NOT NULL AND v_sal IS NOT NULL\n                THEN EXTRACT(epoch FROM (v_sal - v_ent))::int / 60 END;\n  v_ret := CASE WHEN v_ent IS NOT NULL\n                THEN GREATEST(0, EXTRACT(epoch FROM (v_ent::time - v_ref))::int / 60) ELSE 0 END;\n  IF v_ret <= 5 THEN v_ret := 0; END IF;\n\n  INSERT INTO public.rh_asistencia\n    (empleado_id, fecha, hora_entrada, hora_salida, minutos_trabajados, minutos_retardo, estado, fuente)\n  VALUES\n    (v_emp, v_shift, v_ent::time, v_sal::time, v_min, v_ret,\n     CASE WHEN v_ent IS NULL THEN 'FALTA' WHEN v_ret > 10 THEN 'RETARDO' ELSE 'PRESENTE' END,\n     'CHECADAS')\n  ON CONFLICT (empleado_id, fecha) DO UPDATE SET\n    hora_entrada = EXCLUDED.hora_entrada, hora_salida = EXCLUDED.hora_salida,\n    minutos_trabajados = EXCLUDED.minutos_trabajados, minutos_retardo = EXCLUDED.minutos_retardo,\n    estado = EXCLUDED.estado, fuente = EXCLUDED.fuente;\n  RETURN NULL;\nEND $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_generar_folios_iwol",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_generar_folios_iwol()\n RETURNS TABLE(contrato_id uuid, folio_generado text, estatus_nuevo text)\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n  v            RECORD;\n  v_loc_str    TEXT;\n  v_loc_code   TEXT;\n  v_anio       TEXT;\n  v_base       TEXT;\n  v_folio      TEXT;\n  v_cnt        INT;\n  v_estatus    TEXT;\nBEGIN\n  FOR v IN\n    SELECT id, locales_display, locales_referencia, fecha_inicio, estatus, numero_contrato\n    FROM public.contratos\n    WHERE numero_contrato IS NULL OR numero_contrato NOT LIKE 'IWOL-%'\n    ORDER BY fecha_inicio NULLS LAST\n  LOOP\n    -- Extraer números de local y concatenar con pad de 2 dígitos\n    SELECT string_agg(lpad(m[1], 2, '0'), '' ORDER BY m[1]::INT)\n    INTO   v_loc_code\n    FROM   regexp_matches(COALESCE(v.locales_display, v.locales_referencia, ''), '(\\d+)', 'g') AS m;\n\n    IF v_loc_code IS NULL OR v_loc_code = '' THEN\n      v_loc_code := 'XX';\n    END IF;\n\n    v_anio := COALESCE(to_char(v.fecha_inicio, 'YYYY'), to_char(CURRENT_DATE, 'YYYY'));\n    v_base := 'IWOL-L' || v_loc_code || '-' || v_anio;\n\n    -- Garantizar unicidad\n    SELECT COUNT(*) INTO v_cnt FROM public.contratos\n    WHERE numero_contrato LIKE v_base || '%';\n    IF v_cnt > 0 THEN\n      v_folio := v_base || '-' || (v_cnt + 1)::TEXT;\n    ELSE\n      v_folio := v_base;\n    END IF;\n\n    -- Normalizar estatus legacy\n    v_estatus := CASE\n      WHEN v.estatus IN ('VIGENTE','VENCIDO','RENOVADO','RESCISION') THEN v.estatus\n      WHEN v.estatus = 'TERMINADO' THEN 'VENCIDO'\n      ELSE 'VIGENTE'\n    END;\n\n    UPDATE public.contratos\n       SET numero_contrato = v_folio,\n           estatus         = v_estatus\n     WHERE id = v.id;\n\n    contrato_id      := v.id;\n    folio_generado   := v_folio;\n    estatus_nuevo    := v_estatus;\n    RETURN NEXT;\n  END LOOP;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_generar_sanciones",
+   "args": "p_pct_default numeric",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_generar_sanciones(p_pct_default numeric DEFAULT 0.10)\n RETURNS TABLE(contratos_afectados integer, sanciones_creadas integer)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE v_cargo RECORD; v_monto NUMERIC; v_cnt INT := 0;\r\nBEGIN\r\n  FOR v_cargo IN\r\n    SELECT cp.id, cp.contrato_id, cp.importe, cp.periodo_mes, cp.periodo_anio, cp.descripcion\r\n    FROM public.cargos_programados cp\r\n    WHERE cp.concepto = 'RENTA' AND cp.estado IN ('PENDIENTE','PARCIAL')\r\n      AND cp.fecha_vencimiento < CURRENT_DATE\r\n      AND NOT EXISTS (SELECT 1 FROM public.cargos_programados s\r\n        WHERE s.origen_cargo_id = cp.id AND s.concepto = 'SANCION'\r\n          AND DATE_TRUNC('month', s.created_at) = DATE_TRUNC('month', CURRENT_DATE))\r\n  LOOP\r\n    SELECT cp2.importe - COALESCE(SUM(ap.importe_aplicado),0) INTO v_monto\r\n    FROM public.cargos_programados cp2\r\n    LEFT JOIN public.aplicaciones_pago ap ON ap.cargo_id = cp2.id\r\n    WHERE cp2.id = v_cargo.id GROUP BY cp2.importe;\r\n    IF v_monto > 0 THEN\r\n      INSERT INTO public.cargos_programados (contrato_id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, origen_cargo_id, generado_auto)\r\n      VALUES (v_cargo.contrato_id,'SANCION','Sancion por mora - '||COALESCE(v_cargo.descripcion,''),\r\n        EXTRACT(MONTH FROM CURRENT_DATE)::INT, EXTRACT(YEAR FROM CURRENT_DATE)::INT,\r\n        ROUND(v_monto*p_pct_default,2), CURRENT_DATE+5, v_cargo.id, TRUE);\r\n      v_cnt := v_cnt + 1;\r\n    END IF;\r\n  END LOOP;\r\n  RETURN QUERY SELECT v_cnt, v_cnt;\r\nEND;\r\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_recalcular_clasificacion_ingreso",
+   "args": "p_ingreso bigint",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_recalcular_clasificacion_ingreso(p_ingreso bigint)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\ndeclare v_nueva text;\nbegin\n  if p_ingreso is null then return; end if;\n  v_nueva := public.fn_clasificacion_desde_aplicaciones(p_ingreso);\n\n  -- La elección manual manda: el recálculo no la pisa. Y si la deducción no da\n  -- resultado (ingreso sin aplicaciones) se conserva lo que hubiera.\n  update public.ingresos\n     set clasificacion = coalesce(v_nueva, clasificacion)\n   where id = p_ingreso\n     and clasificacion_manual = false\n     and clasificacion is distinct from coalesce(v_nueva, clasificacion);\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_recalcular_vacaciones_anio",
+   "args": "",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_recalcular_vacaciones_anio()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE v_emp uuid; v_anio integer;\nBEGIN\n  v_emp  := COALESCE(NEW.empleado_id, OLD.empleado_id);\n  v_anio := COALESCE(NEW.anio,        OLD.anio);\n\n  INSERT INTO public.rh_vacaciones_anio (empleado_id, anio)\n  VALUES (v_emp, v_anio) ON CONFLICT (empleado_id, anio) DO NOTHING;\n\n  UPDATE public.rh_vacaciones_anio a\n     SET dias_tomados = COALESCE((\n       SELECT sum(d.dias) FROM public.rh_vacaciones_detalle d\n        WHERE d.empleado_id = v_emp AND d.anio = v_anio\n          AND d.estado IN ('AUTORIZADA','TOMADA')), 0)\n   WHERE a.empleado_id = v_emp AND a.anio = v_anio;\n  RETURN NULL;\nEND $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_trg_clasificacion_ingreso",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_trg_clasificacion_ingreso()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  if tg_op in ('INSERT','UPDATE') then\n    perform public.fn_recalcular_clasificacion_ingreso(new.ingreso_id);\n  end if;\n  -- Un UPDATE puede mover la aplicación de un ingreso a otro: los dos cambian.\n  if tg_op in ('DELETE','UPDATE') then\n    perform public.fn_recalcular_clasificacion_ingreso(old.ingreso_id);\n  end if;\n  return null;\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_validar_aplicaciones_vs_ingreso",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_validar_aplicaciones_vs_ingreso()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\ndeclare\n  v_ingreso   bigint;\n  v_importe   numeric;\n  v_aplicado  numeric;\nbegin\n  v_ingreso := new.ingreso_id;\n\n  select importe into v_importe from public.ingresos where id = v_ingreso;\n  -- Un ingreso sin importe capturado no da contra qué comparar; no se bloquea.\n  if v_importe is null then return null; end if;\n\n  select coalesce(sum(importe_aplicado), 0) into v_aplicado\n    from public.aplicaciones_pago where ingreso_id = v_ingreso;\n\n  -- Tolerancia de un centavo: el redondeo de un importe no debe tumbar una captura.\n  if v_aplicado > v_importe + 0.01 then\n    raise exception\n      'La distribución excede el pago: el ingreso #% es de $% y se están aplicando $% (sobran $%). Ajusta los importes o quita el cargo que sobra.',\n      v_ingreso,\n      to_char(v_importe,  'FM999,999,990.00'),\n      to_char(v_aplicado, 'FM999,999,990.00'),\n      to_char(v_aplicado - v_importe, 'FM999,999,990.00');\n  end if;\n\n  return null;\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "fn_validar_ingreso_vs_aplicaciones",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.fn_validar_ingreso_vs_aplicaciones()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\ndeclare v_aplicado numeric;\nbegin\n  if new.importe is null then return null; end if;\n\n  select coalesce(sum(importe_aplicado), 0) into v_aplicado\n    from public.aplicaciones_pago where ingreso_id = new.id;\n\n  if v_aplicado > new.importe + 0.01 then\n    raise exception\n      'No se puede bajar el ingreso #% a $%: ya tiene $% distribuidos entre cargos. Corrige primero la distribución.',\n      new.id,\n      to_char(new.importe, 'FM999,999,990.00'),\n      to_char(v_aplicado,  'FM999,999,990.00');\n  end if;\n\n  return null;\nend;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "gen_numero_empleado",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.gen_numero_empleado()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE v_num INT;\nBEGIN\n  SELECT COALESCE(MAX(CAST(NULLIF(regexp_replace(numero_empleado, '[^0-9]', '', 'g'), '') AS INT)), 0) + 1\n  INTO v_num FROM public.rh_empleados;\n  NEW.numero_empleado := 'E' || LPAD(v_num::TEXT, 3, '0');\n  RETURN NEW;\nEND;$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "get_mi_rol",
+   "args": "",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.get_mi_rol()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\nAS $function$\n  SELECT rol_id FROM public.irp_usuarios WHERE id = auth.uid();\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "inicializar_docs_persona",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.inicializar_docs_persona()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ DECLARE doc text; BEGIN FOREACH doc IN ARRAY public.docs_requeridos_por_tipo(NEW.tipo) LOOP INSERT INTO public.prospecto_documentos (persona_id, tipo_doc) VALUES (NEW.id, doc); END LOOP; RETURN NEW; END; $function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "log_bitacora",
+   "args": "p_modulo text, p_accion text, p_entidad text, p_entidad_id uuid, p_descripcion text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.log_bitacora(p_modulo text, p_accion text, p_entidad text DEFAULT NULL::text, p_entidad_id uuid DEFAULT NULL::uuid, p_descripcion text DEFAULT NULL::text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO prp.bitacora (\n    modulo, accion, entidad, entidad_id, descripcion,\n    usuario_id, usuario_email, created_at\n  )\n  SELECT\n    p_modulo, p_accion, p_entidad, p_entidad_id, p_descripcion,\n    auth.uid(),\n    u.email,\n    NOW()\n  FROM auth.users u\n  WHERE u.id = auth.uid()\n  UNION ALL\n  SELECT p_modulo, p_accion, p_entidad, p_entidad_id, p_descripcion,\n    auth.uid(), NULL, NOW()\n  WHERE auth.uid() IS NULL\n  LIMIT 1;\nEXCEPTION WHEN OTHERS THEN\n  NULL;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "marcar_cfdi_nomina_timbrado",
+   "args": "p_nomina_emp_id uuid, p_uuid text, p_xml text, p_pdf_b64 text, p_error text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.marcar_cfdi_nomina_timbrado(p_nomina_emp_id uuid, p_uuid text, p_xml text, p_pdf_b64 text DEFAULT NULL::text, p_error text DEFAULT NULL::text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE v_periodo_id UUID;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  UPDATE public.nomina_empleado SET\n    uuid_cfdi      = p_uuid,\n    xml_cfdi       = p_xml,\n    pdf_base64     = p_pdf_b64,\n    fecha_timbrado = CASE WHEN p_error IS NULL THEN NOW() ELSE NULL END,\n    estatus_cfdi   = CASE WHEN p_error IS NULL THEN 'TIMBRADO' ELSE 'ERROR' END,\n    error_timbrado = p_error,\n    updated_at     = NOW()\n  WHERE id = p_nomina_emp_id;\n\n  SELECT periodo_id INTO v_periodo_id FROM public.nomina_empleado WHERE id = p_nomina_emp_id;\n\n  IF NOT EXISTS (\n    SELECT 1 FROM public.nomina_empleado\n    WHERE periodo_id = v_periodo_id AND estatus_cfdi = 'PENDIENTE'\n  ) THEN\n    UPDATE public.nomina_periodos SET estado = 'TIMBRADA', updated_at = NOW()\n    WHERE id = v_periodo_id AND estado = 'AUTORIZADA';\n  END IF;\n\n  RETURN TRUE;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "mi_arrendatario_id",
+   "args": "",
+   "secdef": true,
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.mi_arrendatario_id()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  SELECT c.arrendatario_id FROM public.contratos c\n   WHERE c.id = (SELECT contrato_id FROM public.irp_usuarios WHERE id = auth.uid())\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "mi_contrato_id",
+   "args": "",
+   "secdef": true,
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.mi_contrato_id()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  SELECT contrato_id FROM public.irp_usuarios WHERE id = auth.uid()\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "mi_rol",
+   "args": "",
+   "secdef": true,
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.mi_rol()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\n  SELECT rol_id FROM public.irp_usuarios WHERE id = auth.uid()\r\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "renovar_contrato",
+   "args": "p_contrato_id uuid, p_folio text, p_arrendatario_id uuid, p_unidad_id uuid, p_tipo_contrato text, p_fecha_inicio date, p_fecha_fin date, p_renta_mensual numeric, p_cuota_mant numeric, p_deposito_garantia numeric, p_dia_cobro integer, p_penalizacion_mora numeric, p_incremento_anual numeric, p_fiador_nombre text, p_fiador_rfc text, p_fiador_domicilio text, p_notas text",
+   "secdef": true,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.renovar_contrato(p_contrato_id uuid, p_folio text, p_arrendatario_id uuid, p_unidad_id uuid, p_tipo_contrato text, p_fecha_inicio date, p_fecha_fin date DEFAULT NULL::date, p_renta_mensual numeric DEFAULT 0, p_cuota_mant numeric DEFAULT 0, p_deposito_garantia numeric DEFAULT 0, p_dia_cobro integer DEFAULT 1, p_penalizacion_mora numeric DEFAULT 5, p_incremento_anual numeric DEFAULT 0, p_fiador_nombre text DEFAULT NULL::text, p_fiador_rfc text DEFAULT NULL::text, p_fiador_domicilio text DEFAULT NULL::text, p_notas text DEFAULT NULL::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_nuevo_id uuid;\n  v_original record;\nBEGIN\n  IF NOT public.es_staff() THEN RAISE EXCEPTION 'No autorizado' USING ERRCODE = '42501'; END IF;\n  SELECT * INTO v_original FROM public.contratos WHERE id = p_contrato_id;\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Contrato % no encontrado', p_contrato_id;\n  END IF;\n\n  UPDATE public.contratos\n  SET estatus = 'RENOVADO', updated_at = now()\n  WHERE id = p_contrato_id;\n\n  INSERT INTO public.contratos (\n    numero_contrato, arrendatario_id,\n    fecha_inicio, fecha_fin,\n    renta_mensual, deposito_garantia,\n    dia_pago, penalizacion_pct, incremento_anual_pct,\n    fiador_nombre, fiador_rfc, fiador_domicilio,\n    notas, estatus, estatus_proceso,\n    contrato_anterior_id, created_at, updated_at\n  ) VALUES (\n    p_folio, p_arrendatario_id,\n    p_fecha_inicio, p_fecha_fin,\n    p_renta_mensual,\n    CASE WHEN p_deposito_garantia > 0 THEN p_deposito_garantia ELSE v_original.deposito_garantia END,\n    p_dia_cobro, p_penalizacion_mora, p_incremento_anual,\n    NULLIF(p_fiador_nombre, ''),\n    NULLIF(p_fiador_rfc, ''),\n    NULLIF(p_fiador_domicilio, ''),\n    COALESCE(NULLIF(p_notas, ''), v_original.notas),\n    'VIGENTE', 'EN_RENOVACION',\n    p_contrato_id,\n    now(), now()\n  )\n  RETURNING id INTO v_nuevo_id;\n\n  INSERT INTO public.contratos_locales (contrato_id, local_id, renta_asignada)\n  SELECT v_nuevo_id, local_id, p_renta_mensual\n  FROM public.contratos_locales\n  WHERE contrato_id = p_contrato_id;\n\n  UPDATE public.cat_locales\n  SET contrato_activo_id = v_nuevo_id, estatus = 'OCUPADO'\n  WHERE id_local IN (\n    SELECT local_id FROM public.contratos_locales WHERE contrato_id = v_nuevo_id\n  );\n\n  RETURN v_nuevo_id;\nEND;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "set_updated_at",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END;\n$function$\n"
+  },
+  {
+   "schema": "public",
+   "proname": "sync_local_estatus",
+   "args": "",
+   "secdef": false,
+   "acl": "{=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+   "def": "CREATE OR REPLACE FUNCTION public.sync_local_estatus()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  IF NEW.estatus = 'VIGENTE' THEN\n    UPDATE public.cat_locales l\n    SET estatus = 'OCUPADO', contrato_activo_id = NEW.id\n    FROM public.contratos_locales cl\n    WHERE cl.contrato_id = NEW.id AND cl.local_id = l.id_local;\n  ELSIF NEW.estatus IN ('RESCISION','VENCIDO','CANCELADO') THEN\n    UPDATE public.cat_locales l\n    SET estatus = 'DISPONIBLE', contrato_activo_id = NULL\n    FROM public.contratos_locales cl\n    WHERE cl.contrato_id = NEW.id AND cl.local_id = l.id_local;\n  END IF;\n  RETURN NEW;\nEND; $function$\n"
+  }
+ ],
+ "views": [
+  {
+   "vista": "prp_adendums",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_arrendatarios",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_asistencia",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_asistencia_semana",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_bitacora",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_cajones_estacionamiento",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_candidatos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_cartera",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_cat_estado_general",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_cat_grupo_gasto",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_checadas",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_cobros",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_conciliacion_cobros",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_contratos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_documentos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_empleados",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_estacionamiento",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_estacionamiento_mensual",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_expediente_arrendatario",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_fondo_revolvente_cierres",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_fondos_revolventes",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_gastos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_gastos_mensual",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_historico_sueldos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_incidencias",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_ingresos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_ingresos_descuadrados",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_inmuebles",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_kpis",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_locales",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_mapa_locales",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_movimientos_bancarios",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_nomina_transferencias",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_notas_contrato",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_pensiones_estacionamiento",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_prenomina",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_prospectos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_proveedores",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_tipos_incidencia",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_turnos_guardia",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_unidades",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_vacaciones_anio",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_vacaciones_detalle",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_vacantes",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_validacion_puntos",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_validacion_reportes",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_vending_semana",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "prp_vending_semanas",
+   "opts": "{security_invoker=true}"
+  },
+  {
+   "vista": "v_prospecto_docs_status",
+   "opts": "{security_invoker=true}"
+  }
+ ],
+ "default_acl": [
+  {
+   "rol": "supabase_admin",
+   "schema": "public",
+   "tipo": "S",
+   "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "public",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "public",
+   "tipo": "f",
+   "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "storage",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "storage",
+   "tipo": "f",
+   "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "storage",
+   "tipo": "S",
+   "acl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+  },
+  {
+   "rol": "supabase_auth_admin",
+   "schema": "auth",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}"
+  },
+  {
+   "rol": "supabase_auth_admin",
+   "schema": "auth",
+   "tipo": "S",
+   "acl": "{postgres=rwU/supabase_auth_admin,dashboard_user=rwU/supabase_auth_admin}"
+  },
+  {
+   "rol": "supabase_auth_admin",
+   "schema": "auth",
+   "tipo": "f",
+   "acl": "{postgres=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql_public",
+   "tipo": "S",
+   "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql_public",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql_public",
+   "tipo": "f",
+   "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "extensions",
+   "tipo": "r",
+   "acl": "{postgres=a*r*w*d*D*x*t*m*/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "extensions",
+   "tipo": "f",
+   "acl": "{postgres=X*/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "extensions",
+   "tipo": "S",
+   "acl": "{postgres=r*w*U*/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql",
+   "tipo": "f",
+   "acl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "graphql",
+   "tipo": "S",
+   "acl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "realtime",
+   "tipo": "S",
+   "acl": "{postgres=rwU/supabase_admin,dashboard_user=rwU/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "realtime",
+   "tipo": "f",
+   "acl": "{postgres=X/supabase_admin,dashboard_user=X/supabase_admin}"
+  },
+  {
+   "rol": "supabase_admin",
+   "schema": "realtime",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/supabase_admin,dashboard_user=arwdDxtm/supabase_admin}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "public",
+   "tipo": "f",
+   "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "prp",
+   "tipo": "r",
+   "acl": "{authenticated=r/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "public",
+   "tipo": "r",
+   "acl": "{postgres=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}"
+  },
+  {
+   "rol": "postgres",
+   "schema": "public",
+   "tipo": "S",
+   "acl": "{postgres=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}"
+  }
+ ],
+ "buckets": [
+  {
+   "id": "avatars",
+   "public": true,
+   "file_size_limit": "5242880",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  },
+  {
+   "id": "catalogos",
+   "public": true,
+   "file_size_limit": "2097152",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  },
+  {
+   "id": "comprobantes-pago",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif"
+   ]
+  },
+  {
+   "id": "contratos-docs",
+   "public": false,
+   "file_size_limit": "52428800",
+   "allowed_mime_types": [
+    "application/pdf"
+   ]
+  },
+  {
+   "id": "contratos-firmados",
+   "public": false,
+   "file_size_limit": "52428800",
+   "allowed_mime_types": [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  },
+  {
+   "id": "expedientes-docs",
+   "public": false,
+   "file_size_limit": "52428800",
+   "allowed_mime_types": [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  },
+  {
+   "id": "facturas-cfdi",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf"
+   ]
+  },
+  {
+   "id": "logos-arrendatarios",
+   "public": true,
+   "file_size_limit": "2097152",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  },
+  {
+   "id": "ot-evidencias",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "application/pdf"
+   ]
+  },
+  {
+   "id": "prospecto-docs",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "application/pdf"
+   ]
+  },
+  {
+   "id": "tickets-gastos",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf"
+   ]
+  },
+  {
+   "id": "validacion-capturas",
+   "public": false,
+   "file_size_limit": null,
+   "allowed_mime_types": null
+  },
+  {
+   "id": "vending-reportes",
+   "public": false,
+   "file_size_limit": "10485760",
+   "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf"
+   ]
+  }
+ ],
+ "objetos_por_bucket": [
+  {
+   "bucket_id": "avatars",
+   "n": 26
+  },
+  {
+   "bucket_id": "contratos-firmados",
+   "n": 34
+  },
+  {
+   "bucket_id": "expedientes-docs",
+   "n": 28
+  },
+  {
+   "bucket_id": "facturas-cfdi",
+   "n": 8
+  },
+  {
+   "bucket_id": "logos-arrendatarios",
+   "n": 30
+  },
+  {
+   "bucket_id": "prospecto-docs",
+   "n": 4
+  },
+  {
+   "bucket_id": "tickets-gastos",
+   "n": 16
+  },
+  {
+   "bucket_id": "validacion-capturas",
+   "n": 4
+  }
+ ]
+}

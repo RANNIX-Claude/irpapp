@@ -1,6 +1,6 @@
-# Verificación post-migración RLS — qa (wijcjdbmdbxzmwpdxoal)
+# Verificación post-migración RLS — prod (kusuoxwzdxfuybvyiakg)
 
-Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_auditoria_tenant.sql  ·  Resultado: **76/76**
+Fecha: 2026-09-13T03:10:19.147Z  ·  Migración: 20260913100000_cierre_rls_auditoria_tenant.sql  ·  Resultado: **73/76**
 
 | Bloque | Prueba | Esperado | Obtenido | ✓/✗ |
 |---|---|---|---|---|
@@ -29,11 +29,11 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 2 | admin (super_admin) INSERT irp_usuarios | RLS permite (FK detiene: 23503) | ERR 23503 — RLS permitió, FK auth.users detuvo | ✓ |
 | 2 | admin UPDATE irp_usuarios (otro usuario) | ≥1 filas | 27 filas | ✓ |
 | 2 | admin SELECT irp_usuarios (todos) | 19+ | 28 | ✓ |
-| 3 | anon EXECUTE log_bitacora | false (el portal no la usa) | false | ✓ |
+| 3 | anon EXECUTE log_bitacora | false (el portal no la usa) | true | ✗ |
 | 3 | PortalProspecto.jsx invoca log_bitacora | informativo | no | ✓ |
 | 3 | authenticated EXECUTE log_bitacora | true | true | ✓ |
-| 3 | funciones (no trigger) ejecutables por anon | 0 | 0 | ✓ |
-| 3 | SECURITY DEFINER sin guardia ejecutables por anon | 0 | 0 | ✓ |
+| 3 | funciones (no trigger) ejecutables por anon | 0 | 18: _comp_mi_arr_id, autorizar_periodo_nomina, calcular_nomina_periodo, confirmar_cobro, confirmar_cobros_batch, crear_empleado, crear_empleado, crear_periodo_nomina, desmarcar_cobros, docs_requeridos_por_tipo, fn_clasificacion_desde_aplicaciones, fn_generar_folios_iwol, fn_generar_sanciones, fn_recalcular_clasificacion_ingreso, get_mi_rol, log_bitacora, marcar_cfdi_nomina_timbrado, renovar_contrato | ✗ |
+| 3 | SECURITY DEFINER sin guardia ejecutables por anon | 0 | log_bitacora | ✗ |
 | 3 | RPCs desde portales (src) | informativo | ninguna | ✓ |
 | 4 | authenticated USAGE en esquema prp | true | true | ✓ |
 | 4 | vistas public sin security_invoker | 0 | 0 | ✓ |
@@ -44,7 +44,7 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 4 | super_admin count(*) prp_kpis | 1 (total real) | 1 | ✓ |
 | 4 | super_admin count(*) prp_mapa_locales | 39 (total real) | 39 | ✓ |
 | 4 | super_admin count(*) prp_conciliacion_cobros | 120 (total real) | 120 | ✓ |
-| 4 | super_admin count(*) prp_bitacora | 2913 (total real) | 2913 | ✓ |
+| 4 | super_admin count(*) prp_bitacora | 2916 (total real) | 2916 | ✓ |
 | 4 | super_admin count(*) prp_proveedores | 12 (total real) | 12 | ✓ |
 | 4 | escrituras directas a prp.* desde src/ | ninguna (authenticated solo tiene SELECT) | ninguna | ✓ |
 | 4 | escrituras a través de vistas prp_* | ninguna | ninguna | ✓ |
@@ -60,12 +60,12 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 5 | gastos_operativos count | 0 | 0 | ✓ |
 | 5 | prp.movimientos_bancarios count | 0 | 0 | ✓ |
 | 5 | prp_movimientos_bancarios (vista) count | 0 | 0 | ✓ |
-| 5 | INSERT ingresos con su contrato_id | id (éxito) | 407 | ✓ |
+| 5 | INSERT ingresos con su contrato_id | id (éxito) | 393 | ✓ |
 | 5 | INSERT ingresos con contrato_id ajeno | ERR 42501 | ERR 42501 | ✓ |
 | 5 | documentos de su arrendatario | 0 (ajenos) | 0 | ✓ |
 | 6 | restaurante_gastos count | 8 | 8 | ✓ |
 | 6 | restaurante_gasto_detalle count | 102 | 102 | ✓ |
-| 6 | INSERT restaurante_gastos | id (éxito) | bf9998a8-300e-4e71-a5c8-3f8d8451ba01 | ✓ |
+| 6 | INSERT restaurante_gastos | id (éxito) | 637c728b-8a89-4143-afa6-070118c6ef64 | ✓ |
 | 6 | contratos count | 0 | 0 | ✓ |
 | 6 | prp_contratos count | 0 | 0 | ✓ |
 | 6 | prp_empleados count | 0 | 0 | ✓ |
@@ -75,10 +75,41 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 6 | rh_empleados count | 0 | 0 | ✓ |
 | 6 | ingresos count | 0 | 0 | ✓ |
 | 7 | lectura pública/anon sobre expedientes-docs | ninguna política | ninguna | ✓ |
-| 7 | bucket contratos-docs public | false (o inexistente en QA) | no existe en este proyecto | ✓ |
-| 7 | bucket expedientes-docs public | false | no existe en este proyecto | ✓ |
+| 7 | bucket contratos-docs public | false (o inexistente en QA) | false | ✓ |
+| 7 | bucket expedientes-docs public | false | false | ✓ |
 | 7 | código que consume contratos-docs | ninguno | ninguno | ✓ |
 | 7 | URLs públicas hardcodeadas a buckets privados | ninguna | ninguna | ✓ |
 | 7 | INSERT anon en storage sin restricción de carpeta | ninguna | ninguna | ✓ |
 
-Sin hallazgos.
+## Diagnóstico y SQL propuesto (no aplicado)
+
+### [3] anon EXECUTE log_bitacora
+Obtenido: `true`
+
+```sql
+anon la conserva por el grant implícito a PUBLIC (ver prueba siguiente). Es SECURITY DEFINER y escribe en prp.bitacora con usuario nulo: vector de basura en la bitácora, sin fuga de datos.
+REVOKE EXECUTE ON FUNCTION public.log_bitacora(text,text,text,uuid,text) FROM PUBLIC, anon;
+```
+
+### [3] funciones (no trigger) ejecutables por anon
+Obtenido: `18: _comp_mi_arr_id, autorizar_periodo_nomina, calcular_nomina_periodo, confirmar_cobro, confirmar_cobros_batch, crear_empleado, crear_empleado, crear_periodo_nomina, desmarcar_cobros, docs_requeridos_por_tipo, fn_clasificacion_desde_aplicaciones, fn_generar_folios_iwol, fn_generar_sanciones, fn_recalcular_clasificacion_ingreso, get_mi_rol, log_bitacora, marcar_cfdi_nomina_timbrado, renovar_contrato`
+
+```sql
+anon hereda EXECUTE del grant implícito a PUBLIC; la migración solo revocó al rol anon.
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+GRANT  EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT  EXECUTE ON FUNCTIONS TO authenticated, service_role;
+-- Las funciones de trigger no requieren EXECUTE del usuario que dispara el trigger; no se afectan.
+```
+
+### [3] SECURITY DEFINER sin guardia ejecutables por anon
+Obtenido: `log_bitacora`
+
+```sql
+Cualquiera con la clave anon puede invocarlas y corren como postgres. REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+GRANT  EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT  EXECUTE ON FUNCTIONS TO authenticated, service_role;
+-- Las funciones de trigger no requieren EXECUTE del usuario que dispara el trigger; no se afectan.
+```

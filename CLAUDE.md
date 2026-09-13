@@ -199,7 +199,9 @@ Resultado de la auditoría de aislamiento del 2026-09-12. Antes, las 90 polític
   las 19 vistas que leen ese esquema.
 - **`anon`** no tiene grants en `public` salvo `SELECT, UPDATE` en `prospecto_documentos` y
   `prospecto_personas` (portal de prospectos) ni `EXECUTE` en ninguna función. Tabla o función nueva nace
-  sin acceso anon por `ALTER DEFAULT PRIVILEGES`.
+  sin acceso anon por `ALTER DEFAULT PRIVILEGES`. Ojo: `REVOKE ... FROM anon` no basta para funciones,
+  porque heredan el `EXECUTE` implícito de `PUBLIC`; `20260913110000_funciones_sin_execute_public.sql`
+  revoca a `PUBLIC` y otorga solo a `authenticated` y `service_role` en `public` y `prp`.
 - **Funciones `SECURITY DEFINER` de escritura** (`crear_empleado`, `confirmar_cobro*`, `desmarcar_cobros`,
   `renovar_contrato`, `*_nomina*`) validan `IF NOT es_staff() THEN RAISE ... '42501'` al inicio.
 
@@ -208,7 +210,11 @@ Resultado de la auditoría de aislamiento del 2026-09-12. Antes, las 90 polític
 todo en transacciones con `ROLLBACK`, más una prueba REST con la clave anon. El workflow
 `.github/workflows/rls-tests.yml` las corre contra QA en cada push a `develop` que toque migraciones y a
 diario. Aplicar una migración: `npm run migrate:qa -- supabase/migrations/<archivo>.sql` (aplica y corre
-las pruebas); igual con `migrate:prod`.
+las pruebas); igual con `migrate:prod`. `node scripts/verificar-post-migracion.mjs qa|prod` corre los 7
+bloques de verificación (76 pruebas) y deja `docs/verificacion-rls-<env>-<fecha>.md` con diagnóstico y SQL
+propuesto por cada ✗. Antes de migrar producción: `node scripts/snapshot-seguridad.mjs prod` guarda en
+`supabase/backups/` la foto de políticas, grants, funciones, vistas y buckets más un `rollback-*.sql`, e
+imprime la lista de verificación manual de storage.
 
 Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver `20260820910000_notify_pgrst_reload.sql`).
 
