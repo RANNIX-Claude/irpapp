@@ -273,7 +273,7 @@ Registradas en `src/App.jsx`.
 
 ---
 
-## Netlify Functions (12)
+## Netlify Functions (11)
 
 | Function | Propósito |
 |---|---|
@@ -288,7 +288,6 @@ Registradas en `src/App.jsx`.
 | `crear-acceso-inquilino.js` | Alta de acceso al portal de arrendatario |
 | `portal-prospecto.js` | Backend anónimo del portal de prospectos (firma URLs) |
 | `subir-comprobante.js` | Carga de comprobantes de pago (exige JWT de sesión activa) |
-| `admin-ajuste-vending.js` | Ajustes administrativos de vending |
 
 Todas usan `claude-sonnet-4-6`; `max_tokens` va de 800 a 4096 según la función.
 
