@@ -128,7 +128,13 @@ Estado del cierre de buckets (etapa 2 de `20260829120000_storage_privado_urls_fi
 | `comprobantes-pago` | **false** | authenticated (arrendatario solo su carpeta) |
 | `expedientes-docs` | **false** | authenticated (`20260907100000`) |
 | `validacion-capturas` | **false** | authenticated (`20260910400000`) |
+| `contratos-docs` | **false** (`20260913100000`) | solo INSERT authenticated; sin uso en el código |
+| `ot-evidencias` | **false** | authenticated |
 | `avatars` | **true a propósito** | lectura pública — fotos de empleados |
+| `catalogos` · `logos-arrendatarios` | **true a propósito** | logos e imágenes de marca (`LogoEditable.jsx`) |
+
+`20260913100000` también elimina `public_read_expedientes` (lectura pública sobre `expedientes-docs`) y la
+política anon de INSERT sin carpeta en `prospecto-docs`; queda `anon_insert_prospecto_docs` acotada a `prospectos/`.
 
 **Regla de lectura**: salvo `avatars`, ningún archivo se pinta con su URL directa. Se usa
 `src/components/ui/ArchivoPrivado.jsx` — `<ImagenPrivada>`, `<EnlacePrivado>` y el hook
@@ -174,8 +180,37 @@ el horario del empleado). Se escribe en `rh_checadas`, nunca en `rh_asistencia` 
 `prp_asistencia_semana` da un renglón por empleado y día (`dia_semana`: 1=lunes … 7=domingo)
 y es la que alimenta la columna de asistencia del reporte semanal de nómina.
 
-### RLS
-Habilitado en todas las tablas. Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver `20260820910000_notify_pgrst_reload.sql`).
+### RLS — modelo por rol (desde `20260913100000_cierre_rls_auditoria_tenant.sql`)
+
+Resultado de la auditoría de aislamiento del 2026-09-12. Antes, las 90 políticas de negocio eran
+`USING (true)` para `authenticated`, las vistas saltaban RLS y `anon` leía todo el esquema `public`.
+
+- **`es_staff()`** decide el acceso: `rol_id NOT IN ('arrendatario','prospecto','restaurante','locatario')`.
+  Toda tabla de `public` y `prp` tiene la política `staff_all` (`FOR ALL TO authenticated USING (es_staff())`).
+- **Locatario** (`irp_usuarios.contrato_id`): políticas `locatario_lee` en `contratos`, `contratos_locales`,
+  `arrendatarios`, `cargos_programados`, `aplicaciones_pago`, `documentos`, `ingresos`, más
+  `locatario_sube_comprobante` (INSERT en `ingresos` con `estatus_validacion = 'POR_VALIDAR'`). Helpers
+  `mi_contrato_id()` y `mi_arrendatario_id()`. Si `ExpedienteContrato.jsx` toca una tabla nueva, hay que
+  darle política; si no, el locatario ve vacío.
+- **Restaurante**: `restaurante_all` solo en `restaurante_gastos` y `restaurante_gasto_detalle`.
+- **Catálogos de lectura libre** para cualquier autenticado (`auth_lee`): `irp_roles`, `cat_parametros`, `cat_locales`.
+- **Vistas** `public.*` llevan `security_invoker = true`: heredan la RLS de quien consulta. Una vista nueva
+  debe crearse `WITH (security_invoker = true)`; `authenticated` tiene `USAGE` + `SELECT` sobre `prp` para
+  las 19 vistas que leen ese esquema.
+- **`anon`** no tiene grants en `public` salvo `SELECT, UPDATE` en `prospecto_documentos` y
+  `prospecto_personas` (portal de prospectos) ni `EXECUTE` en ninguna función. Tabla o función nueva nace
+  sin acceso anon por `ALTER DEFAULT PRIVILEGES`.
+- **Funciones `SECURITY DEFINER` de escritura** (`crear_empleado`, `confirmar_cobro*`, `desmarcar_cobros`,
+  `renovar_contrato`, `*_nomina*`) validan `IF NOT es_staff() THEN RAISE ... '42501'` al inicio.
+
+**Pruebas automáticas**: `npm run test:rls` (QA) / `npm run test:rls:prod` corren `scripts/test-rls.mjs`:
+66 aserciones por rol (anon, staff, locatario, restaurante) con `SET LOCAL ROLE` + claims JWT simulados,
+todo en transacciones con `ROLLBACK`, más una prueba REST con la clave anon. El workflow
+`.github/workflows/rls-tests.yml` las corre contra QA en cada push a `develop` que toque migraciones y a
+diario. Aplicar una migración: `npm run migrate:qa -- supabase/migrations/<archivo>.sql` (aplica y corre
+las pruebas); igual con `migrate:prod`.
+
+Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver `20260820910000_notify_pgrst_reload.sql`).
 
 ---
 

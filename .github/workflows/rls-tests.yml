@@ -1,0 +1,33 @@
+# Pruebas automáticas de aislamiento RLS contra la base de datos QA.
+# Corre en cada push a develop y cada día a las 07:00 (hora de México) para detectar
+# regresiones: una migración que vuelva a abrir una política, una vista nueva sin
+# security_invoker, una tabla nueva sin RLS.
+#
+# Secrets requeridos en GitHub (Settings → Secrets → Actions):
+#   QA_SUPABASE_DB_PASSWORD, QA_SUPABASE_URL, QA_SUPABASE_ANON_KEY
+name: RLS QA
+
+on:
+  push:
+    branches: [develop]
+    paths: ["supabase/migrations/**", "scripts/test-rls.mjs", ".github/workflows/rls-tests.yml"]
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  rls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Pruebas RLS por rol + REST anon
+        env:
+          QA_SUPABASE_DB_PASSWORD: ${{ secrets.QA_SUPABASE_DB_PASSWORD }}
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+        run: node scripts/test-rls.mjs qa
