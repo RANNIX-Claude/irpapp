@@ -47,6 +47,8 @@ const PROCESO_OPTS = [
   { val: 'EN_CONTRATACION', label: 'En contratación', color: '#0A66C2', bg: '#EFF6FF' },
   { val: 'EN_RENOVACION',   label: 'En renovación',   color: '#7C3AED', bg: '#F5F3FF' },
   { val: 'EN_EJECUCION',    label: 'En ejecución',    color: '#057642', bg: '#ECFDF5' },
+  { val: 'TERMINADO',       label: 'Terminado',       color: '#6B7280', bg: '#F3F4F6' },
+  { val: 'SUSPENDIDO',      label: 'Suspendido',      color: '#B24020', bg: '#FEF2F2' },
 ]
 
 const ESTATUS_OPTS = [
@@ -250,10 +252,10 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
         {/* Logo montado sobre la banda */}
         <div style={{ position: 'absolute', left: '50%', bottom: -30, transform: 'translateX(-50%)' }}>
           <LogoEditable
-            bucket="logos-arrendatarios" prefijo="arrendatarios"
-            tabla="arrendatarios" columna="logo_url"
-            registroId={c.arrendatario_id} url={logo} nombre={nombre} size={62}
-            onSubido={url => onLogo(c.arrendatario_id, url)}
+            bucket="logos-arrendatarios" prefijo="contratos"
+            tabla="contratos" columna="logo_url"
+            registroId={c.id} url={logo} nombre={nombre} size={62}
+            onSubido={url => onLogo(c.id, url)}
           />
         </div>
       </div>
@@ -1255,22 +1257,23 @@ export default function Contratos() {
   const [deleting, setDeleting] = useState(false)
   const [showNuevo, setShowNuevo] = useState(false)
   const [vistaGrid, setVistaGrid] = useState(true)
-  // logo_url vive en arrendatarios y prp_contratos no lo expone; se carga aparte
-  // y se indexa por arrendatario para pintarlo en las tarjetas.
+  // prp_contratos no expone logo_url. Cada contrato tiene el suyo en
+  // contratos.logo_url; si no tiene, se usa el del arrendatario como respaldo.
+  // Se cargan aparte y se indexan por id de contrato y de arrendatario.
   const [logos, setLogos] = useState({})
+  const [logosArr, setLogosArr] = useState({})
   const [generandoFolios, setGenerandoFolios] = useState(false)
 
   useEffect(() => {
-    supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => {
-      setLogos(Object.fromEntries((data ?? []).filter(a => a.logo_url).map(a => [a.id, a.logo_url])))
-    })
+    const indexar = data => Object.fromEntries((data ?? []).filter(r => r.logo_url).map(r => [r.id, r.logo_url]))
+    supabase.from('contratos').select('id,logo_url').then(({ data }) => setLogos(indexar(data)))
+    supabase.from('arrendatarios').select('id,logo_url').then(({ data }) => setLogosArr(indexar(data)))
   }, [])
 
   // LogoEditable sube el archivo y guarda la columna; aquí solo se refleja en
-  // el índice, para que el logo salga en todas las tarjetas de ese arrendatario
-  // sin recargar.
-  const aplicarLogo = (arrendatarioId, url) =>
-    setLogos(prev => ({ ...prev, [arrendatarioId]: url }))
+  // el índice de ESE contrato, sin tocar los demás del mismo arrendatario.
+  const aplicarLogo = (contratoId, url) =>
+    setLogos(prev => ({ ...prev, [contratoId]: url }))
 
   // Genera folio IWOL-L{locales}-{año} para contratos sin folio estándar
   const ESTATUS_VALIDOS = ['VIGENTE', 'VENCIDO', 'RENOVADO', 'RESCISION']
@@ -1333,7 +1336,9 @@ export default function Contratos() {
       .then(({ data }) => { if (data?.valor) setDiasAnticip(parseInt(data.valor)) })
   }, [])
 
-  const lista = data ?? []
+  // Solo contratos en ejecución, vigentes o no. Los que están en contratación,
+  // en renovación (/renovaciones), terminados o suspendidos no van aquí.
+  const lista = (data ?? []).filter(c => (c.estatus_proceso ?? 'EN_EJECUCION') === 'EN_EJECUCION')
 
   // Conteos para KPIs y filtros
   const cntActivos     = lista.filter(c => !['VENCIDO','RESCISION','RENOVADO'].includes(c.estado_id)).length
@@ -1593,7 +1598,7 @@ export default function Contratos() {
               : vistaGrid
               ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16, padding: 16, background: '#F8FAFC' }}>
                   {filtrados.map(c => (
-                    <TarjetaContrato key={c.id} c={c} logo={logos[c.arrendatario_id]} onLogo={aplicarLogo}
+                    <TarjetaContrato key={c.id} c={c} logo={logos[c.id] ?? logosArr[c.arrendatario_id]} onLogo={aplicarLogo}
                       onView={c => { setSelectedInEditMode(false); setSelected(c) }}
                       onExpediente={c => navigate(`/contratos/${c.id}`)}
                     />

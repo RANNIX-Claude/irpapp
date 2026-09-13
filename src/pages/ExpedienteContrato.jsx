@@ -253,14 +253,16 @@ export default function ExpedienteContrato() {
       alta_fecha:         c.created_at?.slice(0, 10),
     }
 
-    const [cobrosR, docsR, arrR] = await Promise.all([
+    const [cobrosR, docsR, conR, arrR] = await Promise.all([
       // prp_cartera, no prp_cobros: esta última vive en el esquema `prp` y sus
       // contrato_id no corresponden a los de public.contratos, así que devolvía
       // siempre cero filas. Es la misma vista que usa /cobranza.
       supabase.from('prp_cartera').select('*').eq('contrato_id', id)
         .order('periodo_anio', { ascending: false }).order('periodo_mes', { ascending: false }),
       supabase.from('documentos').select('*').eq('entidad_tipo', 'ARRENDATARIO').eq('entidad_id', c.arrendatario_id),
-      // logo_url no está en la vista; se lee de la tabla.
+      // logo_url no está en la vista. El del contrato manda; el del
+      // arrendatario es respaldo para contratos sin logo propio.
+      supabase.from('contratos').select('logo_url').eq('id', id).maybeSingle(),
       supabase.from('arrendatarios').select('logo_url').eq('id', c.arrendatario_id).maybeSingle(),
     ])
 
@@ -276,7 +278,7 @@ export default function ExpedienteContrato() {
       referencia_pago:   r.concepto,
     })))
     setDocs(docsR.data ?? [])
-    setLogoUrl(arrR.data?.logo_url ?? null)
+    setLogoUrl(conR.data?.logo_url ?? arrR.data?.logo_url ?? null)
     setLoading(false)
   }, [id])
 
@@ -345,11 +347,11 @@ export default function ExpedienteContrato() {
           <div style={{ height: 90, background: `linear-gradient(135deg, ${C.dark} 0%, ${C.primary} 60%, ${C.primary}99 100%)`, borderRadius: '0 0 12px 12px', marginBottom: '-28px' }} />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, padding: '0 8px 16px' }}>
             <LogoEditable
-              bucket="logos-arrendatarios" prefijo="arrendatarios"
-              tabla="arrendatarios" columna="logo_url"
-              registroId={exp.arrendatario_id} url={logoUrl}
+              bucket="logos-arrendatarios" prefijo="contratos"
+              tabla="contratos" columna="logo_url"
+              registroId={id} url={logoUrl}
               nombre={exp.nombre_completo} size={72} redondo={false}
-              onSubido={setLogoUrl}
+              onSubido={setLogoUrl} soloLectura={esLocatario}
             />
             <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: -20, marginBottom: 6 }}>

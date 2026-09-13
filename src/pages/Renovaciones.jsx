@@ -72,7 +72,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
     const [{ error }, { error: errArr }] = await Promise.all([
       supabase.from('contratos').update({
         estatus:           editForm.estatus           || null,
-        estatus_proceso:   ['TERMINADO','TERMINACION_ANTICIPADA','RESCISION','CANCELADO'].includes(editForm.estatus) ? 'EN_EJECUCION' : undefined,
+        estatus_proceso:   ['TERMINADO','TERMINACION_ANTICIPADA','RESCISION','CANCELADO'].includes(editForm.estatus) ? 'TERMINADO' : undefined,
         renta_mensual:     editForm.renta_mensual     ? parseFloat(editForm.renta_mensual)     : null,
         deposito_garantia: editForm.deposito_garantia ? parseFloat(editForm.deposito_garantia) : null,
         fecha_inicio:      editForm.fecha_inicio      || null,
