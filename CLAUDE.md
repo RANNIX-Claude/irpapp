@@ -332,8 +332,12 @@ producción a propósito) están configuradas directamente en Netlify.
 3. `node scripts/clone-data-to-qa.mjs` — copia los datos reales de producción a QA tabla por tabla
    (`session_replication_role = replica` para no pelear con FKs durante la carga; reajusta secuencias al
    final). Pensado para correr sobre un esquema recién aplicado (no trunca antes de insertar).
+4. `node scripts/clone-auth-to-qa.mjs` — copia `auth.users` + `auth.identities` de producción a QA
+   preservando `id` y el hash bcrypt de la contraseña: cada usuario entra a QA con su mismo correo y
+   password de producción. Decisión explícita del usuario (2026-09-12): usar cuentas reales en QA en vez
+   de cuentas separadas con password temporal — asumido a propósito, no es el default más seguro.
 
-Estos tres scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
+Estos cuatro scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
 `pg_catalog`/`information_schema` directamente vía el paquete `pg` de Node.
 
 ---
