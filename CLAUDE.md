@@ -125,7 +125,6 @@ Estado del cierre de buckets (etapa 2 de `20260829120000_storage_privado_urls_fi
 | `facturas-cfdi` | **false** | authenticated |
 | `tickets-gastos` | **false** | authenticated |
 | `vending-reportes` | **false** | authenticated |
-| `comprobantes-pago` | **false** | authenticated (arrendatario solo su carpeta) |
 | `expedientes-docs` | **false** | authenticated (`20260907100000`) |
 | `validacion-capturas` | **false** | authenticated (`20260910400000`) |
 | `contratos-docs` | **false** (`20260913100000`) | solo INSERT authenticated; sin uso en el código |
@@ -220,7 +219,7 @@ Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver
 
 ---
 
-## Módulos IRP — 31 rutas en producción
+## Módulos IRP — 30 rutas en producción
 
 Registradas en `src/App.jsx`.
 
@@ -257,7 +256,6 @@ Registradas en `src/App.jsx`.
 | `/validacion` | Validación del Sistema | `Validacion.jsx` |
 | `/config` | Configuración | `Configuracion.jsx` |
 | `/portal/prospecto/:token` | Portal público de prospecto | `PortalProspecto.jsx` |
-| `/portal/arrendatario` | Portal de arrendatario | `PortalArrendatario.jsx` |
 | — | Login | `Login.jsx` |
 
 ---
@@ -267,13 +265,15 @@ Registradas en `src/App.jsx`.
 `AppLayout` en `src/App.jsx` decide qué aplicación ve cada usuario según `perfil.rol_id`:
 
 1. **Rutas `/portal/*`** — públicas, sin layout admin (prospecto y arrendatario)
-2. **`arrendatario` / `prospecto` logueado** (`ROLES_PORTAL`) — solo `PortalArrendatario embedded`, nunca el admin
+2. **`arrendatario` / `prospecto` logueado** (`ROLES_SIN_APP`) — pantalla "sin acceso", nunca el admin. El portal de
+   arrendatario se retiró el 2026-09-13 (`20260913120000`): el inquilino usa el rol `locatario`, uno por contrato
+   (`irp_usuarios.contrato_id`), que ve solo `/contratos/:id` en modo acotado
 3. **`restaurante`** — shell admin recortado: únicamente `/restaurante/gastos`
 4. **Resto (staff)** — layout admin completo con las 28 rutas internas
 
 ---
 
-## Netlify Functions (11)
+## Netlify Functions (10)
 
 | Function | Propósito |
 |---|---|
@@ -285,7 +285,6 @@ Registradas en `src/App.jsx`.
 | `generar-contrato.js` | Generación de contrato |
 | `generar-documentos.js` | Generación de documentos (docx) |
 | `generar-sanciones.js` | Cálculo/generación de sanciones |
-| `crear-acceso-inquilino.js` | Alta de acceso al portal de arrendatario |
 | `portal-prospecto.js` | Backend anónimo del portal de prospectos (firma URLs) |
 | `subir-comprobante.js` | Carga de comprobantes de pago (exige JWT de sesión activa) |
 
@@ -313,7 +312,8 @@ Todas usan `claude-sonnet-4-6`; `max_tokens` va de 800 a 4096 según la función
 
 - **Usuarios internos**: Email + contraseña (vía Supabase Auth)
 - **Google OAuth**: `signInWithGoogle()` en `src/lib/auth.js`
-- **Usuarios externos**: Magic Link / token de portal (arrendatarios, prospectos)
+- **Prospectos**: token de portal anónimo (`/portal/prospecto/:token`)
+- **Inquilinos**: cuenta con rol `locatario` vinculada a su contrato (`irp_usuarios.contrato_id`)
 - **Sesión persistida**: `persistSession: true` en el cliente principal; `false` en `supabaseParking`
 
 ---

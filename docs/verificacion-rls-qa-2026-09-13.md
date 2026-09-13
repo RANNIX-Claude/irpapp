@@ -1,6 +1,6 @@
 # Verificación post-migración RLS — qa (wijcjdbmdbxzmwpdxoal)
 
-Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_auditoria_tenant.sql  ·  Resultado: **76/76**
+Fecha: 2026-09-13T04:26:33.472Z  ·  Migración: 20260913100000_cierre_rls_auditoria_tenant.sql  ·  Resultado: **76/76**
 
 | Bloque | Prueba | Esperado | Obtenido | ✓/✗ |
 |---|---|---|---|---|
@@ -28,7 +28,7 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 2 |   · usuarios_leen_su_ficha | presente | SELECT {authenticated} USING (id = auth.uid()) CHECK - | ✓ |
 | 2 | admin (super_admin) INSERT irp_usuarios | RLS permite (FK detiene: 23503) | ERR 23503 — RLS permitió, FK auth.users detuvo | ✓ |
 | 2 | admin UPDATE irp_usuarios (otro usuario) | ≥1 filas | 27 filas | ✓ |
-| 2 | admin SELECT irp_usuarios (todos) | 19+ | 28 | ✓ |
+| 2 | admin SELECT irp_usuarios (todos) | 20+ | 28 | ✓ |
 | 3 | anon EXECUTE log_bitacora | false (el portal no la usa) | false | ✓ |
 | 3 | PortalProspecto.jsx invoca log_bitacora | informativo | no | ✓ |
 | 3 | authenticated EXECUTE log_bitacora | true | true | ✓ |
@@ -60,12 +60,12 @@ Fecha: 2026-09-13T03:14:32.753Z  ·  Migración: 20260913100000_cierre_rls_audit
 | 5 | gastos_operativos count | 0 | 0 | ✓ |
 | 5 | prp.movimientos_bancarios count | 0 | 0 | ✓ |
 | 5 | prp_movimientos_bancarios (vista) count | 0 | 0 | ✓ |
-| 5 | INSERT ingresos con su contrato_id | id (éxito) | 407 | ✓ |
+| 5 | INSERT ingresos con su contrato_id | id (éxito) | 413 | ✓ |
 | 5 | INSERT ingresos con contrato_id ajeno | ERR 42501 | ERR 42501 | ✓ |
 | 5 | documentos de su arrendatario | 0 (ajenos) | 0 | ✓ |
 | 6 | restaurante_gastos count | 8 | 8 | ✓ |
 | 6 | restaurante_gasto_detalle count | 102 | 102 | ✓ |
-| 6 | INSERT restaurante_gastos | id (éxito) | bf9998a8-300e-4e71-a5c8-3f8d8451ba01 | ✓ |
+| 6 | INSERT restaurante_gastos | id (éxito) | 84bcb0aa-0da0-4d0f-b138-300e66ed3e94 | ✓ |
 | 6 | contratos count | 0 | 0 | ✓ |
 | 6 | prp_contratos count | 0 | 0 | ✓ |
 | 6 | prp_empleados count | 0 | 0 | ✓ |

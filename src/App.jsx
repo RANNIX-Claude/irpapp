@@ -35,26 +35,41 @@ import Utilidades from './pages/Utilidades.jsx'
 import Validacion from './pages/Validacion.jsx'
 import Calculos from './pages/Calculos.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
-import PortalArrendatario from './pages/PortalArrendatario.jsx'
 import MapaLocales from './pages/MapaLocales.jsx'
 import Ingresos from './pages/Ingresos.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import './styles/theme.css'
 
-// Roles que NO son admin (van al portal arrendatario/externo)
-const ROLES_PORTAL = ['arrendatario', 'prospecto']
+// Roles externos sin aplicación propia. El inquilino usa el rol `locatario` (uno por
+// contrato, ve su expediente en /contratos/:id); el portal de arrendatario se retiró el
+// 2026-09-13 (migración 20260913120000). `prospecto` entra por /portal/prospecto/:token.
+const ROLES_SIN_APP = ['arrendatario', 'prospecto']
+
+function SinAcceso({ rol }) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary-dark)', padding: '24px' }}>
+      <div style={{ background: 'white', borderRadius: '12px', padding: '32px', maxWidth: '440px', textAlign: 'center' }}>
+        <h2 style={{ margin: '0 0 12px', fontSize: '18px' }}>Tu cuenta no tiene acceso a esta aplicación</h2>
+        <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
+          El rol <strong>{rol}</strong> ya no tiene portal. Si eres inquilino de la plaza, pide a la
+          administración que vincule tu cuenta a tu contrato.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function AppLayout() {
   const { user, perfil, loading, sidebarOpen } = useApp()
   const location = useLocation()
 
-  // Rutas públicas — sin layout admin (portal prospecto / arrendatario)
+  // Rutas públicas — sin layout admin (portal de prospecto)
   if (location.pathname.startsWith('/portal/')) {
     return (
       <Routes>
         <Route path="/portal/prospecto/:token" element={<PortalProspecto />} />
-        <Route path="/portal/arrendatario"      element={<PortalArrendatario />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }
@@ -69,13 +84,9 @@ function AppLayout() {
 
   if (!user) return <Login />
 
-  // Arrendatario logueado → redirigir a su portal (no al admin)
-  if (perfil && ROLES_PORTAL.includes(perfil.rol_id)) {
-    return (
-      <Routes>
-        <Route path="*" element={<PortalArrendatario embedded />} />
-      </Routes>
-    )
+  // Rol externo sin aplicación → pantalla informativa, nunca el admin
+  if (perfil && ROLES_SIN_APP.includes(perfil.rol_id)) {
+    return <SinAcceso rol={perfil.rol_id} />
   }
 
   // Rol restaurante → solo puede ver su módulo

@@ -7,7 +7,7 @@
  * la service_role key salta todas las políticas RLS. Sin autenticar al que
  * llama, cualquiera en internet que conociera la URL podía escribir en los
  * buckets del proyecto y sobrescribir comprobantes existentes (x-upsert). Se
- * exige el JWT de una sesión activa, igual que crear-acceso-inquilino.js, y se
+ * exige el JWT de una sesión activa y se
  * valida la ruta para que nadie pueda escribir fuera de la carpeta que le toca.
  */
 
@@ -22,7 +22,6 @@ const BUCKETS = {
   'facturas-cfdi':     ['comprobantes', 'facturas'],
   'tickets-gastos':    ['restaurante', 'gastos'],
   'vending-reportes':  ['vending'],
-  'comprobantes-pago': ['pagos', 'comprobantes'],
 }
 
 const MIMES = [
