@@ -1,9 +1,16 @@
 // Todas las llamadas a Claude API van vía Netlify Functions — nunca desde el frontend directamente
+import { supabase } from './supabase'
 
+// El Agente Operativo consulta datos reales con el JWT de la sesión: la
+// function aplica la misma RLS que el usuario tiene en pantalla.
 export const chatOperativo = async (messages, context = '') => {
+  const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch('/.netlify/functions/chat-operativo', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
     body: JSON.stringify({ messages, context }),
   })
   if (!res.ok) throw new Error('Error en Agente Operativo')

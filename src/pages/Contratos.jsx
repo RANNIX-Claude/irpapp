@@ -238,6 +238,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
     ? Math.min(100, Math.max(0, Math.round((Date.now() - ini_ts) / (fin_ts - ini_ts) * 100)))
     : 0
   const colorDias = dias == null ? '#9CA3AF' : dias < 0 ? 'var(--color-danger)' : dias <= 60 ? 'var(--color-secondary)' : 'var(--color-success)'
+  const proceso = PROCESO_OPTS.find(o => o.val === (c.estatus_proceso ?? 'EN_EJECUCION'))
 
   return (
     <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
@@ -270,6 +271,11 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
           <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 800, background: vigente ? '#D1FAE5' : '#FEE2E2', color: vigente ? '#057642' : '#B24020' }}>
             {c.estatus}
           </span>
+          {proceso && (
+            <span title="Etapa de proceso" style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 800, background: proceso.bg, color: proceso.color }}>
+              {proceso.label}
+            </span>
+          )}
           <span style={{ fontSize: 10, color: 'var(--color-text-light)', fontFamily: 'monospace' }}>{c.folio}</span>
         </div>
       </div>

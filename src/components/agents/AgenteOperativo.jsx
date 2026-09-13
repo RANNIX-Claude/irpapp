@@ -25,7 +25,8 @@ export default function AgenteOperativo() {
     try {
       const reply = await chatOperativo(next.slice(1))
       setMessages([...next, { role: 'assistant', content: reply }])
-    } catch {
+    } catch (e) {
+      console.error('[AgenteOperativo]', e)
       setMessages([...next, { role: 'assistant', content: 'Error al conectar. Verifica la configuración de la función.' }])
     }
     setLoading(false)
@@ -74,7 +75,7 @@ export default function AgenteOperativo() {
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   maxWidth: '80%', padding: '10px 14px', borderRadius: '12px',
-                  fontSize: '13px', lineHeight: '1.5',
+                  fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap',
                   background: m.role === 'user' ? 'var(--color-primary)' : '#F3F4F6',
                   color: m.role === 'user' ? 'white' : 'var(--color-text)',
                   borderBottomRightRadius: m.role === 'user' ? '4px' : '12px',
