@@ -336,8 +336,16 @@ producción a propósito) están configuradas directamente en Netlify.
    preservando `id` y el hash bcrypt de la contraseña: cada usuario entra a QA con su mismo correo y
    password de producción. Decisión explícita del usuario (2026-09-12): usar cuentas reales en QA en vez
    de cuentas separadas con password temporal — asumido a propósito, no es el default más seguro.
+5. `node scripts/grant-api-roles-qa.mjs` — **imprescindible, fácil de olvidar**: otorga a `anon`,
+   `authenticated` y `service_role` los privilegios sobre el esquema `public` (`USAGE` + CRUD en todas las
+   tablas/vistas/funciones/secuencias) que Supabase aprovisiona automáticamente en un proyecto nuevo pero
+   que **no** quedan capturados por un dump vía `pg_catalog` — sin esto, PostgREST responde
+   `permission denied for schema public` (42501) y el frontend nunca llega a leer nada, aunque los datos y
+   las políticas RLS estén perfectos. Este fue exactamente el bug que causó "Tu cuenta todavía no está
+   vinculada a ningún contrato" en QA la primera vez, con `irp_usuarios` teniendo el `contrato_id`
+   correcto — el fallo estaba en el permiso de esquema, no en los datos ni en RLS.
 
-Estos cuatro scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
+Estos cinco scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
 `pg_catalog`/`information_schema` directamente vía el paquete `pg` de Node.
 
 ---
