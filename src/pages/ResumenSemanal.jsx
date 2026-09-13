@@ -246,51 +246,58 @@ function Modal({ titulo, onClose, children }) {
   )
 }
 
-// ── Modal: Estacionamiento Diario ─────────────────────────────────────────────
-function ModalEstac({ semIni, semFin, onClose, onSaved }) {
-  const hoy = hoyLocal()
-  const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
-  const [form, setForm] = useState({ fecha: fechaDefault, cantidad: '', notas: '' })
-  const [saving, setSaving] = useState(false)
-
-  const guardar = async () => {
-    if (!form.cantidad) return toast.error('Ingresa el monto')
-    setSaving(true)
-    const dt = new Date(form.fecha + 'T12:00:00')
-    const payload = {
-      fecha: form.fecha, cantidad: parseFloat(form.cantidad), notas: form.notas || null,
-      anio: dt.getFullYear(), mes: MESES_ES[dt.getMonth()],
-      dia_semana: DIAS_SEMANA[dt.getDay()], semana: 'S' + Math.ceil(dt.getDate() / 7),
-    }
-    const { error } = await supabase.from('estacionamiento_diario').upsert(payload, { onConflict: 'fecha' })
-    if (error) toast.error(error.message)
-    else { toast.success('Estacionamiento guardado'); onSaved() }
-    setSaving(false)
-  }
-
-  const inp = { width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box' }
+// ── Modal: Detalle de pensiones cobradas en la semana ────────────────────────
+function ModalPensionesCobradas({ pensiones, semIni, semFin, onClose }) {
+  const total = pensiones.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0)
+  const ordenadas = [...pensiones].sort((a, b) =>
+    String(a.fecha || '').localeCompare(String(b.fecha || '')) ||
+    String(a.local_referencia || '').localeCompare(String(b.local_referencia || '')))
+  const th = { padding:'6px 10px', fontSize:'10px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.04em', background:'#F9FAFB', borderBottom:'1px solid #E5E7EB', textAlign:'left' }
+  const td = { padding:'6px 10px', fontSize:'12px', color:'#374151', borderBottom:'1px solid #F3F4F6' }
   return (
-    <>
-      <div style={{ marginBottom:'12px' }}>
-        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Fecha</label>
-        <input type="date" value={form.fecha} min={semIni} max={semFin}
-          onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={inp} />
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:'14px', width:'520px', maxWidth:'95vw', maxHeight:'85vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6' }}>
+          <div>
+            <h3 style={{ margin:0, fontSize:'15px', fontWeight:700, color:'#111827' }}>✅ Pensiones cobradas</h3>
+            <div style={{ fontSize:'11px', color:'#6B7280', marginTop:'2px' }}>Semana {labelFecha(semIni)} → {labelFecha(semFin)} · {pensiones.length} pago{pensiones.length === 1 ? '' : 's'}</div>
+          </div>
+          <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'5px', cursor:'pointer', display:'flex', alignItems:'center', color:'#6B7280' }}><X size={16}/></button>
+        </div>
+        <div style={{ overflowY:'auto', flex:1 }}>
+          {ordenadas.length === 0 ? (
+            <div style={{ padding:'24px', textAlign:'center', color:'#9CA3AF', fontSize:'12px' }}>Sin pensiones cobradas esta semana</div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={th}>Local / Pensión</th>
+                  <th style={th}>Fecha de pago</th>
+                  <th style={{ ...th, textAlign:'right' }}>Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ordenadas.map((p, i) => (
+                  <tr key={p.id ?? i} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                    <td style={td}>
+                      <strong>{p.local_referencia || '—'}</strong>
+                      {p.arrendatario_nombre && p.arrendatario_nombre !== p.local_referencia && <span style={{ color:'#6B7280', marginLeft:'6px' }}>{p.arrendatario_nombre}</span>}
+                      {p.nota && <div style={{ fontSize:'10px', color:'#9CA3AF' }}>{p.nota}</div>}
+                    </td>
+                    <td style={td}>{p.fecha ? labelFecha(String(p.fecha).slice(0, 10)) : '—'}</td>
+                    <td style={{ ...td, textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#057642' }}>{fmt(p.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 20px', background:'#F0FDF4', borderTop:'1px solid #BBF7D0', borderRadius:'0 0 14px 14px' }}>
+          <span style={{ fontSize:'12px', fontWeight:700, color:'#065F46' }}>Total cobrado</span>
+          <span style={{ fontSize:'18px', fontWeight:900, color:'#057642', fontFamily:'monospace' }}>{fmt(total)}</span>
+        </div>
       </div>
-      <div style={{ marginBottom:'12px' }}>
-        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Monto del día ($)</label>
-        <input type="number" min="0" step="50" value={form.cantidad} placeholder="0.00" autoFocus
-          onChange={e => setForm(p => ({ ...p, cantidad: e.target.value }))}
-          style={{ ...inp, fontSize:'28px', fontWeight:800, textAlign:'right', color:'var(--color-success)' }} />
-      </div>
-      <div style={{ marginBottom:'20px' }}>
-        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Nota (opcional)</label>
-        <input value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: festivo, lluvia..." style={inp} />
-      </div>
-      <button onClick={guardar} disabled={saving}
-        style={{ width:'100%', padding:'13px', background:'var(--color-success)', color:'white', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:800, cursor:'pointer', opacity: saving ? 0.7 : 1 }}>
-        {saving ? 'Guardando...' : 'Guardar ingreso'}
-      </button>
-    </>
+    </div>
   )
 }
 
@@ -531,10 +538,6 @@ function FilaTabla({ label, monto, sub, bold, highlight, indent }) {
 function generarHTML({ iniStr, finStr, pensiones, estac, parkingData, vending, gastos, rentasEf, aguaEf, otrosEf, totales }) {
   const { totPensiones, totEstac, totParking, totVending, totRentas, totAgua, totOtros, totalEfectivo, totGastosFondo, diferencia, residualVending } = totales
 
-  const rowsEstac = estac.map(e =>
-    `<tr><td style="padding:3px 6px;font-size:12px">${labelFecha(e.fecha)}</td><td></td><td style="text-align:right;padding:3px 6px">${fmt(e.cantidad)}</td><td style="color:#16a34a;text-align:center;font-size:11px">${e.cantidad > 0 ? '✓' : ''}</td></tr>`
-  ).join('')
-
   const rowsPensiones = pensiones.map(p =>
     `<tr><td style="padding:3px 6px;font-size:11px;padding-left:16px">${p.local_referencia || '—'} ${p.arrendatario_nombre || ''}</td><td style="text-align:center;font-size:11px">${p.num_recibo || ''}</td><td style="text-align:right;padding:3px 6px">${fmt(p.monto)}</td><td></td></tr>`
   ).join('')
@@ -618,10 +621,6 @@ function generarHTML({ iniStr, finStr, pensiones, estac, parkingData, vending, g
           </td></tr>
           ` : ''}
 
-          <!-- ESTACIONAMIENTO DIARIO -->
-          <tr class="section-row"><td colspan="4">Estacionamiento Diario</td></tr>
-          ${rowsEstac || '<tr><td colspan="4" style="padding:6px;color:#9CA3AF;text-align:center">Sin registros</td></tr>'}
-          <tr><td colspan="2" style="padding:4px 8px;font-weight:700">Total Estacionamiento Diario</td><td></td><td style="text-align:right;font-weight:800;padding:4px 8px">${fmt(totEstac)}</td></tr>
           ${totParking > 0 && parkingData?.porDia ? `
           <tr class="section-row"><td colspan="4" style="color:#7C3AED">Tickets Sistema Parking (Vie–Jue)</td></tr>
           ${parkingData.porDia.map(d => `<tr><td style="padding:3px 6px;font-size:11px;padding-left:16px">${labelFecha(d.fecha)}</td><td style="text-align:right;font-size:11px;padding:3px 6px;color:#6B7280">${d.tickets} tickets</td><td style="text-align:right;font-weight:600;padding:3px 6px;color:#7C3AED">${fmt(d.importe)}</td><td></td></tr>`).join('')}
@@ -861,6 +860,7 @@ export default function ResumenSemanal() {
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [reciboRec, setReciboRec] = useState(null) // pension para generar recibo
   const [detalleIngreso, setDetalleIngreso] = useState(null) // { tabla, row } — drilldown panel izq
+  const [verPensiones, setVerPensiones] = useState(false)    // modal detalle de pensiones cobradas
   const [ticketLightbox, setTicketLightbox] = useState(null) // URL de imagen ticket
   const abrirDetalle = async (g) => {
     setLoadingDetalle(true)
@@ -963,21 +963,24 @@ export default function ResumenSemanal() {
                     const cobradas   = pensiones.filter(p => p.pagado)
                     const pendientes = pensiones.filter(p => !p.pagado)
                     const totCob = cobradas.reduce((s, p) => s + (p.monto || 0), 0)
-                    const localesCobradas = cobradas.map(p => p.local_referencia).join(', ')
-                    const localesPendientes = pendientes.map(p => p.local_referencia).join(', ')
 
                     return (
                       <>
                         {pensiones.length === 0
                           ? <div style={{ padding:'10px 12px', color:'#9CA3AF', fontSize:'12px', textAlign:'center' }}>Sin pensiones registradas este mes</div>
                           : <>
-                              {/* Cobradas — 1 renglón */}
+                              {/* Pensiones cobradas — total clickeable, el detalle se abre en modal */}
                               {cobradas.length > 0 && (
-                                <div style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0', alignItems:'center', gap:'8px' }}>
-                                  <span style={{ fontSize:'11px', color:'#057642' }}>
-                                    <strong>✅ Cobradas ({cobradas.length}):</strong> {localesCobradas}
+                                <div title="Ver detalle de pensiones cobradas"
+                                  onClick={() => setVerPensiones(true)}
+                                  onMouseEnter={e => e.currentTarget.style.background='#DCFCE7'}
+                                  onMouseLeave={e => e.currentTarget.style.background='#F0FDF4'}
+                                  style={{ display:'grid', gridTemplateColumns:'1fr 110px', padding:'6px 12px', background:'#F0FDF4', borderBottom:'1px solid #BBF7D0', alignItems:'center', gap:'8px', cursor:'pointer' }}>
+                                  <span style={{ fontSize:'11px', color:'#057642', display:'flex', alignItems:'center', gap:'6px' }}>
+                                    <strong>✅ Pensiones cobradas ({cobradas.length})</strong>
+                                    <span style={{ fontSize:'10px', color:'#6B7280' }}>· clic para ver detalle</span>
                                   </span>
-                                  <span style={{ textAlign:'right', fontSize:'13px', fontWeight:800, color:'#057642' }}>{fmt(totCob)}</span>
+                                  <span style={{ textAlign:'right', fontSize:'13px', fontWeight:800, color:'#057642', fontFamily:'monospace' }}>{fmt(totCob)}</span>
                                 </div>
                               )}
                             </>
@@ -995,36 +998,6 @@ export default function ResumenSemanal() {
                 </>
               )
             })()}
-
-            {/* ── ESTACIONAMIENTO DIARIO ── */}
-            <div style={{ ...S.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span><Car size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />Estacionamiento diario</span>
-              <button onClick={() => setModal('estac')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--color-success)', border: 'none', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-                <Plus size={10} /> Agregar
-              </button>
-            </div>
-            {estac.length === 0 ? (
-              <div style={{ padding: '16px 12px', color: '#9CA3AF', fontSize: '12px', textAlign: 'center' }}>Sin registros esta semana</div>
-            ) : estac.map((e, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px', padding: '6px 12px', background: i % 2 === 0 ? 'white' : '#FAFAFA', borderBottom: '1px solid #F3F4F6', alignItems: 'center', gap: '4px', cursor:'pointer' }}
-                onClick={() => setDetalleIngreso({ tabla:'estacionamiento_diario', row: e })}
-                onMouseEnter={e2 => e2.currentTarget.style.background='#F0EEFF'}
-                onMouseLeave={e2 => e2.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
-                <span style={{ ...S.lbl, display:'flex', alignItems:'center', gap:'6px' }}>
-                  <CheckCircle size={13} color={parseFloat(e.cantidad) > 0 ? 'var(--color-success)' : '#E5E7EB'} />
-                  {labelFecha(e.fecha)}
-                </span>
-                <span style={S.acciones} onClick={ev => ev.stopPropagation()}>
-                  <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'estacionamiento_diario', row: e })}><Pencil size={12}/></button>
-                  <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'estacionamiento_diario', id: e.id, label: `Estacionamiento ${labelFecha(e.fecha)}` })}><Trash2 size={12}/></button>
-                </span>
-                <span style={S.monto('#374151')}>{fmt(e.cantidad)}</span>
-              </div>
-            ))}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', padding: '7px 12px', background: '#F0F9FF', borderBottom: '1px solid #BFDBFE' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0A66C2' }}>Total estacionamiento</span>
-              <span style={S.monto('#0A66C2')}>{fmt(totEstac)}</span>
-            </div>
 
             {/* ── TICKETS DE ESTACIONAMIENTO (sistema externo) ── */}
             <div style={{ background:'#F0FDF4', borderBottom:'1px solid #BBF7D0' }}>
@@ -1165,25 +1138,8 @@ export default function ResumenSemanal() {
               </>
             )}
 
-            {/* ── DESGLOSE POR CONCEPTO + TOTAL EFECTIVO A ENTREGAR ──
-                Los seis conceptos son ingresos, por eso cierran esta columna
-                pegados a su total y no junto al balance del fondo. */}
-            <div style={{ marginTop: '8px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1px', background: '#E5E7EB', borderTop: '2px solid #E5E7EB', borderBottom: '1px solid #E5E7EB' }}>
-                {[
-                  ['Estacionamiento', totEstac + totParking, '#0A66C2'],
-                  ['Pensiones', totPensiones, '#0A66C2'],
-                  ['Vending', totVending, '#0A66C2'],
-                  ['Rentas', totRentas, 'var(--color-success)'],
-                  ['Agua', totAgua, '#0284C7'],
-                  ['Otros', totOtros, '#6B7280'],
-                ].map(([label, val, color]) => (
-                  <div key={label} style={{ background: 'white', padding: '9px 14px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                    <div style={{ fontSize: '15px', fontWeight: 800, color, fontFamily: 'monospace', textAlign: 'right' }}>{fmt(val)}</div>
-                  </div>
-                ))}
-              </div>
+            {/* ── TOTAL EFECTIVO A ENTREGAR ── */}
+            <div style={{ marginTop: '8px', borderTop: '2px solid #E5E7EB' }}>
               <div style={{ background: '#1A3C5E', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 800, fontSize: '13px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Efectivo a Entregar</span>
                 <span style={{ fontWeight: 900, fontSize: '22px', color: '#E8A020', fontFamily: 'monospace' }}>{fmt(totalEfectivo)}</span>
@@ -1298,14 +1254,12 @@ export default function ResumenSemanal() {
         </div>
       )}
 
-      {/* ── MODALES DE CAPTURA RÁPIDA ── */}
-      {modal === 'estac' && (
-        <Modal titulo="➕ Ingreso Estacionamiento Diario" onClose={() => setModal(null)}>
-          <ModalEstac semIni={semSel.ini} semFin={semSel.fin}
-            onClose={() => setModal(null)}
-            onSaved={() => { setModal(null); recargar() }} />
-        </Modal>
+      {/* ── DETALLE PENSIONES COBRADAS ── */}
+      {verPensiones && (
+        <ModalPensionesCobradas pensiones={pensiones.filter(p => p.pagado)} semIni={semSel.ini} semFin={semSel.fin} onClose={() => setVerPensiones(false)} />
       )}
+
+      {/* ── MODALES DE CAPTURA RÁPIDA ── */}
       {modal === 'gasto' && (
         <Modal titulo="🧾 Registrar Gasto — Fondo Revolvente" onClose={() => setModal(null)}>
           <ModalGasto semIni={semSel.ini} semFin={semSel.fin}
