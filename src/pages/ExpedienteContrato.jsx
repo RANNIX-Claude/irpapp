@@ -657,45 +657,78 @@ export default function ExpedienteContrato() {
       )}
 
       {modalDetallePago && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: C.surface, borderRadius: 12, padding: 24, maxWidth: 500, width: '90%', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: 0 }}>Detalles del Pago</h2>
-              <button onClick={() => setModalDetallePago(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: C.muted }}>×</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: C.surface, width: '100%', maxHeight: '90vh', borderRadius: '12px 12px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface }}>
+              <div>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio}</h1>
+                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>Registro de Pago #{modalDetallePago.id}</p>
+              </div>
+              <button onClick={() => setModalDetallePago(null)} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, padding: 0, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Período</label>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio}</div>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Referencia</label>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{modalDetallePago.referencia_pago || 'Sin referencia'}</div>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Fecha de Vencimiento</label>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{fmtD(modalDetallePago.fecha_limite_pago)}</div>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Monto Total</label>
-                <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, marginTop: 4 }}>{fmt$(modalDetallePago.monto_total)}</div>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Monto Pagado</label>
-                <div style={{ fontSize: 14, fontWeight: 600, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.warning, marginTop: 4 }}>
-                  {modalDetallePago.estatus === 'PAGADO' ? fmt$(modalDetallePago.monto_pagado) : '—'}
+
+            {/* Content */}
+            <div style={{ padding: '24px', flex: 1 }}>
+              {/* Resumen Principal */}
+              <div style={{ background: C.light, borderRadius: 10, padding: 16, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Monto Total</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: C.primary }}>{fmt$(modalDetallePago.monto_total)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Monto Pagado</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.muted }}>
+                      {modalDetallePago.estatus === 'PAGADO' ? fmt$(modalDetallePago.monto_pagado) : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Estado</div>
+                    <span style={{ display: 'inline-block', padding: '6px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, background: modalDetallePago.estatus === 'PAGADO' ? '#D1FAE5' : modalDetallePago.estatus === 'EN MORA' ? '#FEE2E2' : '#FEF3C7', color: modalDetallePago.estatus === 'PAGADO' ? C.success : modalDetallePago.estatus === 'EN MORA' ? C.danger : C.warning }}>
+                      {modalDetallePago.estatus}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Estado</label>
-                <div style={{ marginTop: 4 }}>
-                  <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: modalDetallePago.estatus === 'PAGADO' ? '#D1FAE5' : modalDetallePago.estatus === 'EN MORA' ? '#FEE2E2' : '#FEF3C7', color: modalDetallePago.estatus === 'PAGADO' ? C.success : modalDetallePago.estatus === 'EN MORA' ? C.danger : C.warning }}>
-                    {modalDetallePago.estatus}
-                  </span>
+
+              {/* Detalles */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 24 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Referencia</label>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
+                    {modalDetallePago.referencia_pago || 'Sin referencia'}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Fecha de Vencimiento</label>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
+                    {fmtD(modalDetallePago.fecha_limite_pago)}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Saldo Pendiente</label>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.danger, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
+                    {fmt$(Math.max(0, modalDetallePago.monto_total - (modalDetallePago.monto_pagado || 0)))}
+                  </div>
                 </div>
               </div>
+
+              {/* Nota adicional */}
+              <div style={{ padding: 16, background: '#F0F9FF', borderRadius: 10, borderLeft: `4px solid ${C.primary}`, marginBottom: 24 }}>
+                <p style={{ fontSize: 13, color: C.text, margin: 0, lineHeight: '1.5' }}>
+                  Registro creado para el pago de <strong>{modalDetallePago.referencia_pago || 'cargo'}</strong>. Si el monto pagado no es igual al monto total, el saldo pendiente deberá liquidarse.
+                </p>
+              </div>
             </div>
-            <button onClick={() => setModalDetallePago(null)} style={{ width: '100%', marginTop: 20, padding: '10px 16px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
+
+            {/* Botones */}
+            <div style={{ padding: '20px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setModalDetallePago(null)} style={{ padding: '10px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
+              <button onClick={() => { setModalCobro(modalDetallePago); setModalDetallePago(null) }} style={{ padding: '10px 20px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Upload size={16} /> Agregar Cobro
+              </button>
+            </div>
           </div>
         </div>
       )}
