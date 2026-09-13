@@ -668,9 +668,9 @@ export default function ExpedienteContrato() {
 
 // ── Tabla de pagos ───────────────────────────────────────────────────────────
 function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMarkAllAsPaid, onDelete, onView }) {
-  const [sortCol, setSortCol] = React.useState('mes')
-  const [sortDir, setSortDir] = React.useState('desc')
-  const [filters, setFilters] = React.useState({})
+  const [sortCol, setSortCol] = useState('mes')
+  const [sortDir, setSortDir] = useState('desc')
+  const [filters, setFilters] = useState({})
 
   const toggleSort = (col) => {
     setSortCol(col)
