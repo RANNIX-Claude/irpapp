@@ -668,7 +668,58 @@ export default function ExpedienteContrato() {
 
 // ── Tabla de pagos ───────────────────────────────────────────────────────────
 function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMarkAllAsPaid, onDelete, onView }) {
+  const [sortCol, setSortCol] = React.useState('mes')
+  const [sortDir, setSortDir] = React.useState('desc')
+  const [filters, setFilters] = React.useState({})
+
+  const toggleSort = (col) => {
+    setSortCol(col)
+    setSortDir(sortCol === col && sortDir === 'asc' ? 'desc' : 'asc')
+  }
+
+  const updateFilter = (col, value) => {
+    setFilters(prev => ({ ...prev, [col]: value }))
+  }
+
+  let filtered = rows.filter(r => {
+    if (filters.mes && !`${MESES[r.mes]} ${r.anio}`.toLowerCase().includes(filters.mes.toLowerCase())) return false
+    if (filters.referencia && !(r.referencia_pago || '').toLowerCase().includes(filters.referencia.toLowerCase())) return false
+    if (filters.vence && !fmtD(r.fecha_limite_pago).includes(filters.vence)) return false
+    if (filters.monto && !fmt$(r.monto_total).includes(filters.monto)) return false
+    if (filters.estatus && !r.estatus.toLowerCase().includes(filters.estatus.toLowerCase())) return false
+    return true
+  })
+
+  filtered.sort((a, b) => {
+    let aVal, bVal
+    if (sortCol === 'mes') {
+      aVal = a.mes * 100 + a.anio
+      bVal = b.mes * 100 + b.anio
+    } else if (sortCol === 'referencia') {
+      aVal = (a.referencia_pago || '').toLowerCase()
+      bVal = (b.referencia_pago || '').toLowerCase()
+    } else if (sortCol === 'vence') {
+      aVal = new Date(a.fecha_limite_pago)
+      bVal = new Date(b.fecha_limite_pago)
+    } else if (sortCol === 'monto') {
+      aVal = a.monto_total
+      bVal = b.monto_total
+    } else if (sortCol === 'pagado') {
+      aVal = a.monto_pagado || 0
+      bVal = b.monto_pagado || 0
+    } else if (sortCol === 'estatus') {
+      aVal = a.estatus.toLowerCase()
+      bVal = b.estatus.toLowerCase()
+    }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const cols = ['mes', 'referencia', 'vence', 'monto', 'pagado', 'estatus']
+  const labels = ['Período','Referencia','Vence','Monto','Pagado','Estado']
   const pendientes = rows.filter(r => r.estatus !== 'PAGADO')
+
   return (
     <div>
       {pendientes.length > 0 && onMarkAllAsPaid && (
@@ -683,11 +734,33 @@ function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMar
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: C.light }}>
-              {['Período','Referencia','Vence','Monto','Pagado','Estado', ''].map((h, i) => <Th key={i}>{h}</Th>)}
+              {cols.map((col, i) => (
+                <Th key={i} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort(col)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {labels[i]}
+                    {sortCol === col && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+                  </div>
+                </Th>
+              ))}
+              <Th></Th>
+            </tr>
+            <tr style={{ background: '#F9FAFB' }}>
+              {cols.map((col, i) => (
+                <th key={i} style={{ padding: '8px 12px', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>
+                  <input
+                    type="text"
+                    placeholder={`Filtrar ${labels[i].toLowerCase()}`}
+                    value={filters[col] || ''}
+                    onChange={e => updateFilter(col, e.target.value)}
+                    style={{ width: '100%', padding: '5px 8px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11, boxSizing: 'border-box' }}
+                  />
+                </th>
+              ))}
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(c => {
+            {filtered.map(c => {
               const mora = enMora(c)
               const pagado = c.estatus === 'PAGADO'
               return (
