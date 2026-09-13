@@ -222,6 +222,8 @@ export default function ExpedienteContrato() {
   const [docs, setDocs] = useState([])
   const [logoUrl, setLogoUrl] = useState(null)
   const [modalCobro, setModalCobro] = useState(null)
+  const [modalDetallePago, setModalDetallePago] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const reload = () => setRefreshKey(k => k + 1)
 
@@ -538,17 +540,8 @@ export default function ExpedienteContrato() {
                           reload()
                         } catch (e) { toast.error('Error: ' + e.message) }
                       }}
-                      onDelete={async (c) => {
-                        if (!confirm(`¿Eliminar ${MESES[c.mes]} ${c.anio}?`)) return
-                        try {
-                          await supabase.from('prp_cobros').delete().eq('id', c.id)
-                          toast.success('Registro eliminado')
-                          reload()
-                        } catch (e) { toast.error('Error: ' + e.message) }
-                      }}
-                      onView={(c) => {
-                        toast.success(`${MESES[c.mes]} ${c.anio}: ${fmt$(c.monto_total)} - Ref: ${c.referencia_pago || 'Sin ref.'}`)
-                      }}
+                      onDelete={(c) => setConfirmDelete(c)}
+                      onView={(c) => setModalDetallePago(c)}
                     />}
               </Section>
             </Card>
@@ -661,6 +654,70 @@ export default function ExpedienteContrato() {
             onSaved={reload}
           />
         )
+      )}
+
+      {modalDetallePago && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: C.surface, borderRadius: 12, padding: 24, maxWidth: 500, width: '90%', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: 0 }}>Detalles del Pago</h2>
+              <button onClick={() => setModalDetallePago(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: C.muted }}>×</button>
+            </div>
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Período</label>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio}</div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Referencia</label>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{modalDetallePago.referencia_pago || 'Sin referencia'}</div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Fecha de Vencimiento</label>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginTop: 4 }}>{fmtD(modalDetallePago.fecha_limite_pago)}</div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Monto Total</label>
+                <div style={{ fontSize: 18, fontWeight: 700, color: C.primary, marginTop: 4 }}>{fmt$(modalDetallePago.monto_total)}</div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Monto Pagado</label>
+                <div style={{ fontSize: 14, fontWeight: 600, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.warning, marginTop: 4 }}>
+                  {modalDetallePago.estatus === 'PAGADO' ? fmt$(modalDetallePago.monto_pagado) : '—'}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Estado</label>
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: modalDetallePago.estatus === 'PAGADO' ? '#D1FAE5' : modalDetallePago.estatus === 'EN MORA' ? '#FEE2E2' : '#FEF3C7', color: modalDetallePago.estatus === 'PAGADO' ? C.success : modalDetallePago.estatus === 'EN MORA' ? C.danger : C.warning }}>
+                    {modalDetallePago.estatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setModalDetallePago(null)} style={{ width: '100%', marginTop: 20, padding: '10px 16px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: C.surface, borderRadius: 12, padding: 24, maxWidth: 400, width: '90%' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.danger, margin: '0 0 12px 0' }}>¿Eliminar pago?</h2>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>¿Estás seguro de que deseas eliminar el registro de {MESES[confirmDelete.mes]} {confirmDelete.anio}? Esta acción no se puede deshacer.</p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: '10px 16px', background: C.border, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancelar</button>
+              <button onClick={async () => {
+                try {
+                  await supabase.from('prp_cobros').delete().eq('id', confirmDelete.id)
+                  toast.success('Registro eliminado')
+                  setConfirmDelete(null)
+                  reload()
+                } catch (e) { toast.error('Error: ' + e.message) }
+              }} style={{ flex: 1, padding: '10px 16px', background: C.danger, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Eliminar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
