@@ -722,6 +722,8 @@ function TabEmpleados({ onNuevo }) {
   const [search, setSearch] = useState('')
   const [filtroArea, setFiltroArea] = useState('Todos')
   const [vistaGrid, setVistaGrid] = useState(true)
+  const [sortCol, setSortCol] = useState('nombre_completo')
+  const [sortDir, setSortDir] = useState('asc')
   // Documentos de todos los empleados, en una consulta, para el medidor de
   // cada tarjeta sin pedirlos uno por uno.
   const [docsPorEmpleado, setDocsPorEmpleado] = useState({})
@@ -734,7 +736,16 @@ function TabEmpleados({ onNuevo }) {
   }, [])
   const [selected, setSelected] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { data, loading } = usePRP('prp_empleados', { order: { col: 'apellido_pat' }, refreshKey })
+  const { data, loading } = usePRP('prp_empleados', { order: { col: sortCol, dir: sortDir }, refreshKey })
+
+  const toggleSort = (col) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
 
   const lista = data ?? []
   const activos = lista.filter(e => e.estado_id === 'ACTIVO')
@@ -860,8 +871,36 @@ function TabEmpleados({ onNuevo }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                  {['Empleado','# Emp','Puesto / Área','Horario','Descanso','Forma Pago','Salario Mensual','Tipo Contrato','Vencimiento','Estado',''].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--color-text-light)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.5px' }}>{h}</th>
+                  {[
+                    { col: 'nombre_completo', label: 'Empleado' },
+                    { col: 'numero_empleado', label: '# Emp' },
+                    { col: 'puesto', label: 'Puesto / Área' },
+                    { col: null, label: 'Horario' },
+                    { col: null, label: 'Descanso' },
+                    { col: null, label: 'Forma Pago' },
+                    { col: 'salario_mensual', label: 'Salario Mensual' },
+                    { col: null, label: 'Salario Semanal' },
+                    { col: null, label: 'Tipo Contrato' },
+                    { col: null, label: 'Vencimiento' },
+                    { col: 'estado_id', label: 'Estado' },
+                    { col: null, label: '' }
+                  ].map(h => (
+                    <th key={h.label} onClick={() => h.col && toggleSort(h.col)}
+                      style={{
+                        padding: '11px 14px',
+                        textAlign: 'left',
+                        fontWeight: 600,
+                        fontSize: 11,
+                        color: 'var(--color-text-light)',
+                        whiteSpace: 'nowrap',
+                        textTransform: 'uppercase',
+                        letterSpacing: '.5px',
+                        cursor: h.col ? 'pointer' : 'default',
+                        background: sortCol === h.col ? '#E5E7EB' : 'transparent',
+                        transition: 'background .15s'
+                      }}>
+                      {h.label}{h.col && (sortCol === h.col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '')}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -901,6 +940,10 @@ function TabEmpleados({ onNuevo }) {
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ fontWeight: 700, fontSize: 14 }}>{e.salario_mensual ? fmt$(e.salario_mensual) : '—'}</div>
                       <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{e.salario_diario ? fmt$(e.salario_diario) + '/día' : ''}</div>
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{e.salario_mensual ? fmt$(Math.round(e.salario_mensual / 4.33)) : '—'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>aprox./semana</div>
                     </td>
                     <td style={{ padding: '11px 14px' }}>
                       <span style={{ fontSize: 12, padding: '3px 8px', background: '#F3F4F6', borderRadius: 12 }}>{e.tipo_contrato_nombre ?? '—'}</span>
