@@ -508,7 +508,48 @@ export default function ExpedienteContrato() {
               <Section title={`Historial de pagos (${cobros.length})`} icon={CreditCard}>
                 {cobros.length === 0
                   ? <Empty msg="Sin cobros registrados para este contrato" />
-                  : <TablaPagos rows={cobros} enMora={enMora} onSubir={c => setModalCobro(c)} />}
+                  : <TablaPagos
+                      rows={cobros}
+                      enMora={enMora}
+                      onSubir={c => setModalCobro(c)}
+                      onStatusChange={async (c, nuevoEstatus) => {
+                        try {
+                          const update = { estatus: nuevoEstatus }
+                          if (nuevoEstatus === 'PAGADO') update.monto_pagado = c.monto_total
+                          await supabase.from('prp_cobros').update(update).eq('id', c.id)
+                          toast.success(`${MESES[c.mes]} ${c.anio} → ${nuevoEstatus}`)
+                          reload()
+                        } catch (e) { toast.error('Error: ' + e.message) }
+                      }}
+                      onMarkAsPaid={async (c) => {
+                        try {
+                          await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: c.monto_total }).eq('id', c.id)
+                          toast.success(`${MESES[c.mes]} ${c.anio} pagado`)
+                          reload()
+                        } catch (e) { toast.error('Error: ' + e.message) }
+                      }}
+                      onMarkAllAsPaid={async () => {
+                        try {
+                          const pendientes = cobros.filter(c => c.estatus !== 'PAGADO')
+                          for (const c of pendientes) {
+                            await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: c.monto_total }).eq('id', c.id)
+                          }
+                          toast.success(`${pendientes.length} pagos marcados como pagados`)
+                          reload()
+                        } catch (e) { toast.error('Error: ' + e.message) }
+                      }}
+                      onDelete={async (c) => {
+                        if (!confirm(`¿Eliminar ${MESES[c.mes]} ${c.anio}?`)) return
+                        try {
+                          await supabase.from('prp_cobros').delete().eq('id', c.id)
+                          toast.success('Registro eliminado')
+                          reload()
+                        } catch (e) { toast.error('Error: ' + e.message) }
+                      }}
+                      onView={(c) => {
+                        toast.success(`${MESES[c.mes]} ${c.anio}: ${fmt$(c.monto_total)} - Ref: ${c.referencia_pago || 'Sin ref.'}`)
+                      }}
+                    />}
               </Section>
             </Card>
           )}
@@ -626,45 +667,79 @@ export default function ExpedienteContrato() {
 }
 
 // ── Tabla de pagos ───────────────────────────────────────────────────────────
-function TablaPagos({ rows, enMora, onSubir }) {
+function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMarkAllAsPaid, onDelete, onView }) {
+  const pendientes = rows.filter(r => r.estatus !== 'PAGADO')
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: C.light }}>
-            {['Período','Referencia','Vence','Monto','Pagado','Estado', ''].map((h, i) => <Th key={i}>{h}</Th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(c => {
-            const mora = enMora(c)
-            const pagado = c.estatus === 'PAGADO'
-            return (
-              <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: mora ? '#FEF2F2' : undefined }}>
-                <Td bold>{MESES[c.mes]} {c.anio}</Td>
-                <Td mono small>{c.referencia_pago || '—'}</Td>
-                <Td small>{fmtD(c.fecha_limite_pago)}</Td>
-                <Td mono>{fmt$(c.monto_total)}</Td>
-                <Td mono>{pagado ? fmt$(c.monto_pagado) : '—'}</Td>
-                <td style={{ padding: '10px 12px' }}>
-                  <Badge
-                    label={pagado ? 'Pagado' : mora ? 'En mora' : 'Pendiente'}
-                    color={pagado ? C.success : mora ? C.danger : C.warning}
-                  />
-                </td>
-                <td style={{ padding: '10px 12px' }}>
-                  {!pagado && onSubir && (
-                    <button onClick={() => onSubir(c)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.primary, fontWeight: 600 }}>
-                      <Upload size={12} /> Comprobante
-                    </button>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <div>
+      {pendientes.length > 0 && onMarkAllAsPaid && (
+        <div style={{ marginBottom: 12 }}>
+          <button onClick={() => onMarkAllAsPaid()}
+            style={{ padding: '8px 14px', background: C.success, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+            ✓ Marcar todos como Pagado
+          </button>
+        </div>
+      )}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: C.light }}>
+              {['Período','Referencia','Vence','Monto','Pagado','Estado', ''].map((h, i) => <Th key={i}>{h}</Th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(c => {
+              const mora = enMora(c)
+              const pagado = c.estatus === 'PAGADO'
+              return (
+                <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: mora ? '#FEF2F2' : undefined }}>
+                  <Td bold>{MESES[c.mes]} {c.anio}</Td>
+                  <Td mono small>{c.referencia_pago || '—'}</Td>
+                  <Td small>{fmtD(c.fecha_limite_pago)}</Td>
+                  <Td mono>{fmt$(c.monto_total)}</Td>
+                  <Td mono>{pagado ? fmt$(c.monto_pagado) : '—'}</Td>
+                  <td style={{ padding: '10px 12px' }}>
+                    {onStatusChange ? (
+                      <select value={c.estatus} onChange={e => onStatusChange(c, e.target.value)}
+                        style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: c.estatus === 'PAGADO' ? C.success : c.estatus === 'PENDIENTE' ? C.warning : C.danger }}>
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="EN MORA">En Mora</option>
+                        <option value="PAGADO">Pagado</option>
+                      </select>
+                    ) : (
+                      <Badge
+                        label={pagado ? 'Pagado' : mora ? 'En mora' : 'Pendiente'}
+                        color={pagado ? C.success : mora ? C.danger : C.warning}
+                      />
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {onView && (
+                        <button onClick={() => onView(c)} title="Ver registro de pago"
+                          style={{ padding: '5px 8px', display: 'flex', alignItems: 'center', gap: 3, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.primary }}>
+                          👁
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button onClick={() => onDelete(c)} title="Eliminar registro"
+                          style={{ padding: '5px 8px', display: 'flex', alignItems: 'center', gap: 3, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.danger }}>
+                          🗑
+                        </button>
+                      )}
+                      {!pagado && onSubir && (
+                        <button onClick={() => onSubir(c)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.primary, fontWeight: 600 }}>
+                          <Upload size={12} /> Comprobante
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
