@@ -224,6 +224,8 @@ export default function ExpedienteContrato() {
   const [modalCobro, setModalCobro] = useState(null)
   const [modalDetallePago, setModalDetallePago] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [ingresosDelCobro, setIngresosDelCobro] = useState([])
+  const [loadingIngresos, setLoadingIngresos] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const reload = () => setRefreshKey(k => k + 1)
 
@@ -541,7 +543,18 @@ export default function ExpedienteContrato() {
                         } catch (e) { toast.error('Error: ' + e.message) }
                       }}
                       onDelete={(c) => setConfirmDelete(c)}
-                      onView={(c) => setModalDetallePago(c)}
+                      onView={async (c) => {
+                        setModalDetallePago(c)
+                        setLoadingIngresos(true)
+                        try {
+                          const { data } = await supabase.from('ingresos').select('*').eq('mes', c.mes).eq('anio', c.anio).eq('contrato_id', exp.contrato_id)
+                          setIngresosDelCobro(data || [])
+                        } catch (e) {
+                          console.error('Error cargando ingresos:', e)
+                          setIngresosDelCobro([])
+                        }
+                        setLoadingIngresos(false)
+                      }}
                     />}
               </Section>
             </Card>
@@ -658,76 +671,91 @@ export default function ExpedienteContrato() {
 
       {modalDetallePago && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: C.surface, width: '100%', maxHeight: '90vh', borderRadius: '12px 12px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: C.surface, width: '100%', maxHeight: '95vh', borderRadius: '12px 12px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
               <div>
                 <h1 style={{ fontSize: 24, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio}</h1>
-                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>Registro de Pago #{modalDetallePago.id}</p>
+                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>{modalDetallePago.referencia_pago || 'Cargo'} • ${fmt$(modalDetallePago.monto_total)}</p>
               </div>
-              <button onClick={() => setModalDetallePago(null)} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, padding: 0, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, padding: 0, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
 
             {/* Content */}
             <div style={{ padding: '24px', flex: 1 }}>
-              {/* Resumen Principal */}
+              {/* Resumen del Cargo */}
               <div style={{ background: C.light, borderRadius: 10, padding: 16, marginBottom: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Monto Total</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: C.primary }}>{fmt$(modalDetallePago.monto_total)}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Total a Cobrar</div>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: C.primary }}>{fmt$(modalDetallePago.monto_total)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Monto Pagado</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.muted }}>
-                      {modalDetallePago.estatus === 'PAGADO' ? fmt$(modalDetallePago.monto_pagado) : '—'}
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Pagado</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: C.success }}>
+                      {fmt$(ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0))}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Estado</div>
-                    <span style={{ display: 'inline-block', padding: '6px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, background: modalDetallePago.estatus === 'PAGADO' ? '#D1FAE5' : modalDetallePago.estatus === 'EN MORA' ? '#FEE2E2' : '#FEF3C7', color: modalDetallePago.estatus === 'PAGADO' ? C.success : modalDetallePago.estatus === 'EN MORA' ? C.danger : C.warning }}>
-                      {modalDetallePago.estatus}
-                    </span>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Saldo</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0) >= modalDetallePago.monto_total ? C.success : C.danger }}>
+                      {fmt$(Math.max(0, modalDetallePago.monto_total - ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0)))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Detalles */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 24 }}>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Referencia</label>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
-                    {modalDetallePago.referencia_pago || 'Sin referencia'}
-                  </div>
+              {/* Ingresos Registrados */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Pagos Registrados ({ingresosDelCobro.length})</h3>
+                  <button onClick={() => setModalCobro(modalDetallePago)} style={{ padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Plus size={14} /> Agregar Ingreso
+                  </button>
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Fecha de Vencimiento</label>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
-                    {fmtD(modalDetallePago.fecha_limite_pago)}
+
+                {loadingIngresos ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: C.muted }}>Cargando...</div>
+                ) : ingresosDelCobro.length === 0 ? (
+                  <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 6, borderLeft: `4px solid ${C.warning}` }}>
+                    <p style={{ fontSize: 13, color: C.text, margin: 0 }}>
+                      No hay ingresos registrados para este período. Haz clic en "Agregar Ingreso" para registrar un pago.
+                    </p>
                   </div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Saldo Pendiente</label>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: modalDetallePago.estatus === 'PAGADO' ? C.success : C.danger, padding: '10px 12px', background: C.light, borderRadius: 6 }}>
-                    {fmt$(Math.max(0, modalDetallePago.monto_total - (modalDetallePago.monto_pagado || 0)))}
+                ) : (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {ingresosDelCobro.map(ing => (
+                      <div key={ing.id} style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                            {ing.origen || 'Ingreso'} • {ing.concepto_origen || ing.tipo}
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                            {ing.fecha ? new Date(ing.fecha + 'T12:00:00').toLocaleDateString('es-MX') : '—'} • Estado: {ing.estatus_validacion || 'Pendiente'}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: C.success }}>
+                            {fmt$(ing.importe)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Nota adicional */}
-              <div style={{ padding: 16, background: '#F0F9FF', borderRadius: 10, borderLeft: `4px solid ${C.primary}`, marginBottom: 24 }}>
-                <p style={{ fontSize: 13, color: C.text, margin: 0, lineHeight: '1.5' }}>
-                  Registro creado para el pago de <strong>{modalDetallePago.referencia_pago || 'cargo'}</strong>. Si el monto pagado no es igual al monto total, el saldo pendiente deberá liquidarse.
+              {/* Nota */}
+              <div style={{ padding: 14, background: '#F0F9FF', borderRadius: 8, borderLeft: `4px solid ${C.primary}` }}>
+                <p style={{ fontSize: 12, color: C.text, margin: 0, lineHeight: '1.4' }}>
+                  <strong>Tip:</strong> Si hay una discrepancia entre el total y los pagos registrados, puedes agregar más ingresos aquí mismo sin salirse de esta ventana.
                 </p>
               </div>
             </div>
 
             {/* Botones */}
-            <div style={{ padding: '20px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalDetallePago(null)} style={{ padding: '10px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
-              <button onClick={() => { setModalCobro(modalDetallePago); setModalDetallePago(null) }} style={{ padding: '10px 20px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Upload size={16} /> Agregar Cobro
-              </button>
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ padding: '10px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
             </div>
           </div>
         </div>
