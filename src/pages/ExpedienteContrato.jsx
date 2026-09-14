@@ -522,9 +522,8 @@ export default function ExpedienteContrato() {
                       <div>
                         <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Modo</label>
                         <select value={bulkMode} onChange={e => setBulkMode(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
-                          <option value="todos">Todos los cobros</option>
-                          <option value="contrato">Solo este contrato</option>
-                          <option value="rango">Rango de fechas</option>
+                          <option value="todos">Todos los cobros de este contrato</option>
+                          <option value="rango">Por rango de meses</option>
                         </select>
                       </div>
 
@@ -838,8 +837,7 @@ export default function ExpedienteContrato() {
             <h2 style={{ fontSize: 16, fontWeight: 700, color: C.warning, margin: '0 0 12px 0' }}>¿Marcar como Pagados?</h2>
             <div style={{ fontSize: 13, color: C.muted, marginBottom: 20, lineHeight: '1.5' }}>
               <p style={{ margin: '0 0 8px 0' }}>
-                {confirmBulk.mode === 'todos' && 'Se marcarán TODOS los cobros como PAGADOS.'}
-                {confirmBulk.mode === 'contrato' && `Se marcarán todos los cobros de este contrato como PAGADOS.`}
+                {confirmBulk.mode === 'todos' && 'Se marcarán TODOS los cobros de este contrato como PAGADOS.'}
                 {confirmBulk.mode === 'rango' && `Se marcarán los cobros de ${MESES[confirmBulk.mesInicio]} a ${MESES[confirmBulk.mesFin]} ${confirmBulk.anio} como PAGADOS.`}
               </p>
               <p style={{ margin: '8px 0 0 0', fontWeight: 600, color: C.text }}>⚠ Esta acción no se puede deshacer.</p>
@@ -848,11 +846,10 @@ export default function ExpedienteContrato() {
               <button onClick={() => setConfirmBulk(null)} style={{ flex: 1, padding: '10px 16px', background: C.border, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancelar</button>
               <button onClick={async () => {
                 try {
-                  let query = supabase.from('prp_cobros').select('*')
+                  // Siempre filtrar por contrato_id actual
+                  let query = supabase.from('prp_cobros').select('*').eq('contrato_id', exp.contrato_id)
 
-                  if (confirmBulk.mode === 'contrato') {
-                    query = query.eq('contrato_id', exp.contrato_id)
-                  } else if (confirmBulk.mode === 'rango') {
+                  if (confirmBulk.mode === 'rango') {
                     query = query.gte('mes', confirmBulk.mesInicio).lte('mes', confirmBulk.mesFin).eq('anio', confirmBulk.anio)
                   }
 
