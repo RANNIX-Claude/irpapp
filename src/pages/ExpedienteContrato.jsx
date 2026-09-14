@@ -226,6 +226,11 @@ export default function ExpedienteContrato() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [ingresosDelCobro, setIngresosDelCobro] = useState([])
   const [loadingIngresos, setLoadingIngresos] = useState(false)
+  const [bulkMode, setBulkMode] = useState('todos')
+  const [bulkMesInicio, setBulkMesInicio] = useState(1)
+  const [bulkMesFin, setBulkMesFin] = useState(12)
+  const [bulkAnio, setBulkAnio] = useState(new Date().getFullYear())
+  const [confirmBulk, setConfirmBulk] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const reload = () => setRefreshKey(k => k + 1)
 
@@ -510,6 +515,52 @@ export default function ExpedienteContrato() {
           {tab === 'pagos' && (
             <Card>
               <Section title={`Historial de pagos (${cobros.length})`} icon={CreditCard}>
+                {cobros.length > 0 && (
+                  <div style={{ background: C.light, borderRadius: 10, padding: 16, marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 12 }}>Marcar como Pagados en Lote</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, alignItems: 'flex-end' }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Modo</label>
+                        <select value={bulkMode} onChange={e => setBulkMode(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
+                          <option value="todos">Todos los cobros</option>
+                          <option value="contrato">Solo este contrato</option>
+                          <option value="rango">Rango de fechas</option>
+                        </select>
+                      </div>
+
+                      {bulkMode === 'rango' && (
+                        <>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Mes Inicio</label>
+                            <select value={bulkMesInicio} onChange={e => setBulkMesInicio(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
+                              {MESES.map((m, i) => i > 0 && <option key={i} value={i}>{m}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Mes Fin</label>
+                            <select value={bulkMesFin} onChange={e => setBulkMesFin(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
+                              {MESES.map((m, i) => i > 0 && <option key={i} value={i}>{m}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Año</label>
+                            <input type="number" value={bulkAnio} onChange={e => setBulkAnio(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }} />
+                          </div>
+                        </>
+                      )}
+
+                      <button onClick={() => setConfirmBulk({
+                        mode: bulkMode,
+                        mesInicio: bulkMesInicio,
+                        mesFin: bulkMesFin,
+                        anio: bulkAnio
+                      })} style={{ padding: '8px 16px', background: C.warning, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        ⚙ Marcar como Pagados
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {cobros.length === 0
                   ? <Empty msg="Sin cobros registrados para este contrato" />
                   : <TablaPagos
@@ -776,6 +827,55 @@ export default function ExpedienteContrato() {
                   reload()
                 } catch (e) { toast.error('Error: ' + e.message) }
               }} style={{ flex: 1, padding: '10px 16px', background: C.danger, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmBulk && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: C.surface, borderRadius: 12, padding: 24, maxWidth: 450, width: '90%' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.warning, margin: '0 0 12px 0' }}>¿Marcar como Pagados?</h2>
+            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20, lineHeight: '1.5' }}>
+              <p style={{ margin: '0 0 8px 0' }}>
+                {confirmBulk.mode === 'todos' && 'Se marcarán TODOS los cobros como PAGADOS.'}
+                {confirmBulk.mode === 'contrato' && `Se marcarán todos los cobros de este contrato como PAGADOS.`}
+                {confirmBulk.mode === 'rango' && `Se marcarán los cobros de ${MESES[confirmBulk.mesInicio]} a ${MESES[confirmBulk.mesFin]} ${confirmBulk.anio} como PAGADOS.`}
+              </p>
+              <p style={{ margin: '8px 0 0 0', fontWeight: 600, color: C.text }}>⚠ Esta acción no se puede deshacer.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setConfirmBulk(null)} style={{ flex: 1, padding: '10px 16px', background: C.border, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancelar</button>
+              <button onClick={async () => {
+                try {
+                  let query = supabase.from('prp_cobros').select('*')
+
+                  if (confirmBulk.mode === 'contrato') {
+                    query = query.eq('contrato_id', exp.contrato_id)
+                  } else if (confirmBulk.mode === 'rango') {
+                    query = query.gte('mes', confirmBulk.mesInicio).lte('mes', confirmBulk.mesFin).eq('anio', confirmBulk.anio)
+                  }
+
+                  const { data: registros } = await query
+                  if (!registros || registros.length === 0) {
+                    toast.info('No hay registros que actualizar')
+                    setConfirmBulk(null)
+                    return
+                  }
+
+                  let updated = 0
+                  for (const r of registros) {
+                    if (r.estatus !== 'PAGADO') {
+                      await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: r.monto_total }).eq('id', r.id)
+                      updated++
+                    }
+                  }
+
+                  toast.success(`${updated} cobros marcados como pagados`)
+                  setConfirmBulk(null)
+                  reload()
+                } catch (e) { toast.error('Error: ' + e.message) }
+              }} style={{ flex: 1, padding: '10px 16px', background: C.warning, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Marcar como Pagados</button>
             </div>
           </div>
         </div>
