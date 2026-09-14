@@ -855,7 +855,7 @@ export default function ExpedienteContrato() {
 
                   const { data: registros } = await query
                   if (!registros || registros.length === 0) {
-                    toast.info('No hay registros que actualizar')
+                    toast('No hay registros que actualizar')
                     setConfirmBulk(null)
                     return
                   }
