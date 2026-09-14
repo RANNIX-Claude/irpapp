@@ -846,26 +846,27 @@ export default function ExpedienteContrato() {
               <button onClick={() => setConfirmBulk(null)} style={{ flex: 1, padding: '10px 16px', background: C.border, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancelar</button>
               <button onClick={async () => {
                 try {
-                  // Siempre filtrar por contrato_id actual
-                  let query = supabase.from('prp_cobros').select('*').eq('contrato_id', exp.contrato_id)
+                  // Usar cobros ya cargados en state (vienen de prp_cartera)
+                  let registros = cobros.filter(r => r.estatus !== 'PAGADO')
 
                   if (confirmBulk.mode === 'rango') {
-                    query = query.gte('mes', confirmBulk.mesInicio).lte('mes', confirmBulk.mesFin).eq('anio', confirmBulk.anio)
+                    registros = registros.filter(r =>
+                      r.mes >= confirmBulk.mesInicio &&
+                      r.mes <= confirmBulk.mesFin &&
+                      r.anio === confirmBulk.anio
+                    )
                   }
 
-                  const { data: registros } = await query
-                  if (!registros || registros.length === 0) {
-                    toast('No hay registros que actualizar')
+                  if (registros.length === 0) {
+                    toast('No hay cobros pendientes que actualizar')
                     setConfirmBulk(null)
                     return
                   }
 
                   let updated = 0
                   for (const r of registros) {
-                    if (r.estatus !== 'PAGADO') {
-                      await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: r.monto_total }).eq('id', r.id)
-                      updated++
-                    }
+                    await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: r.monto_total }).eq('id', r.id)
+                    updated++
                   }
 
                   toast.success(`${updated} cobros marcados como pagados`)
