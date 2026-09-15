@@ -208,6 +208,41 @@ function ModalSubirComprobanteLocatario({ cobro, contratoId, onClose, onSaved })
   )
 }
 
+// Crea ingreso + aplicacion_pago para un cobro y deja que el trigger
+// fn_actualizar_estado_cargo ponga estado=PAGADO en cargos_programados.
+// Usar esta función (en vez de UPDATE directo) garantiza que el trigger
+// no revierta el estado al siguiente INSERT/UPDATE en aplicaciones_pago.
+async function aplicarPagoCobro(supabase, cobro, contratoId) {
+  const saldo = parseFloat(cobro.saldo) > 0 ? parseFloat(cobro.saldo) : parseFloat(cobro.monto_total)
+  if (saldo <= 0) return
+
+  const { data: ing, error: errIng } = await supabase
+    .from('ingresos')
+    .insert({
+      contrato_id:        contratoId,
+      fecha:              hoyISO(),
+      tipo:               cobro.referencia_pago || 'RENTA',
+      mes:                cobro.mes,
+      anio:               cobro.anio,
+      importe:            saldo,
+      origen:             'MARK_PAGADO',
+      nota:               'Marcado como pagado en lote',
+      estatus_validacion: 'VALIDADO',
+    })
+    .select('id')
+    .single()
+  if (errIng) throw errIng
+
+  const { error: errAp } = await supabase
+    .from('aplicaciones_pago')
+    .insert({
+      ingreso_id:       ing.id,
+      cargo_id:         cobro.id,
+      importe_aplicado: saldo,
+    })
+  if (errAp) throw errAp
+}
+
 // ── Página ───────────────────────────────────────────────────────────────────
 export default function ExpedienteContrato() {
   const { id } = useParams()
@@ -568,16 +603,21 @@ export default function ExpedienteContrato() {
                       onSubir={c => setModalCobro(c)}
                       onStatusChange={async (c, nuevoEstatus) => {
                         try {
-                          const update = { estatus: nuevoEstatus }
-                          if (nuevoEstatus === 'PAGADO') update.monto_pagado = c.monto_total
-                          await supabase.from('prp_cobros').update(update).eq('id', c.id)
+                          if (nuevoEstatus === 'PAGADO') {
+                            // Crear ingreso + aplicacion para que el trigger lo deje en PAGADO permanente
+                            await aplicarPagoCobro(supabase, c, exp.contrato_id)
+                          } else {
+                            // Para PENDIENTE / PARCIAL / CANCELADO: solo actualizar estado directo
+                            const { error } = await supabase.from('cargos_programados').update({ estado: nuevoEstatus }).eq('id', c.id)
+                            if (error) throw error
+                          }
                           toast.success(`${MESES[c.mes]} ${c.anio} → ${nuevoEstatus}`)
                           reload()
                         } catch (e) { toast.error('Error: ' + e.message) }
                       }}
                       onMarkAsPaid={async (c) => {
                         try {
-                          await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: c.monto_total }).eq('id', c.id)
+                          await aplicarPagoCobro(supabase, c, exp.contrato_id)
                           toast.success(`${MESES[c.mes]} ${c.anio} pagado`)
                           reload()
                         } catch (e) { toast.error('Error: ' + e.message) }
@@ -586,7 +626,7 @@ export default function ExpedienteContrato() {
                         try {
                           const pendientes = cobros.filter(c => c.estatus !== 'PAGADO')
                           for (const c of pendientes) {
-                            await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: c.monto_total }).eq('id', c.id)
+                            await aplicarPagoCobro(supabase, c, exp.contrato_id)
                           }
                           toast.success(`${pendientes.length} pagos marcados como pagados`)
                           reload()
@@ -820,7 +860,8 @@ export default function ExpedienteContrato() {
               <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: '10px 16px', background: C.border, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancelar</button>
               <button onClick={async () => {
                 try {
-                  await supabase.from('prp_cobros').delete().eq('id', confirmDelete.id)
+                  const { error } = await supabase.from('cargos_programados').delete().eq('id', confirmDelete.id)
+                  if (error) throw error
                   toast.success('Registro eliminado')
                   setConfirmDelete(null)
                   reload()
@@ -858,14 +899,14 @@ export default function ExpedienteContrato() {
                   }
 
                   if (registros.length === 0) {
-                    toast('No hay cobros pendientes que actualizar')
+                    toast.success('No hay cobros pendientes que actualizar')
                     setConfirmBulk(null)
                     return
                   }
 
                   let updated = 0
                   for (const r of registros) {
-                    await supabase.from('prp_cobros').update({ estatus: 'PAGADO', monto_pagado: r.monto_total }).eq('id', r.id)
+                    await aplicarPagoCobro(supabase, r, exp.contrato_id)
                     updated++
                   }
 
@@ -991,8 +1032,9 @@ function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMar
                       <select value={c.estatus} onChange={e => onStatusChange(c, e.target.value)}
                         style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: c.estatus === 'PAGADO' ? C.success : c.estatus === 'PENDIENTE' ? C.warning : C.danger }}>
                         <option value="PENDIENTE">Pendiente</option>
-                        <option value="EN MORA">En Mora</option>
+                        <option value="PARCIAL">Parcial</option>
                         <option value="PAGADO">Pagado</option>
+                        <option value="CANCELADO">Cancelado</option>
                       </select>
                     ) : (
                       <Badge
