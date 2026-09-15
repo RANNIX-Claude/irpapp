@@ -4,8 +4,9 @@ import {
   ArrowLeft, Building2, FileText, CreditCard, BarChart2, Phone, Mail,
   Calendar, Hash, Upload, ChevronRight, Printer, Shield, AlertTriangle,
   CheckCircle, Clock, Download, MapPin, Plus, X, Save,
+  Eye, Pencil, ZoomIn, ExternalLink, Paperclip,
 } from 'lucide-react'
-import { supabase, llamarFuncion } from '../lib/supabase'
+import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import LogoEditable from '../components/ui/LogoEditable'
 import { IngresoModal } from './Ingresos'
@@ -208,7 +209,60 @@ function ModalSubirComprobanteLocatario({ cobro, contratoId, onClose, onSaved })
   )
 }
 
-// Crea ingreso + aplicacion_pago para un cobro y deja que el trigger
+// ── Validación badge ─────────────────────────────────────────────────────────
+const VALIDACION_MAP = {
+  POR_VALIDAR: { label: 'Por validar', bg: '#FEF3C7', color: '#92400E' },
+  VALIDADO:    { label: 'Validado',    bg: '#DCFCE7', color: '#166534' },
+  OBSERVADO:   { label: 'Observado',   bg: '#FEE2E2', color: '#991B1B' },
+}
+function BadgeVal({ estatus }) {
+  const m = VALIDACION_MAP[estatus] || VALIDACION_MAP.POR_VALIDAR
+  return <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: m.bg, color: m.color }}>{m.label}</span>
+}
+
+// ── Visor de comprobante (privado) ────────────────────────────────────────────
+const esPDF = v => /\.pdf(\?|$)/i.test(v || '')
+function VisorComp({ valor, onAmpliar }) {
+  const [url, setUrl] = useState(null)
+  const [est, setEst] = useState('cargando')
+  useEffect(() => {
+    if (!valor) { setEst('vacio'); return }
+    let ok = true
+    setEst('cargando'); setUrl(null)
+    urlFirmada('facturas-cfdi', valor).then(u => {
+      if (!ok) return
+      if (u) { setUrl(u); setEst('listo') } else { setEst('vacio') }
+    })
+    return () => { ok = false }
+  }, [valor])
+  const caja = (msg, borde = C.border, fondo = C.light) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 220, padding: 24, borderRadius: 10, border: `1px solid ${borde}`, background: fondo, textAlign: 'center', fontSize: 12, color: C.muted }}>{msg}</div>
+  )
+  if (est === 'cargando') return caja('Abriendo comprobante…')
+  if (est === 'vacio') return caja('Sin comprobante adjunto', '#FECACA', '#FEF2F2')
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        {!esPDF(valor) && (
+          <button onClick={() => onAmpliar?.(url)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: C.primary, background: '#EFF6FF', padding: '4px 9px', borderRadius: 8, border: 'none', cursor: 'pointer' }}>
+            <ZoomIn size={12} /> Ampliar
+          </button>
+        )}
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: C.primary, background: '#EFF6FF', padding: '4px 9px', borderRadius: 8, textDecoration: 'none' }}>
+          <ExternalLink size={12} /> Abrir en otra pestaña
+        </a>
+      </div>
+      {esPDF(valor)
+        ? <iframe src={url} title="Comprobante" style={{ width: '100%', height: '60vh', border: `1px solid ${C.border}`, borderRadius: 10 }} />
+        : <div style={{ overflow: 'auto', maxHeight: '60vh', borderRadius: 10, border: `1px solid ${C.border}`, background: C.light }}>
+            <img src={url} alt="Comprobante" onClick={() => onAmpliar?.(url)} style={{ display: 'block', width: '100%', height: 'auto', cursor: 'zoom-in' }} />
+          </div>
+      }
+    </div>
+  )
+}
+
+// ── Crea ingreso + aplicacion_pago para un cobro y deja que el trigger
 // fn_actualizar_estado_cargo ponga estado=PAGADO en cargos_programados.
 // Usar esta función (en vez de UPDATE directo) garantiza que el trigger
 // no revierta el estado al siguiente INSERT/UPDATE en aplicaciones_pago.
@@ -268,6 +322,11 @@ export default function ExpedienteContrato() {
   const [confirmBulk, setConfirmBulk] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const reload = () => setRefreshKey(k => k + 1)
+  // Rich detail view para cobro → ingresos
+  const [ingresoDetalle, setIngresoDetalle] = useState(null)      // ingreso seleccionado
+  const [ingresoDetalleApls, setIngresoDetalleApls] = useState([]) // aplicaciones del ingreso
+  const [zoomComprobante, setZoomComprobante] = useState(null)    // URL para zoom overlay
+  const [editIngreso, setEditIngreso] = useState(null)            // abrir IngresoModal
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -636,9 +695,14 @@ export default function ExpedienteContrato() {
                       onView={async (c) => {
                         setModalDetallePago(c)
                         setLoadingIngresos(true)
+                        setIngresosDelCobro([])
                         try {
-                          const { data } = await supabase.from('ingresos').select('*').eq('mes', c.mes).eq('anio', c.anio).eq('contrato_id', exp.contrato_id)
-                          setIngresosDelCobro(data || [])
+                          // Cargar ingresos asociados via aplicaciones_pago → cargo_id
+                          const { data: apls } = await supabase
+                            .from('aplicaciones_pago')
+                            .select('importe_aplicado, ingreso:ingreso_id(*)')
+                            .eq('cargo_id', c.id)
+                          setIngresosDelCobro((apls || []).map(a => ({ ...a.ingreso, _importe_aplicado: a.importe_aplicado })))
                         } catch (e) {
                           console.error('Error cargando ingresos:', e)
                           setIngresosDelCobro([])
@@ -759,96 +823,176 @@ export default function ExpedienteContrato() {
         )
       )}
 
+      {/* ── Modal detalle de cobro: lista de ingresos aplicados ─────────────── */}
       {modalDetallePago && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: C.surface, width: '100%', maxHeight: '95vh', borderRadius: '12px 12px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
               <div>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio}</h1>
-                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>{modalDetallePago.referencia_pago || 'Cargo'} • ${fmt$(modalDetallePago.monto_total)}</p>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio} — {modalDetallePago.referencia_pago || 'Cargo'}</h1>
+                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>Total del cargo: {fmt$(modalDetallePago.monto_total)}</p>
               </div>
-              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, padding: 0, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
             </div>
 
-            {/* Content */}
-            <div style={{ padding: '24px', flex: 1 }}>
-              {/* Resumen del Cargo */}
-              <div style={{ background: C.light, borderRadius: 10, padding: 16, marginBottom: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Total a Cobrar</div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: C.primary }}>{fmt$(modalDetallePago.monto_total)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Pagado</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: C.success }}>
-                      {fmt$(ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0))}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>Saldo</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0) >= modalDetallePago.monto_total ? C.success : C.danger }}>
-                      {fmt$(Math.max(0, modalDetallePago.monto_total - ingresosDelCobro.reduce((s, i) => s + (parseFloat(i.importe) || 0), 0)))}
-                    </div>
-                  </div>
+            {/* Resumen numérico */}
+            <div style={{ background: C.light, margin: '16px 24px 0', borderRadius: 10, padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
+              {[
+                { label: 'A cobrar', val: modalDetallePago.monto_total, color: C.primary },
+                { label: 'Pagado', val: ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0), color: C.success },
+                { label: 'Saldo', val: Math.max(0, modalDetallePago.monto_total - ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0)), color: C.danger },
+              ].map(({ label, val, color }) => (
+                <div key={label}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color }}>{fmt$(val)}</div>
                 </div>
+              ))}
+            </div>
+
+            {/* Lista de ingresos */}
+            <div style={{ padding: '16px 24px 24px', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Pagos registrados ({ingresosDelCobro.length})</h3>
+                <button onClick={() => setModalCobro(modalDetallePago)} style={{ padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Plus size={14} /> Agregar ingreso
+                </button>
               </div>
 
-              {/* Ingresos Registrados */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Pagos Registrados ({ingresosDelCobro.length})</h3>
-                  <button onClick={() => setModalCobro(modalDetallePago)} style={{ padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Plus size={14} /> Agregar Ingreso
-                  </button>
+              {loadingIngresos ? (
+                <div style={{ padding: 20, textAlign: 'center', color: C.muted }}>Cargando…</div>
+              ) : ingresosDelCobro.length === 0 ? (
+                <div style={{ padding: 16, background: '#FEF3C7', borderRadius: 6, borderLeft: `4px solid ${C.warning}`, fontSize: 13 }}>
+                  No hay ingresos registrados para este cargo.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {ingresosDelCobro.map(ing => (
+                    <div key={ing.id} onClick={async () => {
+                      setIngresoDetalle(ing)
+                      const { data } = await supabase
+                        .from('aplicaciones_pago')
+                        .select('importe_aplicado, cargo:cargo_id(concepto, periodo_mes, periodo_anio)')
+                        .eq('ingreso_id', ing.id)
+                      setIngresoDetalleApls(data || [])
+                    }}
+                    style={{ padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: C.surface, transition: 'border-color .15s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = C.primary}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {ing.tipo || ing.origen || 'Ingreso'}
+                          <BadgeVal estatus={ing.estatus_validacion || 'POR_VALIDAR'} />
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{fmtD(ing.fecha)} {ing.comprobante_url && <Paperclip size={11} style={{ display: 'inline', marginLeft: 4 }} />}</div>
+                        {ing.nota && <div style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>{ing.nota}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: C.success }}>{fmt$(ing._importe_aplicado || ing.importe)}</div>
+                        <div style={{ fontSize: 10, color: C.muted }}>aplicado</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '12px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ padding: '8px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal detalle de ingreso (dos columnas: datos + comprobante) ───────── */}
+      {ingresoDetalle && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 12, width: '100%', maxWidth: 860, maxHeight: '95vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Detalle del pago</h2>
+                <BadgeVal estatus={ingresoDetalle.estatus_validacion || 'POR_VALIDAR'} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={() => setEditIngreso(ingresoDetalle)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  <Pencil size={12} /> Editar
+                </button>
+                <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]) }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
+              </div>
+            </div>
+
+            {/* Cuerpo dos columnas */}
+            <div style={{ display: 'grid', gridTemplateColumns: ingresoDetalle.comprobante_url ? '1fr 1fr' : '1fr', gap: 24, padding: 20, flex: 1 }}>
+              {/* Columna izquierda: datos */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: C.light, borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: C.success, marginBottom: 4 }}>{fmt$(ingresoDetalle.importe)}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Importe total del ingreso</div>
                 </div>
 
-                {loadingIngresos ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: C.muted }}>Cargando...</div>
-                ) : ingresosDelCobro.length === 0 ? (
-                  <div style={{ padding: '16px', background: '#FEF3C7', borderRadius: 6, borderLeft: `4px solid ${C.warning}` }}>
-                    <p style={{ fontSize: 13, color: C.text, margin: 0 }}>
-                      No hay ingresos registrados para este período. Haz clic en "Agregar Ingreso" para registrar un pago.
-                    </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Campo label="Fecha" value={fmtD(ingresoDetalle.fecha)} />
+                  <Campo label="Tipo" value={ingresoDetalle.tipo} />
+                  <Campo label="Mes" value={`${MESES[ingresoDetalle.mes]} ${ingresoDetalle.anio}`} />
+                  <Campo label="Origen" value={ingresoDetalle.origen} />
+                </div>
+
+                {ingresoDetalle.concepto && <Campo label="Concepto" value={ingresoDetalle.concepto} />}
+                {ingresoDetalle.nota && <Campo label="Nota" value={ingresoDetalle.nota} />}
+
+                {/* Distribución del depósito */}
+                {ingresoDetalleApls.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Distribución del depósito</div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {ingresoDetalleApls.map((a, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: C.light, borderRadius: 6, fontSize: 12 }}>
+                          <span style={{ color: C.text }}>
+                            {a.cargo?.concepto || '—'}
+                            {a.cargo?.periodo_mes ? ` · ${MESES[a.cargo.periodo_mes]} ${a.cargo.periodo_anio}` : ''}
+                          </span>
+                          <span style={{ fontWeight: 700, color: C.success }}>{fmt$(a.importe_aplicado)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {ingresosDelCobro.map(ing => (
-                      <div key={ing.id} style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-                            {ing.origen || 'Ingreso'} • {ing.concepto_origen || ing.tipo}
-                          </div>
-                          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                            {ing.fecha ? new Date(ing.fecha + 'T12:00:00').toLocaleDateString('es-MX') : '—'} • Estado: {ing.estatus_validacion || 'Pendiente'}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: C.success }}>
-                            {fmt$(ing.importe)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                )}
+
+                {!ingresoDetalle.comprobante_url && (
+                  <div style={{ padding: 12, background: '#FEF2F2', borderRadius: 8, borderLeft: `3px solid ${C.danger}`, fontSize: 12, color: C.danger }}>
+                    Sin comprobante adjunto
                   </div>
                 )}
               </div>
 
-              {/* Nota */}
-              <div style={{ padding: 14, background: '#F0F9FF', borderRadius: 8, borderLeft: `4px solid ${C.primary}` }}>
-                <p style={{ fontSize: 12, color: C.text, margin: 0, lineHeight: '1.4' }}>
-                  <strong>Tip:</strong> Si hay una discrepancia entre el total y los pagos registrados, puedes agregar más ingresos aquí mismo sin salirse de esta ventana.
-                </p>
-              </div>
-            </div>
-
-            {/* Botones */}
-            <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ padding: '10px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cerrar</button>
+              {/* Columna derecha: comprobante */}
+              {ingresoDetalle.comprobante_url && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Comprobante</div>
+                  <VisorComp valor={ingresoDetalle.comprobante_url} onAmpliar={url => setZoomComprobante(url)} />
+                </div>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Zoom comprobante ───────────────────────────────────────────────────── */}
+      {zoomComprobante && (
+        <div onClick={() => setZoomComprobante(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, cursor: 'zoom-out', padding: 16 }}>
+          <img src={zoomComprobante} alt="Comprobante ampliado" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+        </div>
+      )}
+
+      {/* ── IngresoModal (edición) ────────────────────────────────────────────── */}
+      {editIngreso && (
+        <IngresoModal
+          ingreso={editIngreso}
+          contratoFijo={exp?.contrato_id}
+          onClose={() => setEditIngreso(null)}
+          onSaved={() => { reload(); setEditIngreso(null) }}
+        />
       )}
 
       {confirmDelete && (
