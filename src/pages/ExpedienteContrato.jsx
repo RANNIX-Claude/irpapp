@@ -834,164 +834,150 @@ export default function ExpedienteContrato() {
         )
       )}
 
-      {/* ── Modal detalle de cobro: lista de ingresos aplicados ─────────────── */}
+      {/* ── Modal cobro: lista de ingresos ↔ detalle de ingreso (un solo modal) ── */}
       {modalDetallePago && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: C.surface, width: '100%', maxHeight: '95vh', borderRadius: '12px 12px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
-              <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio} — {modalDetallePago.referencia_pago || 'Cargo'}</h1>
-                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>Total del cargo: {fmt$(modalDetallePago.monto_total)}</p>
-              </div>
-              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
-            </div>
 
-            {/* Resumen numérico */}
-            <div style={{ background: C.light, margin: '16px 24px 0', borderRadius: 10, padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
-              {[
-                { label: 'A cobrar', val: modalDetallePago.monto_total, color: C.primary },
-                { label: 'Pagado', val: ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0), color: C.success },
-                { label: 'Saldo', val: Math.max(0, modalDetallePago.monto_total - ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0)), color: C.danger },
-              ].map(({ label, val, color }) => (
-                <div key={label}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>{label}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color }}>{fmt$(val)}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Lista de ingresos */}
-            <div style={{ padding: '16px 24px 24px', flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Pagos registrados ({ingresosDelCobro.length})</h3>
-                <button onClick={() => setModalCobro(modalDetallePago)} style={{ padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Plus size={14} /> Agregar ingreso
-                </button>
-              </div>
-
-              {loadingIngresos ? (
-                <div style={{ padding: 20, textAlign: 'center', color: C.muted }}>Cargando…</div>
-              ) : ingresosDelCobro.length === 0 ? (
-                <div style={{ padding: 16, background: '#FEF3C7', borderRadius: 6, borderLeft: `4px solid ${C.warning}`, fontSize: 13 }}>
-                  No hay ingresos registrados para este cargo.
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {ingresosDelCobro.map(ing => (
-                    <div key={ing.id} onClick={async () => {
-                      setIngresoDetalle(ing)
-                      const { data } = await supabase
-                        .from('aplicaciones_pago')
-                        .select('importe_aplicado, cargo:cargo_id(concepto, periodo_mes, periodo_anio)')
-                        .eq('ingreso_id', ing.id)
-                      setIngresoDetalleApls(data || [])
-                    }}
-                    style={{ padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: C.surface, transition: 'border-color .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = C.primary}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {ing.tipo || ing.origen || 'Ingreso'}
-                          <BadgeVal estatus={ing.estatus_validacion || 'POR_VALIDAR'} />
-                        </div>
-                        <div style={{ fontSize: 11, color: C.muted }}>{fmtD(ing.fecha)} {ing.comprobante_url && <Paperclip size={11} style={{ display: 'inline', marginLeft: 4 }} />}</div>
-                        {ing.nota && <div style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>{ing.nota}</div>}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: C.success }}>{fmt$(ing._importe_aplicado || ing.importe)}</div>
-                        <div style={{ fontSize: 10, color: C.muted }}>aplicado</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ padding: '12px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ padding: '8px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal detalle de ingreso (dos columnas: datos + comprobante) ───────── */}
-      {ingresoDetalle && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: 16 }}>
-          <div style={{ background: C.surface, borderRadius: 12, width: '100%', maxWidth: 860, maxHeight: '95vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 5 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Detalle del pago</h2>
-                <BadgeVal estatus={ingresoDetalle.estatus_validacion || 'POR_VALIDAR'} />
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={() => setEditIngreso(ingresoDetalle)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                  <Pencil size={12} /> Editar
-                </button>
-                <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]) }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
-              </div>
-            </div>
-
-            {/* Cuerpo dos columnas */}
-            <div style={{ display: 'grid', gridTemplateColumns: ingresoDetalle.comprobante_url ? '1fr 1fr' : '1fr', gap: 24, padding: 20, flex: 1 }}>
-              {/* Columna izquierda: datos */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ background: C.light, borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: C.success, marginBottom: 4 }}>{fmt$(ingresoDetalle.importe)}</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>Importe total del ingreso</div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <Campo label="Fecha" value={fmtD(ingresoDetalle.fecha)} />
-                  <Campo label="Tipo" value={ingresoDetalle.tipo} />
-                  <Campo label="Mes" value={`${MESES[ingresoDetalle.mes]} ${ingresoDetalle.anio}`} />
-                  <Campo label="Origen" value={ingresoDetalle.origen} />
-                </div>
-
-                {ingresoDetalle.concepto && <Campo label="Concepto" value={ingresoDetalle.concepto} />}
-                {ingresoDetalle.nota && <Campo label="Nota" value={ingresoDetalle.nota} />}
-
-                {/* Distribución del depósito */}
-                {ingresoDetalleApls.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Distribución del depósito</div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {ingresoDetalleApls.map((a, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: C.light, borderRadius: 6, fontSize: 12 }}>
-                          <span style={{ color: C.text }}>
-                            {a.cargo?.concepto || '—'}
-                            {a.cargo?.periodo_mes ? ` · ${MESES[a.cargo.periodo_mes]} ${a.cargo.periodo_anio}` : ''}
-                          </span>
-                          <span style={{ fontWeight: 700, color: C.success }}>{fmt$(a.importe_aplicado)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {!ingresoDetalle.comprobante_url && (
-                  <div style={{ padding: 12, background: '#FEF2F2', borderRadius: 8, borderLeft: `3px solid ${C.danger}`, fontSize: 12, color: C.danger }}>
-                    Sin comprobante adjunto
-                  </div>
-                )}
-              </div>
-
-              {/* Columna derecha: comprobante */}
-              {ingresoDetalle.comprobante_url && (
+            {/* ── VISTA A: lista de pagos ── */}
+            {!ingresoDetalle && (<>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Comprobante</div>
-                  <VisorComp valor={ingresoDetalle.comprobante_url} onAmpliar={url => setZoomComprobante(url)} />
+                  <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: 0 }}>{MESES[modalDetallePago.mes]} {modalDetallePago.anio} — {modalDetallePago.referencia_pago || 'Cargo'}</h1>
+                  <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0 0' }}>Total del cargo: {fmt$(modalDetallePago.monto_total)}</p>
                 </div>
-              )}
-            </div>
+                <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
+              </div>
+
+              <div style={{ background: C.light, margin: '16px 24px 0', borderRadius: 10, padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
+                {[
+                  { label: 'A cobrar', val: modalDetallePago.monto_total, color: C.primary },
+                  { label: 'Pagado',   val: ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0), color: C.success },
+                  { label: 'Saldo',    val: Math.max(0, modalDetallePago.monto_total - ingresosDelCobro.reduce((s, i) => s + (parseFloat(i._importe_aplicado || i.importe) || 0), 0)), color: C.danger },
+                ].map(({ label, val, color }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>{label}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color }}>{fmt$(val)}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: '16px 24px 24px', flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: 0 }}>Pagos registrados ({ingresosDelCobro.length})</h3>
+                  <button onClick={() => setModalCobro(modalDetallePago)} style={{ padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Plus size={14} /> Agregar ingreso
+                  </button>
+                </div>
+                {loadingIngresos ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: C.muted }}>Cargando…</div>
+                ) : ingresosDelCobro.length === 0 ? (
+                  <div style={{ padding: 16, background: '#FEF3C7', borderRadius: 6, borderLeft: `4px solid ${C.warning}`, fontSize: 13 }}>
+                    No hay ingresos registrados para este cargo.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {ingresosDelCobro.map((ing, idx) => (
+                      <button key={ing.id ?? idx} type="button"
+                        onClick={async () => {
+                          setIngresoDetalle(ing)
+                          const { data } = await supabase
+                            .from('aplicaciones_pago')
+                            .select('importe_aplicado, cargo:cargo_id(concepto, periodo_mes, periodo_anio)')
+                            .eq('ingreso_id', ing.id)
+                          setIngresoDetalleApls(data || [])
+                        }}
+                        style={{ padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: C.surface, textAlign: 'left', width: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {ing.tipo || ing.origen || 'Ingreso'}
+                            <BadgeVal estatus={ing.estatus_validacion || 'POR_VALIDAR'} />
+                            {ing.comprobante_url && <Paperclip size={11} color={C.muted} />}
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted }}>{fmtD(ing.fecha)}</div>
+                          {ing.nota && <div style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>{ing.nota}</div>}
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.success }}>{fmt$(ing._importe_aplicado || ing.importe)}</div>
+                          <div style={{ fontSize: 10, color: C.muted }}>aplicado</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: '12px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => { setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ padding: '8px 20px', background: C.light, color: C.text, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Cerrar</button>
+              </div>
+            </>)}
+
+            {/* ── VISTA B: detalle de un ingreso ── */}
+            {ingresoDetalle && (<>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.primary, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+                    ← Volver
+                  </button>
+                  <span style={{ color: C.border }}>|</span>
+                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text }}>Detalle del pago</h2>
+                  <BadgeVal estatus={ingresoDetalle.estatus_validacion || 'POR_VALIDAR'} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setEditIngreso(ingresoDetalle)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: C.primary, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                    <Pencil size={12} /> Editar
+                  </button>
+                  <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]); setModalDetallePago(null); setIngresosDelCobro([]) }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: C.muted, lineHeight: 1 }}>×</button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: ingresoDetalle.comprobante_url ? '1fr 1fr' : '1fr', gap: 24, padding: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ background: C.light, borderRadius: 10, padding: 16 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: C.success, marginBottom: 4 }}>{fmt$(ingresoDetalle.importe)}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>Importe total del ingreso</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <Campo label="Fecha"  value={fmtD(ingresoDetalle.fecha)} />
+                    <Campo label="Tipo"   value={ingresoDetalle.tipo} />
+                    <Campo label="Mes"    value={`${MESES[ingresoDetalle.mes] || ''} ${ingresoDetalle.anio || ''}`} />
+                    <Campo label="Origen" value={ingresoDetalle.origen} />
+                  </div>
+                  {ingresoDetalle.concepto && <Campo label="Concepto" value={ingresoDetalle.concepto} />}
+                  {ingresoDetalle.nota     && <Campo label="Nota"     value={ingresoDetalle.nota} />}
+                  {ingresoDetalleApls.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Distribución del depósito</div>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {ingresoDetalleApls.map((a, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: C.light, borderRadius: 6, fontSize: 12 }}>
+                            <span>{a.cargo?.concepto || '—'}{a.cargo?.periodo_mes ? ` · ${MESES[a.cargo.periodo_mes]} ${a.cargo.periodo_anio}` : ''}</span>
+                            <span style={{ fontWeight: 700, color: C.success }}>{fmt$(a.importe_aplicado)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!ingresoDetalle.comprobante_url && (
+                    <div style={{ padding: 12, background: '#FEF2F2', borderRadius: 8, borderLeft: `3px solid ${C.danger}`, fontSize: 12, color: C.danger }}>Sin comprobante adjunto</div>
+                  )}
+                </div>
+                {ingresoDetalle.comprobante_url && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>Comprobante</div>
+                    <VisorComp valor={ingresoDetalle.comprobante_url} onAmpliar={url => setZoomComprobante(url)} />
+                  </div>
+                )}
+              </div>
+            </>)}
+
           </div>
         </div>
       )}
 
       {/* ── Zoom comprobante ───────────────────────────────────────────────────── */}
       {zoomComprobante && (
-        <div onClick={() => setZoomComprobante(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20001, cursor: 'zoom-out', padding: 16 }}>
+        <div onClick={() => setZoomComprobante(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, cursor: 'zoom-out', padding: 16 }}>
           <img src={zoomComprobante} alt="Comprobante ampliado" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
         </div>
       )}
