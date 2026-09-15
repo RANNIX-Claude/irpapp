@@ -697,12 +697,23 @@ export default function ExpedienteContrato() {
                         setLoadingIngresos(true)
                         setIngresosDelCobro([])
                         try {
-                          // Cargar ingresos asociados via aplicaciones_pago → cargo_id
+                          // 1) IDs + importe_aplicado de las aplicaciones
                           const { data: apls } = await supabase
                             .from('aplicaciones_pago')
-                            .select('importe_aplicado, ingreso:ingreso_id(*)')
+                            .select('ingreso_id, importe_aplicado')
                             .eq('cargo_id', c.id)
-                          setIngresosDelCobro((apls || []).map(a => ({ ...a.ingreso, _importe_aplicado: a.importe_aplicado })))
+                          if (apls && apls.length > 0) {
+                            // 2) Datos completos de los ingresos
+                            const ids = apls.map(a => a.ingreso_id)
+                            const { data: ings } = await supabase
+                              .from('ingresos')
+                              .select('*')
+                              .in('id', ids)
+                            setIngresosDelCobro((ings || []).map(ing => ({
+                              ...ing,
+                              _importe_aplicado: apls.find(a => a.ingreso_id === ing.id)?.importe_aplicado,
+                            })))
+                          }
                         } catch (e) {
                           console.error('Error cargando ingresos:', e)
                           setIngresosDelCobro([])
@@ -906,7 +917,7 @@ export default function ExpedienteContrato() {
 
       {/* ── Modal detalle de ingreso (dos columnas: datos + comprobante) ───────── */}
       {ingresoDetalle && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 16 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: 16 }}>
           <div style={{ background: C.surface, borderRadius: 12, width: '100%', maxWidth: 860, maxHeight: '95vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 5 }}>
@@ -980,7 +991,7 @@ export default function ExpedienteContrato() {
 
       {/* ── Zoom comprobante ───────────────────────────────────────────────────── */}
       {zoomComprobante && (
-        <div onClick={() => setZoomComprobante(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, cursor: 'zoom-out', padding: 16 }}>
+        <div onClick={() => setZoomComprobante(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20001, cursor: 'zoom-out', padding: 16 }}>
           <img src={zoomComprobante} alt="Comprobante ampliado" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
         </div>
       )}
