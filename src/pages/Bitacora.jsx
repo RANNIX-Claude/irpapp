@@ -5,13 +5,33 @@ import { Search, Download, RefreshCw, Filter } from 'lucide-react'
 
 // ── Catálogo de colores por acción ─────────────────────────────────────────────
 const ACCION_STYLE = {
-  VISITA:            { bg: '#EFF6FF', color: '#1D4ED8', label: '👁️ Vista de pantalla' },
-  PAGO_REGISTRADO:   { bg: '#D1FAE5', color: '#057642', label: '💵 Pago registrado' },
-  AUTO_CONCILIADO:   { bg: '#D1FAE5', color: '#065F46', label: '🤖 Auto-conciliado' },
-  COBROS_DESMARCADOS:{ bg: '#FEF3C7', color: '#92400E', label: '↩️ Cobros desmarcados' },
-  CONTRATO_CREADO:   { bg: '#EDE9FE', color: '#5B21B6', label: '📋 Contrato creado' },
-  EMPLEADO_CREADO:   { bg: '#FCE7F3', color: '#831843', label: '👤 Empleado creado' },
-  ASISTENCIA_IMPORTADA:{ bg: '#E0F2FE', color: '#075985', label: '📋 Asistencia importada' },
+  // Navegación
+  VISITA:               { bg: '#EFF6FF', color: '#1D4ED8', label: 'Vista de pantalla' },
+  // Auth
+  LOGIN:                { bg: '#DCFCE7', color: '#166534', label: 'Inicio de sesión' },
+  LOGOUT:               { bg: '#FEF3C7', color: '#92400E', label: 'Cierre de sesión' },
+  // CRUD genérico
+  CREAR:                { bg: '#EDE9FE', color: '#5B21B6', label: 'Registro creado' },
+  EDITAR:               { bg: '#DBEAFE', color: '#1E40AF', label: 'Registro editado' },
+  ELIMINAR:             { bg: '#FEE2E2', color: '#991B1B', label: 'Registro eliminado' },
+  // Documentos
+  SUBIR_DOCUMENTO:      { bg: '#E0F2FE', color: '#075985', label: 'Documento subido' },
+  // Cobranza / finanzas
+  PAGO_REGISTRADO:      { bg: '#D1FAE5', color: '#057642', label: 'Pago registrado' },
+  AUTO_CONCILIADO:      { bg: '#D1FAE5', color: '#065F46', label: 'Auto-conciliado' },
+  COBROS_DESMARCADOS:   { bg: '#FEF3C7', color: '#92400E', label: 'Cobros desmarcados' },
+  // Contratos
+  CONTRATO_CREADO:      { bg: '#EDE9FE', color: '#5B21B6', label: 'Contrato creado' },
+  CONTRATO_EN_EJECUCION:{ bg: '#DCFCE7', color: '#166534', label: 'Contrato en ejecución' },
+  // RH / Nómina
+  EMPLEADO_CREADO:      { bg: '#FCE7F3', color: '#831843', label: 'Empleado creado' },
+  ASISTENCIA_IMPORTADA: { bg: '#E0F2FE', color: '#075985', label: 'Asistencia importada' },
+  CREAR_PERIODO:        { bg: '#EDE9FE', color: '#5B21B6', label: 'Período nómina creado' },
+  AUTORIZAR_PERIODO:    { bg: '#DCFCE7', color: '#166534', label: 'Período autorizado' },
+  RECIBO:               { bg: '#E0F2FE', color: '#075985', label: 'Recibo generado' },
+  RECIBO_IMPRESO:       { bg: '#F3F4F6', color: '#374151', label: 'Recibo impreso' },
+  // Reportes
+  REPORTE:              { bg: '#FEF9C3', color: '#713F12', label: 'Reporte generado' },
 }
 
 function getStyle(accion) {
@@ -25,10 +45,64 @@ function fmt(ts) {
     ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-const MODULOS = ['Todos', 'Conciliacion', 'Contratos', 'RH', 'Cobranza', 'GastosOperativos', 'Vending', 'Estacionamiento', 'FondoRevolvente', 'Agua']
+const MODULOS_GRUPOS = [
+  { group: null, options: [{ value: 'Todos', label: 'Todos los módulos' }] },
+  { group: 'Auth', options: [
+    { value: 'AUTH', label: 'Autenticación (login/logout)' },
+  ]},
+  { group: 'Locales e Inmuebles', options: [
+    { value: 'INMUEBLES',          label: 'Inmuebles' },
+    { value: 'CONTRATOS',          label: 'Contratos' },
+    { value: 'RENOVACIONES',       label: 'Renovaciones' },
+    { value: 'ARRENDATARIOS',      label: 'Arrendatarios' },
+    { value: 'MAPA_LOCALES',       label: 'Mapa de locales' },
+    { value: 'EXPEDIENTE_CONTRATO',label: 'Expediente de contrato' },
+  ]},
+  { group: 'Cartera', options: [
+    { value: 'COBRANZA',     label: 'Cobranza' },
+    { value: 'CONCILIACION', label: 'Conciliación' },
+    { value: 'INGRESOS',     label: 'Ingresos' },
+  ]},
+  { group: 'Operación', options: [
+    { value: 'GASTOS_OPERATIVOS', label: 'Gastos Operativos' },
+    { value: 'FONDO_REVOLVENTE',  label: 'Fondo Revolvente' },
+    { value: 'MANTENIMIENTO',     label: 'Mantenimiento' },
+    { value: 'PROYECTOS',         label: 'Proyectos' },
+    { value: 'PROVEEDORES',       label: 'Proveedores' },
+    { value: 'PRODUCTOS',         label: 'Productos' },
+    { value: 'AGUA',              label: 'Agua' },
+  ]},
+  { group: 'Análisis', options: [
+    { value: 'DASHBOARD',      label: 'Dashboard' },
+    { value: 'EDR',            label: 'EDR (Estado de Resultados)' },
+    { value: 'RESUMEN_SEMANAL',label: 'Resumen Semanal' },
+    { value: 'REPORTES',       label: 'Reportes' },
+    { value: 'UTILIDADES',     label: 'Utilidades' },
+    { value: 'CALCULOS',       label: 'Cálculos' },
+  ]},
+  { group: 'Recursos Humanos', options: [
+    { value: 'RH',                 label: 'RH / Nómina' },
+    { value: 'NOMINA',             label: 'Nómina (operaciones)' },
+    { value: 'EXPEDIENTE_EMPLEADO',label: 'Expediente Empleado' },
+  ]},
+  { group: 'Comercial / CRM', options: [
+    { value: 'PROSPECTOS', label: 'Prospectos' },
+    { value: 'DESPACHOS',  label: 'Despachos' },
+  ]},
+  { group: 'Servicios', options: [
+    { value: 'ESTACIONAMIENTO', label: 'Estacionamiento' },
+    { value: 'VENDING',         label: 'Vending' },
+    { value: 'RESTAURANTE',     label: 'Restaurante' },
+  ]},
+  { group: 'Sistema', options: [
+    { value: 'BITACORA',     label: 'Bitácora' },
+    { value: 'VALIDACION',   label: 'Validación' },
+    { value: 'CONFIGURACION',label: 'Configuración' },
+  ]},
+]
 
 export default function Bitacora() {
-  useModuleAudit('Bitacora')
+  useModuleAudit('BITACORA')
 
   const [refresh, setRefresh] = useState(0)
   const [busqueda, setBusqueda] = useState('')
@@ -50,7 +124,7 @@ export default function Bitacora() {
     return rows.filter(r => {
       const fecha = r.created_at?.slice(0, 10) || ''
       if (fecha < desde || fecha > hasta) return false
-      if (modulo !== 'Todos' && r.modulo !== modulo) return false
+      if (modulo !== 'Todos' && r.modulo?.toLowerCase() !== modulo.toLowerCase()) return false
       if (busqueda) {
         const q = busqueda.toLowerCase()
         return (
@@ -123,7 +197,13 @@ export default function Bitacora() {
             />
           </div>
           <select value={modulo} onChange={e => setModulo(e.target.value)} style={s.inp}>
-            {MODULOS.map(m => <option key={m} value={m}>{m === 'Todos' ? 'Todos los módulos' : m}</option>)}
+            {MODULOS_GRUPOS.map(g =>
+              g.group
+                ? <optgroup key={g.group} label={g.group}>
+                    {g.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </optgroup>
+                : g.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
+            )}
           </select>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>Desde</span>

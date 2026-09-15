@@ -7,6 +7,7 @@ import {
   Eye, Pencil, ZoomIn, ExternalLink, Paperclip,
 } from 'lucide-react'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
+import { useModuleAudit } from '../hooks/useAudit'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import LogoEditable from '../components/ui/LogoEditable'
 import { IngresoModal } from './Ingresos'
@@ -299,6 +300,7 @@ async function aplicarPagoCobro(supabase, cobro, contratoId) {
 
 // ── Página ───────────────────────────────────────────────────────────────────
 export default function ExpedienteContrato() {
+  useModuleAudit('EXPEDIENTE_CONTRATO')
   const { id } = useParams()
   const navigate = useNavigate()
   const { perfil, user } = useApp()

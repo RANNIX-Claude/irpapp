@@ -1,5 +1,6 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useModuleAudit } from '../hooks/useAudit'
 import {
   ArrowLeft, User, Briefcase, FileText, AlertCircle, Clock,
   DollarSign, BarChart2, Phone, Mail, Calendar, Hash,
@@ -606,6 +607,7 @@ function AvatarUpload({ nombre, foto, size = 72, uploading, inputRef, onChange }
 
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function ExpedienteEmpleado() {
+  useModuleAudit('EXPEDIENTE_EMPLEADO')
   const { id } = useParams()
   const navigate = useNavigate()
   const [emp, setEmp]               = useState(null)

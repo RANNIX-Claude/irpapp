@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, urlFirmada } from '../lib/supabase'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 import ModalSolicitudPersona from '../components/ui/ModalSolicitudPersona'
 
@@ -1143,6 +1144,7 @@ function ModalEditarProspecto({ prospecto, onClose, onSaved }) {
 }
 
 export default function Prospectos() {
+  useModuleAudit('PROSPECTOS')
   const [prospectos, setProspectos] = useState([])
   const [loading, setLoading]       = useState(true)
   const [filtroEtapa, setFiltroEtapa] = useState('ALL')

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { signInWithEmail, signInWithGoogle } from '../lib/auth'
 import { Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { logAudit } from '../hooks/useAudit'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -13,6 +14,7 @@ export default function Login() {
     setLoading(true)
     const { error } = await signInWithEmail(email, password)
     if (error) toast.error(error.message)
+    else logAudit({ modulo: 'AUTH', accion: 'LOGIN', descripcion: `Inicio de sesión: ${email}` })
     setLoading(false)
   }
 

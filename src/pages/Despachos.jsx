@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Building2, Plus, Phone, Mail, MapPin, User, Pencil, Save, X, Trash2, FileText, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 
 // ─── Formulario de despacho ───────────────────────────────────────────────────
 function FormDespacho({ inicial = {}, onSave, onCancel, saving }) {
@@ -137,6 +138,7 @@ function CardDespacho({ d, contratos, onEdit, onDelete, onVer }) {
 
 // ─── Página principal ────────────────────────────────────────────────────────
 export default function Despachos() {
+  useModuleAudit('DESPACHOS')
   const [despachos, setDespachos] = useState([])
   const [contratos, setContratos] = useState({}) // { despacho_id: count }
   const [loading, setLoading] = useState(true)
@@ -177,9 +179,11 @@ export default function Despachos() {
     }
     if (editando) {
       await supabase.from('cat_despachos').update(payload).eq('id', editando.id)
+      logAudit({ modulo: 'DESPACHOS', accion: 'EDITAR', entidad: 'despacho', entidad_id: editando.id, descripcion: `Despacho "${f.nombre.trim()}" actualizado` })
       setEditando(null)
     } else {
       await supabase.from('cat_despachos').insert(payload)
+      logAudit({ modulo: 'DESPACHOS', accion: 'CREAR', descripcion: `Despacho "${f.nombre.trim()}" creado` })
       setShowNuevo(false)
     }
     setSaving(false)
@@ -193,6 +197,7 @@ export default function Despachos() {
     }
     if (!confirm(`¿Eliminar "${d.nombre}"?`)) return
     await supabase.from('cat_despachos').delete().eq('id', d.id)
+    logAudit({ modulo: 'DESPACHOS', accion: 'ELIMINAR', entidad: 'despacho', entidad_id: d.id, descripcion: `Despacho "${d.nombre}" eliminado` })
     cargar()
   }
 

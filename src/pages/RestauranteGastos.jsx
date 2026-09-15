@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { UtensilsCrossed, X, Search, Trash2, ChevronDown, ChevronRight, FileSpreadsheet, Loader2, Images } from 'lucide-react'
 import { supabase, urlFirmada, llamarFuncion } from '../lib/supabase'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
 import { ImagenPrivada } from '../components/ui/ArchivoPrivado'
@@ -751,6 +752,7 @@ function ModalCargaMasiva({ onClose, onSaved }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function RestauranteGastos() {
+  useModuleAudit('RESTAURANTE')
   const [gastos, setGastos]         = useState([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')

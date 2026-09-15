@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
@@ -889,6 +890,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
 }
 
 export default function Ingresos() {
+  useModuleAudit('INGRESOS')
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [filtroValidacion, setFiltroValidacion] = useState('Todos')

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { RefreshCw, FileText, CheckCircle, Clock, AlertTriangle, Eye, Pencil, Trash2, X, Save, Paperclip, Wand2, Upload, ExternalLink, User, Shield } from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, urlFirmada } from '../lib/supabase'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import StatusBadge from '../components/ui/StatusBadge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
@@ -97,6 +98,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
     ])
     setSaving(false)
     if (error || errArr) { setErr((error || errArr).message); return }
+    logAudit({ modulo: 'RENOVACIONES', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: `Contrato ${c.folio} editado en renovación` })
     setEditMode(false)
     onUpdated?.()
   }
@@ -110,6 +112,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
     if (upErr) { setUploadingPDF(false); alert('Error al subir: ' + upErr.message); return }
     // Se guarda la RUTA, no la URL: las URLs firmadas caducan.
     await supabase.from('contratos').update({ contrato_pdf_url: path }).eq('id', c.id)
+    logAudit({ modulo: 'RENOVACIONES', accion: 'SUBIR_DOCUMENTO', entidad: 'contrato', entidad_id: c.id, descripcion: `PDF firmado subido para ${c.folio}` })
     setPdfUrl(await urlFirmada('contratos-firmados', path))
     setUploadingPDF(false)
     onUpdated?.()
@@ -121,6 +124,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
       estatus_proceso: 'EN_EJECUCION',
       updated_at: new Date().toISOString(),
     }).eq('id', c.id)
+    logAudit({ modulo: 'RENOVACIONES', accion: 'CONTRATO_EN_EJECUCION', entidad: 'contrato', entidad_id: c.id, descripcion: `Contrato ${c.folio} marcado como en ejecución` })
     setCerrando(false)
     setConfirmCerrar(false)
     onCerrar?.()
@@ -502,6 +506,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
 // ─── Página principal Renovaciones ───────────────────────────────────────────
 
 export default function Renovaciones() {
+  useModuleAudit('RENOVACIONES')
   const [refreshKey, setRefreshKey] = useState(0)
   const [seleccionado, setSeleccionado] = useState(null)
   const [openInEdit, setOpenInEdit] = useState(false)
@@ -719,6 +724,7 @@ export default function Renovaciones() {
                 setDeleting(true)
                 await supabase.from('contratos_locales').delete().eq('contrato_id', confirmDelete.id)
                 await supabase.from('contratos').delete().eq('id', confirmDelete.id)
+                logAudit({ modulo: 'RENOVACIONES', accion: 'ELIMINAR', entidad: 'contrato', entidad_id: confirmDelete.id, descripcion: `Contrato ${confirmDelete.folio} eliminado de renovaciones` })
                 setDeleting(false); setConfirmDelete(null); refresh()
               }}
                 style={{ padding: '9px 20px', border: 'none', borderRadius: '8px', background: 'var(--color-danger)', color: 'white', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, opacity: deleting ? 0.7 : 1 }}>
