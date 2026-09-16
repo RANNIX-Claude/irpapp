@@ -821,6 +821,9 @@ function TabEmpleados({ onNuevo }) {
                 onMouseLeave={ev => ev.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'}>
                 {/* Banner */}
                 <div style={{ height: 56, background: `linear-gradient(135deg, #5A4080 0%, #7B5EA7 100%)`, position: 'relative', flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 6, right: 8 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(255,255,255,0.22)', color: 'white', padding: '2px 8px', borderRadius: 10, letterSpacing: '.5px', textTransform: 'uppercase' }}>Expediente</span>
+                  </div>
                   <div style={{ position: 'absolute', bottom: -28, left: '50%', transform: 'translateX(-50%)' }}>
                     {e.foto_url
                       ? <img src={e.foto_url} alt={e.nombre_completo} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.2)' }} />
@@ -850,14 +853,9 @@ function TabEmpleados({ onNuevo }) {
                   </div>
                 </div>
                 {/* Acciones */}
-                <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
-                  <button onClick={() => setSelected(e)}
-                    style={{ flex: 1, padding: '9px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <Eye size={13} /> Ver
-                  </button>
-                  <div style={{ width: 1, background: '#F3F4F6' }} />
+                <div style={{ borderTop: '1px solid #F3F4F6' }}>
                   <button onClick={() => navigate(`/rh/empleado/${e.id}`)}
-                    style={{ flex: 1, padding: '9px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    style={{ width: '100%', padding: '9px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#7B5EA7', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                     <FileText size={13} /> Expediente
                   </button>
                 </div>
@@ -1292,7 +1290,7 @@ function TabReclutamiento() {
                 </select>
               </div>
             </div>
-            <div style={{ background: '#EFF6FF', borderRadius: 8, padding: 12, marginTop: 14, fontSize: 12, color: '#1D4ED8' }}>
+            <div style={{ background: '#F5F3FF', borderRadius: 8, padding: 12, marginTop: 14, fontSize: 12, color: '#7B5EA7' }}>
               Al guardar se generará automáticamente un link único para que el candidato suba sus documentos.
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
