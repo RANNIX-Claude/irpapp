@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight, Images, Loader2, Eye } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -604,6 +604,7 @@ function ModalCargaGrupo({ onClose, onSaved }) {
         }
         const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
         if (error) throw error
+        logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'CREAR', entidad: 'gasto', entidad_id: ins.id, descripcion: `Gasto OCR: ${t.form.proveedor_nombre || 'sin proveedor'} — ${t.form.grupo_gasto}` })
 
         // Líneas OCR
         const lineas = (t.ocr?.lineas || []).filter(l => l.descripcion && l.precio_unit).map(l => ({
@@ -783,6 +784,7 @@ export default function GastosOperativos() {
   const eliminar = async (g) => {
     if (!window.confirm(`¿Eliminar gasto ${g.descripcion || fmt(g.cantidad)}?`)) return
     await supabase.from('gastos_operativos').delete().eq('id', g.id)
+    logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: `Gasto eliminado: ${g.descripcion || g.proveedor || ''}` })
     cargar()
     toast.success('Gasto eliminado')
   }

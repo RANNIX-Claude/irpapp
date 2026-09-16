@@ -807,7 +807,10 @@ export default function RestauranteGastos() {
     if (!window.confirm(`¿Eliminar gasto de ${g.proveedor || 'proveedor'} por ${fmt(g.total)}?`)) return
     const { error } = await supabase.from('restaurante_gastos').delete().eq('id', g.id)
     if (error) toast.error(error.message)
-    else { toast.success('Gasto eliminado'); cargar() }
+    else {
+      logAudit({ modulo: 'RESTAURANTE', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: `Gasto eliminado: ${g.proveedor || ''} $${g.total}` })
+      toast.success('Gasto eliminado'); cargar()
+    }
   }
 
   const subirTicketRetro = async (gastoId, file) => {
@@ -822,6 +825,7 @@ export default function RestauranteGastos() {
       if (!upResp.ok) { const e = await upResp.json().catch(() => ({})); toast.error(`Error al subir: ${e.error || upResp.status}`); return }
       const { url: ticket_url } = await upResp.json()
       await supabase.from('restaurante_gastos').update({ ticket_url }).eq('id', gastoId)
+      logAudit({ modulo: 'RESTAURANTE', accion: 'SUBIR_DOCUMENTO', entidad: 'gasto', entidad_id: gastoId, descripcion: 'Ticket retro adjuntado' })
       toast.success('Ticket adjuntado')
       abrirLightbox(ticket_url)   // abrir lightbox inmediatamente
       cargar()

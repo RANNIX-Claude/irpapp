@@ -1006,6 +1006,7 @@ export default function Ingresos() {
   const eliminar = async (r) => {
     const { error } = await supabase.from('ingresos').delete().eq('id', r.id)
     if (error) { toast.error(error.message); return }
+    logAudit({ modulo: 'INGRESOS', accion: 'ELIMINAR', entidad: 'ingreso', entidad_id: r.id, descripcion: `Ingreso eliminado: ${r.arrendatario_nombre || ''} $${r.importe}` })
     toast.success('Ingreso eliminado')
     setConfirmDel(null)
     setRefreshKey(k => k+1)

@@ -1,4 +1,4 @@
-import { useModuleAudit } from "../hooks/useAudit"
+import { useModuleAudit, logAudit } from "../hooks/useAudit"
 import { useState, useEffect } from "react"
 import { Car, Plus, Pencil, Trash2, ChevronDown, Search, Users } from "lucide-react"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
@@ -76,7 +76,10 @@ function TabDiario() {
       ? await supabase.from("estacionamiento_diario").update(payload).eq("id", editId)
       : await supabase.from("estacionamiento_diario").upsert(payload, { onConflict: "fecha" })
     if (error) toast.error("Error: " + error.message)
-    else { toast.success(editId ? "Actualizado" : "Guardado"); setForm({ fecha: today, cantidad: "", notas: "" }); setEditId(null); cargar() }
+    else {
+      logAudit({ modulo: 'ESTACIONAMIENTO', accion: editId ? 'EDITAR' : 'CREAR', descripcion: `Cobro diario ${editId ? 'actualizado' : 'registrado'}: ${form.fecha} — $${form.cantidad}` })
+      toast.success(editId ? "Actualizado" : "Guardado"); setForm({ fecha: today, cantidad: "", notas: "" }); setEditId(null); cargar()
+    }
     setGuardando(false)
   }
 
@@ -89,7 +92,10 @@ function TabDiario() {
   const eliminar = async r => {
     const { error } = await supabase.from("estacionamiento_diario").delete().eq("id", r.id)
     if (error) toast.error(error.message)
-    else { toast.success("Eliminado"); setConfirmDel(null); cargar() }
+    else {
+      logAudit({ modulo: 'ESTACIONAMIENTO', accion: 'ELIMINAR', entidad_id: r.id, descripcion: `Cobro diario eliminado: ${r.fecha}` })
+      toast.success("Eliminado"); setConfirmDel(null); cargar()
+    }
   }
 
   const filtrados = registros.filter(r => {
@@ -291,7 +297,10 @@ function TabPensiones() {
       ? await supabase.from("estacionamiento_pensiones").update(payload).eq("id", editId)
       : await supabase.from("estacionamiento_pensiones").insert(payload)
     if (error) toast.error("Error: " + error.message)
-    else { toast.success(editId ? "Actualizado" : "Pensión registrada"); setForm(PENSION_VACIA); setEditId(null); cargar() }
+    else {
+      logAudit({ modulo: 'ESTACIONAMIENTO', accion: editId ? 'EDITAR' : 'CREAR', descripcion: `Pensión ${editId ? 'actualizada' : 'registrada'}: ${form.arrendatario_nombre || form.local_referencia} — $${form.monto}` })
+      toast.success(editId ? "Actualizado" : "Pensión registrada"); setForm(PENSION_VACIA); setEditId(null); cargar()
+    }
     setGuardando(false)
   }
 
@@ -307,7 +316,10 @@ function TabPensiones() {
   const eliminar = async r => {
     const { error } = await supabase.from("estacionamiento_pensiones").delete().eq("id", r.id)
     if (error) toast.error(error.message)
-    else { toast.success("Eliminado"); setConfirmDel(null); cargar() }
+    else {
+      logAudit({ modulo: 'ESTACIONAMIENTO', accion: 'ELIMINAR', entidad_id: r.id, descripcion: `Pensión eliminada: ${r.arrendatario_nombre || r.local_referencia}` })
+      toast.success("Eliminado"); setConfirmDel(null); cargar()
+    }
   }
 
   // Agrupar por semana_inicio

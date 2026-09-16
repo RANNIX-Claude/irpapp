@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useRef, useEffect } from 'react'
 import { Wrench, Plus, Search, AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar, User, MapPin, X, Users, Image, FileText, Printer, ChevronDown } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -529,6 +529,7 @@ export default function Mantenimiento() {
       evidencias:       updated.evidencias ?? [],
       updated_at:       new Date().toISOString(),
     }).eq('id', updated.id)
+    logAudit({ modulo: 'MANTENIMIENTO', accion: 'EDITAR', entidad: 'orden_trabajo', entidad_id: updated.id, descripcion: `OT actualizada — estado: ${updated.estado}` })
     setOrdenes(prev => prev.map(o => o.id === updated.id ? updated : o))
     setSelected(updated.estado !== 'COMPLETADO' ? updated : null)
   }

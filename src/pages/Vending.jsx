@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
 import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
   Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors } from 'lucide-react'
@@ -288,6 +288,7 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         compras:        totUnidC,
       }).eq('id', semanaId)
 
+      logAudit({ modulo: 'VENDING', accion: editMov ? 'EDITAR' : 'CREAR', descripcion: `${form.tipo} ${editMov ? 'actualizada' : 'registrada'}: ${prod?.nombre || ''} x${cant}` })
       toast.success(`${form.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} ${editMov ? 'actualizada' : 'registrada'}`)
       onSaved(); onClose()
     } catch (e) { toast.error(e.message) } finally { setSaving(false) }
@@ -499,6 +500,7 @@ function ModalProducto({ producto, onClose, onSaved }) {
     }
     setSaving(false)
     if (error) return toast.error(error.message)
+    logAudit({ modulo: 'VENDING', accion: producto ? 'EDITAR' : 'CREAR', descripcion: `Producto ${producto ? 'actualizado' : 'creado'}: ${form.nombre}` })
     toast.success(producto ? 'Producto actualizado' : 'Producto agregado')
     onSaved(); onClose()
   }
@@ -644,6 +646,7 @@ export default function Vending() {
         venta_unidades: totUnidV, compras: totUnidC,
       }).eq('id', mov.semana_id)
 
+      logAudit({ modulo: 'VENDING', accion: 'ELIMINAR', entidad_id: mov.id, descripcion: `${mov.tipo} eliminada: ${mov.producto_id}` })
       toast.success(`${mov.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} eliminada`)
       setConfirmDelMov(null)
       setRefreshKey(k => k + 1)

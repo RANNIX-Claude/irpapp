@@ -1329,6 +1329,7 @@ export default function Prospectos() {
               <button disabled={eliminando} onClick={async () => {
                 setEliminando(true)
                 await supabase.from('prospectos').delete().eq('id', confirmEliminar.id)
+                logAudit({ modulo: 'PROSPECTOS', accion: 'ELIMINAR', entidad: 'prospecto', entidad_id: confirmEliminar.id, descripcion: `Prospecto eliminado: ${confirmEliminar.nombre || ''}` })
                 setEliminando(false)
                 setConfirmEliminar(null)
                 refresh()

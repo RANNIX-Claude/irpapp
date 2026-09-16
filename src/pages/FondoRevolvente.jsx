@@ -1,4 +1,4 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
+﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect } from 'react'
 import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, List, Pencil, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -93,8 +93,10 @@ function GastoModal({ gasto = null, fondo, onClose, onSaved }) {
       let error
       if (gasto) {
         ;({ error } = await supabase.from('gastos_operativos').update(payload).eq('id', gasto.id))
+        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'EDITAR', entidad: 'gasto', entidad_id: gasto.id, descripcion: `Gasto editado: ${form.descripcion || rubro?.label}` })
       } else {
         ;({ error } = await supabase.from('gastos_operativos').insert(payload))
+        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'CREAR', descripcion: `Gasto creado: ${form.descripcion || rubro?.label} — $${form.monto_pagado}` })
       }
       if (error) throw error
       onSaved()
@@ -253,6 +255,7 @@ export default function FondoRevolvente() {
   const eliminar = async (g) => {
     const { error } = await supabase.from('gastos_operativos').delete().eq('id', g.id)
     if (error) { toast.error(error.message); return }
+    logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: `Gasto eliminado: ${g.descripcion || g.grupo_gasto}` })
     toast.success('Gasto eliminado')
     setConfirmDel(null)
     setRefreshKey(k => k + 1)

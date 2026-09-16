@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
 import { Truck, Plus, Search, X, Pencil, Check, ChevronDown , LayoutGrid, AlignJustify} from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -41,9 +41,11 @@ function ModalProveedor({ proveedor, onClose, onSaved }) {
       if (isEdit) {
         const { error: err } = await supabase.from('cat_proveedores').update(limpiar(form)).eq('id', proveedor.id)
         if (err) throw err
+        logAudit({ modulo: 'PROVEEDORES', accion: 'EDITAR', entidad: 'proveedor', entidad_id: proveedor.id, descripcion: `Proveedor "${form.nombre}" actualizado` })
       } else {
         const { error: err } = await supabase.from('cat_proveedores').insert(limpiar(form))
         if (err) throw err
+        logAudit({ modulo: 'PROVEEDORES', accion: 'CREAR', descripcion: `Proveedor "${form.nombre}" creado (${form.clave})` })
       }
       onSaved()
     } catch (err) { setError(err.message) } finally { setSaving(false) }
