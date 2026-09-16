@@ -17,7 +17,7 @@ import ImportadorDocumento, { OCR_POR_TIPO } from '../components/ui/ImportadorDo
 
 // ── Paleta RANNIX ────────────────────────────────────────────────────────────
 const C = {
-  primary: '#0A66C2', dark: '#1A3C5E', gold: '#E8A020',
+  primary: '#7B5EA7', dark: '#5A4080', gold: '#E8A020',
   success: '#057642', warning: '#F59E0B', danger: '#B24020',
   bg: '#F0F4F8', surface: '#FFFFFF', border: '#E2E8F0',
   text: '#1E293B', muted: '#64748B', light: '#F8FAFC',

@@ -182,7 +182,7 @@ function NuevoEmpleadoModal({ onClose, onCreated }) {
               </select>
             </F>
             <F label="Vencimiento contrato">{inp('fecha_fin_contrato', { type:'date' })}</F>
-            <button type="button" onClick={semanas3} style={{ padding:'8px 12px',border:'1.5px solid #0A66C2',borderRadius:7,fontSize:12,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+            <button type="button" onClick={semanas3} style={{ padding:'8px 12px',border:'1.5px solid #7B5EA7',borderRadius:7,fontSize:12,fontWeight:600,color:'#7B5EA7',background:'white',cursor:'pointer' }}>
               +3 semanas
             </button>
           </div>
@@ -238,7 +238,7 @@ function RenovarContratoModal({ empleado, onClose, onSaved }) {
         <div style={{ display: 'grid', gap: 12 }}>
           {[['Tipo de contrato', <select value={form.tipo_contrato} onChange={e => setForm(p => ({...p, tipo_contrato:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,background:'white' }}>{TIPOS_CONTRATO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select>],
              ['Fecha inicio', <input type="date" value={form.fecha_inicio} onChange={e => setForm(p=>({...p,fecha_inicio:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />],
-             ['Vencimiento', <div style={{ display:'flex',gap:8 }}><input type="date" value={form.fecha_fin} onChange={e => setForm(p=>({...p,fecha_fin:e.target.value}))} style={{ flex:1,padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /><button onClick={semanas3} style={{ padding:'8px 10px',border:'1.5px solid #0A66C2',borderRadius:7,fontSize:12,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer',whiteSpace:'nowrap' }}>+3 sem</button></div>],
+             ['Vencimiento', <div style={{ display:'flex',gap:8 }}><input type="date" value={form.fecha_fin} onChange={e => setForm(p=>({...p,fecha_fin:e.target.value}))} style={{ flex:1,padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} /><button onClick={semanas3} style={{ padding:'8px 10px',border:'1.5px solid #7B5EA7',borderRadius:7,fontSize:12,fontWeight:600,color:'#7B5EA7',background:'white',cursor:'pointer',whiteSpace:'nowrap' }}>+3 sem</button></div>],
              ['Salario diario ($)', <input type="number" step="0.01" value={form.salario_diario} onChange={e => setForm(p=>({...p,salario_diario:e.target.value}))} style={{ width:'100%',padding:'8px 10px',border:'1.5px solid #E5E7EB',borderRadius:7,fontSize:13,boxSizing:'border-box' }} />]
           ].map(([lbl, ctrl]) => (
             <div key={lbl}>
@@ -672,7 +672,7 @@ function DetalleEmpleado({ emp, onClose, onRefresh }) {
               <Edit2 size={13} /> Modificar
             </button>
             <button onClick={() => setSubModal('renovar')}
-              style={{ padding: '7px 12px', background: '#EFF6FF', border: '1.5px solid #0A66C2', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#0A66C2', display: 'flex', alignItems: 'center', gap: 5 }}>
+              style={{ padding: '7px 12px', background: '#F5F3FF', border: '1.5px solid #7B5EA7', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#7B5EA7', display: 'flex', alignItems: 'center', gap: 5 }}>
               <RefreshCw size={13} /> Renovar Contrato
             </button>
           </div>
@@ -764,7 +764,7 @@ function TabEmpleados({ onNuevo }) {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 22 }}>
-        {[[activos.length, 'Activos', '#0A66C2', Users], [fmt$(nomina), 'Nómina Mensual', '#057642', TrendingUp], [alertas, 'Alertas Contrato', '#F59E0B', AlertTriangle], [indefinidos, 'Tiempo Indefinido', '#1A3C5E', UserCheck]].map(([v, t, c, Icon]) => (
+        {[[activos.length, 'Activos', '#7B5EA7', Users], [fmt$(nomina), 'Nómina Mensual', '#057642', TrendingUp], [alertas, 'Alertas Contrato', '#F59E0B', AlertTriangle], [indefinidos, 'Tiempo Indefinido', '#5A4080', UserCheck]].map(([v, t, c, Icon]) => (
           <div key={t} style={{ background: 'white', borderRadius: 10, border: '1px solid #E5E7EB', padding: '16px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</span>
@@ -784,7 +784,7 @@ function TabEmpleados({ onNuevo }) {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {areas.slice(0, 7).map(a => (
             <button key={a} onClick={() => setFiltroArea(a)}
-              style={{ padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid', borderColor: filtroArea===a ? '#0A66C2' : '#E5E7EB', background: filtroArea===a ? '#0A66C2' : 'white', color: filtroArea===a ? 'white' : 'var(--color-text-light)' }}>
+              style={{ padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid', borderColor: filtroArea===a ? '#7B5EA7' : '#E5E7EB', background: filtroArea===a ? '#7B5EA7' : 'white', color: filtroArea===a ? 'white' : 'var(--color-text-light)' }}>
               {a}
             </button>
           ))}
@@ -792,15 +792,15 @@ function TabEmpleados({ onNuevo }) {
         {/* Toggle vista */}
         <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
           <button onClick={() => setVistaGrid(true)} title="Vista tarjetas"
-            style={{ padding: '7px 11px', background: vistaGrid ? '#0A66C2' : 'white', color: vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            style={{ padding: '7px 11px', background: vistaGrid ? '#7B5EA7' : 'white', color: vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <LayoutGrid size={16} />
           </button>
           <button onClick={() => setVistaGrid(false)} title="Vista tabla"
-            style={{ padding: '7px 11px', background: !vistaGrid ? '#0A66C2' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            style={{ padding: '7px 11px', background: !vistaGrid ? '#7B5EA7' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <LayoutList size={16} />
           </button>
         </div>
-        <button onClick={onNuevo} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={onNuevo} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#7B5EA7', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
           <Plus size={14} /> Nuevo
         </button>
       </div>
@@ -820,7 +820,7 @@ function TabEmpleados({ onNuevo }) {
                 onMouseEnter={ev => ev.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'}
                 onMouseLeave={ev => ev.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'}>
                 {/* Banner */}
-                <div style={{ height: 56, background: `linear-gradient(135deg, #1A3C5E 0%, #0A66C2 100%)`, position: 'relative', flexShrink: 0 }}>
+                <div style={{ height: 56, background: `linear-gradient(135deg, #5A4080 0%, #7B5EA7 100%)`, position: 'relative', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', bottom: -28, left: '50%', transform: 'translateX(-50%)' }}>
                     {e.foto_url
                       ? <img src={e.foto_url} alt={e.nombre_completo} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.2)' }} />
@@ -831,7 +831,7 @@ function TabEmpleados({ onNuevo }) {
                 {/* Info */}
                 <div style={{ padding: '36px 16px 14px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', lineHeight: 1.3 }}>{e.nombre_completo}</div>
-                  <div style={{ fontSize: 12, color: '#0A66C2', fontWeight: 600 }}>{e.puesto || '—'}</div>
+                  <div style={{ fontSize: 12, color: '#7B5EA7', fontWeight: 600 }}>{e.puesto || '—'}</div>
                   <div style={{ fontSize: 11, color: '#6B7280' }}>{e.area || e.departamento || '—'}</div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 700, background: e.estado_id==='ACTIVO' ? '#dcfce7' : '#fee2e2', color: e.estado_id==='ACTIVO' ? '#166534' : '#991b1b' }}>{e.estado_id}</span>
@@ -919,7 +919,7 @@ function TabEmpleados({ onNuevo }) {
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#0A66C2' }}>{e.numero_empleado}</td>
+                    <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#7B5EA7' }}>{e.numero_empleado}</td>
                     <td style={{ padding: '11px 14px' }}>
                       <div style={{ fontWeight: 500 }}>{e.puesto}</div>
                       <div style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{e.area ?? '—'}</div>
@@ -956,7 +956,7 @@ function TabEmpleados({ onNuevo }) {
                     </td>
                     <td style={{ padding: '11px 14px' }} onClick={ev => ev.stopPropagation()}>
                       <button onClick={() => navigate(`/rh/empleado/${e.id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#1D4ED8', whiteSpace: 'nowrap' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#7B5EA7', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: 'white', whiteSpace: 'nowrap' }}>
                         <FileText size={12} /> Expediente
                       </button>
                     </td>
@@ -1040,7 +1040,7 @@ function NuevaVacanteModal({ onClose, onSaved }) {
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
           <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
-          <button onClick={guardar} disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'#0A66C2',color:'white',cursor:'pointer',fontWeight:700 }}>
+          <button onClick={guardar} disabled={saving} style={{ flex:2,padding:10,border:'none',borderRadius:8,background:'#7B5EA7',color:'white',cursor:'pointer',fontWeight:700 }}>
             {saving ? 'Guardando…' : 'Publicar vacante'}
           </button>
         </div>
@@ -1106,15 +1106,15 @@ function TarjetaCandidato({ c, vacantes, onRefresh }) {
         <div style={{ borderTop: '1px solid #F3F4F6', padding: '14px', background: '#FAFAFA' }}>
           {/* Datos de contacto */}
           <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
-            {c.email && <a href={`mailto:${c.email}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#0A66C2',textDecoration:'none' }}><Mail size={13} />{c.email}</a>}
-            {c.telefono && <a href={`tel:${c.telefono}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#0A66C2',textDecoration:'none' }}><Phone size={13} />{c.telefono}</a>}
+            {c.email && <a href={`mailto:${c.email}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#7B5EA7',textDecoration:'none' }}><Mail size={13} />{c.email}</a>}
+            {c.telefono && <a href={`tel:${c.telefono}`} style={{ display:'flex',gap:5,alignItems:'center',fontSize:12,color:'#7B5EA7',textDecoration:'none' }}><Phone size={13} />{c.telefono}</a>}
           </div>
 
           {/* Link para docs */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, background: '#EFF6FF', borderRadius: 8, padding: '8px 12px' }}>
-            <Link size={14} color="#0A66C2" />
-            <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{linkCandidato}</span>
-            <button onClick={copiarLink} style={{ padding:'4px 10px',border:'none',borderRadius:5,background:'#0A66C2',color:'white',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0 }}>Copiar</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, background: '#F5F3FF', borderRadius: 8, padding: '8px 12px' }}>
+            <Link size={14} color="#7B5EA7" />
+            <span style={{ flex:1, fontSize:11, color:'#5A4080', fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{linkCandidato}</span>
+            <button onClick={copiarLink} style={{ padding:'4px 10px',border:'none',borderRadius:5,background:'#7B5EA7',color:'white',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0 }}>Copiar</button>
           </div>
 
           {/* Pipeline de etapas */}
@@ -1133,7 +1133,7 @@ function TarjetaCandidato({ c, vacantes, onRefresh }) {
               <Calendar size={14} />
               <input type="datetime-local" value={fechaEntrevista} onChange={e => setFechaEntrevista(e.target.value)}
                 style={{ padding: '5px 10px', border: '1.5px solid #E5E7EB', borderRadius: 6, fontSize: 12 }} />
-              <button onClick={() => moverEtapa('ENTREVISTA')} style={{ padding:'5px 10px',border:'none',borderRadius:6,background:'#0A66C2',color:'white',fontSize:11,fontWeight:700,cursor:'pointer' }}>Guardar fecha</button>
+              <button onClick={() => moverEtapa('ENTREVISTA')} style={{ padding:'5px 10px',border:'none',borderRadius:6,background:'#7B5EA7',color:'white',fontSize:11,fontWeight:700,cursor:'pointer' }}>Guardar fecha</button>
             </div>
           )}
 
@@ -1208,9 +1208,9 @@ function TabReclutamiento() {
       {/* Columna vacantes */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Vacantes Abiertas <span style={{ color: '#0A66C2' }}>({lista_v.filter(v=>v.status==='ABIERTA').length})</span></h3>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Vacantes Abiertas <span style={{ color: '#7B5EA7' }}>({lista_v.filter(v=>v.status==='ABIERTA').length})</span></h3>
           <button onClick={() => setShowNuevaVacante(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#7B5EA7', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             <Plus size={12} /> Vacante
           </button>
         </div>
@@ -1221,7 +1221,7 @@ function TabReclutamiento() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {lista_v.map(v => (
               <div key={v.id} onClick={() => setVacSeleccionada(vacSeleccionada?.id === v.id ? null : v)}
-                style={{ background: 'white', border: `1.5px solid ${vacSeleccionada?.id===v.id ? '#0A66C2' : '#E5E7EB'}`, borderRadius: 10, padding: 14, cursor: 'pointer', transition: '.15s' }}>
+                style={{ background: 'white', border: `1.5px solid ${vacSeleccionada?.id===v.id ? '#7B5EA7' : '#E5E7EB'}`, borderRadius: 10, padding: 14, cursor: 'pointer', transition: '.15s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{v.titulo}</div>
@@ -1236,7 +1236,7 @@ function TabReclutamiento() {
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--color-text-light)' }}>{TIPOS_CONTRATO.find(t=>t.id===v.tipo_contrato)?.label || v.tipo_contrato}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0A66C2' }}>{v.candidatos_activos || 0} candidatos</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#7B5EA7' }}>{v.candidatos_activos || 0} candidatos</span>
                 </div>
               </div>
             ))}
@@ -1249,7 +1249,7 @@ function TabReclutamiento() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
             {vacSeleccionada ? `Candidatos — ${vacSeleccionada.titulo}` : 'Todos los candidatos'}
-            <span style={{ color: '#0A66C2', marginLeft: 6 }}>({lista_c.filter(c => !vacSeleccionada || c.vacante_id===vacSeleccionada.id).length})</span>
+            <span style={{ color: '#7B5EA7', marginLeft: 6 }}>({lista_c.filter(c => !vacSeleccionada || c.vacante_id===vacSeleccionada.id).length})</span>
           </h3>
           <button onClick={() => setShowNuevoCandidato(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#057642', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -1556,7 +1556,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-          <button onClick={() => fileRef.current.click()} style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #0A66C2',borderRadius:8,fontSize:13,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+          <button onClick={() => fileRef.current.click()} style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #7B5EA7',borderRadius:8,fontSize:13,fontWeight:600,color:'#7B5EA7',background:'white',cursor:'pointer' }}>
             <Upload size={14} /> Abrir archivo
           </button>
           <input ref={fileRef} type="file" accept=".csv,.txt,.dat" style={{ display:'none' }} onChange={onFileChange} />
@@ -1594,7 +1594,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
                     const fuera = excluidos[claveDia(r)]
                     return (
                     <tr key={i} style={{ borderTop:'1px solid #F3F4F6', opacity: fuera ? .4 : 1, textDecoration: fuera ? 'line-through' : 'none' }}>
-                      <td style={{ padding:'7px 10px',fontFamily:'monospace',color:'#0A66C2' }}>{r.numero_empleado_ext}</td>
+                      <td style={{ padding:'7px 10px',fontFamily:'monospace',color:'#7B5EA7' }}>{r.numero_empleado_ext}</td>
                       <td style={{ padding:'5px 10px' }}>
                         {r._nombre_match || (
                           <select value={asignados[r.numero_empleado_ext] ?? ''}
@@ -1633,7 +1633,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button onClick={onClose} style={{ flex:1,padding:10,border:'1.5px solid #E5E7EB',borderRadius:8,background:'white',cursor:'pointer',fontWeight:600 }}>Cancelar</button>
           <button onClick={importar} disabled={!aImportar.length || importando}
-            style={{ flex:2,padding:10,border:'none',borderRadius:8,background: aImportar.length?'#0A66C2':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
+            style={{ flex:2,padding:10,border:'none',borderRadius:8,background: aImportar.length?'#7B5EA7':'#9CA3AF',color:'white',cursor:'pointer',fontWeight:700 }}>
             {importando ? 'Importando…' : `Importar ${aImportar.length} marcajes`}
           </button>
         </div>
@@ -1826,19 +1826,19 @@ function TabAsistencia() {
           <Search size={14} /> Consultar marcajes
         </button>
         <button onClick={() => setShowImport(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #0A66C2', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#0A66C2', background: 'white', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #7B5EA7', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#7B5EA7', background: 'white', cursor: 'pointer' }}>
           <Upload size={14} /> Importar desde Checador
         </button>
       </div>
 
       {guardiaHoy && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, padding:'8px 14px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:8, fontSize:12.5, color:'#1D4ED8' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, padding:'8px 14px', background:'#F5F3FF', border:'1px solid #DDD6FE', borderRadius:8, fontSize:12.5, color:'#5A4080' }}>
           <UserCheck size={14} /> Guardia programada para el {fecha}: <strong>{guardiaHoy.nombre_completo}</strong>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
-        {[[presentes,'Presentes','#057642',CheckCircle],[retardos,'Retardos','#F59E0B',Clock],[faltas,'Faltas','#B24020',AlertTriangle],[totalHoras.toFixed(1)+'h','Horas Totales','#0A66C2',TrendingUp]].map(([v,t,c,Icon]) => (
+        {[[presentes,'Presentes','#057642',CheckCircle],[retardos,'Retardos','#F59E0B',Clock],[faltas,'Faltas','#B24020',AlertTriangle],[totalHoras.toFixed(1)+'h','Horas Totales','#7B5EA7',TrendingUp]].map(([v,t,c,Icon]) => (
           <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
             <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4 }}>
               <span style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase' }}>{t}</span>
@@ -1875,7 +1875,7 @@ function TabAsistencia() {
                   return (
                     <tr key={a.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'11px 14px',fontWeight:500 }}>{a.nombre_completo}</td>
-                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12,color:'#0A66C2' }}>{a.numero_empleado}</td>
+                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12,color:'#7B5EA7' }}>{a.numero_empleado}</td>
                       <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{a.puesto}</td>
                       <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{a.hora_entrada ? String(a.hora_entrada).slice(0,5) : '—'}</td>
                       <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{a.hora_salida ? String(a.hora_salida).slice(0,5) : '—'}</td>
@@ -2011,7 +2011,7 @@ function NuevoPeriodoModal({ onClose, onCreated }) {
         <div style={{ display:'flex',gap:10,marginTop:22,justifyContent:'flex-end' }}>
           <button onClick={onClose} style={{ padding:'9px 18px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,fontWeight:600,cursor:'pointer',background:'white' }}>Cancelar</button>
           <button onClick={guardar} disabled={saving}
-            style={{ padding:'9px 22px',background:'#0A66C2',color:'white',border:'none',borderRadius:8,fontSize:14,fontWeight:700,cursor:'pointer',opacity:saving?.6:1 }}>
+            style={{ padding:'9px 22px',background:'#7B5EA7',color:'white',border:'none',borderRadius:8,fontSize:14,fontWeight:700,cursor:'pointer',opacity:saving?.6:1 }}>
             {saving ? 'Creando…' : 'Crear período'}
           </button>
         </div>
@@ -2092,7 +2092,7 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
           <div style={{ display:'flex',gap:8,alignItems:'center' }}>
             {periodo.estado === 'BORRADOR' && (
               <button onClick={recalcular} disabled={calculando}
-                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #0A66C2',borderRadius:8,fontSize:13,fontWeight:600,color:'#0A66C2',background:'white',cursor:'pointer' }}>
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',border:'1.5px solid #7B5EA7',borderRadius:8,fontSize:13,fontWeight:600,color:'#7B5EA7',background:'white',cursor:'pointer' }}>
                 <RefreshCw size={13} className={calculando ? 'spin' : ''} /> {calculando ? 'Calculando…' : 'Calcular'}
               </button>
             )}
@@ -2122,7 +2122,7 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
         {lista.length > 0 && (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,borderBottom:'1px solid #E5E7EB' }}>
             {[
-              ['Empleados',    lista.length,                  '#0A66C2'],
+              ['Empleados',    lista.length,                  '#7B5EA7'],
               ['Percepciones', '$'+totalPerc.toLocaleString('es-MX',{minimumFractionDigits:2}), '#374151'],
               ['Deducciones',  '$'+totalDed.toLocaleString('es-MX',{minimumFractionDigits:2}),  '#B24020'],
               ['Neto a pagar', '$'+totalNeto.toLocaleString('es-MX',{minimumFractionDigits:2}), '#057642'],
@@ -2170,7 +2170,7 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
                         <td style={{ padding:'10px 14px',textAlign:'right',color:'#057642',fontWeight:600 }}>${parseFloat(r.salario_periodo||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                         <td style={{ padding:'10px 14px',textAlign:'right',color:'#B24020' }}>${parseFloat(r.imss_obrero||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                         <td style={{ padding:'10px 14px',textAlign:'right',color:'#B24020' }}>${parseFloat(r.isr_a_retener||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
-                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#0A66C2' }}>{parseFloat(r.subsidio_empleo||0) > 0 ? '$'+parseFloat(r.subsidio_empleo).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
+                        <td style={{ padding:'10px 14px',textAlign:'right',color:'#7B5EA7' }}>{parseFloat(r.subsidio_empleo||0) > 0 ? '$'+parseFloat(r.subsidio_empleo).toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}</td>
                         <td style={{ padding:'10px 14px',textAlign:'right',fontWeight:800,fontSize:14 }}>${parseFloat(r.neto_pagar||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
                         <td style={{ padding:'10px 14px' }}>
                           <span style={{ padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:700,background:chipBg,color:chipFg }}>{r.estatus_cfdi}</span>
@@ -2255,7 +2255,7 @@ function TabNomina() {
       {/* KPIs superiores */}
       <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:22 }}>
         {[
-          [lista.length, 'Períodos totales', '#0A66C2', FileText],
+          [lista.length, 'Períodos totales', '#7B5EA7', FileText],
           [lista.filter(p=>p.estado==='BORRADOR').length, 'En borrador', '#6B7280', Clock],
           [lista.filter(p=>p.estado==='AUTORIZADA').length, 'Por timbrar', '#E8A020', AlertTriangle],
           ['$'+totalPendiente.toLocaleString('es-MX',{minimumFractionDigits:0}), 'Neto pendiente', '#057642', DollarSign],
@@ -2274,7 +2274,7 @@ function TabNomina() {
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
         <h3 style={{ margin:0,fontSize:15,fontWeight:700 }}>Períodos de nómina</h3>
         <button onClick={() => setShowNuevo(true)}
-          style={{ display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:'#0A66C2',color:'white',border:'none',borderRadius:9,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+          style={{ display:'flex',alignItems:'center',gap:7,padding:'9px 16px',background:'#7B5EA7',color:'white',border:'none',borderRadius:9,fontSize:13,fontWeight:700,cursor:'pointer' }}>
           <Plus size={14} /> Nuevo Período
         </button>
       </div>
@@ -2306,9 +2306,9 @@ function TabNomina() {
                     onClick={() => setPeriodoDetalle(p)}
                     onMouseEnter={e => e.currentTarget.style.background='#F9FAFB'}
                     onMouseLeave={e => e.currentTarget.style.background='white'}>
-                    <td style={{ padding:'12px 14px',fontWeight:700,fontFamily:'monospace',color:'#0A66C2' }}>{p.folio}</td>
+                    <td style={{ padding:'12px 14px',fontWeight:700,fontFamily:'monospace',color:'#7B5EA7' }}>{p.folio}</td>
                     <td style={{ padding:'12px 14px',fontSize:12 }}>
-                      <span style={{ padding:'2px 8px',borderRadius:9,background:'#EFF6FF',color:'#1D4ED8',fontSize:11,fontWeight:600 }}>
+                      <span style={{ padding:'2px 8px',borderRadius:9,background:'#F5F3FF',color:'#5A4080',fontSize:11,fontWeight:600 }}>
                         {p.periodicidad === 'QUINCENAL' ? 'Quincenal' : p.periodicidad === 'SEMANAL' ? 'Semanal' : 'Mensual'}
                       </span>
                     </td>
@@ -2350,10 +2350,10 @@ function TabNomina() {
 
       {/* Aviso timbrado pendiente */}
       {lista.some(p => p.estado === 'AUTORIZADA') && (
-        <div style={{ marginTop:16,padding:'14px 18px',background:'#EFF6FF',borderRadius:9,border:'1px solid #BFDBFE',display:'flex',alignItems:'center',gap:10 }}>
-          <Send size={16} color="#1D4ED8" />
+        <div style={{ marginTop:16,padding:'14px 18px',background:'#F5F3FF',borderRadius:9,border:'1px solid #DDD6FE',display:'flex',alignItems:'center',gap:10 }}>
+          <Send size={16} color="#5A4080" />
           <div>
-            <span style={{ fontSize:13,fontWeight:700,color:'#1D4ED8' }}>Nómina lista para timbrar</span>
+            <span style={{ fontSize:13,fontWeight:700,color:'#5A4080' }}>Nómina lista para timbrar</span>
             <span style={{ fontSize:12,color:'#3B82F6',marginLeft:8 }}>
               Configura las credenciales FEL® en Netlify (FEL_USUARIO, FEL_PASSWORD, FEL_PFX_B64, FEL_PFX_PASS) para activar el timbrado automático.
             </span>
@@ -2969,7 +2969,7 @@ function TabNominaIWOL() {
         </div>
         <div style={{ marginLeft:'auto',display:'flex',gap:8 }}>
           <button onClick={generarTodos}
-            style={{ display:'flex',alignItems:'center',gap:5,padding:'8px 12px',border:'1.5px solid #1A3C5E',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:'white',color:'#1A3C5E' }}>
+            style={{ display:'flex',alignItems:'center',gap:5,padding:'8px 12px',border:'1.5px solid #5A4080',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',background:'white',color:'#5A4080' }}>
             <FileText size={13} /> Recibos de todos
           </button>
           <button onClick={() => setRefreshKey(k => k+1)}
@@ -2981,7 +2981,7 @@ function TabNominaIWOL() {
             <Download size={14} /> Exportar Excel
           </button>
           <button onClick={() => window.print()}
-            style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'#1A3C5E',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
+            style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'#5A4080',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
             <Printer size={14} /> Imprimir PDF
           </button>
         </div>
@@ -3046,10 +3046,10 @@ function TabNominaIWOL() {
       {/* Totales rápidos */}
       <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
         {[
-          [activos.length, 'Empleados', '#0A66C2'],
+          [activos.length, 'Empleados', '#7B5EA7'],
           [incs.filter(i => i.afecta_nomina).length, 'Inasistencias', '#B24020'],
           ['$'+totales.total_percepciones.toLocaleString('es-MX',{minimumFractionDigits:2}), 'Total a pagar', '#057642'],
-          ['$'+totales.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2}), 'Transferencia', '#0A66C2'],
+          ['$'+totales.transferencia.toLocaleString('es-MX',{minimumFractionDigits:2}), 'Transferencia', '#7B5EA7'],
         ].map(([v,t,c]) => (
           <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
             <div style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase',marginBottom:4 }}>{t}</div>
@@ -3061,10 +3061,10 @@ function TabNominaIWOL() {
       {/* Tabla nómina */}
       <div id="nomina-iwol-print" style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
         {/* Encabezado solo visible en impresión */}
-        <div className="print-val" style={{ padding:'10px 14px 6px', borderBottom:'2px solid #1A3C5E' }}>
+        <div className="print-val" style={{ padding:'10px 14px 6px', borderBottom:'2px solid #5A4080' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
-              <div style={{ fontSize:15, fontWeight:800, color:'#1A3C5E' }}>INMOBILIARIA IWOL — Nómina Semanal</div>
+              <div style={{ fontSize:15, fontWeight:800, color:'#5A4080' }}>INMOBILIARIA IWOL — Nómina Semanal</div>
               <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>
                 Semana: {semana.lunes} al {semana.domingo}
               </div>
@@ -3078,7 +3078,7 @@ function TabNominaIWOL() {
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
             <thead>
-              <tr style={{ background:'#1A3C5E',color:'white' }}>
+              <tr style={{ background:'#5A4080',color:'white' }}>
                 {['No.','Nombre del Trabajador','Horario','Descanso','Asistencia Lun–Dom','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (
                   <th key={h} style={{ padding:'10px 12px',textAlign:'left',fontWeight:600,fontSize:11,whiteSpace:'nowrap' }}>{h}</th>
                 ))}
@@ -3134,7 +3134,7 @@ function TabNominaIWOL() {
                         cada semana: imprimir, firmar y entregar. */}
                     <div style={{ display:'inline-flex',border:'1.5px solid #E5E7EB',borderRadius:7,overflow:'hidden' }}>
                       <button onClick={() => generarRecibo(r)} title={`Recibo de ${r.nombre} en Word`}
-                        style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'none',background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#1A3C5E',whiteSpace:'nowrap' }}>
+                        style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'none',background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#5A4080',whiteSpace:'nowrap' }}>
                         <FileText size={12} /> Recibo
                       </button>
                       <button onClick={() => imprimirReciboDe(r)} title={`Imprimir el recibo de ${r.nombre}`}
@@ -3146,7 +3146,7 @@ function TabNominaIWOL() {
                 </tr>
               ))}
               {/* Totales */}
-              <tr className="print-total-row" style={{ background:'#1A3C5E',color:'white',fontWeight:700 }}>
+              <tr className="print-total-row" style={{ background:'#5A4080',color:'white',fontWeight:700 }}>
                 <td colSpan={5} style={{ padding:'10px 12px' }}></td>
                 <td style={{ padding:'10px 12px',textAlign:'center' }}>TOTALES:</td>
                 <td style={{ padding:'10px 12px',textAlign:'right' }}>${totales.percepcion.toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
@@ -3181,12 +3181,12 @@ export default function RH() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Users size={28} color="#0A66C2" /> Recursos Humanos
+            <Users size={28} color="#7B5EA7" /> Recursos Humanos
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-light)' }}>Reclutamiento · Expediente · Asistencia · Nómina</p>
         </div>
         {tab === 'Empleados' && (
-          <button onClick={() => setShowNuevo(true)} style={{ display:'flex',alignItems:'center',gap:8,padding:'10px 18px',background:'#0A66C2',color:'white',border:'none',borderRadius:9,fontSize:14,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 8px rgba(10,102,194,.3)' }}>
+          <button onClick={() => setShowNuevo(true)} style={{ display:'flex',alignItems:'center',gap:8,padding:'10px 18px',background:'#7B5EA7',color:'white',border:'none',borderRadius:9,fontSize:14,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 8px rgba(123,94,167,.3)' }}>
             <Plus size={16} /> Nuevo Empleado
           </button>
         )}
@@ -3196,7 +3196,7 @@ export default function RH() {
       <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #E5E7EB', marginBottom: 22 }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '9px 18px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, borderBottom: `2.5px solid ${tab===t ? '#0A66C2' : 'transparent'}`, color: tab===t ? '#0A66C2' : 'var(--color-text-light)', transition: '.15s' }}>
+            style={{ padding: '9px 18px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, borderBottom: `2.5px solid ${tab===t ? '#7B5EA7' : 'transparent'}`, color: tab===t ? '#7B5EA7' : 'var(--color-text-light)', transition: '.15s' }}>
             {t}
           </button>
         ))}
