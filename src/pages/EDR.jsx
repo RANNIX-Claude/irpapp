@@ -552,28 +552,23 @@ export default function EDR() {
     const rmSin   = ingresosRenta?.filter(r => !r.factura && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
     const opSin   = ingresosRenta?.filter(r => !r.factura && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
-    // Fuerza recarga — siempre sobreescribe con datos frescos de ingresos (foto nueva)
+    // Solo sobreescribe columnas real_* — los proy_* los captura el admin manualmente
     setForm(f => ({
       ...f,
-      proy_rentas_contratos:       sumRentas,
       real_rentas_factura:         rFactura,
       real_rentas_sin_factura:     rSinFact,
       real_rentas_factura_mes:     rmFact,
       real_rentas_factura_otros:   opFact,
       real_rsf_mes:                rmSin,
       real_rsf_otros:              opSin,
-      proy_pensiones:              poyPensiones,
       real_pensiones:              realPensiones,
       real_pension_mes:            realPensiones,
       real_pension_otros:          0,
       real_sueldos:                sumSueldos,
-      // Estacionamiento: supabaseParking pagos_boletos (frescos) > main ingresos
       real_estac_mes:              realEstacParking   || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
       real_estac_otros:            0,
-      // Maquinita/Vending: vending_semanas de esta base (frescos) > main ingresos
       real_maquinita_mes:          realVendingParking || realIngByTipo.MAQUINITA?.mes         || 0,
       real_maquinita_otros:        0,
-      // Agua: tabla de ingresos main supabase (tipo='AGUA')
       real_agua_ing_mes:           realIngByTipo.AGUA?.mes              || 0,
       real_agua_ing_otros:         realIngByTipo.AGUA?.otros            || 0,
     }))
@@ -588,7 +583,7 @@ export default function EDR() {
     if (registro) { toast('Ya existe un registro para este mes'); return }
     setSaving(true)
     const { data, error } = await supabase.from('er_mensual')
-      .insert({ anio, mes, proy_rentas_contratos: proyRentas, proy_sueldos: proySueldos, status:'borrador' })
+      .insert({ anio, mes, status: 'borrador' })
       .select().single()
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
     setRegistro(data); setForm(data); setSaving(false)
@@ -600,7 +595,9 @@ export default function EDR() {
     if (!registro) return
     setSaving(true)
     const payload = { ...form }
+    // Eliminar columnas que Postgres no acepta en UPDATE
     delete payload.id; delete payload.created_at; delete payload.updated_at
+    Object.keys(payload).forEach(k => { if (k.startsWith('calc_')) delete payload[k] })
     const { error } = await supabase.from('er_mensual').update(payload).eq('id', registro.id)
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
     await loadRegistro(mes, anio)
@@ -612,122 +609,88 @@ export default function EDR() {
     setForm(f => ({ ...f, [field]: val === '' ? null : parseFloat(val) || 0 }))
 
   /* ── Cálculos tablero ─────────────────────────────────────────────────────── */
+  // er_mensual ahora tiene columnas GENERATED calc_* que PostgreSQL mantiene
+  // automáticamente. El Tablero lee esos valores; los fallbacks aritméticos
+  // solo se activan para registros creados antes de la migración.
   const r = registro || {}
 
-  // Proyectado
-  const pRentas    = parseFloat(r.proy_rentas_contratos) || proyRentas
-  // El restaurante SE RESTA, no se suma. El formato del cliente lo dice en su
-  // propio renglón: «Rentas disponibles (locales − Restaurant)». Sumarlo daba
-  // una renta proyectada de $925,870 donde el anexo de julio dice $459,775.
-  const pRestaurant= parseFloat(r.proy_restaurant) || 0
-  const pVacantes  = -(Math.abs(parseFloat(r.proy_locales_vacantes) || 0))
-  const pDisponibles  = pRentas - pRestaurant           // locales sin el restaurante
-  const pRentasBrutas = pDisponibles + pVacantes        // menos los locales vacíos
+  // Proyectado — info rows usan campos raw; subtotales leen calc_proy_*
+  const pRentas       = parseFloat(r.proy_rentas_contratos) || proyRentas
+  const pRestaurant   = parseFloat(r.proy_restaurant) || 0
+  const pVacantes     = -(Math.abs(parseFloat(r.proy_locales_vacantes) || 0))
+  const pDisponibles  = parseFloat(r.calc_proy_disponibles)   || (pRentas - pRestaurant)
+  const pRentasBrutas = parseFloat(r.calc_proy_rentas_brutas) || (pDisponibles + pVacantes)
   const pEstac     = parseFloat(r.proy_estacionamiento) || 0
   const pPensiones = parseFloat(r.proy_pensiones) || 0
   const pMaquinita = parseFloat(r.proy_maquinita) || 0
   const pAguaIng   = parseFloat(r.proy_agua_ingresos) || 0
   const pIngNeto   = pRentasBrutas  // IVA no proyectado
-  const pTotalIng  = pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng
-
+  const pTotalIng  = parseFloat(r.calc_proy_total_ing)    || (pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng)
   const pSueldos   = parseFloat(r.proy_sueldos) || proySueldos
   const pFondo     = parseFloat(r.proy_fondo_revolvente) || 0
   const pLuz       = parseFloat(r.proy_luz) || 0
   const pAguaG     = parseFloat(r.proy_agua_gastos) || 0
   const pOtros     = parseFloat(r.proy_otros_gastos) || 0
-  const pTotalG    = pSueldos + pFondo + pLuz + pAguaG + pOtros
-
+  const pTotalG    = parseFloat(r.calc_proy_total_gastos) || (pSueldos + pFondo + pLuz + pAguaG + pOtros)
   const pPredial   = parseFloat(r.predial) || 0
   const pTransp    = parseFloat(r.transporte_residuos) || 0
   const pLicencia  = parseFloat(r.licencia_estacionamiento) || 0
   const pAnuncio   = parseFloat(r.anuncio_publicitario) || 0
-  const pTotalImp  = pPredial + pTransp + pLicencia + pAnuncio
+  const pTotalImp  = parseFloat(r.calc_proy_total_imp)  || (pPredial + pTransp + pLicencia + pAnuncio)
+  const pUtilBruta = parseFloat(r.calc_proy_util_bruta) || (pTotalIng - pTotalG)
+  const pUtilNeta  = parseFloat(r.calc_proy_util_neta)  || (pUtilBruta - pTotalImp)
 
-  const pUtilBruta = pTotalIng - pTotalG
-  const pUtilNeta  = pUtilBruta - pTotalImp
-
-  // Real — leído desde er_mensual (capturado en En Elaboración)
-  // Columnas _mes / _otros almacenadas; total = mes + otros
+  // Real — campos _mes/_otros directamente de er_mensual (sin fallback a queries vivas)
   const rmRentaFact = parseFloat(r.real_rentas_factura_mes)   || 0
-  const opRentaFact = parseFloat(r.real_rentas_factura_otros)  || 0
-  const rmRentaSin  = parseFloat(r.real_rsf_mes)               || 0
-  const opRentaSin  = parseFloat(r.real_rsf_otros)             || 0
-  const rmPenaliz   = parseFloat(r.real_penaliz_mes)           || 0
-  const opPenaliz   = parseFloat(r.real_penaliz_otros)         || 0
-  const rmEstac     = parseFloat(r.real_estac_mes)             || 0
-  const opEstac     = parseFloat(r.real_estac_otros)           || 0
-  const rmPension   = parseFloat(r.real_pension_mes)           || 0
-  const opPension   = parseFloat(r.real_pension_otros)         || 0
-  const rmMaquinita = parseFloat(r.real_maquinita_mes)         || 0
-  const opMaquinita = parseFloat(r.real_maquinita_otros)       || 0
-  const rmAguaIng   = parseFloat(r.real_agua_ing_mes)          || 0
-  const opAguaIng   = parseFloat(r.real_agua_ing_otros)        || 0
+  const opRentaFact = parseFloat(r.real_rentas_factura_otros) || 0
+  const rmRentaSin  = parseFloat(r.real_rsf_mes)              || 0
+  const opRentaSin  = parseFloat(r.real_rsf_otros)            || 0
+  const rmPenaliz   = parseFloat(r.real_penaliz_mes)          || 0
+  const opPenaliz   = parseFloat(r.real_penaliz_otros)        || 0
+  const rmEstac     = parseFloat(r.real_estac_mes)            || 0
+  const opEstac     = parseFloat(r.real_estac_otros)          || 0
+  const rmPension   = parseFloat(r.real_pension_mes)          || 0
+  const opPension   = parseFloat(r.real_pension_otros)        || 0
+  const rmMaquinita = parseFloat(r.real_maquinita_mes)        || 0
+  const opMaquinita = parseFloat(r.real_maquinita_otros)      || 0
+  const rmAguaIng   = parseFloat(r.real_agua_ing_mes)         || 0
+  const opAguaIng   = parseFloat(r.real_agua_ing_otros)       || 0
+  const rmIva       = parseFloat(r.real_iva_mes)              || 0
+  const opIva       = parseFloat(r.real_iva_otros)            || 0
 
-  // Totales: foto guardada (er_mensual) > fallback ingresos query
-  // null en er_mensual → aún sin foto → usar datos vivos de ingresos
-  const hasFoto = (mes_val, otros_val) => r.id && (mes_val !== null || otros_val !== null)
-  const rRentaFact    = hasFoto(r.real_rentas_factura_mes, r.real_rentas_factura_otros)
-    ? rmRentaFact + opRentaFact
-    : (realRentas.factura || 0)
-  const rRentaSin     = hasFoto(r.real_rsf_mes, r.real_rsf_otros)
-    ? rmRentaSin + opRentaSin
-    : 0
-  const rPenaliz      = hasFoto(r.real_penaliz_mes, r.real_penaliz_otros)
-    ? rmPenaliz + opPenaliz
-    : 0
-  // IVA: si hay split mes/otros usa esos; si no, usa real_iva total (legacy)
-  const rmIva       = parseFloat(r.real_iva_mes)   || 0
-  const opIva       = parseFloat(r.real_iva_otros)  || 0
-  const rIvaTotal   = hasFoto(r.real_iva_mes, r.real_iva_otros)
-    ? -(rmIva + opIva)
-    : -(Math.abs(parseFloat(r.real_iva) || 0))
-  const rIva        = rIvaTotal
-
-  // Estructura del anexo del cliente:
-  //   Rentas brutas      solo lo facturado
-  //   Rentas sin Factura lo cobrado en efectivo, sin comprobante
-  //   Total Rentas       la suma de las dos  ← este renglon faltaba
-  //   Penalizaciones     las sanciones por mora
-  //   Ingresos Netos     Total Rentas + Penalizaciones + IVA
-  const rTotalRentas  = rRentaFact + rRentaSin
+  // Totales individuales (suma directa de _mes + _otros, para las filas PLRow)
+  const rRentaFact    = rmRentaFact + opRentaFact
+  const rRentaSin     = rmRentaSin  + opRentaSin
+  const rPenaliz      = rmPenaliz   + opPenaliz
   const rmTotalRentas = rmRentaFact + rmRentaSin
   const opTotalRentas = opRentaFact + opRentaSin
 
-  // La base sobre la que se prorratea el IVA entre mes y otros periodos.
-  const rRentasBrutas = rTotalRentas + rPenaliz
-  const rmRentasBrutas = hasFoto(r.real_rentas_factura_mes, r.real_rsf_mes)
-    ? rmTotalRentas + rmPenaliz
-    : (realRentas.rentas_mes    || 0)
-  const opRentasBrutas = hasFoto(r.real_rentas_factura_otros, r.real_rsf_otros)
-    ? opTotalRentas + opPenaliz
-    : (realRentas.otros_periodos || 0)
-
-  const rIngNeto   = rRentasBrutas + rIva
-  const rEstac     = hasFoto(r.real_estac_mes, r.real_estac_otros)
-    ? rmEstac + opEstac
-    : (realIngByTipo.ESTACIONAMIENTO?.total || parseFloat(r.real_estacionamiento) || 0)
-  const rPensiones = hasFoto(r.real_pension_mes, r.real_pension_otros)
-    ? rmPension + opPension
-    : (realIngByTipo.PENSION?.total || parseFloat(r.real_pensiones) || 0)
-  const rMaquinita = hasFoto(r.real_maquinita_mes, r.real_maquinita_otros)
-    ? rmMaquinita + opMaquinita
-    : (realIngByTipo.MAQUINITA?.total || parseFloat(r.real_maquinita) || 0)
-  const rAguaIng   = hasFoto(r.real_agua_ing_mes, r.real_agua_ing_otros)
-    ? rmAguaIng + opAguaIng
-    : (realIngByTipo.AGUA?.total || parseFloat(r.real_agua_ingresos) || 0)
-  const rTotalIng  = rIngNeto + rEstac + rPensiones + rMaquinita + rAguaIng
-
+  // Subtotales desde calc_* — PostgreSQL los mantiene; fallback solo para registros legacy
+  const rTotalRentas  = parseFloat(r.calc_real_total_rentas)  || (rRentaFact + rRentaSin)
+  const rRentasBrutas = parseFloat(r.calc_real_rentas_brutas) || (rTotalRentas + rPenaliz)
+  const rIva          = parseFloat(r.calc_real_iva)           || -(rmIva + opIva)
+  const rIngNeto      = parseFloat(r.calc_real_ing_neto)      || (rRentasBrutas + rIva)
+  const rEstac        = parseFloat(r.calc_real_total_estac)   || (rmEstac + opEstac)
+  const rPensiones    = parseFloat(r.calc_real_total_pension) || (rmPension + opPension)
+  const rMaquinita    = parseFloat(r.calc_real_total_maq)     || (rmMaquinita + opMaquinita)
+  const rAguaIng      = parseFloat(r.calc_real_total_agua_i)  || (rmAguaIng + opAguaIng)
+  const rTotalIng     = parseFloat(r.calc_real_total_ing)     || (rIngNeto + rEstac + rPensiones + rMaquinita + rAguaIng)
   const rSueldos   = parseFloat(r.real_sueldos) || 0
   const rFondo     = parseFloat(r.real_fondo_revolvente) || 0
   const rExcedente = parseFloat(r.real_gasto_excedente) || 0
   const rLuz       = parseFloat(r.real_luz) || 0
   const rAguaG     = parseFloat(r.real_agua_gastos) || 0
   const rOtros     = parseFloat(r.real_otros_gastos) || 0
-  const rTotalG    = rSueldos + rFondo + rExcedente + rLuz + rAguaG + rOtros
+  const rTotalG    = parseFloat(r.calc_real_total_gastos) || (rSueldos + rFondo + rExcedente + rLuz + rAguaG + rOtros)
+  const rTotalImp  = parseFloat(r.calc_real_total_imp)   || pTotalImp
+  const rUtilBruta = parseFloat(r.calc_real_util_bruta)  || (rTotalIng - rTotalG)
+  const rUtilNeta  = parseFloat(r.calc_real_util_neta)   || (rUtilBruta - rTotalImp)
 
-  const rUtilBruta = rTotalIng - rTotalG
-  const rTotalImp  = pTotalImp
-  const rUtilNeta  = rUtilBruta - rTotalImp
+  // Split mes/otros para subtotales — calc_* reemplaza la aritmética IVA proporcional
+  const rmIngNeto  = parseFloat(r.calc_real_ing_neto_mes)     || (rmRentaFact + rmRentaSin + rmPenaliz - rmIva)
+  const opIngNeto  = parseFloat(r.calc_real_ing_neto_otros)   || (opRentaFact + opRentaSin + opPenaliz - opIva)
+  const rmTotalIng = parseFloat(r.calc_real_total_ing_mes)    || (rmIngNeto + rmEstac + rmPension + rmMaquinita + rmAguaIng)
+  const opTotalIng = parseFloat(r.calc_real_total_ing_otros)  || (opIngNeto + opEstac + opPension + opMaquinita + opAguaIng)
 
   /* ── Composición de los renglones calculados ────────────────────────────────
      Cada subtotal declara su fórmula y sus sumandos con el valor de este mes.
@@ -969,13 +932,13 @@ export default function EDR() {
               total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
               proy={parseFloat(r.proy_iva)||0} total={rIva}
-              rentasMes={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -rmIva : (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
-              otrosPer={hasFoto(r.real_iva_mes, r.real_iva_otros) ? -opIva : (rIva !== 0 ? Math.round(rIva * (opRentasBrutas / (rRentasBrutas || 1))) : 0)} />
+              rentasMes={-rmIva}
+              otrosPer={-opIva} />
 
             <SubRow label="Ingresos Netos Renta" highlight composicion={compIngNeto} onDetalle={setDetalle}
               proy={pIngNeto} total={rIngNeto}
-              rentasMes={rmRentasBrutas + (rIva !== 0 ? Math.round(rIva * (rmRentasBrutas / (rRentasBrutas || 1))) : 0)}
-              otrosPer={opRentasBrutas  + (rIva !== 0 ? Math.round(rIva * (opRentasBrutas  / (rRentasBrutas || 1))) : 0)} />
+              rentasMes={rmIngNeto}
+              otrosPer={opIngNeto} />
 
             <PLRow label="Estacionamiento" detalle="otros_ingresos" onDetalle={setDetalle}
               proy={pEstac} total={rEstac} rentasMes={rmEstac} otrosPer={opEstac} />
@@ -988,8 +951,8 @@ export default function EDR() {
 
             <SubRow label="Total Ingresos" highlight composicion={compTotalIng} onDetalle={setDetalle}
               proy={pTotalIng} total={rTotalIng}
-              rentasMes={rmRentasBrutas + rmEstac + rmPension + rmMaquinita + rmAguaIng}
-              otrosPer={opRentasBrutas  + opEstac + opPension + opMaquinita + opAguaIng} />
+              rentasMes={rmTotalIng}
+              otrosPer={opTotalIng} />
 
             {/* ── GASTOS VARIABLES ─────────────────────────────────────────── */}
             <SectionHeader label="Gastos Variables" bg="#1A3C5E" />
@@ -1000,7 +963,7 @@ export default function EDR() {
               <PLRow label="Gasto Excedente" indent={1} total={rExcedente} />
             )}
             <PLRow label="Luz" detalle="gastos" onDetalle={setDetalle}   proy={pLuz}   total={rLuz} />
-            <PLRow label="Agua"  proy={pAguaG} total={rAguaG} />
+            <PLRow label="Agua" detalle="gastos" onDetalle={setDetalle} proy={pAguaG} total={rAguaG} />
             <PLRow label="Otros" detalle="gastos" onDetalle={setDetalle} proy={pOtros} total={rOtros} />
 
             <SubRow label="Total Gastos Variables" composicion={compTotalG} onDetalle={setDetalle}
