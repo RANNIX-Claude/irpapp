@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useModuleAudit } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
-import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight, BarChart2, Rows3 } from 'lucide-react'
+import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight, BarChart2, Rows3, Plus, SlidersHorizontal } from 'lucide-react'
 
 // ── Tablas disponibles ────────────────────────────────────────────────────────
 const TABLAS = [
@@ -55,24 +55,246 @@ function fmt(v) {
   return String(v)
 }
 
+// Detecta el tipo semántico de una columna
+function tipoColumna(data, col) {
+  const vals = data.map(r => r[col]).filter(v => v !== null && v !== undefined)
+  if (!vals.length) return 'text'
+  const sample = vals[0]
+  if (typeof sample === 'boolean') return 'boolean'
+  if (typeof sample === 'number')  return 'numeric'
+  if (typeof sample === 'string' && sample.match(/^\d{4}-\d{2}-\d{2}/)) return 'date'
+  const uniq = new Set(vals.map(String)).size
+  if (uniq <= 25) return 'categorical'
+  return 'text'
+}
+
 // Aplica un filtro de columna a un valor
 function matchFilter(v, filter) {
   if (!filter || !filter.type) return true
-  const { type, value } = filter
+  const { type, value, min, max, from, to, values } = filter
   if (type === 'null')    return v === null || v === undefined || v === ''
   if (type === 'notnull') return v !== null && v !== undefined && v !== ''
+  // Multi-value (categorical)
+  if (type === 'in') return values && values.includes(String(v ?? ''))
+  // Numeric range
+  if (type === 'numrange') {
+    const nv = parseFloat(v)
+    if (isNaN(nv)) return false
+    if (min !== '' && min !== undefined && nv < parseFloat(min)) return false
+    if (max !== '' && max !== undefined && nv > parseFloat(max)) return false
+    return true
+  }
+  // Date range
+  if (type === 'daterange') {
+    const dv = String(v ?? '').slice(0, 10)
+    if (from && dv < from) return false
+    if (to   && dv > to)   return false
+    return true
+  }
   const sv = String(v ?? '').toLowerCase()
   const fv = String(value ?? '').toLowerCase()
-  if (type === 'contains')   return sv.includes(fv)
+  if (type === 'contains')    return sv.includes(fv)
   if (type === 'notcontains') return !sv.includes(fv)
-  if (type === 'eq')         return sv === fv
-  if (type === 'starts')     return sv.startsWith(fv)
+  if (type === 'eq')          return sv === fv
+  if (type === 'starts')      return sv.startsWith(fv)
   const nv = parseFloat(v); const nf = parseFloat(value)
   if (type === 'gt')  return !isNaN(nv) && !isNaN(nf) && nv > nf
   if (type === 'gte') return !isNaN(nv) && !isNaN(nf) && nv >= nf
   if (type === 'lt')  return !isNaN(nv) && !isNaN(nf) && nv < nf
   if (type === 'lte') return !isNaN(nv) && !isNaN(nf) && nv <= nf
   return true
+}
+
+// ── Panel de filtros inteligente ──────────────────────────────────────────────
+function FilterBar({ cols, data, colFilters, setColFilter, clearAllFilters }) {
+  const [open, setOpen] = useState(false)
+  const [addCol, setAddCol] = useState('')
+  const popRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e) => { if (popRef.current && !popRef.current.contains(e.target)) setOpen(false) }
+    setTimeout(() => document.addEventListener('mousedown', h), 0)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  const activeFilters = Object.entries(colFilters).filter(([, f]) => f)
+
+  const filterLabel = (col, f) => {
+    if (f.type === 'null')      return `${col}: vacío`
+    if (f.type === 'notnull')   return `${col}: no vacío`
+    if (f.type === 'in')        return `${col}: ${f.values?.join(', ')}`
+    if (f.type === 'numrange')  return `${col}: ${f.min ?? ''}–${f.max ?? ''}`
+    if (f.type === 'daterange') return `${col}: ${f.from ?? ''}→${f.to ?? ''}`
+    if (f.type === 'contains')  return `${col} ~ "${f.value}"`
+    return `${col}: ${f.value}`
+  }
+
+  const chipColor = { bg: '#EFF6FF', border: '#BFDBFE', text: '#1E40AF' }
+
+  // Sub-componente inline para construir el filtro según tipo
+  function FilterBuilder({ col }) {
+    const tipo = useMemo(() => tipoColumna(data, col), [col])
+    const uniqueVals = useMemo(() => {
+      if (!['categorical', 'boolean'].includes(tipo)) return []
+      const s = new Set(); data.forEach(r => { if (r[col] !== null && r[col] !== undefined) s.add(String(r[col])) })
+      return [...s].sort()
+    }, [col, tipo])
+
+    const current = colFilters[col]
+    const [selected, setSelected] = useState(current?.type === 'in' ? current.values : [])
+    const [numMin, setNumMin]     = useState(current?.type === 'numrange' ? (current.min ?? '') : '')
+    const [numMax, setNumMax]     = useState(current?.type === 'numrange' ? (current.max ?? '') : '')
+    const [dateFrom, setDateFrom] = useState(current?.type === 'daterange' ? (current.from ?? '') : '')
+    const [dateTo, setDateTo]     = useState(current?.type === 'daterange' ? (current.to ?? '')   : '')
+    const [textVal, setTextVal]   = useState(current?.type === 'contains'  ? current.value : '')
+
+    const apply = () => {
+      if (tipo === 'categorical' || tipo === 'boolean') {
+        if (selected.length) setColFilter(col, { type: 'in', values: selected })
+        else setColFilter(col, null)
+      } else if (tipo === 'numeric') {
+        if (numMin !== '' || numMax !== '') setColFilter(col, { type: 'numrange', min: numMin, max: numMax })
+        else setColFilter(col, null)
+      } else if (tipo === 'date') {
+        if (dateFrom || dateTo) setColFilter(col, { type: 'daterange', from: dateFrom, to: dateTo })
+        else setColFilter(col, null)
+      } else {
+        if (textVal) setColFilter(col, { type: 'contains', value: textVal })
+        else setColFilter(col, null)
+      }
+      setOpen(false); setAddCol('')
+    }
+    const clear = () => { setColFilter(col, null); setOpen(false); setAddCol('') }
+
+    const inp = { padding: '5px 8px', border: '1.5px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none', width: '100%' }
+    const applyBtn = { padding: '6px 14px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+
+    return (
+      <div style={{ padding: '10px 14px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+          {col} <span style={{ color: '#C7D2FE', fontWeight: 400 }}>({tipo})</span>
+        </div>
+
+        {(tipo === 'categorical' || tipo === 'boolean') && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
+              {uniqueVals.map(v => {
+                const on = selected.includes(v)
+                return (
+                  <button key={v} onClick={() => setSelected(s => on ? s.filter(x => x !== v) : [...s, v])}
+                    style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: '1.5px solid',
+                      borderColor: on ? 'var(--color-primary)' : '#D1D5DB',
+                      background: on ? '#EFF6FF' : 'white', color: on ? 'var(--color-primary)' : '#374151', fontWeight: on ? 700 : 400 }}
+                  >{v}</button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {tipo === 'numeric' && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+            <input type="number" placeholder="Mín" value={numMin} onChange={e => setNumMin(e.target.value)} style={{ ...inp, width: '50%' }} />
+            <span style={{ color: '#9CA3AF', fontSize: 11 }}>–</span>
+            <input type="number" placeholder="Máx" value={numMax} onChange={e => setNumMax(e.target.value)} style={{ ...inp, width: '50%' }} />
+          </div>
+        )}
+        {tipo === 'date' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#6B7280', width: 32 }}>De:</span>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#6B7280', width: 32 }}>A:</span>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} />
+            </div>
+          </div>
+        )}
+        {tipo === 'text' && (
+          <input placeholder="Contiene…" value={textVal} onChange={e => setTextVal(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && apply()}
+            style={{ ...inp, marginBottom: 10 }} autoFocus />
+        )}
+
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={apply} style={applyBtn}>Aplicar</button>
+          {current && <button onClick={clear} style={{ ...applyBtn, background: 'none', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>Quitar</button>}
+        </div>
+      </div>
+    )
+  }
+
+  if (!cols.length) return null
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderBottom: '1px solid #E5E7EB', background: 'white', flexWrap: 'wrap', minHeight: 40 }}>
+      <SlidersHorizontal size={13} color="#6B7280" />
+      <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 }}>Filtros</span>
+
+      {/* Chips de filtros activos */}
+      {activeFilters.map(([col, f]) => (
+        <div key={col} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: chipColor.bg, border: `1px solid ${chipColor.border}`, borderRadius: 20, fontSize: 11, color: chipColor.text, fontWeight: 600, maxWidth: 220, overflow: 'hidden' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={filterLabel(col, f)}>{filterLabel(col, f)}</span>
+          <button onClick={() => setColFilter(col, null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 0 2px', display: 'flex', alignItems: 'center' }}>
+            <X size={11} color="#1E40AF" />
+          </button>
+        </div>
+      ))}
+
+      {/* Botón + Agregar filtro */}
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => { setOpen(o => !o); setAddCol('') }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', border: '1.5px dashed #D1D5DB', borderRadius: 20, background: 'none', cursor: 'pointer', fontSize: 11, color: '#6B7280', fontWeight: 600 }}
+        >
+          <Plus size={11} /> Agregar filtro
+        </button>
+        {open && (
+          <div ref={popRef} style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: 280, background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.13)', zIndex: 9999, overflow: 'hidden' }}>
+            {!addCol ? (
+              <div style={{ padding: '8px 0', maxHeight: 260, overflowY: 'auto' }}>
+                <div style={{ padding: '4px 14px 6px', fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Selecciona columna
+                </div>
+                {cols.map(c => {
+                  const tipo = tipoColumna(data, c)
+                  const iconMap = { numeric: '🔢', date: '📅', categorical: '🏷', boolean: '☑', text: '🔤' }
+                  const hasFilter = !!colFilters[c]
+                  return (
+                    <button key={c} onClick={() => setAddCol(c)}
+                      style={{ width: '100%', textAlign: 'left', padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
+                        background: hasFilter ? '#EFF6FF' : 'none', color: hasFilter ? 'var(--color-primary)' : '#374151', fontWeight: hasFilter ? 700 : 400 }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                      onMouseLeave={e => e.currentTarget.style.background = hasFilter ? '#EFF6FF' : 'none'}
+                    >
+                      <span style={{ fontSize: 13 }}>{iconMap[tipo] || '🔤'}</span>
+                      <span style={{ flex: 1 }}>{c}</span>
+                      {hasFilter && <span style={{ fontSize: 10, background: 'var(--color-primary)', color: 'white', borderRadius: 10, padding: '1px 6px' }}>activo</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <>
+                <div style={{ padding: '8px 14px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button onClick={() => setAddCol('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#6B7280', fontSize: 16, lineHeight: 1 }}>‹</button>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: '#374151' }}>{addCol}</span>
+                </div>
+                <FilterBuilder col={addCol} />
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {activeFilters.length > 1 && (
+        <button onClick={clearAllFilters} style={{ fontSize: 11, color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: '2px 4px' }}>
+          Limpiar todos
+        </button>
+      )}
+    </div>
+  )
 }
 
 // ── Dropdown de filtro por columna ────────────────────────────────────────────
@@ -593,6 +815,11 @@ export default function Utilidades() {
               </span>
             )}
           </div>
+        )}
+
+        {/* ── FilterBar ── */}
+        {tablaActiva && !loading && cols.length > 0 && (
+          <FilterBar cols={cols} data={data} colFilters={colFilters} setColFilter={setColFilter} clearAllFilters={clearAllFilters} />
         )}
 
         {/* Contenido */}
