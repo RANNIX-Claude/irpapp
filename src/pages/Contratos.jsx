@@ -44,7 +44,7 @@ function diasLabel(dias, semaforo) {
 // ─── Fila de tabla ───────────────────────────────────────────────────────────
 
 const PROCESO_OPTS = [
-  { val: 'EN_CONTRATACION', label: 'En contratación', color: '#0A66C2', bg: '#EFF6FF' },
+  { val: 'EN_CONTRATACION', label: 'En contratación', color: '#7B5EA7', bg: '#F5F3FF' },
   { val: 'EN_RENOVACION',   label: 'En renovación',   color: '#7C3AED', bg: '#F5F3FF' },
   { val: 'EN_EJECUCION',    label: 'En ejecución',    color: '#057642', bg: '#ECFDF5' },
   { val: 'TERMINADO',       label: 'Terminado',       color: '#6B7280', bg: '#F3F4F6' },
@@ -54,7 +54,7 @@ const PROCESO_OPTS = [
 const ESTATUS_OPTS = [
   { val: 'VIGENTE',   label: 'Vigente',   color: '#057642', bg: '#ECFDF5' },
   { val: 'VENCIDO',   label: 'Vencido',   color: '#B24020', bg: '#FEF2F2' },
-  { val: 'RENOVADO',  label: 'Renovado',  color: '#0A66C2', bg: '#EBF4FF' },
+  { val: 'RENOVADO',  label: 'Renovado',  color: '#7B5EA7', bg: '#F5F3FF' },
   { val: 'RESCISION', label: 'Rescisión', color: '#7C3AED', bg: '#F5F3FF' },
 ]
 
@@ -200,7 +200,7 @@ function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh 
       <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
           <button title="Abrir expediente del contrato" onClick={e => { e.stopPropagation(); navigate(`/contratos/${c.id}`) }}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 9px', height: '30px', border: '1px solid #BFDBFE', borderRadius: '6px', background: '#EFF6FF', cursor: 'pointer', color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 9px', height: '30px', border: 'none', borderRadius: '6px', background: 'var(--color-primary)', cursor: 'pointer', color: 'white', fontSize: '11px', fontWeight: 700 }}>
             <FolderOpen size={13} /> Expediente
           </button>
           <button title="Ver detalle" onClick={e => { e.stopPropagation(); onView(c) }}
@@ -243,7 +243,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
   return (
     <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
       {/* Banda con local y plazo */}
-      <div style={{ position: 'relative', height: 96, background: 'linear-gradient(135deg,#1A3C5E 0%,#0A66C2 70%)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 12px' }}>
+      <div style={{ position: 'relative', height: 96, background: 'linear-gradient(135deg,#5A4080 0%,#7B5EA7 70%)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 12px' }}>
         <span style={{ background: 'rgba(255,255,255,.16)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 5, fontFamily: 'monospace' }}>
           {c.locales_display || c.unidad_numero || '—'}
         </span>
@@ -309,7 +309,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
 
       {/* Acciones */}
       <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
-        <button onClick={() => onExpediente(c)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--color-primary)' }}>Expediente</button>
+        <button onClick={() => onExpediente(c)} style={{ flex: 1, padding: '8px', background: 'var(--color-primary)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'white' }}>Expediente</button>
       </div>
     </div>
   )
