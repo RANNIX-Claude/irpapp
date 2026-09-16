@@ -25,7 +25,7 @@ const BUCKETS = {
 }
 
 const MIMES = [
-  'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/gif',
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/gif',
   'application/pdf', 'application/xml', 'text/xml',
 ]
 
@@ -108,21 +108,27 @@ exports.handler = async (event) => {
   if (buffer.length > MAX_BYTES) return responder(413, { error: 'El archivo excede 15 MB' })
 
   // ── Subida ───────────────────────────────────────────────────────────────
-  const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${targetBucket}/${filePath}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'apikey': SERVICE_KEY,
-      'Content-Type': mime_type,
-      'x-upsert': 'true',
-    },
-    body: buffer,
-  })
+  let upRes
+  try {
+    upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${targetBucket}/${filePath}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'apikey': SERVICE_KEY,
+        'Content-Type': mime_type,
+        'x-upsert': 'true',
+      },
+      body: buffer,
+    })
+  } catch (netErr) {
+    console.error('subir-comprobante network error', netErr)
+    return responder(502, { error: 'Error de red al contactar storage: ' + netErr.message })
+  }
 
   if (!upRes.ok) {
-    const errText = await upRes.text()
+    const errText = await upRes.text().catch(() => '')
     console.error('subir-comprobante storage', upRes.status, errText)
-    return responder(502, { error: `Storage error ${upRes.status}` })
+    return responder(502, { error: `Storage devolvió ${upRes.status}: ${errText.slice(0, 200)}` })
   }
 
   const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${targetBucket}/${filePath}`
