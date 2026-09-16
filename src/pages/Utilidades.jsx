@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useModuleAudit } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
-import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight } from 'lucide-react'
+import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight, BarChart2, Rows3 } from 'lucide-react'
 
 // ── Tablas disponibles ────────────────────────────────────────────────────────
 const TABLAS = [
@@ -238,6 +238,100 @@ function FilterMenu({ col, data, filter, onChange, onClose, anchorRect }) {
   )
 }
 
+// ── Pivot table component ─────────────────────────────────────────────────────
+function PivotTable({ filas, cols, pivotCol, pivotSumCols, onDrillDown }) {
+  const numFmt = (v) => typeof v === 'number' ? v.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
+
+  const rows = useMemo(() => {
+    if (!pivotCol || !filas.length) return []
+    const groups = {}
+    filas.forEach(row => {
+      const key = String(row[pivotCol] ?? '(vacío)')
+      if (!groups[key]) {
+        groups[key] = { _val: key, _count: 0 }
+        pivotSumCols.forEach(sc => { groups[key][sc] = 0 })
+      }
+      groups[key]._count++
+      pivotSumCols.forEach(sc => { if (typeof row[sc] === 'number') groups[key][sc] += row[sc] })
+    })
+    const arr = Object.values(groups).sort((a, b) => b._count - a._count)
+    const total = arr.reduce((s, g) => s + g._count, 0)
+    arr.forEach(g => { g._pct = total ? ((g._count / total) * 100).toFixed(1) : '0.0' })
+    return arr
+  }, [filas, pivotCol, pivotSumCols])
+
+  if (!pivotCol) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '10px', color: '#9CA3AF' }}>
+      <BarChart2 size={40} strokeWidth={1} />
+      <div style={{ fontSize: '14px', fontWeight: 600 }}>Selecciona una columna para agrupar</div>
+      <div style={{ fontSize: '12px' }}>Usa el selector "Agrupar por" en la barra de herramientas</div>
+    </div>
+  )
+
+  if (!rows.length) return <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Sin datos</div>
+
+  const totalCount = rows.reduce((s, r) => s + r._count, 0)
+  const thS = { padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6B7280', borderBottom: '2px solid #E5E7EB', background: '#F9FAFB', whiteSpace: 'nowrap' }
+  const tdS = (extra) => ({ padding: '8px 12px', borderBottom: '1px solid #F3F4F6', fontSize: '13px', ...extra })
+  const maxCount = Math.max(...rows.map(r => r._count))
+
+  return (
+    <div style={{ overflowAuto: 'auto', height: '100%', overflow: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <thead>
+          <tr>
+            <th style={thS}>{pivotCol}</th>
+            <th style={{ ...thS, textAlign: 'right' }}>Registros</th>
+            <th style={{ ...thS, textAlign: 'right' }}>%</th>
+            <th style={{ ...thS, minWidth: 120 }}>Distribución</th>
+            {pivotSumCols.map(sc => <th key={sc} style={{ ...thS, textAlign: 'right' }}>Σ {sc}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r._val}
+              style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA', cursor: 'pointer' }}
+              onClick={() => onDrillDown(pivotCol, r._val)}
+              onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
+              onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#FAFAFA'}
+              title={`Filtrar por ${pivotCol} = "${r._val}"`}
+            >
+              <td style={tdS({ fontWeight: 600, color: '#1E40AF', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })} title={r._val}>
+                {r._val}
+              </td>
+              <td style={tdS({ textAlign: 'right', fontWeight: 700, color: '#111827' })}>{r._count.toLocaleString('es-MX')}</td>
+              <td style={tdS({ textAlign: 'right', color: '#6B7280' })}>{r._pct}%</td>
+              <td style={tdS({ minWidth: 120 })}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ flex: 1, height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: 'var(--color-primary)', borderRadius: 4, width: `${(r._count / maxCount) * 100}%`, opacity: 0.8 }} />
+                  </div>
+                </div>
+              </td>
+              {pivotSumCols.map(sc => (
+                <td key={sc} style={tdS({ textAlign: 'right', color: '#057642', fontWeight: 600 })}>{numFmt(r[sc])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#F9FAFB', borderTop: '2px solid #E5E7EB' }}>
+            <td style={{ ...tdS({ fontWeight: 700, color: '#374151' }) }}>TOTAL ({rows.length} grupos)</td>
+            <td style={{ ...tdS({ textAlign: 'right', fontWeight: 800, color: '#111827' }) }}>{totalCount.toLocaleString('es-MX')}</td>
+            <td style={{ ...tdS({ textAlign: 'right', color: '#6B7280', fontWeight: 700 }) }}>100%</td>
+            <td />
+            {pivotSumCols.map(sc => (
+              <td key={sc} style={{ ...tdS({ textAlign: 'right', fontWeight: 800, color: '#057642' }) }}>
+                {numFmt(rows.reduce((s, r) => s + (r[sc] || 0), 0))}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Utilidades() {
   useModuleAudit('Utilidades')
@@ -254,10 +348,15 @@ export default function Utilidades() {
   const [filterMenu, setFilterMenu] = useState(null) // { col, rect }
   const [grupoAbierto, setGrupoAbierto] = useState('Operación')
   const [refresh, setRefresh] = useState(0)
+  // Pivot state
+  const [modo, setModo] = useState('tabla') // 'tabla' | 'pivot'
+  const [pivotCol, setPivotCol] = useState(null)
+  const [pivotSumCols, setPivotSumCols] = useState([])
 
   useEffect(() => {
     if (!tablaActiva) return
     setLoading(true); setError(null); setData([]); setCols([])
+    setPivotCol(null); setPivotSumCols([])
     const { schema, table } = tablaActiva
     ;(async () => {
       try {
@@ -273,6 +372,8 @@ export default function Utilidades() {
       }
     })()
   }, [tablaActiva, limite, refresh])
+
+  const numCols = useMemo(() => cols.filter(c => esNumerico(data, c)), [data, cols])
 
   // Filtrado y ordenamiento — aplica busqueda global + filtros por columna
   const filas = useMemo(() => {
@@ -313,6 +414,11 @@ export default function Utilidades() {
   }, [])
 
   const clearAllFilters = () => { setColFilters({}); setBusqueda('') }
+
+  const drillDown = useCallback((col, val) => {
+    setModo('tabla')
+    setColFilters(prev => ({ ...prev, [col]: { type: val === '(vacío)' ? 'null' : 'eq', value: val } }))
+  }, [])
 
   const activeFilterCount = Object.values(colFilters).filter(Boolean).length
 
@@ -386,7 +492,7 @@ export default function Utilidades() {
           {tablaActiva ? (
             <>
               <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary-dark)', marginRight: '4px' }}>
-                {tablaActiva.schema}.{tablaActiva.table}
+                {tablaActiva.label}
               </div>
               <span style={{ fontSize: '12px', color: '#9CA3AF', background: '#F3F4F6', padding: '2px 8px', borderRadius: '5px' }}>
                 {filas.length}{filas.length < data.length ? ` / ${data.length}` : ''} filas
@@ -402,15 +508,34 @@ export default function Utilidades() {
                 </button>
               )}
               <div style={{ flex: 1 }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F9FAFB', border: '1.5px solid #E5E7EB', borderRadius: '7px', padding: '6px 10px' }}>
-                <Search size={13} color="#9CA3AF" />
-                <input
-                  value={busqueda} onChange={e => setBusqueda(e.target.value)}
-                  placeholder="Buscar en resultados..."
-                  style={{ border: 'none', background: 'none', outline: 'none', fontSize: '13px', width: '180px' }}
-                />
-                {busqueda && <button onClick={() => setBusqueda('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}><X size={13} color="#9CA3AF" /></button>}
+
+              {/* ── Toggle Tabla / Agrupar ── */}
+              <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: '7px', overflow: 'hidden' }}>
+                {[
+                  { id: 'tabla',  icon: <Rows3 size={13} />,     label: 'Tabla' },
+                  { id: 'pivot',  icon: <BarChart2 size={13} />,  label: 'Agrupar' },
+                ].map(m => (
+                  <button key={m.id} onClick={() => setModo(m.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: modo === m.id ? 700 : 400,
+                      background: modo === m.id ? 'var(--color-primary)' : 'white',
+                      color: modo === m.id ? 'white' : '#6B7280' }}
+                  >
+                    {m.icon} {m.label}
+                  </button>
+                ))}
               </div>
+
+              {modo === 'tabla' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F9FAFB', border: '1.5px solid #E5E7EB', borderRadius: '7px', padding: '6px 10px' }}>
+                  <Search size={13} color="#9CA3AF" />
+                  <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                    placeholder="Buscar en resultados..."
+                    style={{ border: 'none', background: 'none', outline: 'none', fontSize: '13px', width: '180px' }}
+                  />
+                  {busqueda && <button onClick={() => setBusqueda('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}><X size={13} color="#9CA3AF" /></button>}
+                </div>
+              )}
+
               <select value={limite} onChange={e => setLimite(Number(e.target.value))} style={s.inp}>
                 <option value={50}>50 filas</option>
                 <option value={100}>100 filas</option>
@@ -430,6 +555,46 @@ export default function Utilidades() {
           )}
         </div>
 
+        {/* ── Controles de Pivot ── */}
+        {tablaActiva && modo === 'pivot' && cols.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 16px', borderBottom: '1px solid #E5E7EB', background: '#F8FAFF', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', whiteSpace: 'nowrap' }}>Agrupar por:</span>
+            <select
+              value={pivotCol || ''}
+              onChange={e => setPivotCol(e.target.value || null)}
+              style={{ padding: '5px 8px', border: '1.5px solid #C7D2FE', borderRadius: '6px', fontSize: '12px', outline: 'none', background: 'white', color: '#1E40AF', fontWeight: 600, minWidth: 160 }}
+            >
+              <option value="">— selecciona columna —</option>
+              {cols.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {numCols.length > 0 && (
+              <>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', whiteSpace: 'nowrap', marginLeft: 8 }}>Sumar:</span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {numCols.map(nc => {
+                    const active = pivotSumCols.includes(nc)
+                    return (
+                      <button key={nc} onClick={() => setPivotSumCols(prev => active ? prev.filter(x => x !== nc) : [...prev, nc])}
+                        style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                          borderColor: active ? 'var(--color-success)' : '#D1D5DB',
+                          background: active ? '#ECFDF5' : 'white',
+                          color: active ? 'var(--color-success)' : '#6B7280' }}
+                      >
+                        {active ? '✓ ' : ''}{nc}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            {pivotCol && (
+              <span style={{ fontSize: '11px', color: '#9CA3AF', marginLeft: 'auto' }}>
+                💡 Clic en una fila para filtrar la vista Tabla
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Contenido */}
         <div style={{ flex: 1, overflow: 'auto' }} onClick={e => e.stopPropagation()}>
           {!tablaActiva && (
@@ -447,87 +612,80 @@ export default function Utilidades() {
               ⚠️ {error}
             </div>
           )}
-          {tablaActiva && !loading && !error && filas.length === 0 && data.length > 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF', fontSize: '14px' }}>
-              Sin resultados para los filtros aplicados
-              <br />
-              <button onClick={clearAllFilters} style={{ marginTop: '12px', padding: '6px 14px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
-                Limpiar filtros
-              </button>
-            </div>
-          )}
           {tablaActiva && !loading && !error && data.length === 0 && (
             <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF', fontSize: '14px' }}>Tabla vacía</div>
           )}
-          {tablaActiva && !loading && filas.length > 0 && (
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  {cols.map(col => {
-                    const hasFilter = !!colFilters[col]
-                    const isSort = sort.col === col
-                    return (
-                      <th key={col} style={s.th}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                          {/* Área de ordenamiento: clic en nombre */}
-                          <div
-                            onClick={() => toggleSort(col)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '8px 4px 8px 10px', flex: 1, cursor: 'pointer', minWidth: 0 }}
-                          >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: isSort ? 'var(--color-primary)' : '#6B7280' }}>
-                              {col}
-                            </span>
-                            {isSort
-                              ? (sort.asc ? <ChevronUp size={11} color="var(--color-primary)" /> : <ChevronDown size={11} color="var(--color-primary)" />)
-                              : <span style={{ width: 11, display: 'inline-block' }} />
-                            }
-                          </div>
-                          {/* Botón de filtro */}
-                          <button
-                            onClick={e => openFilter(e, col)}
-                            title={hasFilter ? `Filtro activo: ${colFilters[col]?.type} "${colFilters[col]?.value ?? ''}"` : 'Filtrar columna'}
-                            style={{
-                              padding: '6px 8px 6px 4px',
-                              background: hasFilter ? '#EFF6FF' : 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              borderRadius: 4,
-                              display: 'flex',
-                              alignItems: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
-                            <ChevronDown
-                              size={13}
-                              color={hasFilter ? 'var(--color-primary)' : '#9CA3AF'}
-                              strokeWidth={hasFilter ? 2.5 : 1.5}
-                            />
-                          </button>
-                        </div>
-                        {/* Indicador de filtro activo */}
-                        {hasFilter && (
-                          <div style={{ height: 2, background: 'var(--color-primary)', marginTop: -2 }} />
-                        )}
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((row, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
-                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#FAFAFA'}
-                  >
-                    {cols.map(col => (
-                      <td key={col} style={{ ...s.td, background: colFilters[col] ? 'rgba(10,102,194,0.04)' : 'inherit' }} title={String(row[col] ?? '')}>
-                        {fmt(row[col])}
-                      </td>
+
+          {/* ── Modo Agrupar ── */}
+          {tablaActiva && !loading && !error && data.length > 0 && modo === 'pivot' && (
+            <PivotTable filas={filas} cols={cols} pivotCol={pivotCol} pivotSumCols={pivotSumCols} onDrillDown={drillDown} />
+          )}
+
+          {/* ── Modo Tabla ── */}
+          {tablaActiva && !loading && !error && modo === 'tabla' && (
+            <>
+              {filas.length === 0 && data.length > 0 && (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF', fontSize: '14px' }}>
+                  Sin resultados para los filtros aplicados
+                  <br />
+                  <button onClick={clearAllFilters} style={{ marginTop: '12px', padding: '6px 14px', background: '#F3F4F6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
+                    Limpiar filtros
+                  </button>
+                </div>
+              )}
+              {filas.length > 0 && (
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      {cols.map(col => {
+                        const hasFilter = !!colFilters[col]
+                        const isSort = sort.col === col
+                        return (
+                          <th key={col} style={s.th}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                              <div
+                                onClick={() => toggleSort(col)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '8px 4px 8px 10px', flex: 1, cursor: 'pointer', minWidth: 0 }}
+                              >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: isSort ? 'var(--color-primary)' : '#6B7280' }}>
+                                  {col}
+                                </span>
+                                {isSort
+                                  ? (sort.asc ? <ChevronUp size={11} color="var(--color-primary)" /> : <ChevronDown size={11} color="var(--color-primary)" />)
+                                  : <span style={{ width: 11, display: 'inline-block' }} />
+                                }
+                              </div>
+                              <button
+                                onClick={e => openFilter(e, col)}
+                                title={hasFilter ? `Filtro activo: ${colFilters[col]?.type} "${colFilters[col]?.value ?? ''}"` : 'Filtrar columna'}
+                                style={{ padding: '6px 8px 6px 4px', background: hasFilter ? '#EFF6FF' : 'none', border: 'none', cursor: 'pointer', borderRadius: 4, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                              >
+                                <ChevronDown size={13} color={hasFilter ? 'var(--color-primary)' : '#9CA3AF'} strokeWidth={hasFilter ? 2.5 : 1.5} />
+                              </button>
+                            </div>
+                            {hasFilter && <div style={{ height: 2, background: 'var(--color-primary)', marginTop: -2 }} />}
+                          </th>
+                        )
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filas.map((row, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
+                        onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#FAFAFA'}
+                      >
+                        {cols.map(col => (
+                          <td key={col} style={{ ...s.td, background: colFilters[col] ? 'rgba(10,102,194,0.04)' : 'inherit' }} title={String(row[col] ?? '')}>
+                            {fmt(row[col])}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
         </div>
       </div>
