@@ -309,7 +309,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
 
       {/* Acciones */}
       <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
-        <button onClick={() => onExpediente(c)} style={{ flex: 1, padding: '8px', background: 'var(--color-primary)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'white' }}>Expediente</button>
+        <button onClick={() => onExpediente(c)} style={{ flex: 1, padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><FolderOpen size={13} /> Expediente</button>
       </div>
     </div>
   )
