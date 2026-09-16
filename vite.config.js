@@ -7,12 +7,15 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 function getBuildId() {
   try {
-    const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
     const now = new Date()
-    const fecha = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`
-    return `v${pkg.version} · ${hash} · ${fecha}`
+    const yy  = String(now.getFullYear()).slice(2)
+    const mm  = String(now.getMonth() + 1).padStart(2, '0')
+    const dd  = String(now.getDate()).padStart(2, '0')
+    const hh  = String(now.getHours()).padStart(2, '0')
+    const min = String(now.getMinutes()).padStart(2, '0')
+    return `V_${yy}${mm}${dd}_${hh}_${min}`
   } catch {
-    return `v${pkg.version}`
+    return `V_??????`
   }
 }
 
