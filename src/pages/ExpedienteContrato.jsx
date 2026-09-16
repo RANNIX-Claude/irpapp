@@ -1256,8 +1256,8 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
                           <Eye size={13} />
                         </button>
                       )}
-                      {onEdit && (
-                        <button onClick={() => onEdit(c)} title="Agregar / editar ingreso"
+                      {onView && (
+                        <button onClick={() => onView(c)} title="Editar ingreso"
                           style={{ padding: '5px 7px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', color: C.dark, display: 'flex', alignItems: 'center' }}>
                           <Pencil size={13} />
                         </button>
