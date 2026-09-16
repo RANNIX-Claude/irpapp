@@ -333,13 +333,13 @@ npm run preview    # Vista previa del build
 El número de versión se genera **automáticamente en tiempo de build** con el formato:
 
 ```
-V_YYMMDD_HHMM
+V_YYMMDD_HH_MM
 ```
 
-Ejemplos: `V_260915_1745`, `V_261023_0902`
+Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 
 - **Generado en**: `vite.config.js` → función `getBuildId()` → variable global `__APP_VERSION__`
-- **Mostrado en**: Header superior de la app (badge dorado junto al logo IRP)
+- **Mostrado en**: Header superior de la app (parte superior de la pantalla, badge dorado junto al logo IRP)
 - **Regla**: cada despliegue produce una versión única por timestamp del build — no se edita manualmente
 - **Historial**: el timestamp del commit git sirve como referencia complementaria
 

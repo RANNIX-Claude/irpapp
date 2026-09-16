@@ -13,7 +13,7 @@ function getBuildId() {
     const dd  = String(now.getDate()).padStart(2, '0')
     const hh  = String(now.getHours()).padStart(2, '0')
     const min = String(now.getMinutes()).padStart(2, '0')
-    return `V_${yy}${mm}${dd}_${hh}${min}`
+    return `V_${yy}${mm}${dd}_${hh}_${min}`
   } catch {
     return `V_??????`
   }
