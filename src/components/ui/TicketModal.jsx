@@ -294,21 +294,38 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
   const totalOK    = !form.ticket_total || Math.abs(sumaLineas - parseFloat(form.ticket_total)) < 0.02
 
   const guardar = async () => {
-    if (!form.fecha || !form.grupo_gasto) { toast.error('Fecha y grupo son obligatorios'); return }
+    if (!form.fecha) { toast.error('La fecha es obligatoria'); return }
     setSaving(true)
     try {
+      // Auto-crear proveedor en catálogo si viene texto libre sin id
+      let provId = form.proveedor_id || null
+      const provNombre = form.proveedor_txt.trim()
+      if (!provId && provNombre) {
+        const existing = proveedores.find(p => p.nombre.toLowerCase() === provNombre.toLowerCase())
+        if (existing) {
+          provId = existing.id
+        } else {
+          const { data: nuevo, error: errProv } = await supabase
+            .from('cat_proveedores').insert({ nombre: provNombre, activo: true }).select('id').single()
+          if (!errProv && nuevo) {
+            provId = nuevo.id
+            setProveedores(prev => [...prev, { id: nuevo.id, nombre: provNombre, categoria: null }].sort((a,b) => a.nombre.localeCompare(b.nombre)))
+            toast.success(`"${provNombre}" agregado al catálogo de proveedores`)
+          }
+        }
+      }
+
       const montoTotal = parseFloat(form.ticket_total) || sumaLineas || 0
       const payload = {
         fecha:        form.fecha,
-        proveedor:    form.proveedor_txt || (proveedores.find(p => p.id === form.proveedor_id)?.nombre) || null,
-        proveedor_id: form.proveedor_id || null,
-        grupo_gasto:  form.grupo_gasto,
+        proveedor:    provNombre || (proveedores.find(p => p.id === provId)?.nombre) || null,
+        proveedor_id: provId,
+        grupo_gasto:  form.grupo_gasto || 'Otros',
         descripcion:  form.descripcion || null,
         cantidad:     montoTotal,
         ticket_total: montoTotal,
         ...calcDatos(form.fecha),
       }
-      if (form.tipo_compra) payload.tipo_compra = form.tipo_compra
 
       let gastoId = gasto?.id
       if (isEdit) {
@@ -320,19 +337,20 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         gastoId = data.id
       }
 
-      // Subir foto del ticket a Storage como referencia
+      // Subir foto del ticket a Storage
       if (ticketImgSrc && gastoId) {
         try {
           const ext  = ticketImgSrc.mtype?.includes('png') ? 'png' : 'jpg'
           const path = `${form.fecha?.slice(0,7) || 'sin-fecha'}/${gastoId}.${ext}`
           const byteArr = Uint8Array.from(atob(ticketImgSrc.b64), c => c.charCodeAt(0))
           const blob = new Blob([byteArr], { type: ticketImgSrc.mtype || 'image/jpeg' })
-          const { data: upData } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert: true })
+          const { data: upData, error: errUp } = await supabase.storage.from('tickets-gastos').upload(path, blob, { upsert: true })
+          if (errUp) throw new Error(errUp.message)
           if (upData?.path) {
-            const { data: { publicUrl } } = supabase.storage.from('tickets-gastos').getPublicUrl(path)
-            await supabase.from('gastos_operativos').update({ ticket_url: publicUrl }).eq('id', gastoId)
+            const storagePath = upData.fullPath || upData.path
+            await supabase.from('gastos_operativos').update({ ticket_url: storagePath }).eq('id', gastoId)
           }
-        } catch (_) { /* silencioso */ }
+        } catch (errImg) { toast.error('Foto no guardada: ' + errImg.message) }
       }
 
       if (lineas.length > 0) {
@@ -582,31 +600,12 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
                 <label style={lbl}>o Texto libre</label>
                 <input value={form.proveedor_txt} onChange={e => { set('proveedor_txt', e.target.value); if (e.target.value) set('proveedor_id', '') }}
                   placeholder="Ej: Sam's Club, Oxxo…" style={inp} />
-              </div>
-            </div>
-
-            {/* Fila 3: Grupo */}
-            <div style={{ marginBottom: 10 }}>
-              <label style={lbl}>Categoría / Grupo *</label>
-              <select value={form.grupo_gasto} onChange={e => set('grupo_gasto', e.target.value)} style={inp}>
-                <option value="">— Seleccionar —</option>
-                {GRUPOS.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-
-            {/* Tipo de compra */}
-            <div style={{ marginBottom: 10 }}>
-              <label style={lbl}>Tipo de compra</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[['VENDING','🥤 Vending','#EC4899'],['MANTENIMIENTO','🔧 Mantenimiento','#B24020'],['CONSUMO','🛒 Consumo','#057642']].map(([v, lb, color]) => {
-                  const active = form.tipo_compra === v
-                  return (
-                    <button key={v} type="button" onClick={() => set('tipo_compra', active ? '' : v)}
-                      style={{ padding: '8px 16px', borderRadius: 20, border: `2px solid ${color}`, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: active ? color : 'white', color: active ? 'white' : color }}>
-                      {lb}
-                    </button>
-                  )
-                })}
+                {form.proveedor_txt && !form.proveedor_id &&
+                 !proveedores.some(p => p.nombre.toLowerCase() === form.proveedor_txt.trim().toLowerCase()) && (
+                  <div style={{ fontSize: 11, color: '#7B5EA7', marginTop: 4 }}>
+                    Se agregará al catálogo al guardar
+                  </div>
+                )}
               </div>
             </div>
 
