@@ -14,6 +14,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  TZ              = "America/Mexico_City"
   VITE_AMBIENTE   = "PRODUCCION"
   VITE_APP_TITLE  = "IRP — Inmueble Resource Planning"
   VITE_APP_URL    = "https://irpapp.netlify.app"
