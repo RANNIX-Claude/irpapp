@@ -696,6 +696,8 @@ export default function ExpedienteContrato() {
                       onDelete={(c) => setConfirmDelete(c)}
                       onView={async (c) => {
                         setModalDetallePago(c)
+                        setIngresoDetalle(null)
+                        setIngresoDetalleApls([])
                         setLoadingIngresos(true)
                         setIngresosDelCobro([])
                         try {
@@ -711,10 +713,21 @@ export default function ExpedienteContrato() {
                               .from('ingresos')
                               .select('*')
                               .in('id', ids)
-                            setIngresosDelCobro((ings || []).map(ing => ({
+                            const lista = (ings || []).map(ing => ({
                               ...ing,
                               _importe_aplicado: apls.find(a => a.ingreso_id === ing.id)?.importe_aplicado,
-                            })))
+                            }))
+                            setIngresosDelCobro(lista)
+                            // Si hay exactamente 1 ingreso, ir directo al detalle (igual que módulo Ingresos)
+                            if (lista.length === 1) {
+                              const ing = lista[0]
+                              setIngresoDetalle(ing)
+                              const { data: aplsIng } = await supabase
+                                .from('aplicaciones_pago')
+                                .select('importe_aplicado, cargo:cargo_id(concepto, periodo_mes, periodo_anio)')
+                                .eq('ingreso_id', ing.id)
+                              setIngresoDetalleApls(aplsIng || [])
+                            }
                           }
                         } catch (e) {
                           console.error('Error cargando ingresos:', e)
@@ -918,11 +931,15 @@ export default function ExpedienteContrato() {
             {ingresoDetalle && (<>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.surface, zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.primary, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-                    ← Volver
-                  </button>
-                  <span style={{ color: C.border }}>|</span>
-                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text }}>Detalle del pago</h2>
+                  {ingresosDelCobro.length > 1 && (
+                    <>
+                      <button onClick={() => { setIngresoDetalle(null); setIngresoDetalleApls([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.primary, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+                        ← Volver
+                      </button>
+                      <span style={{ color: C.border }}>|</span>
+                    </>
+                  )}
+                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.text }}>Detalle del pago — {MESES[modalDetallePago?.mes]} {modalDetallePago?.anio}</h2>
                   <BadgeVal estatus={ingresoDetalle.estatus_validacion || 'POR_VALIDAR'} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
