@@ -359,20 +359,43 @@ export default function ExpedienteContrato() {
     }
 
     const [cobrosR, docsR, conR, arrR] = await Promise.all([
-      // prp_cartera, no prp_cobros: esta última vive en el esquema `prp` y sus
-      // contrato_id no corresponden a los de public.contratos, así que devolvía
-      // siempre cero filas. Es la misma vista que usa /cobranza.
       supabase.from('prp_cartera').select('*').eq('contrato_id', id)
         .order('periodo_anio', { ascending: false }).order('periodo_mes', { ascending: false }),
       supabase.from('documentos').select('*').eq('entidad_tipo', 'ARRENDATARIO').eq('entidad_id', c.arrendatario_id),
-      // logo_url no está en la vista. El del contrato manda; el del
-      // arrendatario es respaldo para contratos sin logo propio.
       supabase.from('contratos').select('logo_url').eq('id', id).maybeSingle(),
       supabase.from('arrendatarios').select('logo_url').eq('id', c.arrendatario_id).maybeSingle(),
     ])
 
+    const cobrosBase = cobrosR.data ?? []
+
+    // Detectar cuáles cobros tienen ingreso con comprobante_url (un query batch)
+    const cobroIds = cobrosBase.map(r => r.id).filter(Boolean)
+    let comprobantesSet = new Set()
+    let validacionMap = {}
+    if (cobroIds.length > 0) {
+      const { data: aplsComp } = await supabase
+        .from('aplicaciones_pago')
+        .select('cargo_id, ingreso_id')
+        .in('cargo_id', cobroIds)
+      if (aplsComp && aplsComp.length > 0) {
+        const ingIds = aplsComp.map(a => a.ingreso_id).filter(Boolean)
+        if (ingIds.length > 0) {
+          const { data: ingsInfo } = await supabase
+            .from('ingresos')
+            .select('id, comprobante_url, estatus_validacion')
+            .in('id', ingIds)
+          const ingMap = Object.fromEntries((ingsInfo || []).map(i => [i.id, i]))
+          aplsComp.forEach(a => {
+            const ing = ingMap[a.ingreso_id]
+            if (ing?.comprobante_url) comprobantesSet.add(a.cargo_id)
+            if (ing?.estatus_validacion) validacionMap[a.cargo_id] = ing.estatus_validacion
+          })
+        }
+      }
+    }
+
     setExp(expData)
-    setCobros((cobrosR.data ?? []).map(r => ({
+    setCobros(cobrosBase.map(r => ({
       ...r,
       mes:               r.periodo_mes,
       anio:              r.periodo_anio,
@@ -381,6 +404,8 @@ export default function ExpedienteContrato() {
       estatus:           r.estado,
       fecha_limite_pago: r.fecha_vencimiento,
       referencia_pago:   r.concepto,
+      tiene_comprobante: comprobantesSet.has(r.id),
+      estatus_validacion: validacionMap[r.id] || null,
     })))
     setDocs(docsR.data ?? [])
     setLogoUrl(conR.data?.logo_url ?? arrR.data?.logo_url ?? null)
@@ -694,6 +719,7 @@ export default function ExpedienteContrato() {
                         } catch (e) { toast.error('Error: ' + e.message) }
                       }}
                       onDelete={(c) => setConfirmDelete(c)}
+                      onEdit={(c) => setModalCobro(c)}
                       onView={async (c) => {
                         setModalDetallePago(c)
                         setIngresoDetalle(null)
@@ -1084,143 +1110,162 @@ export default function ExpedienteContrato() {
 }
 
 // ── Tabla de pagos ───────────────────────────────────────────────────────────
-function TablaPagos({ rows, enMora, onSubir, onStatusChange, onMarkAsPaid, onMarkAllAsPaid, onDelete, onView }) {
-  const [sortCol, setSortCol] = useState('mes')
+const ESTADO_MAP = {
+  PAGADO:    { label: 'Pagado',    bg: '#DCFCE7', color: '#166534' },
+  PENDIENTE: { label: 'Pendiente', bg: '#FEF3C7', color: '#92400E' },
+  PARCIAL:   { label: 'Parcial',   bg: '#DBEAFE', color: '#1E40AF' },
+  CANCELADO: { label: 'Cancelado', bg: '#F3F4F6', color: '#6B7280' },
+}
+
+function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, onView, onEdit }) {
+  const [sortCol, setSortCol] = useState('anio_mes')
   const [sortDir, setSortDir] = useState('desc')
-  const [filters, setFilters] = useState({})
+  const [filtroMes, setFiltroMes]   = useState('')
+  const [filtroRef, setFiltroRef]   = useState('')
+  const [filtroEst, setFiltroEst]   = useState('')
 
-  const toggleSort = (col) => {
-    setSortCol(col)
-    setSortDir(sortCol === col && sortDir === 'asc' ? 'desc' : 'asc')
-  }
-
-  const updateFilter = (col, value) => {
-    setFilters(prev => ({ ...prev, [col]: value }))
-  }
+  const toggleSort = col => { setSortDir(sortCol === col && sortDir === 'asc' ? 'desc' : 'asc'); setSortCol(col) }
 
   let filtered = rows.filter(r => {
-    if (filters.mes && !`${MESES[r.mes]} ${r.anio}`.toLowerCase().includes(filters.mes.toLowerCase())) return false
-    if (filters.referencia && !(r.referencia_pago || '').toLowerCase().includes(filters.referencia.toLowerCase())) return false
-    if (filters.vence && !fmtD(r.fecha_limite_pago).includes(filters.vence)) return false
-    if (filters.monto && !fmt$(r.monto_total).includes(filters.monto)) return false
-    if (filters.estatus && !r.estatus.toLowerCase().includes(filters.estatus.toLowerCase())) return false
+    if (filtroMes && !`${MESES[r.mes]} ${r.anio}`.toLowerCase().includes(filtroMes.toLowerCase())) return false
+    if (filtroRef && !(r.referencia_pago || '').toLowerCase().includes(filtroRef.toLowerCase())) return false
+    if (filtroEst && !r.estatus.toLowerCase().includes(filtroEst.toLowerCase())) return false
     return true
   })
 
   filtered.sort((a, b) => {
-    let aVal, bVal
-    if (sortCol === 'mes') {
-      aVal = a.mes * 100 + a.anio
-      bVal = b.mes * 100 + b.anio
-    } else if (sortCol === 'referencia') {
-      aVal = (a.referencia_pago || '').toLowerCase()
-      bVal = (b.referencia_pago || '').toLowerCase()
-    } else if (sortCol === 'vence') {
-      aVal = new Date(a.fecha_limite_pago)
-      bVal = new Date(b.fecha_limite_pago)
-    } else if (sortCol === 'monto') {
-      aVal = a.monto_total
-      bVal = b.monto_total
-    } else if (sortCol === 'pagado') {
-      aVal = a.monto_pagado || 0
-      bVal = b.monto_pagado || 0
-    } else if (sortCol === 'estatus') {
-      aVal = a.estatus.toLowerCase()
-      bVal = b.estatus.toLowerCase()
-    }
-    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
-    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
-    return 0
+    const aV = sortCol === 'anio_mes' ? a.anio * 100 + a.mes
+             : sortCol === 'monto'    ? a.monto_total
+             : sortCol === 'cobrado'  ? (a.monto_pagado || 0)
+             : (a.referencia_pago || '').toLowerCase()
+    const bV = sortCol === 'anio_mes' ? b.anio * 100 + b.mes
+             : sortCol === 'monto'    ? b.monto_total
+             : sortCol === 'cobrado'  ? (b.monto_pagado || 0)
+             : (b.referencia_pago || '').toLowerCase()
+    return sortDir === 'asc' ? (aV < bV ? -1 : aV > bV ? 1 : 0) : (aV > bV ? -1 : aV < bV ? 1 : 0)
   })
 
-  const cols = ['mes', 'referencia', 'vence', 'monto', 'pagado', 'estatus']
-  const labels = ['Período','Referencia','Vence','Monto','Pagado','Estado']
   const pendientes = rows.filter(r => r.estatus !== 'PAGADO')
+  const thBtn = col => ({
+    padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700,
+    color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px',
+    cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+    borderBottom: `2px solid ${C.border}`, background: C.light,
+  })
+  const arrow = col => sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
   return (
     <div>
       {pendientes.length > 0 && onMarkAllAsPaid && (
         <div style={{ marginBottom: 12 }}>
           <button onClick={() => onMarkAllAsPaid()}
-            style={{ padding: '8px 14px', background: C.success, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+            style={{ padding: '7px 14px', background: C.success, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
             ✓ Marcar todos como Pagado
           </button>
         </div>
       )}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={{ overflowX: 'auto', borderRadius: 10, border: `1px solid ${C.border}` }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: C.light }}>
-              {cols.map((col, i) => (
-                <Th key={i} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort(col)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {labels[i]}
-                    {sortCol === col && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-                  </div>
-                </Th>
-              ))}
-              <Th></Th>
+            <tr>
+              <th style={thBtn('anio_mes')} onClick={() => toggleSort('anio_mes')}>Período{arrow('anio_mes')}</th>
+              <th style={thBtn('ref')}      onClick={() => toggleSort('ref')}>Clasificación{arrow('ref')}</th>
+              <th style={{ ...thBtn(), cursor: 'default', textAlign: 'center' }} title="Comprobante adjunto"><Paperclip size={13} /></th>
+              <th style={thBtn('monto')}   onClick={() => toggleSort('monto')}>Esperado{arrow('monto')}</th>
+              <th style={thBtn('cobrado')} onClick={() => toggleSort('cobrado')}>Cobrado{arrow('cobrado')}</th>
+              <th style={{ ...thBtn(), cursor: 'default' }}>Validación</th>
+              <th style={{ ...thBtn(), cursor: 'default' }}>Estado</th>
+              <th style={{ ...thBtn(), cursor: 'default' }}></th>
             </tr>
+            {/* Filtros */}
             <tr style={{ background: '#F9FAFB' }}>
-              {cols.map((col, i) => (
-                <th key={i} style={{ padding: '8px 12px', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>
-                  <input
-                    type="text"
-                    placeholder={`Filtrar ${labels[i].toLowerCase()}`}
-                    value={filters[col] || ''}
-                    onChange={e => updateFilter(col, e.target.value)}
-                    style={{ width: '100%', padding: '5px 8px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11, boxSizing: 'border-box' }}
-                  />
-                </th>
-              ))}
-              <th></th>
+              <th style={{ padding: '6px 12px', borderBottom: `1px solid ${C.border}` }}>
+                <input value={filtroMes} onChange={e => setFiltroMes(e.target.value)} placeholder="Filtrar período"
+                  style={{ width: '100%', padding: '4px 7px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11 }} />
+              </th>
+              <th style={{ padding: '6px 12px', borderBottom: `1px solid ${C.border}` }}>
+                <input value={filtroRef} onChange={e => setFiltroRef(e.target.value)} placeholder="Filtrar"
+                  style={{ width: '100%', padding: '4px 7px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11 }} />
+              </th>
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
+              <th style={{ padding: '6px 12px', borderBottom: `1px solid ${C.border}` }}>
+                <input value={filtroEst} onChange={e => setFiltroEst(e.target.value)} placeholder="Filtrar"
+                  style={{ width: '100%', padding: '4px 7px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11 }} />
+              </th>
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
             </tr>
           </thead>
           <tbody>
             {filtered.map(c => {
-              const mora = enMora(c)
+              const mora   = enMora(c)
               const pagado = c.estatus === 'PAGADO'
+              const estMap = ESTADO_MAP[c.estatus] || ESTADO_MAP.PENDIENTE
+              const valMap = VALIDACION_MAP[c.estatus_validacion] || null
               return (
-                <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: mora ? '#FEF2F2' : undefined }}>
-                  <Td bold>{MESES[c.mes]} {c.anio}</Td>
-                  <Td mono small>{c.referencia_pago || '—'}</Td>
-                  <Td small>{fmtD(c.fecha_limite_pago)}</Td>
-                  <Td mono>{fmt$(c.monto_total)}</Td>
-                  <Td mono>{pagado ? fmt$(c.monto_pagado) : '—'}</Td>
+                <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, background: mora ? '#FFF5F5' : undefined }}>
+                  {/* Período */}
+                  <td style={{ padding: '10px 12px', fontWeight: 700, color: C.text, whiteSpace: 'nowrap' }}>
+                    {MESES[c.mes]} {c.anio}
+                    {mora && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: C.danger, background: '#FEE2E2', padding: '1px 6px', borderRadius: 8 }}>Mora</span>}
+                  </td>
+                  {/* Clasificación */}
+                  <td style={{ padding: '10px 12px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: '#EFF6FF', color: C.primary }}>{c.referencia_pago || c.concepto || '—'}</span>
+                  </td>
+                  {/* Comprobante */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {c.tiene_comprobante
+                      ? <Paperclip size={14} color={C.success} title="Comprobante adjunto" />
+                      : <Paperclip size={14} color={C.border}  title="Sin comprobante" />}
+                  </td>
+                  {/* Esperado */}
+                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600, color: C.text }}>{fmt$(c.monto_total)}</td>
+                  {/* Cobrado */}
+                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, color: pagado ? C.success : C.muted }}>
+                    {pagado || c.monto_pagado > 0 ? fmt$(c.monto_pagado) : '—'}
+                  </td>
+                  {/* Validación */}
+                  <td style={{ padding: '10px 12px' }}>
+                    {valMap
+                      ? <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: valMap.bg, color: valMap.color }}>{valMap.label}</span>
+                      : <span style={{ color: C.border, fontSize: 11 }}>—</span>}
+                  </td>
+                  {/* Estado */}
                   <td style={{ padding: '10px 12px' }}>
                     {onStatusChange ? (
                       <select value={c.estatus} onChange={e => onStatusChange(c, e.target.value)}
-                        style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: c.estatus === 'PAGADO' ? C.success : c.estatus === 'PENDIENTE' ? C.warning : C.danger }}>
+                        style={{ padding: '4px 7px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: estMap.color }}>
                         <option value="PENDIENTE">Pendiente</option>
                         <option value="PARCIAL">Parcial</option>
                         <option value="PAGADO">Pagado</option>
                         <option value="CANCELADO">Cancelado</option>
                       </select>
                     ) : (
-                      <Badge
-                        label={pagado ? 'Pagado' : mora ? 'En mora' : 'Pendiente'}
-                        color={pagado ? C.success : mora ? C.danger : C.warning}
-                      />
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 10, background: estMap.bg, color: estMap.color }}>{estMap.label}</span>
                     )}
                   </td>
+                  {/* Acciones */}
                   <td style={{ padding: '10px 12px' }}>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                       {onView && (
-                        <button onClick={() => onView(c)} title="Ver registro de pago"
-                          style={{ padding: '5px 8px', display: 'flex', alignItems: 'center', gap: 3, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.primary }}>
-                          👁
+                        <button onClick={() => onView(c)} title="Ver detalle del pago"
+                          style={{ padding: '5px 7px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', color: C.primary, display: 'flex', alignItems: 'center' }}>
+                          <Eye size={13} />
+                        </button>
+                      )}
+                      {onEdit && (
+                        <button onClick={() => onEdit(c)} title="Agregar / editar ingreso"
+                          style={{ padding: '5px 7px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', color: C.dark, display: 'flex', alignItems: 'center' }}>
+                          <Pencil size={13} />
                         </button>
                       )}
                       {onDelete && (
-                        <button onClick={() => onDelete(c)} title="Eliminar registro"
-                          style={{ padding: '5px 8px', display: 'flex', alignItems: 'center', gap: 3, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.danger }}>
-                          🗑
-                        </button>
-                      )}
-                      {!pagado && onSubir && (
-                        <button onClick={() => onSubir(c)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', fontSize: 11, color: C.primary, fontWeight: 600 }}>
-                          <Upload size={12} /> Comprobante
+                        <button onClick={() => onDelete(c)} title="Eliminar cobro"
+                          style={{ padding: '5px 7px', border: `1px solid #FECACA`, borderRadius: 6, background: '#FFF5F5', cursor: 'pointer', color: C.danger, display: 'flex', alignItems: 'center' }}>
+                          <X size={13} />
                         </button>
                       )}
                     </div>
