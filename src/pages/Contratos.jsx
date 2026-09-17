@@ -1353,7 +1353,7 @@ export default function Contratos() {
   const cntRenovacion  = lista.filter(c => c.estatus_proceso === 'EN_RENOVACION').length
   const cntRescision   = lista.filter(c => c.estado_id === 'RESCISION').length
   const cntCancelados  = lista.filter(c => c.estado_id === 'RESCISION').length
-  const rentaTotal     = lista.filter(c => c.estado_id === 'VIGENTE').reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
+  const rentaTotal     = lista.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0)
   const conPDF         = lista.filter(c => c.archivo_contrato_url).length
 
   const FILTROS = [
