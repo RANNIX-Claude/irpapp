@@ -1346,10 +1346,10 @@ export default function Contratos() {
   const lista = (data ?? []).filter(c => (c.estatus_proceso ?? 'EN_EJECUCION') === 'EN_EJECUCION')
 
   // Conteos para KPIs y filtros
-  const cntActivos     = lista.filter(c => !['VENCIDO','RESCISION','RENOVADO'].includes(c.estado_id)).length
-  const cntVigentes    = lista.filter(c => c.estado_id === 'VIGENTE' && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento)).length
-  const cntPorVencer   = lista.filter(c => ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento)).length
-  const cntVencidos    = lista.filter(c => c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO').length
+  const cntActivos     = lista.length
+  const cntVencidos    = lista.filter(c => (c.dias_restantes ?? 1) < 0 || c.estado_id === 'VENCIDO').length
+  const cntVigentes    = lista.length - cntVencidos
+  const cntPorVencer   = lista.filter(c => c.dias_restantes != null && c.dias_restantes >= 0 && c.dias_restantes <= diasAnticip).length
   const cntRenovacion  = lista.filter(c => c.estatus_proceso === 'EN_RENOVACION').length
   const cntRescision   = lista.filter(c => c.estado_id === 'RESCISION').length
   const cntCancelados  = lista.filter(c => c.estado_id === 'RESCISION').length
@@ -1384,11 +1384,13 @@ export default function Contratos() {
         || (c.unidad_numero || '').toLowerCase().includes(q)
         || (c.locales_referencia || '').toLowerCase().includes(q)
         || (c.locales_display || '').toLowerCase().includes(q)
+      const esVencido   = (c.dias_restantes ?? 1) < 0 || c.estado_id === 'VENCIDO'
+      const esPorVencer = c.dias_restantes != null && c.dias_restantes >= 0 && c.dias_restantes <= diasAnticip
       const matchE = filtroEst === 'Todos'
-        || (filtroEst === 'ACTIVOS'    && !['VENCIDO','RESCISION','RENOVADO'].includes(c.estado_id))
-        || (filtroEst === 'POR_VENCER' && ['ALERTA','CRITICO'].includes(c.semaforo_vencimiento))
-        || (filtroEst === 'VENCIDO'    && (c.estado_id === 'VENCIDO' || c.semaforo_vencimiento === 'VENCIDO'))
-        || (filtroEst === 'VIGENTE'    && c.estado_id === 'VIGENTE'  && !['ALERTA','CRITICO','VENCIDO'].includes(c.semaforo_vencimiento))
+        || (filtroEst === 'ACTIVOS'    && true)
+        || (filtroEst === 'VENCIDO'    && esVencido)
+        || (filtroEst === 'VIGENTE'    && !esVencido)
+        || (filtroEst === 'POR_VENCER' && esPorVencer)
         || (filtroEst === 'EN_RENOVACION' && c.estatus_proceso === 'EN_RENOVACION')
         || (!['ACTIVOS','POR_VENCER','VENCIDO','VIGENTE','EN_RENOVACION'].includes(filtroEst) && c.estado_id === filtroEst)
       const matchPDF = filtroPDF === 'Todos' || (filtroPDF === 'CON_PDF' ? !!c.archivo_contrato_url : !c.archivo_contrato_url)
