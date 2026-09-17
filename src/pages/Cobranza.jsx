@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
   Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, CalendarPlus,
-  Eye, Paperclip
+  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -503,8 +503,169 @@ function AplicarIngresoModal({ ingreso, onClose, onSaved }) {
   )
 }
 
+const MESES_E = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+const CONCEPTOS = [
+  { val: 'RENTA',         label: 'Renta' },
+  { val: 'SANCION',       label: 'Sanción por mora' },
+  { val: 'AGUA',          label: 'Agua' },
+  { val: 'MANTENIMIENTO', label: 'Mantenimiento' },
+  { val: 'OTRO',          label: 'Otro' },
+]
+
+const ESTADOS_CARGO = ['PENDIENTE', 'PARCIAL', 'PAGADO', 'CANCELADO']
+
+const inp2 = { width: '100%', padding: '9px 11px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }
+const lbl2 = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '.03em' }
+
+// ── Modal: Editar cargo ───────────────────────────────────────────────────────
+function EditarCargoModal({ cargo, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    concepto:          cargo.concepto || 'RENTA',
+    descripcion:       cargo.descripcion || '',
+    periodo_mes:       cargo.periodo_mes || new Date().getMonth() + 1,
+    periodo_anio:      cargo.periodo_anio || new Date().getFullYear(),
+    importe:           String(parseFloat(cargo.importe) || ''),
+    fecha_vencimiento: cargo.fecha_vencimiento || '',
+    estado:            cargo.estado || 'PENDIENTE',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const guardar = async () => {
+    if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a cero'); return }
+    if (!form.fecha_vencimiento) { setErr('La fecha de vencimiento es requerida'); return }
+    setSaving(true); setErr(null)
+    const { error } = await supabase.from('cargos_programados').update({
+      concepto:          form.concepto,
+      descripcion:       form.descripcion.trim() || null,
+      periodo_mes:       parseInt(form.periodo_mes),
+      periodo_anio:      parseInt(form.periodo_anio),
+      importe:           parseFloat(form.importe),
+      fecha_vencimiento: form.fecha_vencimiento,
+      estado:            form.estado,
+    }).eq('id', cargo.id)
+    setSaving(false)
+    if (error) { setErr(error.message); return }
+    onSaved()
+  }
+
+  const anios = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 540, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Editar cargo</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-primary)', marginTop: 2 }}>
+              {cargo.arrendatario_nombre} · {cargo.contrato_folio}
+            </div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{cargo.locales_display || cargo.locales_referencia}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: '18px 22px', display: 'grid', gap: 14 }}>
+          {err && <div style={{ padding: '7px 11px', background: '#FEE2E2', color: 'var(--color-danger)', borderRadius: 7, fontSize: 12 }}>{err}</div>}
+
+          <div>
+            <label style={lbl2}>Concepto</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {CONCEPTOS.map(c => (
+                <button key={c.val} type="button" onClick={() => set('concepto', c.val)}
+                  style={{ padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                    borderColor: form.concepto === c.val ? 'var(--color-primary)' : '#E5E7EB',
+                    background: form.concepto === c.val ? 'var(--color-primary)' : 'white',
+                    color: form.concepto === c.val ? 'white' : '#6B7280' }}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl2}>Período — mes</label>
+              <select value={form.periodo_mes} onChange={e => set('periodo_mes', parseInt(e.target.value))}
+                style={{ ...inp2, background: 'white' }}>
+                {MESES_E.slice(1).map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl2}>Período — año</label>
+              <select value={form.periodo_anio} onChange={e => set('periodo_anio', parseInt(e.target.value))}
+                style={{ ...inp2, background: 'white' }}>
+                {anios.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl2}>Importe *</label>
+              <input type="number" step="0.01" value={form.importe} onChange={e => set('importe', e.target.value)}
+                placeholder="0.00" style={{ ...inp2, fontVariantNumeric: 'tabular-nums' }} />
+            </div>
+            <div>
+              <label style={lbl2}>Fecha de vencimiento *</label>
+              <input type="date" value={form.fecha_vencimiento} onChange={e => set('fecha_vencimiento', e.target.value)} style={inp2} />
+            </div>
+          </div>
+
+          <div>
+            <label style={lbl2}>Descripción</label>
+            <input value={form.descripcion} onChange={e => set('descripcion', e.target.value)}
+              placeholder={`${CONCEPTOS.find(c => c.val === form.concepto)?.label} ${MESES_E[form.periodo_mes]} ${form.periodo_anio}`}
+              style={inp2} />
+          </div>
+
+          <div>
+            <label style={lbl2}>Estado</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {ESTADOS_CARGO.map(e => {
+                const colors = { PENDIENTE: '#F59E0B', PARCIAL: '#7C3AED', PAGADO: '#057642', CANCELADO: '#9CA3AF' }
+                const active = form.estado === e
+                return (
+                  <button key={e} type="button" onClick={() => set('estado', e)}
+                    style={{ padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
+                      borderColor: active ? colors[e] : '#E5E7EB',
+                      background: active ? colors[e] + '20' : 'white',
+                      color: active ? colors[e] : '#9CA3AF' }}>
+                    {e}
+                  </button>
+                )
+              })}
+            </div>
+            {form.estado === 'PAGADO' && parseFloat(cargo.saldo) > 0 && (
+              <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>
+                ⚠ Saldo pendiente de {fmt(cargo.saldo)} — considera registrar el pago antes de marcar como pagado.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: 10 }}>
+          <button onClick={onClose}
+            style={{ flex: 1, padding: 10, border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+            Cancelar
+          </button>
+          <button onClick={guardar} disabled={saving}
+            style={{ flex: 2, padding: 10, border: 'none', borderRadius: 8, background: 'var(--color-primary)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 14, opacity: saving ? .7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Save size={15} /> {saving ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Fila de cargo en tabla Cartera ───────────────────────────────────────────
-function CargoRow({ c, onVer }) {
+function CargoRow({ c, onVer, onEditar, onBorrar }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
   const vencida = c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy
   const pct = c.importe > 0 ? Math.min(100, (parseFloat(c.total_aplicado) / parseFloat(c.importe)) * 100) : 0
@@ -551,10 +712,20 @@ function CargoRow({ c, onVer }) {
         <EstadoBadge estado={c.estado} />
       </td>
       <td style={{ padding: '8px 12px' }}>
-        <button onClick={() => onVer(c)} title="Ver detalle del cargo"
-          style={{ padding: '5px 7px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-          <Eye size={13} />
-        </button>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => onVer(c)} title="Ver detalle"
+            style={{ padding: '5px 7px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Eye size={13} />
+          </button>
+          <button onClick={() => onEditar(c)} title="Editar cargo"
+            style={{ padding: '5px 7px', background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Pencil size={13} />
+          </button>
+          <button onClick={() => onBorrar(c)} title="Eliminar cargo"
+            style={{ padding: '5px 7px', background: '#FEF2F2', color: 'var(--color-danger)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
       </td>
     </tr>
   )
@@ -614,6 +785,9 @@ export default function Cobranza() {
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
   const [verCargo, setVerCargo] = useState(null)
+  const [editarCargo, setEditarCargo] = useState(null)
+  const [borrarCargo, setBorrarCargo] = useState(null)
+  const [borrando, setBorrando] = useState(false)
   const [aplicsCargo, setAplicsCargo] = useState([])
   const [loadingAplics, setLoadingAplics] = useState(false)
 
@@ -631,6 +805,18 @@ export default function Cobranza() {
     setRefreshKey(k => k + 1)
     setModalIngreso(false)
     setModalAplicar(null)
+    setEditarCargo(null)
+  }
+
+  const confirmarBorrar = async () => {
+    if (!borrarCargo) return
+    setBorrando(true)
+    const { error } = await supabase.from('cargos_programados').delete().eq('id', borrarCargo.id)
+    setBorrando(false)
+    if (error) { alert('Error al eliminar: ' + error.message); return }
+    setBorrarCargo(null)
+    setVerCargo(null)
+    setRefreshKey(k => k + 1)
   }
 
   // Cargos de cartera
@@ -839,13 +1025,13 @@ export default function Cobranza() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
-                        {['Concepto','Descripción','Arrendatario','Cargo','Aplicado','Saldo','Vencimiento','Estado',''].map((h, i) => (
-                          <th key={h || 'acc'} style={{ padding: '11px 16px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{h}</th>
+                        {['Concepto','Descripción','Arrendatario','Cargo','Aplicado','Saldo','Vencimiento','Estado','Acciones'].map((h, i) => (
+                          <th key={h} style={{ padding: '11px 16px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {carteraFiltrada.map(c => <CargoRow key={c.id} c={c} onVer={setVerCargo} />)}
+                      {carteraFiltrada.map(c => <CargoRow key={c.id} c={c} onVer={setVerCargo} onEditar={setEditarCargo} onBorrar={setBorrarCargo} />)}
                     </tbody>
                   </table>
                 </div>
@@ -895,54 +1081,142 @@ export default function Cobranza() {
       {verCargo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setVerCargo(null)}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '520px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
+          <div style={{ background: 'white', borderRadius: '14px', width: '560px', maxWidth: '95vw', maxHeight: '86vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>
-                  {verCargo.descripcion || `${verCargo.concepto} ${MES_NOMBRES[verCargo.periodo_mes] || ''} ${verCargo.periodo_anio || ''}`}
-                </h2>
-                <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>{verCargo.contrato_folio} · {verCargo.arrendatario_nombre}</div>
+
+            {/* Header */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <ConceptoBadge tipo={verCargo.concepto} />
+                    <EstadoBadge estado={verCargo.estado} />
+                    {verCargo.generado_auto && <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', background: '#F3F4F6', padding: '2px 7px', borderRadius: 10 }}>AUTO</span>}
+                  </div>
+                  <h2 style={{ margin: '0 0 2px', fontSize: '16px', fontWeight: 700 }}>
+                    {verCargo.descripcion || `${verCargo.concepto} ${MES_NOMBRES[verCargo.periodo_mes] || ''} ${verCargo.periodo_anio || ''}`}
+                  </h2>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                    {verCargo.arrendatario_nombre} · <span style={{ color: '#9CA3AF' }}>{verCargo.contrato_folio}</span>
+                  </div>
+                  {(verCargo.locales_display || verCargo.locales_referencia) && (
+                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: 1 }}>{verCargo.locales_display || verCargo.locales_referencia}</div>
+                  )}
+                </div>
+                <button onClick={() => setVerCargo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={18} /></button>
               </div>
-              <button onClick={() => setVerCargo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={18} /></button>
+
+              {/* Acciones en el header */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button onClick={() => { setEditarCargo(verCargo); setVerCargo(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#FFFBEB', color: '#D97706', border: '1.5px solid #FDE68A', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  <Pencil size={13} /> Editar
+                </button>
+                <button onClick={() => { setBorrarCargo(verCargo); setVerCargo(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#FEF2F2', color: 'var(--color-danger)', border: '1.5px solid #FECACA', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  <Trash2 size={13} /> Eliminar
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-              {[
-                { label: 'Cargo', val: fmt(verCargo.importe) },
-                { label: 'Aplicado', val: fmt(verCargo.total_aplicado), color: 'var(--color-success)' },
-                { label: 'Saldo', val: fmt(verCargo.saldo), color: parseFloat(verCargo.saldo) > 0 ? 'var(--color-danger)' : '#9CA3AF' },
-              ].map(({ label, val, color }) => (
-                <div key={label} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: color || '#111827' }}>{val}</div>
-                </div>
-              ))}
-            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
+              {/* KPIs monetarios */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '18px' }}>
+                {[
+                  { label: 'Cargo', val: fmt(verCargo.importe), color: '#111827' },
+                  { label: 'Aplicado', val: fmt(verCargo.total_aplicado), color: 'var(--color-success)' },
+                  { label: 'Saldo', val: fmt(verCargo.saldo), color: parseFloat(verCargo.saldo) > 0 ? 'var(--color-danger)' : '#9CA3AF' },
+                ].map(({ label, val, color }) => (
+                  <div key={label} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px' }}>
+                    <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color }}>{val}</div>
+                  </div>
+                ))}
+              </div>
 
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>Pagos aplicados</div>
-            {loadingAplics
-              ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Cargando…</div>
-              : aplicsCargo.length === 0
-              ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Sin pagos aplicados a este cargo</div>
-              : aplicsCargo.map(ap => (
-                <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '6px' }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmt(ap.importe_aplicado)}</div>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                      {ap.ingreso?.fecha} · {ap.ingreso?.forma_pago || ''}
-                      {ap.ingreso?.referencia_banco ? ` · ${ap.ingreso.referencia_banco}` : ''}
+              {/* Ficha de datos completa */}
+              <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', marginBottom: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                {[
+                  ['ID registro', verCargo.id],
+                  ['Concepto', verCargo.concepto],
+                  ['Período', `${MESES_E[verCargo.periodo_mes] || ''} ${verCargo.periodo_anio || ''}`],
+                  ['Vencimiento', verCargo.fecha_vencimiento],
+                  ['Contrato', verCargo.contrato_folio],
+                  ['Arrendatario', verCargo.arrendatario_nombre],
+                  ['Local(es)', verCargo.locales_display || verCargo.locales_referencia || '—'],
+                  ['Origen', verCargo.generado_auto ? 'Automático' : 'Manual'],
+                  ['Comprobante', verCargo.tiene_comprobante ? '✓ Adjunto' : 'Sin adjunto'],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#374151', wordBreak: 'break-all' }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagos aplicados */}
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Pagos aplicados ({aplicsCargo.length})
+              </div>
+              {loadingAplics
+                ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Cargando…</div>
+                : aplicsCargo.length === 0
+                ? <div style={{ textAlign: 'center', padding: '16px', color: '#9CA3AF', fontSize: '13px', background: '#F9FAFB', borderRadius: 8 }}>Sin pagos aplicados a este cargo</div>
+                : aplicsCargo.map(ap => (
+                  <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#F0FDF4', borderRadius: '8px', marginBottom: '6px', border: '1px solid #D1FAE5' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(ap.importe_aplicado)}</div>
+                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                        {ap.ingreso?.fecha} · {ap.ingreso?.forma_pago || ''}
+                        {ap.ingreso?.referencia_banco ? ` · ${ap.ingreso.referencia_banco}` : ''}
+                      </div>
                     </div>
+                    <Paperclip size={13} title={ap.ingreso?.comprobante_url ? 'Tiene comprobante' : 'Sin comprobante'}
+                      style={{ color: ap.ingreso?.comprobante_url ? '#057642' : '#D1D5DB' }} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {ap.ingreso?.comprobante_url
-                      ? <Paperclip size={13} title="Tiene comprobante" style={{ color: '#057642' }} />
-                      : <Paperclip size={13} style={{ color: '#D1D5DB' }} />
-                    }
-                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar cargo */}
+      {editarCargo && (
+        <EditarCargoModal cargo={editarCargo} onClose={() => setEditarCargo(null)} onSaved={onSaved} />
+      )}
+
+      {/* Confirmación de eliminación */}
+      {borrarCargo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setBorrarCargo(null)}>
+          <div style={{ background: 'white', borderRadius: 14, width: 440, maxWidth: '95vw', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
+              <AlertOctagon size={22} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#111827', marginBottom: 4 }}>¿Eliminar este cargo?</div>
+                <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>
+                  <strong>{borrarCargo.descripcion || `${borrarCargo.concepto} ${MES_NOMBRES[borrarCargo.periodo_mes] || ''} ${borrarCargo.periodo_anio || ''}`}</strong>
+                  <br />{borrarCargo.arrendatario_nombre} · {borrarCargo.contrato_folio} · {fmt(borrarCargo.importe)}
                 </div>
-              ))
-            }
+              </div>
+            </div>
+            {aplicsCargo.length > 0 || borrarCargo.estado !== 'PENDIENTE' ? (
+              <div style={{ padding: '9px 12px', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12, color: '#92400E', fontWeight: 600, marginBottom: 16 }}>
+                ⚠ Este cargo tiene pagos aplicados o no está en estado PENDIENTE. Eliminarlo puede dejar ingresos sin aplicar.
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setBorrarCargo(null)}
+                style={{ flex: 1, padding: '10px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                Cancelar
+              </button>
+              <button onClick={confirmarBorrar} disabled={borrando}
+                style={{ flex: 1, padding: '10px', border: 'none', borderRadius: 8, background: 'var(--color-danger)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 13, opacity: borrando ? .7 : 1 }}>
+                {borrando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
