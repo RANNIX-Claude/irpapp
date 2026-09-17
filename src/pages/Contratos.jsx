@@ -429,7 +429,11 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     // Actualizar locales_referencia y locales_display en contratos
     const rentaXLocal = localesSel.length > 0 ? (parseFloat(editForm.renta_mensual) || 0) / localesSel.length : 0
     payload.locales_referencia = localesSel.sort().join('|')
-    payload.locales_display    = localesSel.sort().map(l => l.replace('L0','L').replace(/^L(\d)$/,'L$1')).join(', ')
+    payload.locales_display    = localesSel.sort().map(l => {
+      // id_local viene como L01, L06, L36 — convertir a "LOCAL 01", "LOCAL 06", "LOCAL 36"
+      const num = l.replace(/^L/, '')
+      return `LOCAL ${num.padStart(2, '0')}`
+    }).join(', ')
 
     const { error } = await supabase.from('contratos').update(payload).eq('id', c.id)
     if (error) { setSavingEdit(false); setEditErr(error.message); return }
