@@ -619,57 +619,72 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 18px' }}>
 
-            {/* Contrato — buscador filtrable */}
+            {/* Contrato — solo editable al crear; bloqueado en edición */}
             <div style={{ gridColumn:'1/-1', position:'relative' }}>
-              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Contrato *</label>
-              {(() => {
-                const sel = contratos.find(c => c.id === form.contrato_id)
-                const q = contratoSearch.toLowerCase()
-                const filtrados = contratos.filter(c => {
-                  if (!q) return true
-                  return (c.locales_display || '').toLowerCase().includes(q)
-                    || (c.arrendatario_nombre || '').toLowerCase().includes(q)
-                    || (c.folio || '').toLowerCase().includes(q)
-                })
-                const label = c => {
-                  const loc = c.locales_display ? `${c.locales_display} — ` : ''
-                  return `${loc}${c.arrendatario_nombre || ''}${c.folio ? ` (${c.folio})` : ''}`
-                }
-                return (
-                  <div style={{ marginTop:'4px' }}>
-                    <input
-                      value={contratoSearch || (sel ? label(sel) : '')}
-                      onFocus={() => { setContratoSearch(''); setContratoOpen(true) }}
-                      onBlur={() => setTimeout(() => setContratoOpen(false), 180)}
-                      onChange={e => { setContratoSearch(e.target.value); setContratoOpen(true); if (!e.target.value) set('contrato_id', '') }}
-                      placeholder="Buscar por local (L14) o nombre..."
-                      style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', boxSizing:'border-box' }}
-                    />
-                    {contratoOpen && (
-                      <div style={{ position:'absolute', zIndex:300, top:'100%', left:0, right:0, background:'white', border:'1px solid #D1D5DB', borderRadius:'8px', maxHeight:'220px', overflowY:'auto', boxShadow:'0 4px 16px rgba(0,0,0,0.13)', marginTop:'2px' }}>
-                        {filtrados.length === 0
-                          ? <div style={{ padding:'10px 14px', fontSize:'12px', color:'#9CA3AF' }}>Sin coincidencias</div>
-                          : filtrados.map(c => (
-                            <div key={c.id}
-                              onMouseDown={() => { set('contrato_id', c.id); setContratoSearch(''); setContratoOpen(false) }}
-                              style={{ padding:'9px 14px', fontSize:'13px', cursor:'pointer', borderBottom:'1px solid #F3F4F6',
-                                background: c.id === form.contrato_id ? '#EFF6FF' : 'white',
-                                color: c.id === form.contrato_id ? '#0A66C2' : '#111827' }}
-                              onMouseEnter={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='#F9FAFB' }}
-                              onMouseLeave={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='white' }}>
-                              {c.locales_display && (
-                                <span style={{ fontWeight:700, color:'#0A66C2', marginRight:'6px' }}>{c.locales_display}</span>
-                              )}
-                              {c.arrendatario_nombre}
-                              {c.folio && <span style={{ fontSize:'11px', color:'#9CA3AF', marginLeft:'6px' }}>({c.folio})</span>}
-                            </div>
-                          ))
-                        }
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Contrato</label>
+              {ingreso ? (
+                // Edición: muestra el contrato fijo, no se puede cambiar
+                (() => {
+                  const sel = contratos.find(c => c.id === form.contrato_id)
+                  const loc = sel?.locales_display ? `${sel.locales_display} — ` : ''
+                  const txt = sel ? `${loc}${sel.arrendatario_nombre || ''}${sel.folio ? ` (${sel.folio})` : ''}` : '—'
+                  return (
+                    <div style={{ marginTop:'4px', padding:'8px 10px', background:'#F3F4F6', border:'1px solid #E5E7EB', borderRadius:'6px', fontSize:'13px', color:'#374151', fontWeight:600 }}>
+                      {txt}
+                    </div>
+                  )
+                })()
+              ) : (
+                // Alta: buscador filtrable
+                (() => {
+                  const sel = contratos.find(c => c.id === form.contrato_id)
+                  const q = contratoSearch.toLowerCase()
+                  const filtrados = contratos.filter(c => {
+                    if (!q) return true
+                    return (c.locales_display || '').toLowerCase().includes(q)
+                      || (c.arrendatario_nombre || '').toLowerCase().includes(q)
+                      || (c.folio || '').toLowerCase().includes(q)
+                  })
+                  const label = c => {
+                    const loc = c.locales_display ? `${c.locales_display} — ` : ''
+                    return `${loc}${c.arrendatario_nombre || ''}${c.folio ? ` (${c.folio})` : ''}`
+                  }
+                  return (
+                    <div style={{ marginTop:'4px' }}>
+                      <input
+                        value={contratoSearch || (sel ? label(sel) : '')}
+                        onFocus={() => { setContratoSearch(''); setContratoOpen(true) }}
+                        onBlur={() => setTimeout(() => setContratoOpen(false), 180)}
+                        onChange={e => { setContratoSearch(e.target.value); setContratoOpen(true); if (!e.target.value) set('contrato_id', '') }}
+                        placeholder="Buscar por local (L14) o nombre..."
+                        style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', boxSizing:'border-box' }}
+                      />
+                      {contratoOpen && (
+                        <div style={{ position:'absolute', zIndex:300, top:'100%', left:0, right:0, background:'white', border:'1px solid #D1D5DB', borderRadius:'8px', maxHeight:'220px', overflowY:'auto', boxShadow:'0 4px 16px rgba(0,0,0,0.13)', marginTop:'2px' }}>
+                          {filtrados.length === 0
+                            ? <div style={{ padding:'10px 14px', fontSize:'12px', color:'#9CA3AF' }}>Sin coincidencias</div>
+                            : filtrados.map(c => (
+                              <div key={c.id}
+                                onMouseDown={() => { set('contrato_id', c.id); setContratoSearch(''); setContratoOpen(false) }}
+                                style={{ padding:'9px 14px', fontSize:'13px', cursor:'pointer', borderBottom:'1px solid #F3F4F6',
+                                  background: c.id === form.contrato_id ? '#EFF6FF' : 'white',
+                                  color: c.id === form.contrato_id ? '#0A66C2' : '#111827' }}
+                                onMouseEnter={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='#F9FAFB' }}
+                                onMouseLeave={e => { if (c.id !== form.contrato_id) e.currentTarget.style.background='white' }}>
+                                {c.locales_display && (
+                                  <span style={{ fontWeight:700, color:'#0A66C2', marginRight:'6px' }}>{c.locales_display}</span>
+                                )}
+                                {c.arrendatario_nombre}
+                                {c.folio && <span style={{ fontSize:'11px', color:'#9CA3AF', marginLeft:'6px' }}>({c.folio})</span>}
+                              </div>
+                            ))
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()
+              )}
             </div>
 
             {/* Importe recibido */}
