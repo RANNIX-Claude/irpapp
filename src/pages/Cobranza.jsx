@@ -2,7 +2,7 @@ import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
-  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, CalendarPlus,
+  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, ChevronUp, ChevronsUpDown, CalendarPlus,
   Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
@@ -784,6 +784,8 @@ export default function Cobranza() {
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
+  const [sortCol, setSortCol] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
   const [verCargo, setVerCargo] = useState(null)
   const [editarCargo, setEditarCargo] = useState(null)
   const [borrarCargo, setBorrarCargo] = useState(null)
@@ -897,6 +899,35 @@ export default function Cobranza() {
     if (pasaFiltrosBase(c)) acc[c.concepto] = (acc[c.concepto] || 0) + 1
     return acc
   }, {})
+
+  const COLS_CARTERA = [
+    { label: 'Concepto',     field: 'concepto',           align: 'left',  num: false },
+    { label: 'Descripción',  field: 'descripcion',        align: 'left',  num: false },
+    { label: 'Arrendatario', field: 'arrendatario_nombre',align: 'left',  num: false },
+    { label: 'Cargo',        field: 'importe',            align: 'right', num: true  },
+    { label: 'Aplicado',     field: 'total_aplicado',     align: 'right', num: true  },
+    { label: 'Saldo',        field: 'saldo',              align: 'right', num: true  },
+    { label: 'Vencimiento',  field: 'fecha_vencimiento',  align: 'left',  num: false },
+    { label: 'Estado',       field: 'estado',             align: 'left',  num: false },
+    { label: 'Acciones',     field: null,                 align: 'left',  num: false },
+  ]
+
+  const toggleSort = (field) => {
+    if (!field) return
+    if (sortCol === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(field); setSortDir('asc') }
+  }
+
+  const sortedCartera = [...carteraFiltrada].sort((a, b) => {
+    if (!sortCol) return 0
+    const col = COLS_CARTERA.find(c => c.field === sortCol)
+    let av = a[sortCol], bv = b[sortCol]
+    if (col?.num) { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0 }
+    else { av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase() }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1
+    if (av > bv) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
 
   return (
     <div style={{ padding: '24px', maxWidth: '1280px' }}>
@@ -1025,13 +1056,41 @@ export default function Cobranza() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
-                        {['Concepto','Descripción','Arrendatario','Cargo','Aplicado','Saldo','Vencimiento','Estado','Acciones'].map((h, i) => (
-                          <th key={h} style={{ padding: '11px 16px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{h}</th>
-                        ))}
+                        {COLS_CARTERA.map(col => {
+                          const active = sortCol === col.field
+                          const sortable = !!col.field
+                          return (
+                            <th key={col.label}
+                              onClick={() => toggleSort(col.field)}
+                              style={{
+                                padding: '11px 16px',
+                                textAlign: col.align,
+                                fontWeight: 600,
+                                fontSize: '11px',
+                                color: active ? 'var(--color-primary)' : 'var(--color-text-light)',
+                                borderBottom: '1px solid #E5E7EB',
+                                whiteSpace: 'nowrap',
+                                textTransform: 'uppercase',
+                                cursor: sortable ? 'pointer' : 'default',
+                                userSelect: 'none',
+                              }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                {col.label}
+                                {sortable && (
+                                  active
+                                    ? sortDir === 'asc'
+                                      ? <ChevronUp size={12} style={{ color: 'var(--color-primary)' }} />
+                                      : <ChevronDown size={12} style={{ color: 'var(--color-primary)' }} />
+                                    : <ChevronsUpDown size={11} style={{ color: '#D1D5DB' }} />
+                                )}
+                              </span>
+                            </th>
+                          )
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {carteraFiltrada.map(c => <CargoRow key={c.id} c={c} onVer={setVerCargo} onEditar={setEditarCargo} onBorrar={setBorrarCargo} />)}
+                      {sortedCartera.map(c => <CargoRow key={c.id} c={c} onVer={setVerCargo} onEditar={setEditarCargo} onBorrar={setBorrarCargo} />)}
                     </tbody>
                   </table>
                 </div>
