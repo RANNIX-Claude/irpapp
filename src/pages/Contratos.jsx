@@ -8,6 +8,7 @@ import {
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
   Grid, AlignJustify, Printer, FolderOpen, LayoutGrid,
+  ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -1256,6 +1257,7 @@ export default function Contratos() {
   const [filtroVencMes, setFiltroVencMes] = useState('')
   const [sortCol, setSortCol] = useState('fecha_inicio')
   const [sortAsc, setSortAsc] = useState(false)
+  const [filtroProceso, setFiltroProceso] = useState('EN_EJECUCION')
   const [selected, setSelected] = useState(null)
   const [selectedInEditMode, setSelectedInEditMode] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -1344,6 +1346,10 @@ export default function Contratos() {
   // Solo contratos en ejecución, vigentes o no. Los que están en contratación,
   // en renovación (/renovaciones), terminados o suspendidos no van aquí.
   const lista = (data ?? []).filter(c => (c.estatus_proceso ?? 'EN_EJECUCION') === 'EN_EJECUCION')
+  const cntTerminados = (data ?? []).filter(c => c.estatus_proceso === 'TERMINADO').length
+  const baseParaFiltrar = filtroProceso === 'TERMINADO'
+    ? (data ?? []).filter(c => c.estatus_proceso === 'TERMINADO')
+    : lista
 
   // Conteos para KPIs y filtros
   const cntActivos     = lista.length
@@ -1374,7 +1380,7 @@ export default function Contratos() {
     { col: 'fecha_inicio',      label: 'Fecha inicio' },
   ]
 
-  const filtrados = lista
+  const filtrados = baseParaFiltrar
     .filter(c => {
       const q = search.toLowerCase().trim()
       const matchQ = !q
@@ -1469,9 +1475,36 @@ export default function Contratos() {
       </div>
 
       {/* KPIs + filtros: solo en vista lista */}
-      {!vistaAnual && <>{/* Filtros de estado — primero */}
+      {!vistaAnual && <>{/* Toggle proceso: En ejecución / Terminado */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', alignItems: 'center' }}>
+        <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700 }}>PROCESO:</span>
+        {[
+          { val: 'EN_EJECUCION', label: 'En ejecución', color: '#057642' },
+          { val: 'TERMINADO',    label: 'Terminado',     color: '#6B7280' },
+        ].map(o => (
+          <button key={o.val} onClick={() => { setFiltroProceso(o.val); setFiltroEst('Todos') }}
+            style={{
+              padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: '2px solid',
+              borderColor: filtroProceso === o.val ? o.color : '#E5E7EB',
+              background: filtroProceso === o.val ? o.color : 'white',
+              color: filtroProceso === o.val ? 'white' : '#6B7280',
+              transition: 'all 0.15s',
+            }}>
+            {o.label}
+            {o.val === 'TERMINADO' && (
+              <span style={{ marginLeft: 5, fontSize: 11, fontWeight: 800,
+                background: filtroProceso === 'TERMINADO' ? 'rgba(255,255,255,.25)' : '#6B728022',
+                color: filtroProceso === 'TERMINADO' ? 'white' : '#6B7280',
+                borderRadius: 10, padding: '1px 6px' }}>
+                {cntTerminados}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {/* Filtros de estado — solo para EN_EJECUCION */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {FILTROS.map(f => {
+        {(filtroProceso === 'EN_EJECUCION' ? FILTROS : [{ id: 'Todos', label: 'Todos', cnt: cntTerminados, color: '#6B7280' }]).map(f => {
           const activo = filtroEst === f.id
           return (
             <button key={f.id} onClick={() => setFiltroEst(f.id)} style={{
@@ -1555,23 +1588,25 @@ export default function Contratos() {
       </div>
 
       {/* KPIs — clickeables para filtrar — debajo de filtros */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '14px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { title: 'Todos activos',   value: cntActivos,   icon: FileText,     color: 'var(--color-primary)', filtro: 'ACTIVOS' },
-          { title: 'Vigentes',        value: cntVigentes,  icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
-          { title: 'Vencidos',        value: cntVencidos,  icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
-          { title: 'Por vencer',      value: cntPorVencer, icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
+          { title: 'Todos activos',   value: cntActivos,    icon: FileText,     color: 'var(--color-primary)', filtro: 'ACTIVOS' },
+          { title: 'Vigentes',        value: cntVigentes,   icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
+          { title: 'Vencidos',        value: cntVencidos,   icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
+          { title: 'Por vencer',      value: cntPorVencer,  icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
+          { title: 'Terminados',      value: cntTerminados, icon: FileText,     color: '#6B7280', filtro: null, accion: () => setFiltroProceso('TERMINADO') },
           { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: '#7C3AED', filtro: null },
-          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,      icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
+          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,       icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
         ].map(k => (
           <div key={k.title} onClick={() => {
+            if (k.accion) { k.accion(); return }
             if (!k.filtro) return
             if (k.filtro === 'ACTIVOS') setFiltroEst(f => f === 'ACTIVOS' ? 'Todos' : 'ACTIVOS')
             else setFiltroEst(f => f === k.filtro ? 'Todos' : k.filtro)
           }}
             style={{
               background: 'white', borderRadius: '10px', border: `2px solid ${filtroEst === k.filtro ? k.color : '#E5E7EB'}`,
-              padding: '16px', cursor: k.filtro ? 'pointer' : 'default',
+              padding: '16px', cursor: (k.filtro || k.accion) ? 'pointer' : 'default',
               boxShadow: filtroEst === k.filtro ? `0 0 0 3px ${k.color}22` : 'none',
               transition: 'all 0.15s',
             }}>
@@ -1615,9 +1650,45 @@ export default function Contratos() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
-                        {['Contrato','Local','Arrendatario','Renta','Vigencia','Plazo','Estado',''].map(h => (
-                          <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
-                        ))}
+                        {[
+                          { label: 'Contrato',     field: 'folio',               align: 'left',  num: false },
+                          { label: 'Local',        field: 'unidad_numero',       align: 'left',  num: false },
+                          { label: 'Arrendatario', field: 'arrendatario_nombre', align: 'left',  num: false },
+                          { label: 'Renta',        field: 'renta_mensual',       align: 'right', num: true  },
+                          { label: 'Vigencia',     field: 'fecha_inicio',        align: 'left',  num: false },
+                          { label: 'Plazo',        field: 'dias_restantes',      align: 'left',  num: true  },
+                          { label: 'Estado',       field: 'estado_id',           align: 'left',  num: false },
+                          { label: '',             field: null,                  align: 'left',  num: false },
+                        ].map(col => {
+                          const active = sortCol === col.field
+                          const sortable = !!col.field
+                          return (
+                            <th key={col.label || '__acc'}
+                              onClick={() => sortable && toggleSort(col.field)}
+                              style={{
+                                padding: '11px 16px',
+                                textAlign: col.align,
+                                fontWeight: 600,
+                                fontSize: '11px',
+                                color: active ? 'var(--color-primary)' : 'var(--color-text-light)',
+                                borderBottom: '1px solid #E5E7EB',
+                                whiteSpace: 'nowrap',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                cursor: sortable ? 'pointer' : 'default',
+                                userSelect: 'none',
+                              }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                {col.label}
+                                {sortable && (
+                                  active
+                                    ? (sortAsc ? <ChevronUp size={11} style={{ color: 'var(--color-primary)' }} /> : <ChevronDown size={11} style={{ color: 'var(--color-primary)' }} />)
+                                    : <ChevronsUpDown size={10} style={{ color: '#D1D5DB' }} />
+                                )}
+                              </span>
+                            </th>
+                          )
+                        })}
                       </tr>
                     </thead>
                     <tbody>
