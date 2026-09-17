@@ -897,6 +897,7 @@ export default function Ingresos() {
   const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1)
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
   const [filtroModo, setFiltroModo] = useState('periodo') // 'periodo' | 'fecha_pago'
+  const [filtroAnexo, setFiltroAnexo] = useState('todos') // 'todos' | 'con_anexo' | 'sin_anexo'
   const [modalData, setModalData] = useState(null)
   const [verDetalle, setVerDetalle] = useState(null)
   const [detalleAplicaciones, setDetalleAplicaciones] = useState([])
@@ -955,7 +956,9 @@ export default function Ingresos() {
         const matchT = filtroTipo === 'Todos' || clasifDe(r) === filtroTipo
         const matchV = filtroValidacion === 'Todos'
           || (r.estatus_validacion || VALIDACION_DEFAULT) === filtroValidacion
-        return matchQ && matchT && matchV && enPeriodo(r)
+        const matchA = filtroAnexo === 'todos'
+          || (filtroAnexo === 'con_anexo' ? !!r.comprobante_url : !r.comprobante_url)
+        return matchQ && matchT && matchV && matchA && enPeriodo(r)
       })
       .sort((a, b) => {
         // Orden default: por local (locales_display), luego por fecha
@@ -964,7 +967,7 @@ export default function Ingresos() {
         if (la !== lb) return la.localeCompare(lb, 'es', { numeric: true })
         return (a.fecha || '').localeCompare(b.fecha || '')
       })
-  }, [lista, search, filtroTipo, filtroValidacion, filtroMes, filtroAnio, filtroModo])
+  }, [lista, search, filtroTipo, filtroValidacion, filtroAnexo, filtroMes, filtroAnio, filtroModo])
 
   // Cuántos ingresos hay en cada estatus con el resto de filtros ya puestos: la
   // cuenta va en la etiqueta de la opción, para ver que faltan 12 por validar
@@ -1111,6 +1114,20 @@ export default function Ingresos() {
             background: filtroTipo === t ? (TIPO_COLOR[t] || 'var(--color-primary)') + '18' : 'white',
             color: filtroTipo === t ? (TIPO_COLOR[t] || 'var(--color-primary)') : 'var(--color-text-light)',
           }}>{t}</button>
+        ))}
+
+        {/* Documento anexo */}
+        {[
+          { v: 'todos',     label: 'Todos' },
+          { v: 'con_anexo', label: 'Con anexo' },
+          { v: 'sin_anexo', label: 'Sin anexo' },
+        ].map(({ v, label }) => (
+          <button key={v} onClick={() => setFiltroAnexo(v)} style={{
+            padding:'7px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', border:'1.5px solid',
+            borderColor: filtroAnexo === v ? '#0A66C2' : '#E5E7EB',
+            background:  filtroAnexo === v ? '#EFF6FF' : 'white',
+            color:        filtroAnexo === v ? '#0A66C2' : 'var(--color-text-light)',
+          }}>{label}</button>
         ))}
 
         {/* Validación contra el banco */}
