@@ -1,11 +1,11 @@
-# CLAUDE.md — IRP (IWOL Resource Planning)
-## RANNIX Consulting | v1.3.0 | 2026
+# CLAUDE.md — Petra
+## RANNIX Consulting | v1.0.0 | 2026
 
 ---
 
 ## Identidad del Proyecto
 
-**IRP — IWOL Resource Planning** es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
+**Petra** es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
 
 Desarrollado por **Roberto Aguilar Cota / RANNIX Consulting**.
 
@@ -59,10 +59,10 @@ DEv/
 
 ### GRUPO A — `.env.local` (VITE_ prefix, seguras para frontend)
 ```
-VITE_SUPABASE_URL=https://kusuoxwzdxfuybvyiakg.supabase.co
+VITE_SUPABASE_URL=<url_supabase_petra>
 VITE_SUPABASE_ANON_KEY=<anon_key>
-VITE_APP_TITLE=IRP — Inmueble Resource Planning
-VITE_APP_URL=https://irpapp.netlify.app
+VITE_APP_TITLE=Petra
+VITE_APP_URL=<url_netlify_petra>
 VITE_PARKING_URL=<url del proyecto Supabase del sistema de tickets>
 VITE_PARKING_ANON_KEY=<anon_key del sistema de tickets>
 ```
@@ -94,7 +94,7 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 
 ## Base de Datos — Supabase
 
-**Proyecto principal**: `kusuoxwzdxfuybvyiakg`
+**Proyecto principal**: (pendiente — crear proyecto Supabase para Petra)
 
 **Proyecto secundario**: sistema de tickets de estacionamiento — cliente `supabaseParking` en `src/lib/supabase.js` (lectura, sin sesión persistida). Alimenta EDR con Estacionamiento / Pensiones / Vending.
 
@@ -219,7 +219,7 @@ Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver
 
 ---
 
-## Módulos IRP — 30 rutas en producción
+## Módulos Petra — 30 rutas en producción
 
 Registradas en `src/App.jsx`.
 
@@ -339,7 +339,7 @@ V_YYMMDD_HH_MM
 Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 
 - **Generado en**: `vite.config.js` → función `getBuildId()` → variable global `__APP_VERSION__`
-- **Mostrado en**: Header superior de la app (parte superior de la pantalla, badge dorado junto al logo IRP)
+- **Mostrado en**: Header superior de la app (parte superior de la pantalla, badge dorado junto al logo Petra)
 - **Regla**: cada despliegue produce una versión única por timestamp del build — no se edita manualmente
 - **Historial**: el timestamp del commit git sirve como referencia complementaria
 
@@ -347,9 +347,9 @@ Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 
 ## Deploy
 
-- **URL producción**: https://irpapp.netlify.app
-- **URL QA**: https://irpapp-qa.netlify.app
-- **GitHub**: https://github.com/RANNIX-Claude/irpapp
+- **URL producción**: (pendiente de configurar)
+- **URL QA**: (pendiente de configurar)
+- **GitHub**: (pendiente de configurar)
 - **Ramas**: `master` (producción), `develop` (QA), `demo`
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`

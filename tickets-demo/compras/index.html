@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tickets de Compra — IRP QA Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; background: #e0e0e0; padding: 20px; }
+  h1 { font-size: 17px; margin-bottom: 4px; }
+  .nota { font-size: 11px; color: #777; margin-bottom: 14px; }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  #btnAll { padding: 10px 22px; background: #1e8449; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: bold; }
+  #btnAll:disabled { background: #888; cursor: default; }
+  #status { font-size: 12px; color: #555; }
+  .grid { display: flex; flex-wrap: wrap; gap: 20px; }
+  .card { background: #f8f8f8; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 4px rgba(0,0,0,.12); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .meta { font-size: 11px; color: #666; }
+  .meta strong { color: #333; display: block; margin-bottom: 2px; }
+  .dl-btn { padding: 7px 14px; background: #1a5276; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+  .dl-btn:hover { background: #154360; }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  .ticket { background: #fff; width: 300px; padding: 12px 14px; font-size: 10.5px; line-height: 1.4; color: #111; border: 1px solid #ddd; font-family: 'Courier New', monospace; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+
+</style>
+</head>
+<body>
+<h1>Tickets de Compra — IRP QA Demo</h1>
+<p class="nota">14 tickets listos. Descarga individualmente o todos de un golpe.</p>
+<div class="toolbar">
+  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todos (14 PNG)</button>
+  <span id="status"></span>
+</div>
+<div class="grid">
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA &middot; 2026-09-05</div>
+    <div class="ticket" id="t0"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>05/09/2026 08:52:11</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260001</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-61</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>ELENA H.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>02</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">LIM-001</span>
+      <span class="desc">DETERGENTE INDUSTRIAL GRANEL 5KG</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-002</span>
+      <span class="desc">CLORO CONCENTRADO 10L GALÓN</span>
+      <div class="item-bottom">
+        <span>1 PZA X $145.00</span>
+        <span class="precio">$145.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-004</span>
+      <span class="desc">FIBRAS ACERO INOX X10 PZA</span>
+      <div class="item-bottom">
+        <span>1 PZA X $98.00</span>
+        <span class="precio">$98.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-006</span>
+      <span class="desc">BOLSAS BASURA NEGRA 200LT X50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $395.00</span>
+        <span class="precio">$395.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-007</span>
+      <span class="desc">DESENGRASANTE MULTIUSOS 4L</span>
+      <div class="item-bottom">
+        <span>1 PZA X $267.00</span>
+        <span class="precio">$267.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$1094.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$175.04</span></div>
+  <div class="row"><span class="label">DESCUENTO:</span><span>-$50.00</span></div>
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$1219.04</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 568647</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 5</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260001 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(0,'almacen_20260905_limpieza.png')">⬇ almacen_20260905_limpieza.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA &middot; 2026-08-22</div>
+    <div class="ticket" id="t1"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>22/08/2026 15:39:41</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260002</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-21</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>MARCOS V.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">LIM-003</span>
+      <span class="desc">JABÓN LÍQUIDO ANTIBACT 1L X6</span>
+      <div class="item-bottom">
+        <span>1 PZA X $312.00</span>
+        <span class="precio">$312.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-005</span>
+      <span class="desc">JALADOR PISO 60CM CON MANGO</span>
+      <div class="item-bottom">
+        <span>1 PZA X $220.00</span>
+        <span class="precio">$220.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">LIM-008</span>
+      <span class="desc">ATOMIZADOR PLÁSTICO 1L X3</span>
+      <div class="item-bottom">
+        <span>1 PZA X $154.00</span>
+        <span class="precio">$154.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$686.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$109.76</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$795.76</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$800.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$4.24</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 3</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260002 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(1,'almacen_20260822_limpieza.png')">⬇ almacen_20260822_limpieza.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>PAPELERIA &middot; 2026-09-10</div>
+    <div class="ticket" id="t2"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>10/09/2026 11:33:27</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260003</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-42</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>ELENA H.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>03</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">PAP-001</span>
+      <span class="desc">RESMA PAPEL BOND 90G T/CARTA C/500</span>
+      <div class="item-bottom">
+        <span>1 PZA X $165.00</span>
+        <span class="precio">$165.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-002</span>
+      <span class="desc">FOLDERS MANILLA T/CARTA C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $89.00</span>
+        <span class="precio">$89.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-003</span>
+      <span class="desc">BOLIGRAFO TINTA SECA AZL C/12</span>
+      <div class="item-bottom">
+        <span>1 PZA X $48.00</span>
+        <span class="precio">$48.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-006</span>
+      <span class="desc">ENGRAPADORA METÁLICA 26/6</span>
+      <div class="item-bottom">
+        <span>1 PZA X $185.00</span>
+        <span class="precio">$185.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-007</span>
+      <span class="desc">GRAPAS 26/6 CAJA C/5000</span>
+      <div class="item-bottom">
+        <span>1 PZA X $34.00</span>
+        <span class="precio">$34.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$521.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$83.36</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$604.36</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 380193</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 5</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260003 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(2,'almacen_20260910_papeleria.png')">⬇ almacen_20260910_papeleria.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>UNIFORMES &middot; 2026-08-14</div>
+    <div class="ticket" id="t3"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>14/08/2026 16:15:23</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260004</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-16</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>PAULA R.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>02</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">UNI-001</span>
+      <span class="desc">CAMISOLA INDUSTRIAL M AZUL NAVY</span>
+      <div class="item-bottom">
+        <span>1 PZA X $385.00</span>
+        <span class="precio">$385.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">UNI-002</span>
+      <span class="desc">CAMISOLA INDUSTRIAL L AZUL NAVY</span>
+      <div class="item-bottom">
+        <span>1 PZA X $385.00</span>
+        <span class="precio">$385.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">UNI-003</span>
+      <span class="desc">PANTALÓN CARGO AZUL T-32</span>
+      <div class="item-bottom">
+        <span>1 PZA X $520.00</span>
+        <span class="precio">$520.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">UNI-005</span>
+      <span class="desc">BOTAS SEG PUNTA ACERO T-26.5</span>
+      <div class="item-bottom">
+        <span>1 PZA X $1250.00</span>
+        <span class="precio">$1250.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$2540.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$406.40</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$2946.40</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 963385</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260004 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(3,'almacen_20260814_uniformes.png')">⬇ almacen_20260814_uniformes.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>VENDING_REPOSICION &middot; 2026-09-01</div>
+    <div class="ticket" id="t4"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>01/09/2026 14:37:52</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260005</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-72</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>MARCOS V.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">VND-001</span>
+      <span class="desc">AGUA PURIFICADA 20L BOTELLÓN X4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $220.00</span>
+        <span class="precio">$220.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-002</span>
+      <span class="desc">CAFÉ SOLUBLE 500G BOLSA</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-003</span>
+      <span class="desc">AZÚCAR ESTÁNDAR 5KG COSTAL</span>
+      <div class="item-bottom">
+        <span>1 PZA X $98.00</span>
+        <span class="precio">$98.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-004</span>
+      <span class="desc">VASOS DESECHABLES 12OZ C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $145.00</span>
+        <span class="precio">$145.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-005</span>
+      <span class="desc">SERVILLETAS INSTITUCIONAL C/500</span>
+      <div class="item-bottom">
+        <span>1 PZA X $87.00</span>
+        <span class="precio">$87.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL TASA 0%:</span><span>$318.00</span></div>
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$421.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$67.36</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$806.36</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 838108</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 5</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260005 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(4,'almacen_20260901_vending_reposicion.png')">⬇ almacen_20260901_vending_reposicion.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>ALMACÉN DEL NORTE</strong>VENDING_REPOSICION &middot; 2026-08-04</div>
+    <div class="ticket" id="t5"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>04/08/2026 16:37:10</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260006</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-41</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>PAULA R.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>03</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">VND-001</span>
+      <span class="desc">AGUA PURIFICADA 20L BOTELLÓN X4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $220.00</span>
+        <span class="precio">$220.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-002</span>
+      <span class="desc">CAFÉ SOLUBLE 500G BOLSA</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-004</span>
+      <span class="desc">VASOS DESECHABLES 12OZ C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $145.00</span>
+        <span class="precio">$145.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL TASA 0%:</span><span>$220.00</span></div>
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$334.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$53.44</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$607.44</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$650.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$42.56</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 3</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260006 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(5,'almacen_20260804_vending_reposicion.png')">⬇ almacen_20260804_vending_reposicion.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>FERRETERIA &middot; 2026-09-08</div>
+    <div class="ticket" id="t6"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FERRETERÍA EL CONSTRUCTOR</div>
+  <div class="center small">FERRETERÍA EL CONSTRUCTOR S.A. DE C.V.</div>
+  <div class="center small">RFC: FEC880205C32</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Calle Herrero 456, Col. Industrial</div>
+  <div class="center small">Toluca, Méx. C.P. 50010</div>
+  <div class="center small">TEL: (722) 315-8800</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>08/09/2026 14:09:22</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>FEC20260007</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-70</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>RODRIGO C.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">FER-001</span>
+      <span class="desc">PINTURA BLANCA VINIL INT 19L</span>
+      <div class="item-bottom">
+        <span>1 PZA X $895.00</span>
+        <span class="precio">$895.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-002</span>
+      <span class="desc">BROCHÓN ANTIGOTA 4" PROF</span>
+      <div class="item-bottom">
+        <span>1 PZA X $185.00</span>
+        <span class="precio">$185.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-003</span>
+      <span class="desc">SELLADOR ACRÍLICO INTERIOR 1/4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $125.00</span>
+        <span class="precio">$125.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-009</span>
+      <span class="desc">LIJA GRANO 120 PLIEGO X10</span>
+      <div class="item-bottom">
+        <span>1 PZA X $67.00</span>
+        <span class="precio">$67.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$1272.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$203.52</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$1475.52</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 360268</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| FEC20260007 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(6,'ferreteria_20260908_ferreteria.png')">⬇ ferreteria_20260908_ferreteria.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>FERRETERIA &middot; 2026-08-18</div>
+    <div class="ticket" id="t7"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FERRETERÍA EL CONSTRUCTOR</div>
+  <div class="center small">FERRETERÍA EL CONSTRUCTOR S.A. DE C.V.</div>
+  <div class="center small">RFC: FEC880205C32</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Calle Herrero 456, Col. Industrial</div>
+  <div class="center small">Toluca, Méx. C.P. 50010</div>
+  <div class="center small">TEL: (722) 315-8800</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>18/08/2026 17:28:14</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>FEC20260008</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-63</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>RODRIGO C.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">FER-004</span>
+      <span class="desc">TORNILLO 3" PUNTA BROCA C/100</span>
+      <div class="item-bottom">
+        <span>1 PZA X $98.00</span>
+        <span class="precio">$98.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-005</span>
+      <span class="desc">BISAGRA INOX 3" PAR X4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $148.00</span>
+        <span class="precio">$148.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-008</span>
+      <span class="desc">CONTACTO DOBLE CON TIERRA</span>
+      <div class="item-bottom">
+        <span>1 PZA X $89.00</span>
+        <span class="precio">$89.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$335.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$53.60</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$388.60</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$400.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$11.40</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 3</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| FEC20260008 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(7,'ferreteria_20260818_ferreteria.png')">⬇ ferreteria_20260818_ferreteria.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>MANTENIMIENTO &middot; 2026-09-03</div>
+    <div class="ticket" id="t8"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FERRETERÍA EL CONSTRUCTOR</div>
+  <div class="center small">FERRETERÍA EL CONSTRUCTOR S.A. DE C.V.</div>
+  <div class="center small">RFC: FEC880205C32</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Calle Herrero 456, Col. Industrial</div>
+  <div class="center small">Toluca, Méx. C.P. 50010</div>
+  <div class="center small">TEL: (722) 315-8800</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>03/09/2026 15:52:05</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>FEC20260009</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-48</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>DANIEL F.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>02</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">MAN-001</span>
+      <span class="desc">SILICÓN TRANSPARENTE 280ML</span>
+      <div class="item-bottom">
+        <span>1 PZA X $95.00</span>
+        <span class="precio">$95.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">MAN-002</span>
+      <span class="desc">CINTA AISLANTE 3/4" NEGRO C/3</span>
+      <div class="item-bottom">
+        <span>1 PZA X $78.00</span>
+        <span class="precio">$78.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">MAN-003</span>
+      <span class="desc">ENCHUFE MACHO INDUSTRIAL 15A</span>
+      <div class="item-bottom">
+        <span>1 PZA X $145.00</span>
+        <span class="precio">$145.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">MAN-004</span>
+      <span class="desc">CABLE DUPLEX CAL 12 POR METRO X5</span>
+      <div class="item-bottom">
+        <span>1 PZA X $165.00</span>
+        <span class="precio">$165.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$483.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$77.28</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$560.28</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 206289</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| FEC20260009 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(8,'ferreteria_20260903_mantenimiento.png')">⬇ ferreteria_20260903_mantenimiento.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>MANTENIMIENTO &middot; 2026-08-27</div>
+    <div class="ticket" id="t9"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FERRETERÍA EL CONSTRUCTOR</div>
+  <div class="center small">FERRETERÍA EL CONSTRUCTOR S.A. DE C.V.</div>
+  <div class="center small">RFC: FEC880205C32</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Calle Herrero 456, Col. Industrial</div>
+  <div class="center small">Toluca, Méx. C.P. 50010</div>
+  <div class="center small">TEL: (722) 315-8800</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>27/08/2026 16:25:06</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>FEC20260010</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-09</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>RODRIGO C.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">MAN-005</span>
+      <span class="desc">CANDADO ARCO 45MM</span>
+      <div class="item-bottom">
+        <span>1 PZA X $265.00</span>
+        <span class="precio">$265.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">MAN-006</span>
+      <span class="desc">SIKAFLEX 221 BLANCO 310ML</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$454.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$72.64</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$526.64</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$550.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$23.36</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 2</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| FEC20260010 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(9,'ferreteria_20260827_mantenimiento.png')">⬇ ferreteria_20260827_mantenimiento.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FARMACIAS SALUD PLUS</strong>GASTOS_MEDICOS &middot; 2026-09-12</div>
+    <div class="ticket" id="t10"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FARMACIAS SALUD PLUS</div>
+  <div class="center small">SALUD PLUS FARMACIAS S.A. DE C.V.</div>
+  <div class="center small">RFC: SPF920318J78</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Blvd. de la Salud 789, Col. Centro</div>
+  <div class="center small">Metepec, Méx. C.P. 52149</div>
+  <div class="center small">TEL: (722) 456-1122</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>12/09/2026 08:07:00</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>SPF20260011</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-18</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>SARA L.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>04</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">FAR-001</span>
+      <span class="desc">PARACETAMOL 500MG C/20 TABS</span>
+      <div class="item-bottom">
+        <span>1 PZA X $48.00</span>
+        <span class="precio">$48.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-002</span>
+      <span class="desc">AGUA OXIGENADA 10VOL 1L</span>
+      <div class="item-bottom">
+        <span>1 PZA X $35.00</span>
+        <span class="precio">$35.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-003</span>
+      <span class="desc">ALCOHOL ISOPROPÍLICO 1L</span>
+      <div class="item-bottom">
+        <span>1 PZA X $58.00</span>
+        <span class="precio">$58.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-004</span>
+      <span class="desc">VENDA ELÁSTICA 3" X 5YDS X2</span>
+      <div class="item-bottom">
+        <span>1 PZA X $89.00</span>
+        <span class="precio">$89.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-005</span>
+      <span class="desc">GASAS ESTÉRILES 10X10CM C/10</span>
+      <div class="item-bottom">
+        <span>1 PZA X $45.00</span>
+        <span class="precio">$45.00 B</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL TASA 0%:</span><span>$275.00</span></div>
+  
+  
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$275.00</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$300.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$25.00</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 5</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| SPF20260011 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(10,'farmacia_20260912_gastos_medicos.png')">⬇ farmacia_20260912_gastos_medicos.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>FARMACIAS SALUD PLUS</strong>GASTOS_MEDICOS &middot; 2026-08-07</div>
+    <div class="ticket" id="t11"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FARMACIAS SALUD PLUS</div>
+  <div class="center small">SALUD PLUS FARMACIAS S.A. DE C.V.</div>
+  <div class="center small">RFC: SPF920318J78</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Blvd. de la Salud 789, Col. Centro</div>
+  <div class="center small">Metepec, Méx. C.P. 52149</div>
+  <div class="center small">TEL: (722) 456-1122</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>07/08/2026 16:21:14</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>SPF20260012</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-80</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>JORGE M.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>02</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">FAR-006</span>
+      <span class="desc">IBUPROFENO 400MG C/20 TABS</span>
+      <div class="item-bottom">
+        <span>1 PZA X $65.00</span>
+        <span class="precio">$65.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-007</span>
+      <span class="desc">TERMÓMETRO DIGITAL CLÍNICO</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FAR-008</span>
+      <span class="desc">MICROPORE 1" ROLLO X2</span>
+      <div class="item-bottom">
+        <span>1 PZA X $72.00</span>
+        <span class="precio">$72.00 B</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL TASA 0%:</span><span>$137.00</span></div>
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$189.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$30.24</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$356.24</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 169190</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 3</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| SPF20260012 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(11,'farmacia_20260807_gastos_medicos.png')">⬇ farmacia_20260807_gastos_medicos.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>PAPELERÍA Y SERVICIOS METRO</strong>PAPELERIA &middot; 2026-09-15</div>
+    <div class="ticket" id="t12"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">PAPELERÍA Y SERVICIOS METRO</div>
+  <div class="center small">PAPELERIA Y SERVICIOS METRO S.A. DE C.V.</div>
+  <div class="center small">RFC: PSM010912A56</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Tecnológico 321, Col. Morelos</div>
+  <div class="center small">Toluca, Méx. C.P. 50120</div>
+  <div class="center small">TEL: (722) 213-9900</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>15/09/2026 09:02:22</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>PSM20260013</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-21</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>CRISTINA P.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">PAP-001</span>
+      <span class="desc">RESMA PAPEL BOND 90G T/CARTA C/500</span>
+      <div class="item-bottom">
+        <span>1 PZA X $165.00</span>
+        <span class="precio">$165.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-004</span>
+      <span class="desc">MARCADOR PERMANENTE NEG C/6</span>
+      <div class="item-bottom">
+        <span>1 PZA X $76.00</span>
+        <span class="precio">$76.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-005</span>
+      <span class="desc">CINTA ADHESIVA 18MM X10 C/6</span>
+      <div class="item-bottom">
+        <span>1 PZA X $92.00</span>
+        <span class="precio">$92.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-008</span>
+      <span class="desc">CLIPS MARIPOSA NÚM 2 C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $45.00</span>
+        <span class="precio">$45.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$378.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$60.48</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$438.48</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$450.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$11.52</span></div>
+  
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| PSM20260013 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(12,'papeleria_20260915_papeleria.png')">⬇ papeleria_20260915_papeleria.png</button>
+  </div>
+  <div class="card">
+    <div class="meta"><strong>PAPELERÍA Y SERVICIOS METRO</strong>PAPELERIA &middot; 2026-08-11</div>
+    <div class="ticket" id="t13"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">PAPELERÍA Y SERVICIOS METRO</div>
+  <div class="center small">PAPELERIA Y SERVICIOS METRO S.A. DE C.V.</div>
+  <div class="center small">RFC: PSM010912A56</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Tecnológico 321, Col. Morelos</div>
+  <div class="center small">Toluca, Méx. C.P. 50120</div>
+  <div class="center small">TEL: (722) 213-9900</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>11/08/2026 14:24:50</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>PSM20260014</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-62</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>LUIS G.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">PAP-002</span>
+      <span class="desc">FOLDERS MANILLA T/CARTA C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $89.00</span>
+        <span class="precio">$89.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-003</span>
+      <span class="desc">BOLIGRAFO TINTA SECA AZL C/12</span>
+      <div class="item-bottom">
+        <span>1 PZA X $48.00</span>
+        <span class="precio">$48.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-006</span>
+      <span class="desc">ENGRAPADORA METÁLICA 26/6</span>
+      <div class="item-bottom">
+        <span>1 PZA X $185.00</span>
+        <span class="precio">$185.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">PAP-007</span>
+      <span class="desc">GRAPAS 26/6 CAJA C/5000</span>
+      <div class="item-bottom">
+        <span>1 PZA X $34.00</span>
+        <span class="precio">$34.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$356.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$56.96</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$412.96</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 722876</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| PSM20260014 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+    <button class="dl-btn" onclick="cap(13,'papeleria_20260811_papeleria.png')">⬇ papeleria_20260811_papeleria.png</button>
+  </div>
+</div>
+<script>
+async function cap(idx, fname) {
+  const el = document.getElementById('t' + idx);
+  const c = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+  const a = document.createElement('a'); a.download = fname; a.href = c.toDataURL('image/png'); a.click();
+}
+async function descargarTodos() {
+  const btn = document.getElementById('btnAll');
+  const st  = document.getElementById('status');
+  btn.disabled = true;
+  const items = [{"idx":0,"png":"almacen_20260905_limpieza.png","tienda":"ALMACÉN DEL NORTE","grupo":"LIMPIEZA","fecha":"2026-09-05"},{"idx":1,"png":"almacen_20260822_limpieza.png","tienda":"ALMACÉN DEL NORTE","grupo":"LIMPIEZA","fecha":"2026-08-22"},{"idx":2,"png":"almacen_20260910_papeleria.png","tienda":"ALMACÉN DEL NORTE","grupo":"PAPELERIA","fecha":"2026-09-10"},{"idx":3,"png":"almacen_20260814_uniformes.png","tienda":"ALMACÉN DEL NORTE","grupo":"UNIFORMES","fecha":"2026-08-14"},{"idx":4,"png":"almacen_20260901_vending_reposicion.png","tienda":"ALMACÉN DEL NORTE","grupo":"VENDING_REPOSICION","fecha":"2026-09-01"},{"idx":5,"png":"almacen_20260804_vending_reposicion.png","tienda":"ALMACÉN DEL NORTE","grupo":"VENDING_REPOSICION","fecha":"2026-08-04"},{"idx":6,"png":"ferreteria_20260908_ferreteria.png","tienda":"FERRETERÍA EL CONSTRUCTOR","grupo":"FERRETERIA","fecha":"2026-09-08"},{"idx":7,"png":"ferreteria_20260818_ferreteria.png","tienda":"FERRETERÍA EL CONSTRUCTOR","grupo":"FERRETERIA","fecha":"2026-08-18"},{"idx":8,"png":"ferreteria_20260903_mantenimiento.png","tienda":"FERRETERÍA EL CONSTRUCTOR","grupo":"MANTENIMIENTO","fecha":"2026-09-03"},{"idx":9,"png":"ferreteria_20260827_mantenimiento.png","tienda":"FERRETERÍA EL CONSTRUCTOR","grupo":"MANTENIMIENTO","fecha":"2026-08-27"},{"idx":10,"png":"farmacia_20260912_gastos_medicos.png","tienda":"FARMACIAS SALUD PLUS","grupo":"GASTOS_MEDICOS","fecha":"2026-09-12"},{"idx":11,"png":"farmacia_20260807_gastos_medicos.png","tienda":"FARMACIAS SALUD PLUS","grupo":"GASTOS_MEDICOS","fecha":"2026-08-07"},{"idx":12,"png":"papeleria_20260915_papeleria.png","tienda":"PAPELERÍA Y SERVICIOS METRO","grupo":"PAPELERIA","fecha":"2026-09-15"},{"idx":13,"png":"papeleria_20260811_papeleria.png","tienda":"PAPELERÍA Y SERVICIOS METRO","grupo":"PAPELERIA","fecha":"2026-08-11"}];
+  for (let i = 0; i < items.length; i++) {
+    st.textContent = 'Descargando ' + (i+1) + ' de ' + items.length + '...';
+    await cap(items[i].idx, items[i].png);
+    await new Promise(r => setTimeout(r, 900));
+  }
+  st.textContent = '✓ Listo — ' + items.length + ' archivos descargados';
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>

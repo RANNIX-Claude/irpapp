@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 12px; }
+  .dl-btn { width: 300px; padding: 10px; background: #1a5276; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; font-family: Arial, sans-serif; }
+  .dl-btn:hover { background: #154360; }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  .ticket { background: #fff; width: 300px; padding: 12px 14px; font-size: 10.5px; line-height: 1.4; color: #111; border: 1px solid #ddd; font-family: 'Courier New', monospace; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FERRETERÍA EL CONSTRUCTOR</div>
+  <div class="center small">FERRETERÍA EL CONSTRUCTOR S.A. DE C.V.</div>
+  <div class="center small">RFC: FEC880205C32</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Calle Herrero 456, Col. Industrial</div>
+  <div class="center small">Toluca, Méx. C.P. 50010</div>
+  <div class="center small">TEL: (722) 315-8800</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>08/09/2026 08:23:20</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>FEC20260007</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-54</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>RODRIGO C.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">FER-001</span>
+      <span class="desc">PINTURA BLANCA VINIL INT 19L</span>
+      <div class="item-bottom">
+        <span>1 PZA X $895.00</span>
+        <span class="precio">$895.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-002</span>
+      <span class="desc">BROCHÓN ANTIGOTA 4" PROF</span>
+      <div class="item-bottom">
+        <span>1 PZA X $185.00</span>
+        <span class="precio">$185.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-003</span>
+      <span class="desc">SELLADOR ACRÍLICO INTERIOR 1/4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $125.00</span>
+        <span class="precio">$125.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">FER-009</span>
+      <span class="desc">LIJA GRANO 120 PLIEGO X10</span>
+      <div class="item-bottom">
+        <span>1 PZA X $67.00</span>
+        <span class="precio">$67.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$1272.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$203.52</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$1475.52</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 316400</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 4</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| FEC20260007 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+<script>
+function descargar() {
+  html2canvas(document.getElementById('ticket'), { scale: 2, backgroundColor: '#ffffff' }).then(function(c) {
+    var a = document.createElement('a'); a.download = 'ferreteria_20260908_ferreteria.png'; a.href = c.toDataURL('image/png'); a.click();
+  });
+}
+</script>
+</body>
+</html>

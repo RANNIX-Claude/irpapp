@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 12px; }
+  .dl-btn { width: 300px; padding: 10px; background: #1a5276; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; font-family: Arial, sans-serif; }
+  .dl-btn:hover { background: #154360; }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  .ticket { background: #fff; width: 300px; padding: 12px 14px; font-size: 10.5px; line-height: 1.4; color: #111; border: 1px solid #ddd; font-family: 'Courier New', monospace; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket"><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: 'Courier New', monospace; gap: 12px; }
+  .ticket {
+    background: #fff;
+    width: 300px;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #111;
+    border: 1px solid #ddd;
+  }
+  .dl-btn {
+    width: 300px; padding: 10px;
+    background: #1a5276; color: #fff; border: none;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .dl-btn:hover { background: #154360; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 13px; font-weight: bold; }
+  .sep { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+  .sep-solid { border-top: 1px solid #555; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; margin: 1px 0; }
+  .item-row { margin: 4px 0; }
+  .sku { font-size: 9px; color: #555; display: block; }
+  .desc { display: block; font-size: 10px; font-weight: bold; word-break: break-word; }
+  .item-bottom { display: flex; justify-content: space-between; font-size: 10px; margin-top: 1px; }
+  .precio { font-weight: bold; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin: 2px 0; }
+  .label { color: #444; }
+  .barcode { font-family: monospace; font-size: 9px; letter-spacing: 3px; color: #333; }
+  .small { font-size: 9px; color: #555; }
+</style>
+</head>
+<body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">ALMACÉN DEL NORTE</div>
+  <div class="center small">ALMACEN DEL NORTE S.A. DE C.V.</div>
+  <div class="center small">RFC: ANO850614H45</div>
+  <div class="center small">601 - General de Ley Personas Morales</div>
+  <hr class="sep">
+  <div class="center small">Av. Industrial 1234, Col. Parque Industrial</div>
+  <div class="center small">Metepec, Méx. C.P. 52140</div>
+  <div class="center small">TEL: (722) 214-3300</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>01/09/2026 10:05:13</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>ANO20260005</span></div>
+  <div class="row"><span class="label">TERMINAL:</span><span>TRM-61</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>MARCOS V.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div class="item-row">
+      <span class="sku">VND-001</span>
+      <span class="desc">AGUA PURIFICADA 20L BOTELLÓN X4</span>
+      <div class="item-bottom">
+        <span>1 PZA X $220.00</span>
+        <span class="precio">$220.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-002</span>
+      <span class="desc">CAFÉ SOLUBLE 500G BOLSA</span>
+      <div class="item-bottom">
+        <span>1 PZA X $189.00</span>
+        <span class="precio">$189.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-003</span>
+      <span class="desc">AZÚCAR ESTÁNDAR 5KG COSTAL</span>
+      <div class="item-bottom">
+        <span>1 PZA X $98.00</span>
+        <span class="precio">$98.00 B</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-004</span>
+      <span class="desc">VASOS DESECHABLES 12OZ C/50</span>
+      <div class="item-bottom">
+        <span>1 PZA X $145.00</span>
+        <span class="precio">$145.00 A</span>
+      </div>
+    </div><div class="item-row">
+      <span class="sku">VND-005</span>
+      <span class="desc">SERVILLETAS INSTITUCIONAL C/500</span>
+      <div class="item-bottom">
+        <span>1 PZA X $87.00</span>
+        <span class="precio">$87.00 A</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL TASA 0%:</span><span>$318.00</span></div>
+  <div class="row"><span class="label">SUBTOTAL TASA 16%:</span><span>$421.00</span></div>
+  <div class="row"><span class="label">IVA 16%:</span><span>$67.36</span></div>
+  
+  <hr class="sep">
+  <div class="total-row"><span>TOTAL:</span><span>$806.36</span></div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>TARJETA</span></div>
+  
+  
+  <div class="small center">  APROBACION: 497557</div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 5</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center small">NO TIENE VALIDEZ FISCAL</div>
+  <hr class="sep">
+  <div class="center barcode">||||| ANO20260005 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+  <div class="center small">VUELVA PRONTO</div>
+</div></div>
+<script>
+function descargar() {
+  html2canvas(document.getElementById('ticket'), { scale: 2, backgroundColor: '#ffffff' }).then(function(c) {
+    var a = document.createElement('a'); a.download = 'almacen_20260901_vending_reposicion.png'; a.href = c.toDataURL('image/png'); a.click();
+  });
+}
+</script>
+</body>
+</html>

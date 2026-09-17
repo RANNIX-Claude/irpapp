@@ -1,0 +1,1524 @@
+================================================================================
+PROMPTS PARA GOOGLE IMAGEN — FICHAS BANCARIAS FICTICIAS
+Plaza Comercial del Norte — QA Demo
+Generado: 16/9/2026, 5:52:24 a.m.
+================================================================================
+
+INSTRUCCIONES:
+1. Abre Google AI Studio (aistudio.google.com) → ImageFX o Imagen 3
+2. Copia cada prompt completo (entre --- delimitadores)
+3. Genera la imagen y descárgala como PNG
+4. Nómbrala como indica "Nombre sugerido de archivo"
+5. Sube el PNG al módulo de Comprobantes en IRP
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L14-R26  |  LOCAL: IWOL-2024-L14-R26  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_IWOL-2024-L14-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 16/JUL/2026 18:20:39 horas
+Nombre del Ordenante: Luky del Rosario González Olivo
+RFC del Ordenante: GOOL8710226M2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,872.00 MN
+Número de Referencia: 202607IWOL-2024-L14-R26
+Concepto del Pago: RENTA JUL 2026 IWOL-2024-L14-R26
+Fecha de Aplicación: 16/JUL/2026
+Clave de Rastreo: BSR20260716446087663
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L14-R26  |  LOCAL: IWOL-2024-L14-R26  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_IWOL-2024-L14-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 01/AGO/2026 12:48:14 horas
+Nombre del Ordenante: Luky del Rosario González Olivo
+RFC del Ordenante: GOOL8710226M2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,872.00 MN
+Número de Referencia: 202608IWOL-2024-L14-R26
+Concepto del Pago: RENTA AGO 2026 IWOL-2024-L14-R26
+Fecha de Aplicación: 01/AGO/2026
+Clave de Rastreo: BSR20260801332400756
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L14-R26  |  LOCAL: IWOL-2024-L14-R26  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_IWOL-2024-L14-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 09/SEP/2026 18:38:09 horas
+Nombre del Ordenante: Luky del Rosario González Olivo
+RFC del Ordenante: GOOL8710226M2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,872.00 MN
+Número de Referencia: 202609IWOL-2024-L14-R26
+Concepto del Pago: RENTA SEP 2026 IWOL-2024-L14-R26
+Fecha de Aplicación: 09/SEP/2026
+Clave de Rastreo: BSR20260909208805524
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L3738  |  LOCAL: L37  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_L37.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 05/JUL/2026 13:26:15 horas
+Nombre del Ordenante: Leonardo Félix Viñas Osorio
+RFC del Ordenante: VIOL8411202X2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $27,500.00 MN
+Número de Referencia: 202607L37
+Concepto del Pago: RENTA JUL 2026 L37
+Fecha de Aplicación: 05/JUL/2026
+Clave de Rastreo: BVT20260705357887675
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L3738  |  LOCAL: L37  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_L37.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 16:00:37 horas
+Nombre del Ordenante: Leonardo Félix Viñas Osorio
+RFC del Ordenante: VIOL8411202X2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $27,500.00 MN
+Número de Referencia: 202608L37
+Concepto del Pago: RENTA AGO 2026 L37
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BVT20260813496214613
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2024-L3738  |  LOCAL: L37  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_L37.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 16/SEP/2026 10:03:27 horas
+Nombre del Ordenante: Leonardo Félix Viñas Osorio
+RFC del Ordenante: VIOL8411202X2
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $27,500.00 MN
+Número de Referencia: 202609L37
+Concepto del Pago: RENTA SEP 2026 L37
+Fecha de Aplicación: 16/SEP/2026
+Clave de Rastreo: BVT20260916148088021
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L08  |  LOCAL: L8  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_L8.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 10/JUL/2026 17:41:07 horas
+Nombre del Ordenante: Alejandro Muñoz Fernández
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202607L8
+Concepto del Pago: RENTA JUL 2026 L8
+Fecha de Aplicación: 10/JUL/2026
+Clave de Rastreo: BAT20260710412847619
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L08  |  LOCAL: L8  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_L8.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 14:24:17 horas
+Nombre del Ordenante: Alejandro Muñoz Fernández
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202608L8
+Concepto del Pago: RENTA AGO 2026 L8
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BAT20260813612377969
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L08  |  LOCAL: L8  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_L8.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 11/SEP/2026 15:22:49 horas
+Nombre del Ordenante: Alejandro Muñoz Fernández
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202609L8
+Concepto del Pago: RENTA SEP 2026 L8
+Fecha de Aplicación: 11/SEP/2026
+Clave de Rastreo: BAT20260911913303296
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L09  |  LOCAL: L9  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_L9.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 15/JUL/2026 14:49:15 horas
+Nombre del Ordenante: Alfredo Bravo Mendiola
+RFC del Ordenante: BAMA841221C2A
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $25,892.00 MN
+Número de Referencia: 202607L9
+Concepto del Pago: RENTA JUL 2026 L9
+Fecha de Aplicación: 15/JUL/2026
+Clave de Rastreo: BSR20260715799551646
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L09  |  LOCAL: L9  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_L9.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 14:23:57 horas
+Nombre del Ordenante: Alfredo Bravo Mendiola
+RFC del Ordenante: BAMA841221C2A
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $25,892.00 MN
+Número de Referencia: 202608L9
+Concepto del Pago: RENTA AGO 2026 L9
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BSR20260813349727247
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L09  |  LOCAL: L9  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_L9.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 03/SEP/2026 11:19:16 horas
+Nombre del Ordenante: Alfredo Bravo Mendiola
+RFC del Ordenante: BAMA841221C2A
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $25,892.00 MN
+Número de Referencia: 202609L9
+Concepto del Pago: RENTA SEP 2026 L9
+Fecha de Aplicación: 03/SEP/2026
+Clave de Rastreo: BSR20260903678453769
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L15  |  LOCAL: L15  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_L15.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 18/JUL/2026 17:03:18 horas
+Nombre del Ordenante: Isagenix México, S. de R.L. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $19,855.00 MN
+Número de Referencia: 202607L15
+Concepto del Pago: RENTA JUL 2026 L15
+Fecha de Aplicación: 18/JUL/2026
+Clave de Rastreo: BVT20260718566996538
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L15  |  LOCAL: L15  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_L15.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 15/AGO/2026 16:49:35 horas
+Nombre del Ordenante: Isagenix México, S. de R.L. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $19,855.00 MN
+Número de Referencia: 202608L15
+Concepto del Pago: RENTA AGO 2026 L15
+Fecha de Aplicación: 15/AGO/2026
+Clave de Rastreo: BVT20260815385990518
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L15  |  LOCAL: L15  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_L15.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 10/SEP/2026 17:38:31 horas
+Nombre del Ordenante: Isagenix México, S. de R.L. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $19,855.00 MN
+Número de Referencia: 202609L15
+Concepto del Pago: RENTA SEP 2026 L15
+Fecha de Aplicación: 10/SEP/2026
+Clave de Rastreo: BVT20260910839036099
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L17-R26  |  LOCAL: IWOL-2025-L17-R26  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_IWOL-2025-L17-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 06/JUL/2026 09:01:19 horas
+Nombre del Ordenante: Luz Adriana Franco Rodríguez
+RFC del Ordenante: ROPS590726G47
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $20,000.00 MN
+Número de Referencia: 202607IWOL-2025-L17-R26
+Concepto del Pago: RENTA JUL 2026 IWOL-2025-L17-R26
+Fecha de Aplicación: 06/JUL/2026
+Clave de Rastreo: BAT20260706634421104
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L17-R26  |  LOCAL: IWOL-2025-L17-R26  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_IWOL-2025-L17-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 04/AGO/2026 10:36:41 horas
+Nombre del Ordenante: Luz Adriana Franco Rodríguez
+RFC del Ordenante: ROPS590726G47
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $20,000.00 MN
+Número de Referencia: 202608IWOL-2025-L17-R26
+Concepto del Pago: RENTA AGO 2026 IWOL-2025-L17-R26
+Fecha de Aplicación: 04/AGO/2026
+Clave de Rastreo: BAT20260804398539940
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L17-R26  |  LOCAL: IWOL-2025-L17-R26  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_IWOL-2025-L17-R26.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/SEP/2026 15:50:14 horas
+Nombre del Ordenante: Luz Adriana Franco Rodríguez
+RFC del Ordenante: ROPS590726G47
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $20,000.00 MN
+Número de Referencia: 202609IWOL-2025-L17-R26
+Concepto del Pago: RENTA SEP 2026 IWOL-2025-L17-R26
+Fecha de Aplicación: 13/SEP/2026
+Clave de Rastreo: BAT20260913126528713
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L18  |  LOCAL: L18  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_L18.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 12/JUL/2026 11:50:26 horas
+Nombre del Ordenante: Guillermo Antonio Herice Poleo
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202607L18
+Concepto del Pago: RENTA JUL 2026 L18
+Fecha de Aplicación: 12/JUL/2026
+Clave de Rastreo: BSR20260712114442551
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L18  |  LOCAL: L18  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_L18.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 14:31:42 horas
+Nombre del Ordenante: Guillermo Antonio Herice Poleo
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202608L18
+Concepto del Pago: RENTA AGO 2026 L18
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BSR20260813416711610
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L18  |  LOCAL: L18  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_L18.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 11/SEP/2026 15:06:06 horas
+Nombre del Ordenante: Guillermo Antonio Herice Poleo
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202609L18
+Concepto del Pago: RENTA SEP 2026 L18
+Fecha de Aplicación: 11/SEP/2026
+Clave de Rastreo: BSR20260911928598394
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L30  |  LOCAL: L30  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_L30.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 10/JUL/2026 09:08:57 horas
+Nombre del Ordenante: Dulce Michelle Andrade Bucio
+RFC del Ordenante: AABD8441219190 (RFC parece con 14 caracteres — revisar OCR o error en captura)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,650.00 MN
+Número de Referencia: 202607L30
+Concepto del Pago: RENTA JUL 2026 L30
+Fecha de Aplicación: 10/JUL/2026
+Clave de Rastreo: BVT20260710208248722
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L30  |  LOCAL: L30  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_L30.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 10/AGO/2026 18:30:45 horas
+Nombre del Ordenante: Dulce Michelle Andrade Bucio
+RFC del Ordenante: AABD8441219190 (RFC parece con 14 caracteres — revisar OCR o error en captura)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,650.00 MN
+Número de Referencia: 202608L30
+Concepto del Pago: RENTA AGO 2026 L30
+Fecha de Aplicación: 10/AGO/2026
+Clave de Rastreo: BVT20260810780346454
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L30  |  LOCAL: L30  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_L30.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/SEP/2026 12:03:29 horas
+Nombre del Ordenante: Dulce Michelle Andrade Bucio
+RFC del Ordenante: AABD8441219190 (RFC parece con 14 caracteres — revisar OCR o error en captura)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,650.00 MN
+Número de Referencia: 202609L30
+Concepto del Pago: RENTA SEP 2026 L30
+Fecha de Aplicación: 13/SEP/2026
+Clave de Rastreo: BVT20260913002314858
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L3132  |  LOCAL: L31  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_L31.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 16/JUL/2026 19:10:50 horas
+Nombre del Ordenante: Grupo Oaklife México, Agente de Seguros y Fianzas, S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $31,500.00 MN
+Número de Referencia: 202607L31
+Concepto del Pago: RENTA JUL 2026 L31
+Fecha de Aplicación: 16/JUL/2026
+Clave de Rastreo: BAT20260716723199874
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L3132  |  LOCAL: L31  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_L31.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 09/AGO/2026 16:17:10 horas
+Nombre del Ordenante: Grupo Oaklife México, Agente de Seguros y Fianzas, S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $31,500.00 MN
+Número de Referencia: 202608L31
+Concepto del Pago: RENTA AGO 2026 L31
+Fecha de Aplicación: 09/AGO/2026
+Clave de Rastreo: BAT20260809935082300
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L3132  |  LOCAL: L31  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_L31.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 18/SEP/2026 11:32:35 horas
+Nombre del Ordenante: Grupo Oaklife México, Agente de Seguros y Fianzas, S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $31,500.00 MN
+Número de Referencia: 202609L31
+Concepto del Pago: RENTA SEP 2026 L31
+Fecha de Aplicación: 18/SEP/2026
+Clave de Rastreo: BAT20260918385862760
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L34  |  LOCAL: L34  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_L34.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 11/JUL/2026 11:37:17 horas
+Nombre del Ordenante: Enrique García Robles
+RFC del Ordenante: GARE72101017SB8
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,120.00 MN
+Número de Referencia: 202607L34
+Concepto del Pago: RENTA JUL 2026 L34
+Fecha de Aplicación: 11/JUL/2026
+Clave de Rastreo: BSR20260711753203172
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L34  |  LOCAL: L34  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_L34.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 11/AGO/2026 12:31:16 horas
+Nombre del Ordenante: Enrique García Robles
+RFC del Ordenante: GARE72101017SB8
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,120.00 MN
+Número de Referencia: 202608L34
+Concepto del Pago: RENTA AGO 2026 L34
+Fecha de Aplicación: 11/AGO/2026
+Clave de Rastreo: BSR20260811268050494
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L34  |  LOCAL: L34  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_L34.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 17/SEP/2026 18:42:36 horas
+Nombre del Ordenante: Enrique García Robles
+RFC del Ordenante: GARE72101017SB8
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,120.00 MN
+Número de Referencia: 202609L34
+Concepto del Pago: RENTA SEP 2026 L34
+Fecha de Aplicación: 17/SEP/2026
+Clave de Rastreo: BSR20260917288311289
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L36  |  LOCAL: L36  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_L36.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/JUL/2026 17:28:47 horas
+Nombre del Ordenante: Nancy Gallardo Fuentes
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $15,000.00 MN
+Número de Referencia: 202607L36
+Concepto del Pago: RENTA JUL 2026 L36
+Fecha de Aplicación: 13/JUL/2026
+Clave de Rastreo: BVT20260713323929414
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L36  |  LOCAL: L36  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_L36.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 15/AGO/2026 13:52:41 horas
+Nombre del Ordenante: Nancy Gallardo Fuentes
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $15,000.00 MN
+Número de Referencia: 202608L36
+Concepto del Pago: RENTA AGO 2026 L36
+Fecha de Aplicación: 15/AGO/2026
+Clave de Rastreo: BVT20260815214092654
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2025-L36  |  LOCAL: L36  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_L36.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 01/SEP/2026 09:55:25 horas
+Nombre del Ordenante: Nancy Gallardo Fuentes
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $15,000.00 MN
+Número de Referencia: 202609L36
+Concepto del Pago: RENTA SEP 2026 L36
+Fecha de Aplicación: 01/SEP/2026
+Clave de Rastreo: BVT20260901287191842
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L1112  |  LOCAL: L11  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_L11.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 01/JUL/2026 08:20:17 horas
+Nombre del Ordenante: Andrea Castillo Velázquez
+RFC del Ordenante: CAVA851220AW3
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $37,234.00 MN
+Número de Referencia: 202607L11
+Concepto del Pago: RENTA JUL 2026 L11
+Fecha de Aplicación: 01/JUL/2026
+Clave de Rastreo: BAT20260701580194894
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L1112  |  LOCAL: L11  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_L11.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 05/AGO/2026 16:47:43 horas
+Nombre del Ordenante: Andrea Castillo Velázquez
+RFC del Ordenante: CAVA851220AW3
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $37,234.00 MN
+Número de Referencia: 202608L11
+Concepto del Pago: RENTA AGO 2026 L11
+Fecha de Aplicación: 05/AGO/2026
+Clave de Rastreo: BAT20260805416375886
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L1112  |  LOCAL: L11  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_L11.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 07/SEP/2026 12:47:15 horas
+Nombre del Ordenante: Andrea Castillo Velázquez
+RFC del Ordenante: CAVA851220AW3
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $37,234.00 MN
+Número de Referencia: 202609L11
+Concepto del Pago: RENTA SEP 2026 L11
+Fecha de Aplicación: 07/SEP/2026
+Clave de Rastreo: BAT20260907123392891
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L16  |  LOCAL: L16  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_L16.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 14/JUL/2026 13:19:29 horas
+Nombre del Ordenante: Denys Retama Bernal
+RFC del Ordenante: Pasaporte REBD950904MMCTRN08
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,500.00 MN
+Número de Referencia: 202607L16
+Concepto del Pago: RENTA JUL 2026 L16
+Fecha de Aplicación: 14/JUL/2026
+Clave de Rastreo: BSR20260714179262520
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L16  |  LOCAL: L16  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_L16.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 11/AGO/2026 13:16:29 horas
+Nombre del Ordenante: Denys Retama Bernal
+RFC del Ordenante: Pasaporte REBD950904MMCTRN08
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,500.00 MN
+Número de Referencia: 202608L16
+Concepto del Pago: RENTA AGO 2026 L16
+Fecha de Aplicación: 11/AGO/2026
+Clave de Rastreo: BSR20260811023580698
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L16  |  LOCAL: L16  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_L16.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 10/SEP/2026 15:17:45 horas
+Nombre del Ordenante: Denys Retama Bernal
+RFC del Ordenante: Pasaporte REBD950904MMCTRN08
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $18,500.00 MN
+Número de Referencia: 202609L16
+Concepto del Pago: RENTA SEP 2026 L16
+Fecha de Aplicación: 10/SEP/2026
+Clave de Rastreo: BSR20260910719323419
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L19  |  LOCAL: IWOL-2026-L19  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_IWOL-2026-L19.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 16/JUL/2026 13:40:46 horas
+Nombre del Ordenante: Lizeth Cristina Campos García
+RFC del Ordenante: Pasaporte CAGL910724MMCMRZ09
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202607IWOL-2026-L19
+Concepto del Pago: RENTA JUL 2026 IWOL-2026-L19
+Fecha de Aplicación: 16/JUL/2026
+Clave de Rastreo: BVT20260716508915535
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L19  |  LOCAL: IWOL-2026-L19  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_IWOL-2026-L19.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 10:50:20 horas
+Nombre del Ordenante: Lizeth Cristina Campos García
+RFC del Ordenante: Pasaporte CAGL910724MMCMRZ09
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202608IWOL-2026-L19
+Concepto del Pago: RENTA AGO 2026 IWOL-2026-L19
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BVT20260813877442046
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L19  |  LOCAL: IWOL-2026-L19  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_IWOL-2026-L19.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 12/SEP/2026 11:53:28 horas
+Nombre del Ordenante: Lizeth Cristina Campos García
+RFC del Ordenante: Pasaporte CAGL910724MMCMRZ09
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,500.00 MN
+Número de Referencia: 202609IWOL-2026-L19
+Concepto del Pago: RENTA SEP 2026 IWOL-2026-L19
+Fecha de Aplicación: 12/SEP/2026
+Clave de Rastreo: BVT20260912633545903
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L23  |  LOCAL: L23  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_L23.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 16/JUL/2026 08:05:03 horas
+Nombre del Ordenante: Vanessa Acero Jaimes
+RFC del Ordenante: AEJV920924JJ1
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,780.00 MN
+Número de Referencia: 202607L23
+Concepto del Pago: RENTA JUL 2026 L23
+Fecha de Aplicación: 16/JUL/2026
+Clave de Rastreo: BAT20260716821132514
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L23  |  LOCAL: L23  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_L23.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 04/AGO/2026 18:59:09 horas
+Nombre del Ordenante: Vanessa Acero Jaimes
+RFC del Ordenante: AEJV920924JJ1
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,780.00 MN
+Número de Referencia: 202608L23
+Concepto del Pago: RENTA AGO 2026 L23
+Fecha de Aplicación: 04/AGO/2026
+Clave de Rastreo: BAT20260804120833488
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L23  |  LOCAL: L23  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_L23.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 14/SEP/2026 14:58:48 horas
+Nombre del Ordenante: Vanessa Acero Jaimes
+RFC del Ordenante: AEJV920924JJ1
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $17,780.00 MN
+Número de Referencia: 202609L23
+Concepto del Pago: RENTA SEP 2026 L23
+Fecha de Aplicación: 14/SEP/2026
+Clave de Rastreo: BAT20260914084852367
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L27  |  LOCAL: L27  |  MES: JUL 2026
+Nombre sugerido de archivo: BSR_202607_L27.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 12/JUL/2026 12:30:42 horas
+Nombre del Ordenante: Centro de Neurorehabilitación CINDE, S.A. de C.V.
+RFC del Ordenante: CNC2407298P9 (CINDE)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,751.43 MN
+Número de Referencia: 202607L27
+Concepto del Pago: RENTA JUL 2026 L27
+Fecha de Aplicación: 12/JUL/2026
+Clave de Rastreo: BSR20260712252881579
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L27  |  LOCAL: L27  |  MES: AGO 2026
+Nombre sugerido de archivo: BSR_202608_L27.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/AGO/2026 12:25:55 horas
+Nombre del Ordenante: Centro de Neurorehabilitación CINDE, S.A. de C.V.
+RFC del Ordenante: CNC2407298P9 (CINDE)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,751.43 MN
+Número de Referencia: 202608L27
+Concepto del Pago: RENTA AGO 2026 L27
+Fecha de Aplicación: 13/AGO/2026
+Clave de Rastreo: BSR20260813668082494
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L27  |  LOCAL: L27  |  MES: SEP 2026
+Nombre sugerido de archivo: BSR_202609_L27.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Sureste", a fictional Mexican bank. regional Mexican bank, clean two-column layout on white background. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Sureste" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 01/SEP/2026 18:37:27 horas
+Nombre del Ordenante: Centro de Neurorehabilitación CINDE, S.A. de C.V.
+RFC del Ordenante: CNC2407298P9 (CINDE)
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Sureste
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,751.43 MN
+Número de Referencia: 202609L27
+Concepto del Pago: RENTA SEP 2026 L27
+Fecha de Aplicación: 01/SEP/2026
+Clave de Rastreo: BSR20260901515172174
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L29  |  LOCAL: L29  |  MES: JUL 2026
+Nombre sugerido de archivo: BVT_202607_L29.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 08/JUL/2026 09:59:00 horas
+Nombre del Ordenante: Avaxo Tech S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,955.00 MN
+Número de Referencia: 202607L29
+Concepto del Pago: RENTA JUL 2026 L29
+Fecha de Aplicación: 08/JUL/2026
+Clave de Rastreo: BVT20260708406710813
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L29  |  LOCAL: L29  |  MES: AGO 2026
+Nombre sugerido de archivo: BVT_202608_L29.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 05/AGO/2026 18:30:42 horas
+Nombre del Ordenante: Avaxo Tech S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,955.00 MN
+Número de Referencia: 202608L29
+Concepto del Pago: RENTA AGO 2026 L29
+Fecha de Aplicación: 05/AGO/2026
+Clave de Rastreo: BVT20260805485119616
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L29  |  LOCAL: L29  |  MES: SEP 2026
+Nombre sugerido de archivo: BVT_202609_L29.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco Vital", a fictional Mexican bank. modern fintech-style bank, minimalist white layout with blue accents. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco Vital" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 12/SEP/2026 18:38:39 horas
+Nombre del Ordenante: Avaxo Tech S.A. de C.V.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco Vital
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,955.00 MN
+Número de Referencia: 202609L29
+Concepto del Pago: RENTA SEP 2026 L29
+Fecha de Aplicación: 12/SEP/2026
+Clave de Rastreo: BVT20260912469821390
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L33  |  LOCAL: L33  |  MES: JUL 2026
+Nombre sugerido de archivo: BAT_202607_L33.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 03/JUL/2026 12:44:43 horas
+Nombre del Ordenante: Gerardo Quiroz Acosta y Centro de Artes Escénicas PROART, A.C.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,500.00 MN
+Número de Referencia: 202607L33
+Concepto del Pago: RENTA JUL 2026 L33
+Fecha de Aplicación: 03/JUL/2026
+Clave de Rastreo: BAT20260703137336511
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L33  |  LOCAL: L33  |  MES: AGO 2026
+Nombre sugerido de archivo: BAT_202608_L33.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 02/AGO/2026 09:01:35 horas
+Nombre del Ordenante: Gerardo Quiroz Acosta y Centro de Artes Escénicas PROART, A.C.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,500.00 MN
+Número de Referencia: 202608L33
+Concepto del Pago: RENTA AGO 2026 L33
+Fecha de Aplicación: 02/AGO/2026
+Clave de Rastreo: BAT20260802026554298
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
+
+--------------------------------------------------------------------------------
+CONTRATO: IWOL-2026-L33  |  LOCAL: L33  |  MES: SEP 2026
+Nombre sugerido de archivo: BAT_202609_L33.png
+
+PROMPT:
+Realistic screenshot of a Mexican bank digital SPEI transfer confirmation document from "Banco del Atlántico", a fictional Mexican bank. classic Mexican bank, formal document layout. White background. Clean sans-serif typography (similar to Arial or Inter). Two-column layout: labels on the left in medium gray, values on the right in dark black. No logos or emblems needed — just the text document. The document contains exactly these fields and values:
+
+Header: "Banco del Atlántico" — "Comprobante de Transferencia SPEI"
+Subheader: "Transferencias / Otros Bancos Nacional - SPEI (Mismo día)"
+
+Operación: Transferencia SPEI
+Fecha y Hora de Operación: 13/SEP/2026 14:07:49 horas
+Nombre del Ordenante: Gerardo Quiroz Acosta y Centro de Artes Escénicas PROART, A.C.
+RFC del Ordenante: XAXX010101000
+Nombre del Beneficiario: PLAZA COMERCIAL DEL NORTE S.A. DE C.V.
+CLABE Destino: ****3812
+Banco Destino: Banco del Atlántico
+RFC del Beneficiario: PCN190315R72
+Importe a Transferir: $16,500.00 MN
+Número de Referencia: 202609L33
+Concepto del Pago: RENTA SEP 2026 L33
+Fecha de Aplicación: 13/SEP/2026
+Clave de Rastreo: BAT20260913106204967
+
+Footer: "Transferencia procesada exitosamente" in small green text.
+
+The text must be perfectly legible and accurate. No distortions, no artistic filters. Photorealistic document screenshot on a neutral light gray desktop background with a subtle drop shadow around the white document area.
