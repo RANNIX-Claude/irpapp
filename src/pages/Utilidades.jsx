@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useModuleAudit } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
-import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight, BarChart2, Rows3, Plus, SlidersHorizontal } from 'lucide-react'
+import { Database, Search, RefreshCw, Download, ChevronDown, ChevronUp, Filter, Table2, X, ChevronRight, BarChart2, Rows3, Plus, SlidersHorizontal, Settings, Zap, Eye, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 // ── Tablas disponibles ────────────────────────────────────────────────────────
 const TABLAS = [
@@ -554,6 +554,539 @@ function PivotTable({ filas, cols, pivotCol, pivotSumCols, onDrillDown }) {
   )
 }
 
+// ── HerramientasPanel ─────────────────────────────────────────────────────────
+function HerramientasPanel() {
+  const [tab, setTab] = useState('cargos')
+  const [contratos, setContratos] = useState([])
+  const [loadingContratos, setLoadingContratos] = useState(false)
+
+  // Cargos
+  const [hastaFecha, setHastaFecha] = useState('2026-09-30')
+  const [respetarFechaFin, setRespetarFechaFin] = useState(true)
+  const [preview, setPreview] = useState(null)
+  const [generando, setGenerando] = useState(false)
+  const [progresoCargos, setProgresoCargos] = useState(null)
+  const [resultadoCargos, setResultadoCargos] = useState(null)
+  const [errorCargos, setErrorCargos] = useState(null)
+
+  // Ingresos
+  const [generandoIngresos, setGenerandoIngresos] = useState(false)
+  const [progresoIngresos, setProgresoIngresos] = useState(null)
+  const [resultadoIngresos, setResultadoIngresos] = useState(null)
+  const [errorIngresos, setErrorIngresos] = useState(null)
+
+  // Resumen
+  const [resumen, setResumen] = useState(null)
+  const [cargandoResumen, setCargandoResumen] = useState(false)
+  const [filtroAnio, setFiltroAnio] = useState('todos')
+
+  useEffect(() => { cargarContratos() }, [])
+
+  async function cargarContratos() {
+    setLoadingContratos(true)
+    const { data } = await supabase
+      .from('prp_contratos')
+      .select('id, folio, arrendatario_nombre, locales_referencia, locales_display, locales_ids, fecha_inicio, fecha_fin, renta_mensual, dia_pago, estatus')
+      .not('estatus', 'eq', 'CANCELADO')
+      .order('fecha_inicio')
+    setContratos(data || [])
+    setLoadingContratos(false)
+  }
+
+  function calcularPreview() {
+    const hasta = new Date(hastaFecha + 'T12:00:00')
+    const rows = contratos
+      .filter(c => c.fecha_inicio && c.renta_mensual > 0)
+      .map(c => {
+        const inicio = new Date(c.fecha_inicio + 'T12:00:00')
+        let fin = new Date(hasta)
+        if (respetarFechaFin && c.fecha_fin) {
+          const ff = new Date(c.fecha_fin + 'T12:00:00')
+          if (ff < fin) fin = ff
+        }
+        let meses = 0
+        let d = new Date(inicio.getFullYear(), inicio.getMonth(), 1)
+        const finMes = new Date(fin.getFullYear(), fin.getMonth(), 1)
+        while (d <= finMes) { meses++; d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
+        return {
+          contrato_id: c.id,
+          folio: c.folio || c.locales_referencia || '—',
+          arrendatario: c.arrendatario_nombre || '—',
+          locales: c.locales_display || c.locales_referencia || '—',
+          renta: c.renta_mensual,
+          inicio: c.fecha_inicio,
+          fin_real: c.fecha_fin,
+          fin_efectivo: fin.toISOString().slice(0, 10),
+          meses,
+          total: meses * c.renta_mensual,
+          dia_pago: c.dia_pago || 10,
+        }
+      })
+    setPreview(rows)
+  }
+
+  async function generarCargos() {
+    setGenerando(true); setErrorCargos(null); setResultadoCargos(null)
+    try {
+      setProgresoCargos({ texto: 'Verificando cargos existentes…', pct: 5 })
+      const { data: existentes, error: e0 } = await supabase
+        .from('cargos_programados')
+        .select('contrato_id, periodo_mes, periodo_anio')
+        .eq('concepto', 'RENTA')
+      if (e0) throw e0
+      const existSet = new Set((existentes || []).map(e => `${e.contrato_id}_${e.periodo_mes}_${e.periodo_anio}`))
+      setProgresoCargos({ texto: 'Calculando registros a insertar…', pct: 15 })
+      const hasta = new Date(hastaFecha + 'T12:00:00')
+      const lote = []; let omitidos = 0
+      for (const c of contratos) {
+        if (!c.fecha_inicio || !c.renta_mensual) continue
+        const inicio = new Date(c.fecha_inicio + 'T12:00:00')
+        let fin = new Date(hasta)
+        if (respetarFechaFin && c.fecha_fin) {
+          const ff = new Date(c.fecha_fin + 'T12:00:00')
+          if (ff < fin) fin = ff
+        }
+        let d = new Date(inicio.getFullYear(), inicio.getMonth(), 1)
+        const finMes = new Date(fin.getFullYear(), fin.getMonth(), 1)
+        while (d <= finMes) {
+          const mes = d.getMonth() + 1; const anio = d.getFullYear()
+          const key = `${c.id}_${mes}_${anio}`
+          if (existSet.has(key)) { omitidos++ }
+          else {
+            const dia = c.dia_pago || 10
+            const diaFinal = Math.min(dia, new Date(anio, mes, 0).getDate())
+            lote.push({
+              contrato_id: c.id,
+              concepto: 'RENTA',
+              descripcion: `Renta ${c.locales_display || c.locales_referencia || ''} ${mes}/${anio}`.trim(),
+              periodo_mes: mes, periodo_anio: anio,
+              importe: c.renta_mensual,
+              fecha_vencimiento: `${anio}-${String(mes).padStart(2, '0')}-${String(diaFinal).padStart(2, '0')}`,
+              estado: 'PAGADO',
+              generado_auto: true,
+            })
+          }
+          d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+        }
+      }
+      const total = lote.length; let insertados = 0
+      for (let i = 0; i < lote.length; i += 100) {
+        const chunk = lote.slice(i, i + 100)
+        const { error: err } = await supabase.from('cargos_programados').insert(chunk)
+        if (err) throw err
+        insertados += chunk.length
+        setProgresoCargos({ texto: `Insertando cargos… ${insertados.toLocaleString('es-MX')} / ${total.toLocaleString('es-MX')}`, pct: 15 + Math.round((insertados / total) * 80) })
+      }
+      setResultadoCargos({ generados: total, omitidos })
+    } catch (err) { setErrorCargos(err.message) }
+    finally { setGenerando(false); setProgresoCargos(null) }
+  }
+
+  async function generarIngresos() {
+    setGenerandoIngresos(true); setErrorIngresos(null); setResultadoIngresos(null)
+    try {
+      setProgresoIngresos({ texto: 'Cargando cargos generados…', pct: 5 })
+      const { data: cargos, error: e1 } = await supabase
+        .from('cargos_programados')
+        .select('id, contrato_id, periodo_mes, periodo_anio, importe, fecha_vencimiento')
+        .eq('concepto', 'RENTA').eq('generado_auto', true).eq('estado', 'PAGADO')
+      if (e1) throw e1
+      setProgresoIngresos({ texto: 'Verificando ingresos existentes…', pct: 15 })
+      const { data: aplExist } = await supabase.from('aplicaciones_pago').select('cargo_id')
+      const cargosConIngreso = new Set((aplExist || []).map(a => a.cargo_id))
+      const pendientes = (cargos || []).filter(c => !cargosConIngreso.has(c.id))
+      if (!pendientes.length) {
+        setResultadoIngresos({ generados: 0, omitidos: (cargos || []).length })
+        setGenerandoIngresos(false); setProgresoIngresos(null); return
+      }
+      setProgresoIngresos({ texto: 'Cargando info de contratos…', pct: 20 })
+      const contratoIds = [...new Set(pendientes.map(c => c.contrato_id))]
+      const { data: cInfo } = await supabase
+        .from('contratos').select('id, locales_referencia, locales_display').in('id', contratoIds)
+      const cMap = Object.fromEntries((cInfo || []).map(c => [c.id, c]))
+      const total = pendientes.length; let generados = 0
+      for (let i = 0; i < pendientes.length; i += 50) {
+        const chunk = pendientes.slice(i, i + 50)
+        const ingRows = chunk.map(cargo => {
+          const info = cMap[cargo.contrato_id] || {}
+          return {
+            fecha: cargo.fecha_vencimiento,
+            id_contrato: info.locales_referencia || info.locales_display || '',
+            tipo: 'RENTA', mes: cargo.periodo_mes, anio: cargo.periodo_anio,
+            importe: cargo.importe, contrato_id: cargo.contrato_id,
+            origen: 'GENERADO_AUTO', creado_por: 'SISTEMA',
+          }
+        })
+        const { data: ingresosCreados, error: e2 } = await supabase.from('ingresos').insert(ingRows).select('id')
+        if (e2) throw e2
+        const aplRows = (ingresosCreados || []).map((ing, j) => ({
+          ingreso_id: ing.id, cargo_id: chunk[j].id,
+          importe_aplicado: chunk[j].importe, fecha_aplicacion: chunk[j].fecha_vencimiento,
+        }))
+        const { error: e3 } = await supabase.from('aplicaciones_pago').insert(aplRows)
+        if (e3) throw e3
+        generados += chunk.length
+        setProgresoIngresos({ texto: `Generando ingresos… ${generados.toLocaleString('es-MX')} / ${total.toLocaleString('es-MX')}`, pct: 20 + Math.round((generados / total) * 75) })
+      }
+      setResultadoIngresos({ generados, omitidos: cargosConIngreso.size })
+    } catch (err) { setErrorIngresos(err.message) }
+    finally { setGenerandoIngresos(false); setProgresoIngresos(null) }
+  }
+
+  async function cargarResumen() {
+    setCargandoResumen(true)
+    const [{ data: cargosData }, { data: contratosData }] = await Promise.all([
+      supabase.from('cargos_programados')
+        .select('contrato_id, periodo_mes, periodo_anio, importe, estado')
+        .eq('concepto', 'RENTA').eq('generado_auto', true),
+      supabase.from('prp_contratos')
+        .select('id, folio, arrendatario_nombre, locales_display, locales_referencia'),
+    ])
+    const cMap = Object.fromEntries((contratosData || []).map(c => [c.id, c]))
+    const agg = {}
+    for (const cargo of (cargosData || [])) {
+      if (!agg[cargo.contrato_id]) {
+        const info = cMap[cargo.contrato_id] || {}
+        agg[cargo.contrato_id] = {
+          folio: info.folio || '—', arrendatario: info.arrendatario_nombre || '—',
+          locales: info.locales_display || info.locales_referencia || '—',
+          years: {}, total: 0, count: 0, pagados: 0, pendientes: 0,
+        }
+      }
+      const entry = agg[cargo.contrato_id]
+      if (!entry.years[cargo.periodo_anio]) entry.years[cargo.periodo_anio] = 0
+      entry.years[cargo.periodo_anio] += Number(cargo.importe)
+      entry.total += Number(cargo.importe); entry.count++
+      if (cargo.estado === 'PAGADO') entry.pagados++; else entry.pendientes++
+    }
+    const rows = Object.values(agg).sort((a, b) => b.total - a.total)
+    const allYears = [...new Set((cargosData || []).map(c => c.periodo_anio))].sort()
+    setResumen({ rows, years: allYears })
+    setCargandoResumen(false)
+  }
+
+  const numFmt = v => (v || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 })
+  const tabSt = id => ({
+    padding: '9px 18px', border: 'none',
+    borderBottom: tab === id ? '2px solid var(--color-primary)' : '2px solid transparent',
+    marginBottom: -1, background: 'none', cursor: 'pointer', fontSize: '13px',
+    fontWeight: tab === id ? 700 : 400, color: tab === id ? 'var(--color-primary)' : '#6B7280',
+    display: 'flex', alignItems: 'center', gap: 6,
+  })
+  const card = { background: 'white', border: '1px solid #E5E7EB', borderRadius: 8, padding: 20, marginBottom: 16 }
+  const thSt = (right) => ({ padding: '8px 10px', background: '#F9FAFB', borderBottom: '2px solid #E5E7EB', fontWeight: 700, fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: right ? 'right' : 'left' })
+  const tdSt = (extra) => ({ padding: '7px 10px', borderBottom: '1px solid #F3F4F6', ...extra })
+
+  const ProgressBar = ({ progreso }) => progreso ? (
+    <div style={{ ...card, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <Loader2 size={15} color="var(--color-primary)" />
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>{progreso.texto}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#6B7280' }}>{progreso.pct}%</span>
+      </div>
+      <div style={{ height: 6, background: '#DBEAFE', borderRadius: 3 }}>
+        <div style={{ height: '100%', background: 'var(--color-primary)', borderRadius: 3, width: `${progreso.pct}%`, transition: 'width 0.4s ease' }} />
+      </div>
+    </div>
+  ) : null
+
+  const ErrorCard = ({ msg }) => msg ? (
+    <div style={{ ...card, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <AlertCircle size={16} color="#B24020" style={{ flexShrink: 0, marginTop: 1 }} />
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#B24020' }}>Error</div>
+          <div style={{ fontSize: '12px', color: '#7F1D1D', marginTop: 3, fontFamily: 'monospace' }}>{msg}</div>
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px', background: '#F9FAFB' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Settings size={16} /> Herramientas de Datos
+          </h2>
+          <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#6B7280' }}>
+            Generadores para poblar la base de datos desde contratos
+            {loadingContratos
+              ? <span style={{ marginLeft: 8, color: '#9CA3AF' }}>Cargando contratos…</span>
+              : <span style={{ marginLeft: 8, background: '#DCFCE7', color: '#057642', padding: '1px 8px', borderRadius: 10, fontSize: '12px', fontWeight: 700 }}>{contratos.length} contratos cargados</span>
+            }
+          </p>
+        </div>
+
+        {/* Sub-tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', background: 'white', borderRadius: '8px 8px 0 0', paddingLeft: 8, marginBottom: 20 }}>
+          <button style={tabSt('cargos')} onClick={() => setTab('cargos')}>
+            <Zap size={13} /> 1. Generar Cargos
+          </button>
+          <button style={tabSt('ingresos')} onClick={() => setTab('ingresos')}>
+            <Database size={13} /> 2. Generar Ingresos
+          </button>
+          <button style={tabSt('resumen')} onClick={() => setTab('resumen')}>
+            <BarChart2 size={13} /> Resumen
+          </button>
+        </div>
+
+        {/* ── TAB 1: CARGOS ──────────────────────────────────────────────── */}
+        {tab === 'cargos' && (
+          <>
+            <div style={card}>
+              <h3 style={{ margin: '0 0 14px', fontSize: '14px', fontWeight: 700, color: '#111827' }}>Configuración</h3>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4 }}>
+                    Generar hasta (inclusive)
+                  </label>
+                  <input type="date" value={hastaFecha}
+                    onChange={e => { setHastaFecha(e.target.value); setPreview(null) }}
+                    style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '13px', color: '#374151', paddingBottom: 4 }}>
+                  <input type="checkbox" checked={respetarFechaFin}
+                    onChange={e => { setRespetarFechaFin(e.target.checked); setPreview(null) }}
+                    style={{ width: 15, height: 15 }}
+                  />
+                  Respetar fecha_fin del contrato
+                  <span style={{ fontSize: '12px', color: '#9CA3AF' }}>(contratos vencidos se detienen en su fecha fin)</span>
+                </label>
+                <div style={{ display: 'flex', gap: 8, paddingBottom: 2 }}>
+                  <button onClick={calcularPreview} disabled={loadingContratos || contratos.length === 0}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#F3F4F6', border: '1.5px solid #E5E7EB', borderRadius: 7, cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#374151' }}
+                  >
+                    <Eye size={14} /> Ver Preview
+                  </button>
+                  {preview && (
+                    <button onClick={generarCargos} disabled={generando}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: 'var(--color-primary)', border: 'none', borderRadius: 7, cursor: generando ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, color: 'white', opacity: generando ? 0.7 : 1 }}
+                    >
+                      <Zap size={14} /> Generar {preview.reduce((s, r) => s + r.meses, 0).toLocaleString('es-MX')} Cargos
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <ProgressBar progreso={progresoCargos} />
+            <ErrorCard msg={errorCargos} />
+
+            {resultadoCargos && (
+              <div style={{ ...card, background: '#F0FDF4', border: '1px solid #86EFAC' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <CheckCircle size={20} color="#057642" />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#057642' }}>
+                      {resultadoCargos.generados.toLocaleString('es-MX')} cargos insertados
+                    </div>
+                    {resultadoCargos.omitidos > 0 && (
+                      <div style={{ fontSize: '12px', color: '#6B7280', marginTop: 2 }}>
+                        {resultadoCargos.omitidos.toLocaleString('es-MX')} omitidos (ya existían)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {preview && (
+              <div style={card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#111827' }}>
+                    Preview — {preview.length} contratos · {preview.reduce((s, r) => s + r.meses, 0).toLocaleString('es-MX')} cargos a insertar
+                  </h3>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#057642' }}>
+                    {numFmt(preview.reduce((s, r) => s + r.total, 0))} total renta
+                  </span>
+                </div>
+                <div style={{ overflow: 'auto', maxHeight: 440 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr>
+                        {['Folio', 'Arrendatario', 'Locales', 'Inicio', 'Fin contrato', 'Fin efectivo', 'Día pago', 'Meses', 'Renta', 'Total'].map(h => (
+                          <th key={h} style={thSt(h === 'Meses' || h === 'Total' || h === 'Renta' || h === 'Día pago')}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.map((r, i) => (
+                        <tr key={r.contrato_id} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                          <td style={tdSt({ fontWeight: 700, color: 'var(--color-primary)', whiteSpace: 'nowrap' })}>{r.folio}</td>
+                          <td style={tdSt({ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>{r.arrendatario}</td>
+                          <td style={tdSt({ color: '#6B7280', whiteSpace: 'nowrap' })}>{r.locales}</td>
+                          <td style={tdSt({ whiteSpace: 'nowrap' })}>{r.inicio}</td>
+                          <td style={tdSt({ whiteSpace: 'nowrap', color: '#6B7280' })}>{r.fin_real || '—'}</td>
+                          <td style={tdSt({ whiteSpace: 'nowrap', color: r.fin_efectivo !== r.fin_real ? 'var(--color-warning)' : '#374151' })}>{r.fin_efectivo}</td>
+                          <td style={tdSt({ textAlign: 'right' })}>{r.dia_pago}</td>
+                          <td style={tdSt({ textAlign: 'right', fontWeight: 700 })}>{r.meses}</td>
+                          <td style={tdSt({ textAlign: 'right' })}>{numFmt(r.renta)}</td>
+                          <td style={tdSt({ textAlign: 'right', fontWeight: 700, color: '#057642' })}>{numFmt(r.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: '#F9FAFB', borderTop: '2px solid #E5E7EB' }}>
+                        <td colSpan={7} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '12px' }}>TOTAL</td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800 }}>{preview.reduce((s, r) => s + r.meses, 0).toLocaleString('es-MX')}</td>
+                        <td />
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#057642' }}>{numFmt(preview.reduce((s, r) => s + r.total, 0))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── TAB 2: INGRESOS ────────────────────────────────────────────── */}
+        {tab === 'ingresos' && (
+          <>
+            <div style={card}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 700 }}>Generar Ingresos desde Cargos</h3>
+              <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#6B7280', lineHeight: 1.6 }}>
+                Para cada cargo <strong>PAGADO / generado_auto</strong> sin ingreso vinculado: crea un registro en <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 3 }}>ingresos</code> y su <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 3 }}>aplicacion_pago</code> correspondiente.<br />
+                La operación es idempotente — los cargos que ya tienen aplicación se omiten.
+              </p>
+              <button onClick={generarIngresos} disabled={generandoIngresos}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'var(--color-primary)', border: 'none', borderRadius: 7, cursor: generandoIngresos ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, color: 'white', opacity: generandoIngresos ? 0.7 : 1 }}
+              >
+                <Zap size={14} /> Generar Ingresos y Aplicaciones
+              </button>
+            </div>
+            <ProgressBar progreso={progresoIngresos} />
+            <ErrorCard msg={errorIngresos} />
+            {resultadoIngresos && (
+              <div style={{ ...card, background: '#F0FDF4', border: '1px solid #86EFAC' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <CheckCircle size={20} color="#057642" />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#057642' }}>
+                      {resultadoIngresos.generados.toLocaleString('es-MX')} ingresos generados
+                    </div>
+                    {resultadoIngresos.omitidos > 0 && (
+                      <div style={{ fontSize: '12px', color: '#6B7280', marginTop: 2 }}>
+                        {resultadoIngresos.omitidos.toLocaleString('es-MX')} cargos ya tenían ingreso vinculado
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── TAB 3: RESUMEN ─────────────────────────────────────────────── */}
+        {tab === 'resumen' && (
+          <>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button onClick={cargarResumen} disabled={cargandoResumen}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: 'var(--color-primary)', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'white', opacity: cargandoResumen ? 0.7 : 1 }}
+              >
+                <RefreshCw size={14} /> {cargandoResumen ? 'Cargando…' : resumen ? 'Recargar' : 'Cargar Resumen'}
+              </button>
+              {resumen && (
+                <select value={filtroAnio} onChange={e => setFiltroAnio(e.target.value)}
+                  style={{ padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: '13px', outline: 'none' }}
+                >
+                  <option value="todos">Todos los años</option>
+                  {resumen.years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              )}
+              {resumen && (
+                <span style={{ fontSize: '13px', color: '#6B7280' }}>
+                  {resumen.rows.length} contratos · {resumen.rows.reduce((s, r) => s + r.count, 0).toLocaleString('es-MX')} cargos
+                  · {numFmt(resumen.rows.reduce((s, r) => s + r.total, 0))} total
+                </span>
+              )}
+            </div>
+
+            {resumen && (() => {
+              const rowsFiltradas = resumen.rows.filter(r => filtroAnio === 'todos' || r.years[filtroAnio])
+              const totalFiltrado = rowsFiltradas.reduce((s, r) => s + (filtroAnio === 'todos' ? r.total : (r.years[filtroAnio] || 0)), 0)
+              return (
+                <div style={card}>
+                  <div style={{ overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr>
+                          <th style={thSt(false)}>Folio</th>
+                          <th style={thSt(false)}>Arrendatario</th>
+                          <th style={thSt(false)}>Locales</th>
+                          {filtroAnio === 'todos' && resumen.years.map(y => (
+                            <th key={y} style={thSt(true)}>{y}</th>
+                          ))}
+                          <th style={thSt(true)}>{filtroAnio === 'todos' ? 'Total' : filtroAnio}</th>
+                          <th style={thSt(true)}>Meses</th>
+                          <th style={thSt(true)}>Pagados</th>
+                          <th style={thSt(true)}>Pend.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rowsFiltradas.map((r, i) => {
+                          const monto = filtroAnio === 'todos' ? r.total : (r.years[filtroAnio] || 0)
+                          return (
+                            <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                              <td style={tdSt({ fontWeight: 700, color: 'var(--color-primary)', whiteSpace: 'nowrap' })}>{r.folio}</td>
+                              <td style={tdSt({ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>{r.arrendatario}</td>
+                              <td style={tdSt({ color: '#6B7280', whiteSpace: 'nowrap' })}>{r.locales}</td>
+                              {filtroAnio === 'todos' && resumen.years.map(y => (
+                                <td key={y} style={tdSt({ textAlign: 'right', color: r.years[y] ? '#374151' : '#E5E7EB', fontSize: '11px' })}>
+                                  {r.years[y] ? numFmt(r.years[y]) : '—'}
+                                </td>
+                              ))}
+                              <td style={tdSt({ textAlign: 'right', fontWeight: 700, color: '#057642' })}>{numFmt(monto)}</td>
+                              <td style={tdSt({ textAlign: 'right' })}>{r.count}</td>
+                              <td style={tdSt({ textAlign: 'right' })}>
+                                <span style={{ background: '#DCFCE7', color: '#057642', padding: '1px 7px', borderRadius: 10, fontSize: '11px', fontWeight: 700 }}>{r.pagados}</span>
+                              </td>
+                              <td style={tdSt({ textAlign: 'right' })}>
+                                {r.pendientes > 0
+                                  ? <span style={{ background: '#FEF3C7', color: '#92400E', padding: '1px 7px', borderRadius: 10, fontSize: '11px', fontWeight: 700 }}>{r.pendientes}</span>
+                                  : <span style={{ color: '#D1D5DB', fontSize: '11px' }}>0</span>
+                                }
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background: '#F9FAFB', borderTop: '2px solid #E5E7EB' }}>
+                          <td colSpan={3} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '12px' }}>
+                            TOTAL ({rowsFiltradas.length} contratos)
+                          </td>
+                          {filtroAnio === 'todos' && resumen.years.map(y => (
+                            <td key={y} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#374151', fontSize: '12px' }}>
+                              {numFmt(resumen.rows.reduce((s, r) => s + (r.years[y] || 0), 0))}
+                            </td>
+                          ))}
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#057642' }}>{numFmt(totalFiltrado)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800 }}>
+                            {rowsFiltradas.reduce((s, r) => s + r.count, 0).toLocaleString('es-MX')}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#057642' }}>
+                            {rowsFiltradas.reduce((s, r) => s + r.pagados, 0).toLocaleString('es-MX')}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#92400E' }}>
+                            {rowsFiltradas.reduce((s, r) => s + r.pendientes, 0).toLocaleString('es-MX')}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )
+            })()}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Utilidades() {
   useModuleAudit('Utilidades')
@@ -574,6 +1107,7 @@ export default function Utilidades() {
   const [modo, setModo] = useState('tabla') // 'tabla' | 'pivot'
   const [pivotCol, setPivotCol] = useState(null)
   const [pivotSumCols, setPivotSumCols] = useState([])
+  const [vistaPanel, setVistaPanel] = useState('explorador')
 
   useEffect(() => {
     if (!tablaActiva) return
@@ -669,7 +1203,22 @@ export default function Utilidades() {
   }
 
   return (
-    <div style={s.page} onClick={() => filterMenu && setFilterMenu(null)}>
+    <div style={{ ...s.page, flexDirection: 'column' }}>
+      {/* ── Tabs vista ───────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', background: 'white', paddingLeft: 16, flexShrink: 0 }}>
+        {[
+          { id: 'explorador', icon: <Database size={13} />, label: 'Explorador DB' },
+          { id: 'herramientas', icon: <Settings size={13} />, label: 'Herramientas' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setVistaPanel(t.id)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', border: 'none', borderBottom: vistaPanel === t.id ? '2px solid var(--color-primary)' : '2px solid transparent', marginBottom: -1, background: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: vistaPanel === t.id ? 700 : 400, color: vistaPanel === t.id ? 'var(--color-primary)' : '#6B7280' }}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+      {vistaPanel === 'herramientas' && <HerramientasPanel />}
+      {vistaPanel === 'explorador' && <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} onClick={() => filterMenu && setFilterMenu(null)}>
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <div style={s.sidebar}>
         <div style={{ padding: '4px 12px 10px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF' }}>
@@ -928,6 +1477,7 @@ export default function Utilidades() {
           anchorRect={filterMenu.rect}
         />
       )}
+      </div>}
     </div>
   )
 }
