@@ -277,6 +277,11 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   const disponibleDe = c => (parseFloat(c.saldo) || 0) + (previoDeCargo[c.id] || 0)
 
   useEffect(() => {
+    if (!ingreso?.comprobante_url) return
+    urlFirmada('facturas-cfdi', ingreso.comprobante_url).then(u => { if (u) setCompPreview(u) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     supabase.from('prp_contratos')
       .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago')
       .order('locales_display', { ascending: true, nullsFirst: false })

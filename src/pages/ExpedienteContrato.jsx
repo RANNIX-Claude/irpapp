@@ -675,7 +675,24 @@ export default function ExpedienteContrato() {
                         } catch (e) { toast.error('Error: ' + e.message) }
                       }}
                       onDelete={(c) => setConfirmDelete(c)}
-                      onEdit={(c) => setModalCobro(c)}
+                      onEdit={async (c) => {
+                        try {
+                          const { data: apls } = await supabase
+                            .from('aplicaciones_pago')
+                            .select('ingreso_id')
+                            .eq('cargo_id', c.id)
+                            .limit(1)
+                          if (apls && apls.length > 0) {
+                            const { data: ing } = await supabase
+                              .from('ingresos')
+                              .select('*')
+                              .eq('id', apls[0].ingreso_id)
+                              .maybeSingle()
+                            if (ing) { setEditIngreso(ing); return }
+                          }
+                        } catch (e) { console.error('Error cargando ingreso para editar:', e) }
+                        setModalCobro(c)
+                      }}
                       onView={async (c) => {
                         setModalDetallePago(c)
                         setIngresoDetalle(null)
@@ -1220,8 +1237,8 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
                           <Eye size={13} />
                         </button>
                       )}
-                      {onView && (
-                        <button onClick={() => onView(c)} title="Editar ingreso"
+                      {onEdit && (
+                        <button onClick={() => onEdit(c)} title="Editar ingreso"
                           style={{ padding: '5px 7px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, cursor: 'pointer', color: C.dark, display: 'flex', alignItems: 'center' }}>
                           <Pencil size={13} />
                         </button>
