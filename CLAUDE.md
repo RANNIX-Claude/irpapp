@@ -1,11 +1,13 @@
-# CLAUDE.md — Petra
+# CLAUDE.md — IRP
 ## RANNIX Consulting | v1.0.0 | 2026
 
 ---
 
 ## Identidad del Proyecto
 
-**Petra** es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
+**IRP** (Inmobiliaria / Renta de Plazas) es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
+
+**Nota**: Petra es un proyecto separado que surgió como fork de IRP — no es lo mismo que este proyecto.
 
 Desarrollado por **Roberto Aguilar Cota / RANNIX Consulting**.
 
