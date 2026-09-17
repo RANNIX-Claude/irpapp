@@ -453,6 +453,17 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       clasificacion:        clasificacion,
       clasificacion_manual: manual,
     }
+    // Para ediciones: borrar TODAS las aplicaciones previas antes de tocar el
+    // importe del ingreso. El trigger trg_ingreso_no_menor_que_aplicaciones
+    // compara el nuevo importe contra lo ya distribuido, así que si quedan
+    // aplicaciones viejas bloquea el UPDATE aunque la nueva distribución sea
+    // correcta. Secuencia atómica: DELETE all → UPDATE ingresos → INSERT nuevas.
+    if (ingreso) {
+      const { error: delPrevErr } = await supabase.from('aplicaciones_pago')
+        .delete().eq('ingreso_id', ingreso.id)
+      if (delPrevErr) { setSaving(false); setErr('No se pudieron limpiar las aplicaciones anteriores: ' + delPrevErr.message); return }
+    }
+
     let error, data
     if (ingreso) {
       ;({ error } = await supabase.from('ingresos').update(payload).eq('id', ingreso.id))
@@ -462,24 +473,12 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     }
     if (error) { setSaving(false); setErr(error.message); return }
 
-    // La distribución que se guarda REEMPLAZA a la anterior, no se suma a ella.
     const ingresoId = ingreso?.id || data?.id
     const aplicaciones = Object.entries(dist)
       .filter(([, v]) => parseFloat(v) > 0)
       .map(([cargo_id, v]) => ({ cargo_id, ingreso_id: ingresoId, importe_aplicado: parseFloat(v) }))
-    const cargosQueQuedan = new Set(aplicaciones.map(a => a.cargo_id))
-    const cargosABorrar = aplicacionesPrevias.map(a => a.cargo_id).filter(id => !cargosQueQuedan.has(id))
-
-    // Primero se borra y luego se inserta: el guardián de la base compara la
-    // suma contra el importe del depósito en cada sentencia, y al revés la
-    // suma intermedia incluiría las filas viejas y rebotaría el guardado.
-    if (cargosABorrar.length > 0) {
-      const { error: delErr } = await supabase.from('aplicaciones_pago')
-        .delete().eq('ingreso_id', ingresoId).in('cargo_id', cargosABorrar)
-      if (delErr) { setSaving(false); setErr('No se pudieron quitar las aplicaciones anteriores: ' + delErr.message); return }
-    }
     if (aplicaciones.length > 0) {
-      const { error: apErr } = await supabase.from('aplicaciones_pago').upsert(aplicaciones, { onConflict: 'cargo_id,ingreso_id' })
+      const { error: apErr } = await supabase.from('aplicaciones_pago').insert(aplicaciones)
       if (apErr) { setSaving(false); setErr('Ingreso guardado pero error al aplicar cargos: ' + apErr.message); return }
     }
 
