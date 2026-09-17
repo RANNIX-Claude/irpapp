@@ -62,7 +62,7 @@ function SinAcceso({ rol }) {
 }
 
 function AppLayout() {
-  const { user, perfil, loading, sidebarOpen } = useApp()
+  const { user, perfil, loading, sidebarOpen, isMobile } = useApp()
   const location = useLocation()
 
   // Rutas públicas — sin layout admin (portal de prospecto)
@@ -97,7 +97,7 @@ function AppLayout() {
         <Header />
         <Sidebar />
         <main style={{
-          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
           marginTop: 'var(--header-height)',
           minHeight: 'calc(100vh - var(--header-height) - 48px)',
           transition: 'margin-left 0.2s ease',
@@ -120,7 +120,7 @@ function AppLayout() {
         <Header />
         <Sidebar />
         <main style={{
-          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
           marginTop: 'var(--header-height)',
           minHeight: 'calc(100vh - var(--header-height) - 48px)',
           transition: 'margin-left 0.2s ease',
@@ -159,7 +159,7 @@ function AppLayout() {
         <Header />
         <Sidebar />
         <main style={{
-          marginLeft: sidebarOpen ? '220px' : '60px',
+          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
           marginTop: 'var(--header-height)',
           minHeight: 'calc(100vh - var(--header-height) - 48px)',
           transition: 'margin-left 0.2s ease',
@@ -179,7 +179,7 @@ function AppLayout() {
       <Header />
       <Sidebar />
       <main style={{
-        marginLeft: sidebarOpen ? '220px' : '60px',
+        marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
         marginTop: 'var(--header-height)',
         minHeight: 'calc(100vh - var(--header-height) - 48px)',
         transition: 'margin-left 0.2s ease',

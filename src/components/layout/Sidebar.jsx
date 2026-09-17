@@ -114,7 +114,7 @@ const MENUS_POR_ROL = {
 }
 
 export default function Sidebar() {
-  const { sidebarOpen, perfil, user } = useApp()
+  const { sidebarOpen, setSidebarOpen, isMobile, perfil, user } = useApp()
   const location = useLocation()
 
   // Checa perfil de BD y también metadata del JWT como fallback inmediato
@@ -135,10 +135,18 @@ export default function Sidebar() {
         .filter(s => !SECCIONES_OCULTAS_ADMIN.includes(s.label))
         .map(s => ({ ...s, items: s.items.filter(i => !RUTAS_OCULTAS_ADMIN.includes(i.path)) }))
 
+  const sidebarWidth = isMobile ? (sidebarOpen ? '260px' : '0px') : (sidebarOpen ? '220px' : '60px')
+
   return (
+    <>
+      {/* Backdrop en móvil cuando el sidebar está abierto */}
+      {isMobile && sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)}
+          style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:39 }} />
+      )}
     <aside style={{
       position: 'fixed', top: 'var(--header-height)', left: 0, bottom: 0,
-      width: sidebarOpen ? '220px' : '60px',
+      width: sidebarWidth,
       background: 'var(--color-primary-dark)',
       transition: 'width 0.2s ease',
       overflowX: 'hidden', overflowY: 'auto',
@@ -186,7 +194,9 @@ export default function Sidebar() {
               }
 
               return (
-                <NavLink key={path} to={path} end style={{
+                <NavLink key={path} to={path} end
+                  onClick={() => isMobile && setSidebarOpen(false)}
+                  style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '9px 16px', textDecoration: 'none',
                   color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
@@ -205,5 +215,6 @@ export default function Sidebar() {
         ))}
       </nav>
     </aside>
+    </>
   )
 }

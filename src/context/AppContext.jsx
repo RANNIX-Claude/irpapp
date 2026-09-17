@@ -7,7 +7,18 @@ export function AppProvider({ children }) {
   const [user, setUser]         = useState(null)
   const [perfil, setPerfil]     = useState(null)   // { rol_id, nombre, apellido, contrato_id }
   const [loading, setLoading]   = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
+
+  useEffect(() => {
+    const fn = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (mobile) setSidebarOpen(false)
+    }
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
 
   // Carga el perfil + rol desde irp_usuarios; si falla, se cae al rol que trae
   // el propio token.
@@ -52,7 +63,7 @@ export function AppProvider({ children }) {
   }, [])
 
   return (
-    <AppContext.Provider value={{ user, perfil, loading, sidebarOpen, setSidebarOpen }}>
+    <AppContext.Provider value={{ user, perfil, loading, sidebarOpen, setSidebarOpen, isMobile }}>
       {children}
     </AppContext.Provider>
   )
