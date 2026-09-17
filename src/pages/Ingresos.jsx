@@ -69,8 +69,8 @@ const VALIDACION_DEFAULT = 'POR_VALIDAR'
 function IconoCuadre({ d }) {
   if (!d) return (
     <span title="El depósito está repartido por completo"
-      style={{ display:'inline-flex', color:'#A7D9BF' }}>
-      <CheckCircle2 size={14} />
+      style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'10px', background:'#DCFCE7', color:'#057642', fontSize:'10.5px', fontWeight:700 }}>
+      <CheckCircle2 size={12} /> OK
     </span>
   )
   const sobra = d.problema === 'SOBRE_APLICADO'
@@ -1195,20 +1195,24 @@ export default function Ingresos() {
                           })()}
                         </td>
                         {/* Docs: factura + comprobante */}
-                        <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}>
-                          <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                        <td style={{ padding:'8px 12px', whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
                             {r.factura
-                              ? <span title={`Factura: ${r.factura}`} style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:600, color:'#0A66C2', background:'#EFF6FF', padding:'2px 7px', borderRadius:'10px' }}>
+                              ? <span title={`Factura: ${r.factura}`} style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'3px 8px', borderRadius:'10px', border:'1px solid #BFDBFE' }}>
                                   <FileText size={11} /> {r.factura}
                                 </span>
-                              : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin factura"><FileText size={13} /></span>
+                              : <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#9CA3AF', background:'#F9FAFB', padding:'3px 8px', borderRadius:'10px', border:'1px dashed #E5E7EB' }} title="Sin factura">
+                                  <FileText size={11} /> Sin factura
+                                </span>
                             }
                             {r.comprobante_url
-                              ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Ver comprobante"
-                                  style={{ display:'inline-flex', alignItems:'center', color:'#057642', background:'#D1FAE5', padding:'3px 6px', borderRadius:'8px' }}>
-                                  <Paperclip size={12} />
+                              ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Abrir comprobante"
+                                  style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700, color:'#057642', background:'#DCFCE7', padding:'3px 8px', borderRadius:'10px', border:'1px solid #86EFAC', cursor:'pointer' }}>
+                                  <Paperclip size={11} /> Comprobante
                                 </EnlacePrivado>
-                              : <span style={{ fontSize:'11px', color:'#D1D5DB' }} title="Sin comprobante"><Paperclip size={13} /></span>
+                              : <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#9CA3AF', background:'#F9FAFB', padding:'3px 8px', borderRadius:'10px', border:'1px dashed #E5E7EB' }} title="Sin comprobante">
+                                  <Paperclip size={11} /> Sin doc.
+                                </span>
                             }
                           </div>
                         </td>
@@ -1228,12 +1232,20 @@ export default function Ingresos() {
                         </td>
                         <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'180px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                         <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                          <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
-                            style={{ marginRight:'4px', padding:'5px 7px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Eye size={13} /></button>
-                          <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
-                            style={{ marginRight:'4px', padding:'5px 7px', background:'#F3F4F6', color:'#374151', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Pencil size={13} /></button>
-                          <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
-                            style={{ padding:'5px 7px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}><Trash2 size={13} /></button>
+                          <div style={{ display:'flex', gap:'4px', alignItems:'center' }}>
+                            <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
+                              style={{ padding:'5px 10px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'12px', fontWeight:700 }}>
+                              <Eye size={13} /> Ver
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
+                              style={{ padding:'5px 10px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'12px', fontWeight:700 }}>
+                              <Pencil size={13} /> Editar
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
+                              style={{ padding:'5px 8px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
