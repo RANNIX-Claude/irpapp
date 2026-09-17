@@ -2,7 +2,8 @@ import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
-  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, CalendarPlus
+  Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, CalendarPlus,
+  Eye, Paperclip
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -503,7 +504,7 @@ function AplicarIngresoModal({ ingreso, onClose, onSaved }) {
 }
 
 // ── Fila de cargo en tabla Cartera ───────────────────────────────────────────
-function CargoRow({ c }) {
+function CargoRow({ c, onVer }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
   const vencida = c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy
   const pct = c.importe > 0 ? Math.min(100, (parseFloat(c.total_aplicado) / parseFloat(c.importe)) * 100) : 0
@@ -517,7 +518,11 @@ function CargoRow({ c }) {
         {c.generado_auto && <span style={{ marginLeft: '4px', fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>AUTO</span>}
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</span>
+          <Paperclip size={12} title={c.tiene_comprobante ? 'Tiene comprobante adjunto' : 'Sin comprobante'}
+            style={{ color: c.tiene_comprobante ? '#057642' : '#D1D5DB', flexShrink: 0 }} />
+        </div>
         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
       </td>
       <td style={{ padding: '12px 16px' }}>
@@ -544,6 +549,12 @@ function CargoRow({ c }) {
       </td>
       <td style={{ padding: '12px 16px' }}>
         <EstadoBadge estado={c.estado} />
+      </td>
+      <td style={{ padding: '8px 12px' }}>
+        <button onClick={() => onVer(c)} title="Ver detalle del cargo"
+          style={{ padding: '5px 7px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <Eye size={13} />
+        </button>
       </td>
     </tr>
   )
@@ -602,6 +613,19 @@ export default function Cobranza() {
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
+  const [verCargo, setVerCargo] = useState(null)
+  const [aplicsCargo, setAplicsCargo] = useState([])
+  const [loadingAplics, setLoadingAplics] = useState(false)
+
+  useEffect(() => {
+    if (!verCargo) { setAplicsCargo([]); return }
+    setLoadingAplics(true)
+    supabase.from('aplicaciones_pago')
+      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url)')
+      .eq('cargo_id', verCargo.id)
+      .order('fecha_aplicacion', { ascending: true })
+      .then(({ data }) => { setAplicsCargo(data || []); setLoadingAplics(false) })
+  }, [verCargo])
 
   const onSaved = () => {
     setRefreshKey(k => k + 1)
@@ -815,13 +839,13 @@ export default function Cobranza() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
-                        {['Concepto','Descripción','Arrendatario','Cargo','Aplicado','Saldo','Vencimiento','Estado'].map((h, i) => (
-                          <th key={h} style={{ padding: '11px 16px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{h}</th>
+                        {['Concepto','Descripción','Arrendatario','Cargo','Aplicado','Saldo','Vencimiento','Estado',''].map((h, i) => (
+                          <th key={h || 'acc'} style={{ padding: '11px 16px', textAlign: i >= 3 && i <= 5 ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {carteraFiltrada.map(c => <CargoRow key={c.id} c={c} />)}
+                      {carteraFiltrada.map(c => <CargoRow key={c.id} c={c} onVer={setVerCargo} />)}
                     </tbody>
                   </table>
                 </div>
@@ -865,6 +889,62 @@ export default function Cobranza() {
 
       {modalCargo && (
         <NuevoCargoModal onClose={() => setModalCargo(false)} onSaved={onSaved} />
+      )}
+
+      {/* Modal detalle de cargo */}
+      {verCargo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setVerCargo(null)}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '520px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>
+                  {verCargo.descripcion || `${verCargo.concepto} ${MES_NOMBRES[verCargo.periodo_mes] || ''} ${verCargo.periodo_anio || ''}`}
+                </h2>
+                <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>{verCargo.contrato_folio} · {verCargo.arrendatario_nombre}</div>
+              </div>
+              <button onClick={() => setVerCargo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Cargo', val: fmt(verCargo.importe) },
+                { label: 'Aplicado', val: fmt(verCargo.total_aplicado), color: 'var(--color-success)' },
+                { label: 'Saldo', val: fmt(verCargo.saldo), color: parseFloat(verCargo.saldo) > 0 ? 'var(--color-danger)' : '#9CA3AF' },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: color || '#111827' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>Pagos aplicados</div>
+            {loadingAplics
+              ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Cargando…</div>
+              : aplicsCargo.length === 0
+              ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Sin pagos aplicados a este cargo</div>
+              : aplicsCargo.map(ap => (
+                <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '6px' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmt(ap.importe_aplicado)}</div>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                      {ap.ingreso?.fecha} · {ap.ingreso?.forma_pago || ''}
+                      {ap.ingreso?.referencia_banco ? ` · ${ap.ingreso.referencia_banco}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {ap.ingreso?.comprobante_url
+                      ? <Paperclip size={13} title="Tiene comprobante" style={{ color: '#057642' }} />
+                      : <Paperclip size={13} style={{ color: '#D1D5DB' }} />
+                    }
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
       )}
     </div>
   )

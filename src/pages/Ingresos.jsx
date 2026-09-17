@@ -923,12 +923,23 @@ export default function Ingresos() {
   const operacion = useOperacion()
   const contratos = dataContratos ?? []
 
-  const periodoYYYYMM = `${filtroAnio}-${String(filtroMes).padStart(2, '0')}`
-  const periodoIdx = filtroAnio * 12 + filtroMes
+  const periodoYYYYMM = filtroAnio && filtroMes ? `${filtroAnio}-${String(filtroMes).padStart(2, '0')}` : null
+  const periodoIdx = filtroAnio && filtroMes ? filtroAnio * 12 + filtroMes : null
 
-  const enPeriodo = r => filtroModo === 'fecha_pago'
-    ? mesDeFechaPago(r) === periodoYYYYMM
-    : r.mes === filtroMes && r.anio === filtroAnio
+  const enPeriodo = r => {
+    if (!filtroAnio && !filtroMes) return true
+    if (filtroModo === 'fecha_pago') {
+      const fp = mesDeFechaPago(r)
+      if (!fp) return false
+      if (!filtroAnio) return fp.substring(5, 7) === String(filtroMes).padStart(2, '0')
+      if (!filtroMes) return fp.startsWith(`${filtroAnio}-`)
+      return fp === periodoYYYYMM
+    } else {
+      if (!filtroAnio) return r.mes === filtroMes
+      if (!filtroMes) return r.anio === filtroAnio
+      return r.mes === filtroMes && r.anio === filtroAnio
+    }
+  }
 
   const filtrados = useMemo(() => {
     const q = search.toLowerCase()
@@ -999,9 +1010,9 @@ export default function Ingresos() {
 
   // Recibido vs. correspondido: `fecha` es cuándo se pagó, `mes`/`anio` a qué renta
   // corresponde. Siempre se parte de la fecha de pago, aunque el toggle esté en período.
-  const rentasRecibidas = lista.filter(r => r.tipo === 'RENTA' && r.importe != null && mesDeFechaPago(r) === periodoYYYYMM)
-  const rentaDelMesEnTurno = rentasRecibidas.filter(r => r.anio * 12 + r.mes === periodoIdx)
-  const rentaDeMesesAnteriores = rentasRecibidas.filter(r => r.anio * 12 + r.mes < periodoIdx)
+  const rentasRecibidas = periodoYYYYMM ? lista.filter(r => r.tipo === 'RENTA' && r.importe != null && mesDeFechaPago(r) === periodoYYYYMM) : []
+  const rentaDelMesEnTurno = periodoIdx ? rentasRecibidas.filter(r => r.anio * 12 + r.mes === periodoIdx) : rentasRecibidas
+  const rentaDeMesesAnteriores = periodoIdx ? rentasRecibidas.filter(r => r.anio * 12 + r.mes < periodoIdx) : []
 
   const eliminar = async (r) => {
     const { error } = await supabase.from('ingresos').delete().eq('id', r.id)
@@ -1020,7 +1031,7 @@ export default function Ingresos() {
         <div>
           <h1 style={{ fontSize:'22px', fontWeight:700, margin:'0 0 4px' }}>Ingresos</h1>
           <p style={{ fontSize:'13px', color:'var(--color-text-light)', margin:0 }}>
-            {filtroModo === 'fecha_pago' ? 'Fecha de pago' : 'Período de renta'}: {MESES[filtroMes]} {filtroAnio} · {filtrados.filter(r => r.es_principal).length} contratos con pago
+            {filtroModo === 'fecha_pago' ? 'Fecha de pago' : 'Período de renta'}: {filtroMes ? MESES[filtroMes] : 'Todos los meses'} {filtroAnio || 'todos los años'} · {filtrados.filter(r => r.es_principal).length} contratos con pago
           </p>
         </div>
         <button onClick={() => setModalData('nuevo')} style={{
@@ -1083,10 +1094,12 @@ export default function Ingresos() {
         {/* Mes/Año */}
         <select value={filtroMes} onChange={e => setFiltroMes(parseInt(e.target.value))}
           style={{ padding:'8px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'13px' }}>
+          <option value={0}>Todos los meses</option>
           {MESES.slice(1).map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
         </select>
         <select value={filtroAnio} onChange={e => setFiltroAnio(parseInt(e.target.value))}
           style={{ padding:'8px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'13px' }}>
+          <option value={0}>Todos los años</option>
           {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
@@ -1148,7 +1161,7 @@ export default function Ingresos() {
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
                         <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>
-                          <span style={{ fontWeight:600, color: r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
+                          <span style={{ fontWeight:600, color: filtroMes && filtroAnio && r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
                             {MESES[r.mes]}/{r.anio}
                           </span>
                         </td>
@@ -1227,7 +1240,7 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {MESES[filtroMes].toUpperCase()} {filtroAnio}</td>
+                      <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'13px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
