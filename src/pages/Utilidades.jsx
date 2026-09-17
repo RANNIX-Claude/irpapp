@@ -562,7 +562,7 @@ function HerramientasPanel() {
 
   // Cargos
   const [hastaFecha, setHastaFecha] = useState('2026-09-30')
-  const [respetarFechaFin, setRespetarFechaFin] = useState(true)
+  const [respetarFechaFin, setRespetarFechaFin] = useState(false)
   const [preview, setPreview] = useState(null)
   const [generando, setGenerando] = useState(false)
   const [progresoCargos, setProgresoCargos] = useState(null)
