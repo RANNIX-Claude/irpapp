@@ -5,6 +5,7 @@ import {
   Calendar, Hash, Upload, ChevronRight, Printer, Shield, AlertTriangle,
   CheckCircle, Clock, Download, MapPin, Plus, X, Save,
   Eye, Pencil, ZoomIn, ExternalLink, Paperclip,
+  ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 import { useModuleAudit } from '../hooks/useAudit'
@@ -636,51 +637,6 @@ export default function ExpedienteContrato() {
           {tab === 'pagos' && (
             <Card>
               <Section title={`Historial de pagos (${cobros.length})`} icon={CreditCard}>
-                {cobros.length > 0 && (
-                  <div style={{ background: C.light, borderRadius: 10, padding: 16, marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 12 }}>Marcar como Pagados en Lote</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, alignItems: 'flex-end' }}>
-                      <div>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Modo</label>
-                        <select value={bulkMode} onChange={e => setBulkMode(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
-                          <option value="todos">Todos los cobros de este contrato</option>
-                          <option value="rango">Por rango de meses</option>
-                        </select>
-                      </div>
-
-                      {bulkMode === 'rango' && (
-                        <>
-                          <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Mes Inicio</label>
-                            <select value={bulkMesInicio} onChange={e => setBulkMesInicio(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
-                              {MESES.map((m, i) => i > 0 && <option key={i} value={i}>{m}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Mes Fin</label>
-                            <select value={bulkMesFin} onChange={e => setBulkMesFin(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }}>
-                              {MESES.map((m, i) => i > 0 && <option key={i} value={i}>{m}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>Año</label>
-                            <input type="number" value={bulkAnio} onChange={e => setBulkAnio(parseInt(e.target.value))} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface }} />
-                          </div>
-                        </>
-                      )}
-
-                      <button onClick={() => setConfirmBulk({
-                        mode: bulkMode,
-                        mesInicio: bulkMesInicio,
-                        mesFin: bulkMesFin,
-                        anio: bulkAnio
-                      })} style={{ padding: '8px 16px', background: C.warning, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                        ⚙ Marcar como Pagados
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {cobros.length === 0
                   ? <Empty msg="Sin cobros registrados para este contrato" />
                   : <TablaPagos
@@ -1134,48 +1090,56 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
   })
 
   filtered.sort((a, b) => {
-    const aV = sortCol === 'anio_mes' ? a.anio * 100 + a.mes
-             : sortCol === 'monto'    ? a.monto_total
-             : sortCol === 'cobrado'  ? (a.monto_pagado || 0)
-             : (a.referencia_pago || '').toLowerCase()
-    const bV = sortCol === 'anio_mes' ? b.anio * 100 + b.mes
-             : sortCol === 'monto'    ? b.monto_total
-             : sortCol === 'cobrado'  ? (b.monto_pagado || 0)
-             : (b.referencia_pago || '').toLowerCase()
+    const val = r => sortCol === 'anio_mes'   ? r.anio * 100 + r.mes
+                   : sortCol === 'monto'      ? (r.monto_total || 0)
+                   : sortCol === 'cobrado'    ? (r.monto_pagado || 0)
+                   : sortCol === 'validacion' ? (r.estatus_validacion || '').toLowerCase()
+                   : sortCol === 'estado'     ? (r.estatus || '').toLowerCase()
+                   : (r.referencia_pago || '').toLowerCase()
+    const aV = val(a), bV = val(b)
     return sortDir === 'asc' ? (aV < bV ? -1 : aV > bV ? 1 : 0) : (aV > bV ? -1 : aV < bV ? 1 : 0)
   })
 
   const pendientes = rows.filter(r => r.estatus !== 'PAGADO')
-  const thBtn = col => ({
+  const thStyle = (col) => ({
     padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700,
-    color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px',
-    cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+    color: sortCol === col ? C.primary : C.muted,
+    textTransform: 'uppercase', letterSpacing: '.5px',
+    cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap',
     borderBottom: `2px solid ${C.border}`, background: C.light,
   })
-  const arrow = col => sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+  const SortIcon = ({ col }) => {
+    if (!col) return null
+    if (sortCol !== col) return <ChevronsUpDown size={10} style={{ color: '#D1D5DB', marginLeft: 3 }} />
+    return sortDir === 'asc'
+      ? <ChevronUp size={11} style={{ color: C.primary, marginLeft: 3 }} />
+      : <ChevronDown size={11} style={{ color: C.primary, marginLeft: 3 }} />
+  }
 
   return (
     <div>
-      {pendientes.length > 0 && onMarkAllAsPaid && (
-        <div style={{ marginBottom: 12 }}>
-          <button onClick={() => onMarkAllAsPaid()}
-            style={{ padding: '7px 14px', background: C.success, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
-            ✓ Marcar todos como Pagado
-          </button>
-        </div>
-      )}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: `1px solid ${C.border}` }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr>
-              <th style={thBtn('anio_mes')} onClick={() => toggleSort('anio_mes')}>Período{arrow('anio_mes')}</th>
-              <th style={thBtn('ref')}      onClick={() => toggleSort('ref')}>Clasificación{arrow('ref')}</th>
-              <th style={{ ...thBtn(), cursor: 'default', textAlign: 'center' }} title="Comprobante adjunto"><Paperclip size={13} /></th>
-              <th style={thBtn('monto')}   onClick={() => toggleSort('monto')}>Esperado{arrow('monto')}</th>
-              <th style={thBtn('cobrado')} onClick={() => toggleSort('cobrado')}>Cobrado{arrow('cobrado')}</th>
-              <th style={{ ...thBtn(), cursor: 'default' }}>Validación</th>
-              <th style={{ ...thBtn(), cursor: 'default' }}>Estado</th>
-              <th style={{ ...thBtn(), cursor: 'default' }}></th>
+              {[
+                { label: 'Período',       col: 'anio_mes' },
+                { label: 'Clasificación', col: 'ref' },
+                { label: null,            col: null, icon: true },
+                { label: 'Esperado',      col: 'monto' },
+                { label: 'Cobrado',       col: 'cobrado' },
+                { label: 'Validación',    col: 'validacion' },
+                { label: 'Estado',        col: 'estado' },
+                { label: '',              col: null },
+              ].map((h, i) => (
+                <th key={i} style={thStyle(h.col)} onClick={() => h.col && toggleSort(h.col)}>
+                  {h.icon
+                    ? <Paperclip size={13} title="Comprobante adjunto" />
+                    : <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        {h.label}<SortIcon col={h.col} />
+                      </span>}
+                </th>
+              ))}
             </tr>
             {/* Filtros */}
             <tr style={{ background: '#F9FAFB' }}>
