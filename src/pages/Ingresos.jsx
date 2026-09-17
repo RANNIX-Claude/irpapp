@@ -1148,10 +1148,11 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Cuadre','Validación','Esperado','Cobrado','Nota'].map(h => (
+                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Cuadre','Validación','Esperado','Cobrado'].map(h => (
                         <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                       <th style={{ padding:'10px 14px' }} />
+                      <th style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', letterSpacing:'0.04em' }}>Nota</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1230,7 +1231,6 @@ export default function Ingresos() {
                         <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, fontSize:'13px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
                           {fmt(r.importe)}
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'180px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                         <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
                           <div style={{ display:'flex', gap:'4px', alignItems:'center' }}>
                             <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
@@ -1247,6 +1247,7 @@ export default function Ingresos() {
                             </button>
                           </div>
                         </td>
+                        <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1257,7 +1258,7 @@ export default function Ingresos() {
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
-                      <td /><td />
+                      <td /><td /><td />
                     </tr>
                   </tfoot>
                 </table>
