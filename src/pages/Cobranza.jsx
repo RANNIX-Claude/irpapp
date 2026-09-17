@@ -688,7 +688,12 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
       </td>
       <td style={{ padding: '12px 16px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600 }}>{c.arrendatario_nombre}</div>
-        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.locales_display || c.locales_referencia}</div>
+        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
+      </td>
+      <td style={{ padding: '12px 16px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+          {c.locales_display || c.locales_referencia || '—'}
+        </span>
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
         <div style={{ fontWeight: 700 }}>{fmt(c.importe)}</div>
@@ -700,9 +705,6 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
             <div style={{ height: '100%', width: `${pct}%`, background: '#7C3AED', borderRadius: '4px' }} />
           </div>
         )}
-      </td>
-      <td style={{ padding: '12px 16px', textAlign: 'right', color: parseFloat(c.saldo) > 0 ? 'var(--color-danger)' : '#9CA3AF', fontWeight: parseFloat(c.saldo) > 0 ? 700 : 400 }}>
-        {fmt(c.saldo)}
       </td>
       <td style={{ padding: '12px 16px', fontSize: '12px', color: vencida ? 'var(--color-danger)' : '#6B7280', fontWeight: vencida ? 700 : 400 }}>
         {c.fecha_vencimiento}
@@ -904,9 +906,9 @@ export default function Cobranza() {
     { label: 'Concepto',     field: 'concepto',           align: 'left',  num: false },
     { label: 'Descripción',  field: 'descripcion',        align: 'left',  num: false },
     { label: 'Arrendatario', field: 'arrendatario_nombre',align: 'left',  num: false },
+    { label: 'Local',        field: 'locales_display',    align: 'left',  num: false },
     { label: 'Cargo',        field: 'importe',            align: 'right', num: true  },
     { label: 'Aplicado',     field: 'total_aplicado',     align: 'right', num: true  },
-    { label: 'Saldo',        field: 'saldo',              align: 'right', num: true  },
     { label: 'Vencimiento',  field: 'fecha_vencimiento',  align: 'left',  num: false },
     { label: 'Estado',       field: 'estado',             align: 'left',  num: false },
     { label: 'Acciones',     field: null,                 align: 'left',  num: false },
