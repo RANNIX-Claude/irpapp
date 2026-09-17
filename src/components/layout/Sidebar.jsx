@@ -5,7 +5,7 @@ import {
   BarChart3, Settings,
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  ClipboardCheck, Calculator,
+  ClipboardCheck, Calculator, Sun,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -13,7 +13,8 @@ const NAV_SECTIONS = [
   {
     label: null,
     items: [
-      { label: 'Dashboard', path: '/edr', icon: LayoutDashboard },
+      { label: 'Foto del Día', path: '/foto-del-dia', icon: Sun },
+      { label: 'Dashboard',    path: '/edr',          icon: LayoutDashboard },
     ]
   },
   {

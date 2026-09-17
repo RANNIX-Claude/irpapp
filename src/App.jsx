@@ -37,6 +37,7 @@ import Calculos from './pages/Calculos.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
 import MapaLocales from './pages/MapaLocales.jsx'
 import Ingresos from './pages/Ingresos.jsx'
+import FotoDelDia from './pages/FotoDelDia.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import './styles/theme.css'
@@ -185,6 +186,7 @@ function AppLayout() {
       }}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/foto-del-dia" element={<FotoDelDia />} />
           <Route path="/inmuebles" element={<Inmuebles />} />
           <Route path="/contratos" element={<Contratos />} />
           <Route path="/contratos/:id" element={<ExpedienteContrato />} />
