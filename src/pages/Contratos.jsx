@@ -345,6 +345,13 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [localesSel, setLocalesSel] = useState([])
   const pdfRef = useRef()
 
+  // Reset edit state when switching between contracts to avoid stale form data
+  useEffect(() => {
+    setEditMode(false)
+    setEditForm({})
+    setEditErr(null)
+  }, [c?.id])
+
   // Renovar: solo si NO tiene ya renovación en proceso, y vence en ≤30d o ya expiró
   const puedeRenovar = c
     && !['CANCELADO', 'RESCISION'].includes(c.estado_id)
