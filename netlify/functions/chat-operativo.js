@@ -12,6 +12,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const ws = require('ws')
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const ANON_KEY     = process.env.VITE_SUPABASE_ANON_KEY
@@ -152,8 +153,10 @@ exports.handler = async (event) => {
     // Sesión del usuario: sin JWT no hay datos (pero sí conversación general).
     const auth = event.headers.authorization || event.headers.Authorization || ''
     const jwt = auth.startsWith('Bearer ') ? auth.slice(7) : null
+    // realtime.transport: sin esto, supabase-js truena al crear el cliente en el
+    // runtime de Netlify Functions (Node 20 sin WebSocket nativo expuesto).
     const db = (jwt && ANON_KEY)
-      ? createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false } })
+      ? createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false }, realtime: { transport: ws } })
       : null
 
     const hoy = new Date().toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', year: 'numeric', month: 'long', day: 'numeric' })

@@ -35,5 +35,9 @@ Al resolver: marcar `[x]` y agregar fecha, no borrar la línea (sirve de histori
 - [ ] #006 Borrar bucket huérfano `comprobantes-pago` (existe sin políticas RLS, sin uso en código desde que se quitó el portal de arrendatario el 2026-09-13) — pedir confirmación antes de borrar
 - [ ] #007 Documentar en `CLAUDE.md` qué bucket usa subida directa del navegador (`supabase.storage.from().upload()`) vs. cuál pasa por `subir-comprobante.js` (service_role) — hoy no hay una regla única y genera confusión al diagnosticar
 - [ ] #008 Limpiar políticas RLS duplicadas en `storage.objects` (mismo bucket con dos políticas casi idénticas, nombradas con convención distinta — ej. `auth-insert-facturas-cfdi` y `auth_insert_facturas_cfdi`) — no rompe nada pero ensucia auditorías futuras
+- [x] #009 Causa raíz real del 502 en `subir-comprobante.js`: `createClient()` de supabase-js truena al crear el cliente en Node 20 de Netlify Functions ("Node.js 20 detected without native WebSocket support") — fix: pasar `realtime: { transport: ws }` (paquete `ws`, movido de devDependencies a dependencies) — 2026-09-17
+- [ ] #010 Mismo patrón vulnerable (`createClient()` sin `transport: ws`) en `generar-sanciones.js` y `chat-operativo.js` — probablemente truenan igual, sin try/catch que lo capture. Aplicar el mismo fix de 2 líneas en ambas.
+- [x] #011 Fuga de datos entre inquilinos en producción: vista `prp_cartera` sin `security_invoker=true` — un locatario veía los 308 cargos de todos los contratos en vez de solo los 25 suyos. Corregido en prod y verificado (76/76 en `verificar-post-migracion.mjs`) — 2026-09-18
+- [ ] #012 Agregar como paso 6 obligatorio en `CLAUDE.md` ("Cómo reconstruir QA desde cero"): correr `verificar-post-migracion.mjs` contra el ambiente nuevo y exigir 0 fallas antes de darlo por listo — aplica también a Petra y cualquier ambiente futuro
 
 ## General / Config

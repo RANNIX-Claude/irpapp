@@ -12,6 +12,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const ws = require('ws')
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -79,7 +80,13 @@ exports.handler = async (event) => {
     const jwt = (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer\s+/i, '')
     if (!jwt) return responder(401, { error: 'No autorizado' })
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    // realtime.transport: sin esto, supabase-js truena al crear el cliente en el
+    // runtime de Netlify Functions (Node 20 sin WebSocket nativo expuesto) — esta
+    // función no usa Realtime para nada, pero el SDK lo inicializa igual.
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { persistSession: false },
+      realtime: { transport: ws },
+    })
     const { data: { user }, error: authErr } = await admin.auth.getUser(jwt)
     if (authErr || !user) return responder(401, { error: 'Sesión inválida' })
 

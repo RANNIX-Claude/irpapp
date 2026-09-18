@@ -3,16 +3,22 @@
 // Schedule: "55 5 * * *" (UTC equivale a 23:55 CST)
 
 const { createClient } = require('@supabase/supabase-js')
+const ws = require('ws')
 
 const schedule = "55 5 * * *"
 
 exports.handler = async (event) => {
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-
   try {
+    // realtime.transport: sin esto, supabase-js truena al crear el cliente en el
+    // runtime de Netlify Functions (Node 20 sin WebSocket nativo expuesto). Antes
+    // el createClient() estaba fuera del try/catch, así que ese crash tumbaba la
+    // función entera sin dejar rastro en los logs.
+    const supabase = createClient(
+      process.env.VITE_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { realtime: { transport: ws } }
+    )
+
     const { data, error } = await supabase.rpc('fn_generar_sanciones', {
       p_pct_default: 0.10
     })
