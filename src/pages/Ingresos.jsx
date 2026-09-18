@@ -19,6 +19,7 @@ import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
+import { useOrdenFiltro, ThOrdenable, LimpiarTabla } from '../components/ui/EncabezadoOrdenable'
 import NuevoCargoModal from '../components/ui/NuevoCargoModal'
 import { useApp } from '../context/AppContext'
 
@@ -188,6 +189,33 @@ const ACCION_VISOR = {
 
 function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('es-MX', { minimumFractionDigits: 0 }) : '—' }
 function fmtK(n) { return '$' + ((n || 0) / 1000).toFixed(1) + 'K' }
+
+// ── Columnas de la tabla: orden y filtro tipo Excel ─────────────────────────
+// `valor` es lo que se lista en el filtro; `orden` es la llave de ordenamiento.
+const docsDe = r => r.factura && r.comprobante_url ? 'Factura y comprobante'
+  : r.factura ? 'Solo factura' : r.comprobante_url ? 'Solo comprobante' : 'Sin documentos'
+const cuadreDe = (r, ctx) => {
+  const d = ctx.descuadres[r.id]
+  return !d ? 'OK' : d.problema === 'SOBRE_APLICADO' ? 'Aplicado de más' : 'Falta aplicar'
+}
+const contratoDe = r => [
+  r.locales_display && r.locales_display !== '—' ? r.locales_display : null,
+  r.arrendatario_nombre || r.propietario,
+].filter(Boolean).join(' · ') || 'Sin contrato'
+const validacionDe = r => (VALIDACION[r.estatus_validacion] || VALIDACION[VALIDACION_DEFAULT]).label
+const numeroONulo = v => (v != null && v !== '' ? parseFloat(v) : null)
+
+const COLUMNAS_INGRESOS = [
+  { key: 'fecha',      label: 'Fecha pago',    valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
+  { key: 'periodo',    label: 'Período',       valor: r => (r.mes ? `${MESES[r.mes]}/${r.anio}` : '—'), orden: r => (r.mes ? r.anio * 12 + r.mes : null) },
+  { key: 'contrato',   label: 'Contrato',      valor: contratoDe, orden: contratoDe },
+  { key: 'clasif',     label: 'Clasificación', valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
+  { key: 'docs',       label: 'Docs',          valor: docsDe, orden: docsDe },
+  { key: 'cuadre',     label: 'Cuadre',        valor: cuadreDe, orden: cuadreDe, align: 'center' },
+  { key: 'validacion', label: 'Validación',    valor: validacionDe, orden: validacionDe },
+  { key: 'esperado',   label: 'Esperado',      valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
+  { key: 'cobrado',    label: 'Cobrado',       valor: r => fmt(r.importe), orden: r => numeroONulo(r.importe), align: 'right' },
+]
 
 // `fecha` llega como ISO; se compara por texto para no depender de la zona horaria
 // del navegador, que es lo que ya se usa al pintarla en la tabla.
@@ -961,7 +989,9 @@ export default function Ingresos() {
     }
   }
 
-  const filtrados = useMemo(() => {
+  // Filtros de los botones y del buscador, con el orden por local por defecto.
+  // Sobre esto se aplican después el orden y los filtros de columna.
+  const baseFiltrados = useMemo(() => {
     const q = search.toLowerCase()
     return lista
       .filter(r => {
@@ -987,6 +1017,13 @@ export default function Ingresos() {
         return (a.fecha || '').localeCompare(b.fecha || '')
       })
   }, [lista, search, filtroTipo, filtroValidacion, filtroAnexo, filtroMes, filtroAnio, filtroModo])
+
+  const tabla = useOrdenFiltro(COLUMNAS_INGRESOS)
+  const ctxTabla = useMemo(() => ({ descuadres }), [descuadres])
+  const filtrados = useMemo(
+    () => tabla.aplicar(baseFiltrados, ctxTabla),
+    [tabla.aplicar, baseFiltrados, ctxTabla], // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   // Cuántos ingresos hay en cada estatus con el resto de filtros ya puestos: la
   // cuenta va en la etiqueta de la opción, para ver que faltan 12 por validar
@@ -1171,27 +1208,37 @@ export default function Ingresos() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por local, propietario, factura..."
             style={{ width:'100%', padding:'8px 10px 8px 32px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'13px', boxSizing:'border-box' }} />
         </div>
+
+        <LimpiarTabla tabla={tabla} />
       </div>
 
       {/* Tabla */}
       <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
         {loading
           ? <div style={{ display:'flex', justifyContent:'center', padding:'60px' }}><LoadingSpinner /></div>
-          : filtrados.length === 0
+          : baseFiltrados.length === 0
             ? <EmptyState title="Sin ingresos" subtitle="Registra el primer ingreso del período" />
             : (
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Fecha pago','Período','Contrato','Clasificación','Docs','Cuadre','Validación','Esperado','Cobrado'].map(h => (
-                        <th key={h} style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textAlign: (h === 'Esperado' || h === 'Cobrado') ? 'right' : 'left', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
+                      {COLUMNAS_INGRESOS.map(col => (
+                        <ThOrdenable key={col.key} col={col} tabla={tabla} filasBase={baseFiltrados} ctx={ctxTabla} />
                       ))}
                       <th style={{ padding:'10px 14px' }} />
                       <th style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', letterSpacing:'0.04em' }}>Nota</th>
                     </tr>
                   </thead>
                   <tbody>
+                    {filtrados.length === 0 && (
+                      <tr>
+                        <td colSpan={11} style={{ padding:'32px', textAlign:'center', fontSize:'13px', color:'#6B7280' }}>
+                          Ningún ingreso coincide con los filtros de columna.{' '}
+                          <button onClick={tabla.limpiar} style={{ border:'none', background:'transparent', color:'#0A66C2', fontWeight:700, cursor:'pointer', fontSize:'13px' }}>Limpiar</button>
+                        </td>
+                      </tr>
+                    )}
                     {filtrados.map(r => (
                       <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
