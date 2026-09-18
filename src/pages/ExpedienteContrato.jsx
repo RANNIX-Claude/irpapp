@@ -36,7 +36,33 @@ const TABS = [
   { id: 'documentos', label: 'Documentos', icon: Shield },
 ]
 
-// Documentos que se piden en el expediente del arrendatario.
+// Documentos requeridos del acreditado (mismo catálogo que ElaborarContratoModal)
+const CAMPOS_DOC_FISICA = [
+  { key: 'ine',                   label: 'INE / Pasaporte / Cédula Profesional',              req: true },
+  { key: 'comprobante_domicilio', label: 'Comprobante de domicilio (≤3 meses)',                req: true },
+  { key: 'comprobante_ingresos_1',label: 'Comprobante de ingresos — mes 1',                    req: true },
+  { key: 'comprobante_ingresos_2',label: 'Comprobante de ingresos — mes 2',                    req: true },
+  { key: 'comprobante_ingresos_3',label: 'Comprobante de ingresos — mes 3',                    req: true },
+  { key: 'curp',                  label: 'CURP',                                                req: false },
+  { key: 'acta_nacimiento',       label: 'Acta de nacimiento',                                  req: false },
+]
+const CAMPOS_DOC_MORAL = [
+  { key: 'acta_constitutiva',     label: 'Acta Constitutiva / Instrumento Notarial',           req: true },
+  { key: 'poder_rep',             label: 'Poder notarial del representante legal',              req: true },
+  { key: 'ine_rep',               label: 'INE del representante legal',                         req: true },
+  { key: 'cif',                   label: 'Constancia de Situación Fiscal / RFC',                req: true },
+  { key: 'comprobante_domicilio', label: 'Comprobante de domicilio fiscal (≤3 meses)',         req: true },
+  { key: 'estado_cuenta_1',       label: 'Estado de cuenta bancario — mes 1',                  req: true },
+  { key: 'estado_cuenta_2',       label: 'Estado de cuenta bancario — mes 2',                  req: true },
+  { key: 'estado_cuenta_3',       label: 'Estado de cuenta bancario — mes 3',                  req: true },
+]
+const CAMPOS_FIADOR = [
+  { key: 'fiador_ine',            label: 'INE / Identificación oficial',                       req: true },
+  { key: 'fiador_domicilio_doc',  label: 'Comprobante de domicilio (≤3 meses)',                req: true },
+  { key: 'fiador_ingresos',       label: 'Comprobante de ingresos / estado de cuenta',         req: false },
+  { key: 'fiador_escrituras',     label: 'Escrituras / garantía inmobiliaria',                  req: false },
+]
+// Legado — docs subidos vía ExpedienteModal a tabla `documentos`
 const DOCS_REQUERIDOS = [
   ['INE_FRENTE', 'INE (frente)'],
   ['INE_REVERSO', 'INE (reverso)'],
@@ -312,6 +338,7 @@ export default function ExpedienteContrato() {
   const [tab, setTab] = useState('resumen')
   const [cobros, setCobros] = useState([])
   const [docs, setDocs] = useState([])
+  const [docsStorage, setDocsStorage] = useState({})
   const [logoUrl, setLogoUrl] = useState(null)
   const [modalCobro, setModalCobro] = useState(null)
   const [modalDetallePago, setModalDetallePago] = useState(null)
@@ -409,6 +436,19 @@ export default function ExpedienteContrato() {
       estatus_validacion: validacionMap[r.id] || null,
     })))
     setDocs(docsR.data ?? [])
+
+    // Lista archivos subidos en el wizard de contrato (contratos-firmados)
+    const { data: stFiles } = await supabase.storage
+      .from('contratos-firmados').list(`contratos/${id}/docs`)
+    if (stFiles && stFiles.length > 0) {
+      const urls = {}
+      await Promise.all(stFiles.map(async f => {
+        const key = f.name.replace(/\.[^.]+$/, '')
+        urls[key] = await urlFirmada('contratos-firmados', `contratos/${id}/docs/${f.name}`)
+      }))
+      setDocsStorage(urls)
+    }
+
     setLogoUrl(conR.data?.logo_url ?? arrR.data?.logo_url ?? null)
     setLoading(false)
   }, [id])
@@ -739,51 +779,99 @@ export default function ExpedienteContrato() {
             </Card>
           )}
 
-          {tab === 'documentos' && (
-            <Card>
-              <Section title="Documentos del expediente" icon={Shield}>
-                <div style={{ background: C.light, borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
-                    Documentos requeridos ({docsOk}/{DOCS_REQUERIDOS.length})
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6 }}>
-                    {DOCS_REQUERIDOS.map(([tipo, label]) => {
-                      const tiene = docs.some(d => d.tipo_doc === tipo)
-                      return (
-                        <div key={tipo} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                          <div style={{ width: 16, height: 16, borderRadius: '50%', background: tiene ? C.success : C.border, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {tiene && <CheckCircle size={10} color="#fff" />}
-                          </div>
-                          <span style={{ color: tiene ? C.text : C.muted }}>{label}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+          {tab === 'documentos' && (() => {
+            const camposAcreditado = exp?.tipo_persona === 'MORAL' ? CAMPOS_DOC_MORAL : CAMPOS_DOC_FISICA
+            const acreditadoItems = camposAcreditado.map(c => ({ ...c, url: docsStorage[c.key] || null }))
+            const fiadorItems     = CAMPOS_FIADOR.map(c => ({ ...c, url: docsStorage[c.key] || null }))
+            const hasFiador       = fiadorItems.some(c => c.url)
+            const totalReq        = acreditadoItems.filter(c => c.req).length + (hasFiador ? fiadorItems.filter(c => c.req).length : 0)
+            const totalOk         = acreditadoItems.filter(c => c.req && c.url).length + (hasFiador ? fiadorItems.filter(c => c.req && c.url).length : 0)
 
-                {docs.length === 0 ? <Empty msg="Sin documentos cargados" /> : (
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    {docs.map(d => (
-                      <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', border: `1px solid ${C.border}`, borderRadius: 10, background: C.light }}>
-                        <FileText size={18} color={C.primary} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{d.nombre_archivo || d.tipo_doc}</div>
-                          <div style={{ fontSize: 11, color: C.muted }}>{d.tipo_doc}</div>
-                        </div>
-                        <Badge label={d.estatus} color={d.estatus === 'APROBADO' ? C.success : d.estatus === 'RECHAZADO' ? C.danger : C.warning} />
-                        {d.url && (
-                          <EnlacePrivado bucket="expedientes-docs" valor={d.url}
-                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, fontSize: 12, color: C.primary, textDecoration: 'none' }}>
-                            <Download size={13} /> Abrir
-                          </EnlacePrivado>
-                        )}
-                      </div>
-                    ))}
+            const DocFila = ({ item }) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${item.url ? C.border : C.border}`, borderRadius: 8, background: item.url ? C.surface : C.light }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.url ? '#EFF6FF' : '#F9FAFB', flexShrink: 0 }}>
+                  <FileText size={14} color={item.url ? C.primary : C.border} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: item.url ? C.text : C.muted }}>{item.label}</div>
+                  {item.req && !item.url && <div style={{ fontSize: 10, color: C.danger, marginTop: 1 }}>Requerido — no cargado</div>}
+                </div>
+                {item.url
+                  ? <a href={item.url} target="_blank" rel="noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.light, fontSize: 11, color: C.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      <Eye size={12} /> Ver
+                    </a>
+                  : <span style={{ fontSize: 11, color: C.border, padding: '5px 10px' }}>—</span>}
+              </div>
+            )
+
+            return (
+              <div style={{ display: 'grid', gap: 20 }}>
+                {/* Progreso global */}
+                <Card padding="14px 18px">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>Documentos obligatorios</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: totalOk === totalReq ? C.success : C.warning }}>{totalOk}/{totalReq}</span>
                   </div>
-                )}
-              </Section>
-            </Card>
-          )}
+                  <div style={{ background: C.border, borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${totalReq ? (totalOk/totalReq)*100 : 0}%`, background: totalOk === totalReq ? C.success : C.primary, transition: 'width .4s', borderRadius: 4 }} />
+                  </div>
+                </Card>
+
+                {/* Sección 1 — Documentación del acreditado */}
+                <Card>
+                  <Section title={`Documentación del acreditado${exp?.tipo_persona === 'MORAL' ? ' (persona moral)' : ' (persona física)'}`} icon={Shield}>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {acreditadoItems.map(item => <DocFila key={item.key} item={item} />)}
+                    </div>
+                    {/* Docs legacy (tabla documentos) */}
+                    {docs.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>Archivos adicionales</div>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {docs.map(d => (
+                            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface }}>
+                              <FileText size={14} color={C.primary} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600 }}>{d.nombre_archivo || d.tipo_doc}</div>
+                                <div style={{ fontSize: 10, color: C.muted }}>{d.tipo_doc}</div>
+                              </div>
+                              <Badge label={d.estatus} color={d.estatus === 'APROBADO' ? C.success : d.estatus === 'RECHAZADO' ? C.danger : C.warning} />
+                              {d.url && (
+                                <EnlacePrivado bucket="expedientes-docs" valor={d.url}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.light, fontSize: 11, color: C.primary, textDecoration: 'none' }}>
+                                  <Eye size={12} /> Ver
+                                </EnlacePrivado>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Section>
+                </Card>
+
+                {/* Sección 2 — Documentación del aval/fiador */}
+                <Card>
+                  <Section title="Documentación del aval / fiador" icon={Shield}>
+                    {exp?.fiador_nombre ? (
+                      <>
+                        <div style={{ background: '#EFF6FF', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12 }}>
+                          <span style={{ fontWeight: 700, color: C.primary }}>{exp.fiador_nombre}</span>
+                          {exp.fiador_rfc && <span style={{ color: C.muted, marginLeft: 10, fontFamily: 'monospace' }}>{exp.fiador_rfc}</span>}
+                        </div>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {fiadorItems.map(item => <DocFila key={item.key} item={item} />)}
+                        </div>
+                      </>
+                    ) : (
+                      <Empty msg="Este contrato no tiene aval registrado" />
+                    )}
+                  </Section>
+                </Card>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Columna lateral */}
