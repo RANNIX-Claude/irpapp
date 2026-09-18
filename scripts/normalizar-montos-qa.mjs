@@ -52,29 +52,85 @@ console.log(`cargos_programados actualizados  : ${rc2}`)
 // ── 3. gastos_operativos (columnas: ticket_total, monto_pagado) ─────────────
 const { rowCount: rc3 } = await db.query(`
   UPDATE public.gastos_operativos
-  SET    ticket_total     = 100,
-         monto_pagado     = 100,
+  SET    ticket_total      = 100,
+         monto_pagado      = 100,
          monto_comprobante = 100
 `)
 console.log(`gastos_operativos actualizados   : ${rc3}`)
 
-// ── 4. resumen de verificación ──────────────────────────────────────────────
+// ── 4. aplicaciones_pago PRIMERO — el trigger en ingresos valida que
+//       importe >= suma(importe_aplicado), así que hay que bajar aplicaciones
+//       antes de bajar ingresos, no al revés.
+const { rowCount: rc4 } = await db.query(`
+  UPDATE public.aplicaciones_pago ap
+  SET    importe_aplicado = 10000
+  FROM   public.ingresos i
+  WHERE  ap.ingreso_id = i.id
+    AND  i.tipo = 'RENTA'
+`)
+console.log(`aplicaciones_pago normalizadas   : ${rc4}`)
+
+// ── 5. ingresos (columna: importe) — ahora sí, sin violar el trigger ─────────
+const { rowCount: rc5 } = await db.query(`
+  UPDATE public.ingresos
+  SET    importe = 10000
+  WHERE  tipo = 'RENTA'
+`)
+console.log(`ingresos RENTA normalizados      : ${rc5}`)
+
+// ── 6. resumen de verificación ──────────────────────────────────────────────
 const { rows: resumen } = await db.query(`
   SELECT
-    (SELECT COUNT(*) FROM public.contratos WHERE estatus NOT IN ('CANCELADO','RESCISION'))                AS contratos_activos,
-    (SELECT SUM(renta_mensual) FROM public.contratos WHERE estatus NOT IN ('CANCELADO','RESCISION'))      AS suma_rentas,
-    (SELECT COUNT(*) FROM public.cargos_programados WHERE importe = 10000)                                AS cargos_en_10k,
-    (SELECT COUNT(*) FROM public.gastos_operativos)                                                       AS total_tickets,
-    (SELECT SUM(ticket_total) FROM public.gastos_operativos)                                              AS suma_tickets
+    (SELECT COUNT(*) FROM public.contratos WHERE estatus NOT IN ('CANCELADO','RESCISION'))           AS contratos_activos,
+    (SELECT SUM(renta_mensual) FROM public.contratos WHERE estatus NOT IN ('CANCELADO','RESCISION')) AS suma_rentas,
+    (SELECT COUNT(*) FROM public.cargos_programados WHERE importe = 10000)                           AS cargos_en_10k,
+    (SELECT COUNT(*) FROM public.ingresos WHERE tipo='RENTA')                                        AS ingresos_renta,
+    (SELECT SUM(importe) FROM public.ingresos WHERE tipo='RENTA')                                    AS suma_cobrado,
+    (SELECT COUNT(*) FROM public.aplicaciones_pago)                                                  AS total_aplicaciones,
+    (SELECT SUM(importe_aplicado) FROM public.aplicaciones_pago)                                     AS suma_aplicado,
+    (SELECT COUNT(*) FROM public.gastos_operativos)                                                  AS total_tickets,
+    (SELECT SUM(ticket_total) FROM public.gastos_operativos)                                         AS suma_tickets
 `)
 const r = resumen[0]
-console.log('\n── Verificación ────────────────────────────────────────────')
-console.log(`Contratos activos           : ${r.contratos_activos}`)
-console.log(`Suma rentas mensuales       : $${Number(r.suma_rentas).toLocaleString('es-MX')}`)
-console.log(`  → esperado: ${r.contratos_activos} × $10,000 = $${(r.contratos_activos * 10000).toLocaleString('es-MX')}`)
-console.log(`Cargos programados a $10k   : ${r.cargos_en_10k}`)
-console.log(`Total tickets de gasto      : ${r.total_tickets}`)
-console.log(`Suma tickets                : $${Number(r.suma_tickets).toLocaleString('es-MX')}`)
-console.log(`  → esperado: ${r.total_tickets} × $100 = $${(Number(r.total_tickets) * 100).toLocaleString('es-MX')}`)
+const nContratos     = Number(r.contratos_activos)
+const nIngresosRenta = Number(r.ingresos_renta)
+const nAplicaciones  = Number(r.total_aplicaciones)
+const nTickets       = Number(r.total_tickets)
+
+console.log('\n── Verificación ─────────────────────────────────────────────────────')
+console.log(`Contratos activos                : ${nContratos}`)
+console.log(`Suma rentas mensuales            : $${Number(r.suma_rentas).toLocaleString('es-MX')}`)
+console.log(`  → esperado: N × $10,000`)
+console.log(`Cargos programados a $10k        : ${r.cargos_en_10k}`)
+console.log(`Ingresos RENTA normalizados      : ${nIngresosRenta}`)
+console.log(`Suma cobrado (ingresos RENTA)    : $${Number(r.suma_cobrado).toLocaleString('es-MX')}`)
+console.log(`  → esperado: ${nIngresosRenta} × $10,000 = $${(nIngresosRenta * 10000).toLocaleString('es-MX')}`)
+console.log(`  → ¿cuadra? ${Number(r.suma_cobrado) === nIngresosRenta * 10000 ? '✅ SÍ' : '❌ NO'}`)
+console.log(`Aplicaciones de pago             : ${nAplicaciones}`)
+console.log(`Suma importe_aplicado            : $${Number(r.suma_aplicado).toLocaleString('es-MX')}`)
+console.log(`  → ¿cuadra cobrado vs aplicado? ${Number(r.suma_cobrado) === Number(r.suma_aplicado) ? '✅ SÍ' : '⚠ difieren (hay SANCION u otros)'}`)
+console.log(`Total tickets de gasto           : ${nTickets}`)
+console.log(`Suma tickets                     : $${Number(r.suma_tickets).toLocaleString('es-MX')}`)
+console.log(`  → esperado: ${nTickets} × $100 = $${(nTickets * 100).toLocaleString('es-MX')}`)
+console.log(`  → ¿cuadra? ${Number(r.suma_tickets) === nTickets * 100 ? '✅ SÍ' : '❌ NO'}`)
+
+// ── Cierre semanal: ¿los ingresos son múltiplo de $10,000? ──────────────────
+const { rows: semanas } = await db.query(`
+  SELECT TO_CHAR(fecha, 'IYYY-IW') AS semana,
+         COUNT(*)                   AS n_pagos,
+         SUM(importe)               AS total
+  FROM   public.ingresos
+  WHERE  tipo = 'RENTA'
+  GROUP  BY semana
+  ORDER  BY semana DESC
+  LIMIT  8
+`)
+console.log('\n── Cierres semanales (últimas 8 semanas) ────────────────────────────')
+console.log('Semana       | Pagos | Total       | ¿Múlt $10k?')
+for (const s of semanas) {
+  const total = Number(s.total)
+  const ok = total % 10000 === 0
+  console.log(`${s.semana}    |  ${String(s.n_pagos).padStart(3)}  | $${total.toLocaleString('es-MX').padStart(10)} | ${ok ? '✅' : '❌'} ${!ok ? `(${total} mod 10000 = ${total % 10000})` : ''}`)
+}
 
 await db.end()
