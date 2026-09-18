@@ -318,7 +318,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
 
 // ─── Modal de detalle con tabs ───────────────────────────────────────────────
 
-function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initialEditMode = false }) {
+export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initialEditMode = false }) {
   const [tab, setTab] = useState('datos')
   const [notas, setNotas] = useState([])
   const [notasLoading, setNotasLoading] = useState(false)
@@ -344,12 +344,19 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
   const [localesDisp, setLocalesDisp] = useState([])
   const [localesSel, setLocalesSel] = useState([])
   const pdfRef = useRef()
+  const firstRenderRef = useRef(true)
 
-  // Reset edit state when switching between contracts to avoid stale form data
+  // Reset edit state when switching between contracts (not on first render, to preserve initialEditMode)
   useEffect(() => {
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false
+      if (initialEditMode) startEdit()   // precarga el formulario cuando se abre en modo edición
+      return
+    }
     setEditMode(false)
     setEditForm({})
     setEditErr(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c?.id])
 
   // Renovar: solo si NO tiene ya renovación en proceso, y vence en ≤30d o ya expiró

@@ -12,6 +12,7 @@ import { useModuleAudit } from '../hooks/useAudit'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import LogoEditable from '../components/ui/LogoEditable'
 import { IngresoModal } from './Ingresos'
+import { DetalleModal as ContratoEditModal } from './Contratos'
 import { useApp } from '../context/AppContext'
 import toast from 'react-hot-toast'
 
@@ -357,6 +358,7 @@ export default function ExpedienteContrato() {
   const [ingresoDetalleApls, setIngresoDetalleApls] = useState([]) // aplicaciones del ingreso
   const [zoomComprobante, setZoomComprobante] = useState(null)    // URL para zoom overlay
   const [editIngreso, setEditIngreso] = useState(null)            // abrir IngresoModal
+  const [editContratoOpen, setEditContratoOpen] = useState(false) // editar datos del contrato completo
   const [uploadingDoc, setUploadingDoc] = useState(null)          // key del doc que se está subiendo
 
   const subirDocContrato = async (key, file) => {
@@ -524,6 +526,11 @@ export default function ExpedienteContrato() {
         <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{exp.folio || exp.numero_local}</span>
         <div style={{ flex: 1 }} />
         <Badge label={exp.contrato_estatus || '—'} color={vigente ? C.success : C.danger} />
+        {!esLocatario && (
+          <button onClick={() => setEditContratoOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none', borderRadius: 7, background: C.primary, color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+            <Pencil size={13} /> Editar contrato
+          </button>
+        )}
         <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: C.muted }}>
           <Printer size={13} /> Imprimir
         </button>
@@ -1196,6 +1203,16 @@ export default function ExpedienteContrato() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Modal de edición completa del contrato ──────────────────────────── */}
+      {editContratoOpen && exp && (
+        <ContratoEditModal
+          contrato={exp}
+          initialEditMode={true}
+          onClose={() => setEditContratoOpen(false)}
+          onUpdated={() => { reload(); setEditContratoOpen(false) }}
+        />
       )}
     </div>
   )
