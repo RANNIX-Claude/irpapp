@@ -1223,10 +1223,10 @@ export default function Ingresos() {
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
                       {COLUMNAS_INGRESOS.map(col => (
-                        <ThOrdenable key={col.key} col={col} tabla={tabla} filasBase={baseFiltrados} ctx={ctxTabla} />
+                        <ThOrdenable key={col.key} col={col} tabla={tabla} filasBase={baseFiltrados} ctx={ctxTabla} style={{ padding:'6px 8px' }} />
                       ))}
-                      <th style={{ padding:'10px 14px' }} />
-                      <th style={{ padding:'10px 14px', fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', letterSpacing:'0.04em' }}>Nota</th>
+                      <th style={{ padding:'6px 8px' }} />
+                      <th style={{ padding:'6px 8px', fontSize:'10px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', letterSpacing:'0.04em' }}>Nota</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1242,29 +1242,29 @@ export default function Ingresos() {
                       <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>
+                        <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
+                        <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
                           <span style={{ fontWeight:600, color: filtroMes && filtroAnio && r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
                             {MESES[r.mes]}/{r.anio}
                           </span>
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>
+                        <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
                           {localDe(r)
-                            ? <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'2px 8px', borderRadius:'8px' }}>{localDe(r)}</span>
+                            ? <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'2px 6px', borderRadius:'8px' }}>{localDe(r)}</span>
                             : <span style={{ color:'#D1D5DB' }}>—</span>}
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'12px', minWidth:'180px' }}>
+                        <td style={{ padding:'6px 8px', fontSize:'11px', minWidth:'140px' }}>
                           {r.folio || r.arrendatario_nombre ? (
                             <>
-                              <div style={{ fontWeight:600, color:'#111827', fontSize:'12px', lineHeight:'1.3' }}>{r.arrendatario_nombre || r.propietario || '—'}</div>
+                              <div style={{ fontWeight:600, color:'#111827', fontSize:'11px', lineHeight:'1.3' }}>{r.arrendatario_nombre || r.propietario || '—'}</div>
                               {r.folio && r.folio !== '—' && <div style={{ fontSize:'10px', color:'#9CA3AF', fontFamily:'monospace' }}>{r.folio}</div>}
                             </>
                           ) : (
-                            <span style={{ fontSize:'11px', color:'#D97706', background:'#FEF3C7', padding:'2px 8px', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}
+                            <span style={{ fontSize:'10px', color:'#D97706', background:'#FEF3C7', padding:'2px 6px', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}
                               onClick={e => { e.stopPropagation(); setModalData(r) }}>Sin contrato — Editar</span>
                           )}
                         </td>
-                        <td style={{ padding:'10px 14px' }}>
+                        <td style={{ padding:'6px 8px' }}>
                           {(() => {
                             const cl = clasifDe(r)
                             const mixto = cl === 'MIXTO'
@@ -1273,14 +1273,14 @@ export default function Ingresos() {
                                 title={mixto
                                   ? 'El depósito se repartió entre dos o más conceptos — abre el detalle para ver la distribución'
                                   : r.clasificacion_manual ? 'Clasificación elegida a mano' : undefined}
-                                style={{ display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'10px', background: (TIPO_COLOR[cl] || '#6B7280') + '18', color: TIPO_COLOR[cl] || '#6B7280' }}>
-                                {mixto && <Layers size={11} />}{cl}
+                                style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'10px', fontWeight:600, padding:'2px 6px', borderRadius:'10px', background: (TIPO_COLOR[cl] || '#6B7280') + '18', color: TIPO_COLOR[cl] || '#6B7280' }}>
+                                {mixto && <Layers size={10} />}{cl}
                               </span>
                             )
                           })()}
                         </td>
                         {/* Docs: factura + comprobante */}
-                        <td style={{ padding:'8px 12px', whiteSpace:'nowrap' }}>
+                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
                           <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
                             {r.factura
                               ? <span title={`Factura: ${r.factura}`} style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'3px 8px', borderRadius:'10px', border:'1px solid #BFDBFE' }}>
@@ -1302,46 +1302,46 @@ export default function Ingresos() {
                           </div>
                         </td>
                         {/* Cuadre: el depósito contra lo que se repartió en la cartera */}
-                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                        <td style={{ padding:'6px 8px', textAlign:'center' }}>
                           <IconoCuadre d={descuadres[r.id]} />
                         </td>
-                        <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}
+                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}
                           title={r.validado_por ? `Validó ${r.validado_por}${r.validado_en ? ` el ${r.validado_en.slice(0,10)}` : ''}` : undefined}>
                           <BadgeValidacion estatus={r.estatus_validacion} />
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'12px', color: r.renta_mensual ? '#374151' : '#D1D5DB' }}>
+                        <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:600, fontSize:'11px', color: r.renta_mensual ? '#374151' : '#D1D5DB' }}>
                           {r.renta_mensual ? fmt(r.renta_mensual) : '—'}
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, fontSize:'13px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
+                        <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:700, fontSize:'12px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
                           {fmt(r.importe)}
                         </td>
-                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                          <div style={{ display:'flex', gap:'4px', alignItems:'center' }}>
+                        <td style={{ padding:'5px 6px', whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', gap:'3px', alignItems:'center' }}>
                             <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
-                              style={{ padding:'5px 10px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'12px', fontWeight:700 }}>
-                              <Eye size={13} /> Ver
+                              style={{ padding:'4px 7px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
+                              <Eye size={12} /> Ver
                             </button>
                             <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
-                              style={{ padding:'5px 10px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'12px', fontWeight:700 }}>
-                              <Pencil size={13} /> Editar
+                              style={{ padding:'4px 7px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
+                              <Pencil size={12} /> Editar
                             </button>
                             <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
-                              style={{ padding:'5px 8px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'7px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                              <Trash2 size={13} />
+                              style={{ padding:'4px 6px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
-                        <td style={{ padding:'10px 14px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
+                        <td style={{ padding:'6px 8px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'150px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={8} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
-                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'13px', color:'#6B7280' }}>
+                      <td colSpan={8} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:600, fontSize:'12px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
-                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:800, fontSize:'13px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
                       <td /><td />
                     </tr>
                   </tfoot>
