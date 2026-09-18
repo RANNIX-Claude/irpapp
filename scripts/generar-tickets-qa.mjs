@@ -33,28 +33,152 @@ const TIENDAS = [
   { nombre: 'SUMINISTROS GENERALES',      rfc: 'SGE030405B12', color: '#4a235a', caja: '03', cajero: 'MARIO T.',   tel: '(722) 550-2200', dir: 'Blvd. Aeropuerto 890, Metepec, Méx.' },
 ]
 
-// Artículos a $100 IVA incluido (tasa 0%) — un artículo por ticket, total exacto $100
+// Catálogos de 10 productos × $10 por categoría — total siempre $100
+const CATALOGO = {
+  VENDING_REPOSICION: {
+    tienda: 0, grupo: 'VENDING_REPOSICION',
+    items: [
+      { sku:'VND-001', desc:'COCA-COLA 600ML',           qty:1 },
+      { sku:'VND-002', desc:'PEPSI 600ML',               qty:1 },
+      { sku:'VND-003', desc:'AGUA CIEL 600ML',           qty:1 },
+      { sku:'VND-004', desc:'BOING FRESA 500ML',         qty:1 },
+      { sku:'VND-005', desc:'SABRITAS ORIGINAL 45G',     qty:1 },
+      { sku:'VND-006', desc:'DORITOS NACHO 50G',         qty:1 },
+      { sku:'VND-007', desc:'GANSITO MARINELA 46G',      qty:1 },
+      { sku:'VND-008', desc:'SNICKERS 50G',              qty:1 },
+      { sku:'VND-009', desc:'MARINELA PINGUINO',         qty:1 },
+      { sku:'VND-010', desc:'JUMEX MANGO 335ML',         qty:1 },
+    ],
+  },
+  LIMPIEZA: {
+    tienda: 0, grupo: 'LIMPIEZA',
+    items: [
+      { sku:'LIM-001', desc:'JABON LIQUIDO 1L',          qty:1 },
+      { sku:'LIM-002', desc:'CLORO CLORALEX 1L',         qty:1 },
+      { sku:'LIM-003', desc:'FABULOSO LAVANDA 900ML',    qty:1 },
+      { sku:'LIM-004', desc:'PINO SOL 1L',               qty:1 },
+      { sku:'LIM-005', desc:'ESCOBA FIBRA DURA',         qty:1 },
+      { sku:'LIM-006', desc:'MECHUDO INDUSTRIAL',        qty:1 },
+      { sku:'LIM-007', desc:'JERGA INDUSTRIAL 70X90',    qty:1 },
+      { sku:'LIM-008', desc:'FIBRA SCOTCH-BRITE',        qty:1 },
+      { sku:'LIM-009', desc:'BOLSAS BASURA 20PZ',        qty:1 },
+      { sku:'LIM-010', desc:'SANITIZANTE MULTISUP 500ML',qty:1 },
+    ],
+  },
+  FERRETERIA: {
+    tienda: 1, grupo: 'FERRETERIA',
+    items: [
+      { sku:'FER-001', desc:'TORNILLOS AUTOP 1" 50PZ',   qty:1 },
+      { sku:'FER-002', desc:'CINTA CANELA 2" ROLLO',     qty:1 },
+      { sku:'FER-003', desc:'FOCO LED 10W E27',          qty:1 },
+      { sku:'FER-004', desc:'CLAVOS 2.5" 100PZ',         qty:1 },
+      { sku:'FER-005', desc:'BISAGRA 3" PAR',            qty:1 },
+      { sku:'FER-006', desc:'LLAVE ESPAÑOLA 12"',        qty:1 },
+      { sku:'FER-007', desc:'TUERCAS HEX 3/8" 20PZ',    qty:1 },
+      { sku:'FER-008', desc:'BROCA HSS 6MM',             qty:1 },
+      { sku:'FER-009', desc:'CERROJO SEGURIDAD 3"',      qty:1 },
+      { sku:'FER-010', desc:'CABLE THW 14AWG 5M',        qty:1 },
+    ],
+  },
+  MANTENIMIENTO: {
+    tienda: 4, grupo: 'MANTENIMIENTO',
+    items: [
+      { sku:'MAN-001', desc:'SILICONA TRANSPARENTE 280G',qty:1 },
+      { sku:'MAN-002', desc:'PINTURA VINILICA BLANCA 1L',qty:1 },
+      { sku:'MAN-003', desc:'LIJA AGUA 120 5PZ',         qty:1 },
+      { sku:'MAN-004', desc:'TUBO COBRE 1/2" 1MT',       qty:1 },
+      { sku:'MAN-005', desc:'CODO CPVC 1/2"',            qty:1 },
+      { sku:'MAN-006', desc:'TEFLÓN ROLLO 12MT',         qty:1 },
+      { sku:'MAN-007', desc:'SOLDADURA PLATA 1PZ',       qty:1 },
+      { sku:'MAN-008', desc:'INTERRUPTOR SENCILLO',      qty:1 },
+      { sku:'MAN-009', desc:'CONTACTO DOBLE 15A',        qty:1 },
+      { sku:'MAN-010', desc:'PASTA SOLDADURA 50G',       qty:1 },
+    ],
+  },
+  PAPELERIA: {
+    tienda: 3, grupo: 'PAPELERIA',
+    items: [
+      { sku:'PAP-001', desc:'RESMA PAPEL CARTA 75G',     qty:1 },
+      { sku:'PAP-002', desc:'BOLIGRAFO BIC AZUL 10PZ',   qty:1 },
+      { sku:'PAP-003', desc:'FOLDER MANILA CARTA 25PZ',  qty:1 },
+      { sku:'PAP-004', desc:'CARPETA ARGOLLAS 1"',       qty:1 },
+      { sku:'PAP-005', desc:'GRAPAS ESTANDAR 5000PZ',    qty:1 },
+      { sku:'PAP-006', desc:'CINTA ADHESIVA 12MM 3PZ',   qty:1 },
+      { sku:'PAP-007', desc:'POST-IT 3X3 COLORES 4PZ',   qty:1 },
+      { sku:'PAP-008', desc:'MARCADOR PERMANENTE 5PZ',   qty:1 },
+      { sku:'PAP-009', desc:'SOBRE BLANCO T/CARTA 25PZ', qty:1 },
+      { sku:'PAP-010', desc:'CORRECTOR LIQUIDO 20ML',    qty:1 },
+    ],
+  },
+  GASTOS_MEDICOS: {
+    tienda: 2, grupo: 'GASTOS_MEDICOS',
+    items: [
+      { sku:'FAR-001', desc:'PARACETAMOL 500MG 10PZ',    qty:1 },
+      { sku:'FAR-002', desc:'IBUPROFENO 400MG 10PZ',     qty:1 },
+      { sku:'FAR-003', desc:'ALCOHOL GEL 500ML',         qty:1 },
+      { sku:'FAR-004', desc:'VENDAS ELASTICA 3" 2PZ',    qty:1 },
+      { sku:'FAR-005', desc:'GASAS ESTERIL 10X10 10PZ',  qty:1 },
+      { sku:'FAR-006', desc:'CURITAS VARIADAS 20PZ',     qty:1 },
+      { sku:'FAR-007', desc:'AGUA OXIGENADA 250ML',      qty:1 },
+      { sku:'FAR-008', desc:'TERMOMETRO DIGITAL',        qty:1 },
+      { sku:'FAR-009', desc:'POMADA ANTIINFLAMATORIA',   qty:1 },
+      { sku:'FAR-010', desc:'GUANTES LATEX M 10PZ',      qty:1 },
+    ],
+  },
+  UNIFORMES: {
+    tienda: 0, grupo: 'UNIFORMES',
+    items: [
+      { sku:'UNI-001', desc:'PLAYERA POLO AZUL M',       qty:1 },
+      { sku:'UNI-002', desc:'PLAYERA POLO AZUL L',       qty:1 },
+      { sku:'UNI-003', desc:'PLAYERA POLO AZUL XL',      qty:1 },
+      { sku:'UNI-004', desc:'PANTALON CARGO BEIGE 30',   qty:1 },
+      { sku:'UNI-005', desc:'PANTALON CARGO BEIGE 32',   qty:1 },
+      { sku:'UNI-006', desc:'PANTALON CARGO BEIGE 34',   qty:1 },
+      { sku:'UNI-007', desc:'CALCETINES NEGROS 3PZ',     qty:1 },
+      { sku:'UNI-008', desc:'GORRA LOGOTIPO PLAZA',      qty:1 },
+      { sku:'UNI-009', desc:'CHALECO SEGURIDAD NARANJA', qty:1 },
+      { sku:'UNI-010', desc:'CINTURON TRABAJO NEGRO',    qty:1 },
+    ],
+  },
+  OTROS: {
+    tienda: 3, grupo: 'OTROS',
+    items: [
+      { sku:'OTR-001', desc:'CAFE SOLUBLE 200G',         qty:1 },
+      { sku:'OTR-002', desc:'AZUCAR ESTANDAR 500G',      qty:1 },
+      { sku:'OTR-003', desc:'VASOS DESECHABLES 7OZ 50PZ',qty:1 },
+      { sku:'OTR-004', desc:'SERVILLETAS DISPENSADOR 200PZ',qty:1 },
+      { sku:'OTR-005', desc:'PILAS AA 4PZ',              qty:1 },
+      { sku:'OTR-006', desc:'PILAS AAA 4PZ',             qty:1 },
+      { sku:'OTR-007', desc:'EXTENSION 3M TRIPLE',       qty:1 },
+      { sku:'OTR-008', desc:'TONER HP 85A NEGRO',        qty:1 },
+      { sku:'OTR-009', desc:'USB 16GB 3.0',              qty:1 },
+      { sku:'OTR-010', desc:'ETIQUETAS ADHESIVAS 100PZ', qty:1 },
+    ],
+  },
+}
+
+// Tickets — uno por categoría con sus 10 productos
 const ARTICULOS_100 = [
-  { sku: 'SRV-001', desc: 'SERVICIO DE LIMPIEZA GENERAL',      grupo: 'LIMPIEZA',     tienda: 0 },
-  { sku: 'FER-100', desc: 'MATERIAL DE FERRETERÍA VARIOS',     grupo: 'FERRETERIA',   tienda: 1 },
-  { sku: 'FAR-100', desc: 'BOTIQUÍN DE PRIMEROS AUXILIOS',     grupo: 'GASTOS_MEDICOS', tienda: 2 },
-  { sku: 'PAP-100', desc: 'PAPELERÍA Y ARTÍCULOS DE OFICINA',  grupo: 'PAPELERIA',    tienda: 3 },
-  { sku: 'MAN-100', desc: 'MANTENIMIENTO PREVENTIVO MENOR',    grupo: 'MANTENIMIENTO', tienda: 1 },
-  { sku: 'VND-100', desc: 'REPOSICIÓN PRODUCTOS VENDING',      grupo: 'VENDING_REPOSICION', tienda: 0 },
-  { sku: 'UNI-100', desc: 'UNIFORMES PERSONAL (REPOSICIÓN)',   grupo: 'UNIFORMES',    tienda: 0 },
-  { sku: 'LIM-100', desc: 'INSUMOS LIMPIEZA MENSUAL',          grupo: 'LIMPIEZA',     tienda: 4 },
-  { sku: 'ELC-100', desc: 'MATERIAL ELÉCTRICO VARIOS',         grupo: 'FERRETERIA',   tienda: 1 },
-  { sku: 'PLO-100', desc: 'INSUMOS PLOMERÍA',                  grupo: 'MANTENIMIENTO', tienda: 4 },
-  { sku: 'ADM-100', desc: 'GASTOS ADMINISTRATIVOS VARIOS',     grupo: 'PAPELERIA',    tienda: 3 },
-  { sku: 'SEG-100', desc: 'MATERIAL DE SEGURIDAD',             grupo: 'MANTENIMIENTO', tienda: 4 },
-  { sku: 'JAR-100', desc: 'MANTENIMIENTO ÁREAS VERDES',        grupo: 'LIMPIEZA',     tienda: 0 },
-  { sku: 'CAP-100', desc: 'CAPACITACIÓN PERSONAL (CUOTA)',     grupo: 'OTROS',        tienda: 3 },
-  { sku: 'COM-100', desc: 'COMISIONES Y SERVICIOS VARIOS',     grupo: 'OTROS',        tienda: 4 },
-  { sku: 'LIM-101', desc: 'DESINFECTANTES Y SANITIZANTES',     grupo: 'LIMPIEZA',     tienda: 0 },
-  { sku: 'SRV-002', desc: 'SERVICIO CONTROL DE PLAGAS',        grupo: 'MANTENIMIENTO', tienda: 4 },
-  { sku: 'FER-101', desc: 'PINTURAS Y RECUBRIMIENTOS',         grupo: 'FERRETERIA',   tienda: 1 },
-  { sku: 'PAP-101', desc: 'IMPRESIONES Y COPIAS MASIVAS',      grupo: 'PAPELERIA',    tienda: 3 },
-  { sku: 'SRV-003', desc: 'SERVICIO MENSAJERÍA Y ENVÍOS',      grupo: 'OTROS',        tienda: 3 },
+  { grupo: 'VENDING_REPOSICION' },
+  { grupo: 'LIMPIEZA'           },
+  { grupo: 'FERRETERIA'         },
+  { grupo: 'MANTENIMIENTO'      },
+  { grupo: 'PAPELERIA'          },
+  { grupo: 'GASTOS_MEDICOS'     },
+  { grupo: 'UNIFORMES'          },
+  { grupo: 'LIMPIEZA'           },
+  { grupo: 'FERRETERIA'         },
+  { grupo: 'MANTENIMIENTO'      },
+  { grupo: 'PAPELERIA'          },
+  { grupo: 'MANTENIMIENTO'      },
+  { grupo: 'LIMPIEZA'           },
+  { grupo: 'OTROS'              },
+  { grupo: 'OTROS'              },
+  { grupo: 'LIMPIEZA'           },
+  { grupo: 'MANTENIMIENTO'      },
+  { grupo: 'FERRETERIA'         },
+  { grupo: 'PAPELERIA'          },
+  { grupo: 'OTROS'              },
 ]
 
 // Fechas distribuidas en los últimos 3 meses
@@ -67,11 +191,23 @@ const FECHAS = [
 
 const fmtMXN = n => `$${Number(n).toFixed(2)}`
 
-// ── Generador de HTML de ticket térmico ──────────────────────────────────────
-function buildTicket(art, tienda, fecha, folio) {
+// ── Generador de HTML de ticket térmico (10 ítems × $10 = $100) ──────────────
+function buildTicket(cat, tienda, fecha, folio) {
   const [anio, mes, dia] = fecha.split('-')
   const fechaDisp = `${dia}/${mes}/${anio}`
   const hora = `${(8 + Math.floor(Math.random() * 10)).toString().padStart(2,'0')}:${(Math.floor(Math.random() * 60)).toString().padStart(2,'0')}:${(Math.floor(Math.random() * 60)).toString().padStart(2,'0')}`
+  const lineas = cat.items.map(it =>
+    `<div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">${it.desc}</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>${it.sku} · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div>`
+  ).join('')
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -107,14 +243,7 @@ body { background:#f0f0f0; display:flex; flex-direction:column; align-items:cent
   <hr class="sep">
   <div class="center bold small">DESCRIPCION DE COMPRA</div>
   <hr class="sep">
-  <div style="margin:5px 0;">
-    <span style="font-size:9px;color:#555;display:block;">${art.sku}</span>
-    <span style="display:block;font-size:10px;font-weight:bold;">${art.desc}</span>
-    <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:2px;">
-      <span>1 PZA/SRV</span>
-      <span style="font-weight:bold;">$100.00 E</span>
-    </div>
-  </div>
+  ${lineas}
   <hr class="sep-solid">
   <div class="row"><span class="label">SUBTOTAL (IVA 0%):</span><span>$100.00</span></div>
   <div class="row"><span class="label">IVA:</span><span>$0.00</span></div>
@@ -129,7 +258,7 @@ body { background:#f0f0f0; display:flex; flex-direction:column; align-items:cent
   <div class="row"><span class="label">EFECTIVO:</span><span>$100.00</span></div>
   <div class="row"><span class="label">CAMBIO:</span><span>$0.00</span></div>
   <hr class="sep">
-  <div class="center bold">TOTAL ARTICULOS: 1</div>
+  <div class="center bold">TOTAL ARTICULOS: 10</div>
   <hr class="sep">
   <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
   <div class="center barcode">||||| ${folio} |||||</div>
@@ -240,15 +369,16 @@ if (modo === 'tickets' || modo === 'all') {
   let folioNum = 20260901
 
   for (let i = 0; i < ARTICULOS_100.length; i++) {
-    const art    = ARTICULOS_100[i]
-    const tienda = TIENDAS[art.tienda]
+    const ref    = ARTICULOS_100[i]
+    const cat    = CATALOGO[ref.grupo]
+    const tienda = TIENDAS[cat.tienda]
     const fecha  = FECHAS[i % FECHAS.length]
     const folio  = `${tienda.rfc.slice(0,3)}${folioNum++}`
-    const nombre = `ticket_${String(i+1).padStart(2,'0')}_${art.grupo.toLowerCase()}.html`
+    const nombre = `ticket_${String(i+1).padStart(2,'0')}_${cat.grupo.toLowerCase()}.html`
 
-    const html = buildTicket(art, tienda, fecha, folio)
+    const html = buildTicket(cat, tienda, fecha, folio)
     fs.writeFileSync(path.join(OUT, nombre), html, 'utf8')
-    archivos.push({ i, nombre, nombrePng: nombre.replace('.html', '.png'), tienda: tienda.nombre, sku: art.sku, desc: art.desc.slice(0, 35), grupo: art.grupo })
+    archivos.push({ i, nombre, nombrePng: nombre.replace('.html', '.png'), tienda: tienda.nombre, sku: cat.items[0].sku.replace('-001',''), desc: cat.grupo, grupo: cat.grupo })
     console.log(`  ✓ ${nombre}`)
   }
 
