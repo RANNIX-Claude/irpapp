@@ -198,16 +198,15 @@ const cuadreDe = (r, ctx) => {
   const d = ctx.descuadres[r.id]
   return !d ? 'OK' : d.problema === 'SOBRE_APLICADO' ? 'Aplicado de más' : 'Falta aplicar'
 }
-const contratoDe = r => [
-  r.locales_display && r.locales_display !== '—' ? r.locales_display : null,
-  r.arrendatario_nombre || r.propietario,
-].filter(Boolean).join(' · ') || 'Sin contrato'
+const localDe = r => (r.locales_display && r.locales_display !== '—' ? r.locales_display : null)
+const contratoDe = r => r.arrendatario_nombre || r.propietario || 'Sin contrato'
 const validacionDe = r => (VALIDACION[r.estatus_validacion] || VALIDACION[VALIDACION_DEFAULT]).label
 const numeroONulo = v => (v != null && v !== '' ? parseFloat(v) : null)
 
 const COLUMNAS_INGRESOS = [
   { key: 'fecha',      label: 'Fecha pago',    valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
   { key: 'periodo',    label: 'Período',       valor: r => (r.mes ? `${MESES[r.mes]}/${r.anio}` : '—'), orden: r => (r.mes ? r.anio * 12 + r.mes : null) },
+  { key: 'local',      label: 'Local',         valor: r => localDe(r) || '—', orden: localDe },
   { key: 'contrato',   label: 'Contrato',      valor: contratoDe, orden: contratoDe },
   { key: 'clasif',     label: 'Clasificación', valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
   { key: 'docs',       label: 'Docs',          valor: docsDe, orden: docsDe },
@@ -1233,7 +1232,7 @@ export default function Ingresos() {
                   <tbody>
                     {filtrados.length === 0 && (
                       <tr>
-                        <td colSpan={11} style={{ padding:'32px', textAlign:'center', fontSize:'13px', color:'#6B7280' }}>
+                        <td colSpan={12} style={{ padding:'32px', textAlign:'center', fontSize:'13px', color:'#6B7280' }}>
                           Ningún ingreso coincide con los filtros de columna.{' '}
                           <button onClick={tabla.limpiar} style={{ border:'none', background:'transparent', color:'#0A66C2', fontWeight:700, cursor:'pointer', fontSize:'13px' }}>Limpiar</button>
                         </td>
@@ -1249,12 +1248,14 @@ export default function Ingresos() {
                             {MESES[r.mes]}/{r.anio}
                           </span>
                         </td>
+                        <td style={{ padding:'10px 14px', fontSize:'12px', whiteSpace:'nowrap' }}>
+                          {localDe(r)
+                            ? <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'2px 8px', borderRadius:'8px' }}>{localDe(r)}</span>
+                            : <span style={{ color:'#D1D5DB' }}>—</span>}
+                        </td>
                         <td style={{ padding:'10px 14px', fontSize:'12px', minWidth:'180px' }}>
                           {r.folio || r.arrendatario_nombre ? (
                             <>
-                              {r.locales_display && r.locales_display !== '—' && (
-                                <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'1px 7px', borderRadius:'8px', marginBottom:'3px' }}>{r.locales_display}</span>
-                              )}
                               <div style={{ fontWeight:600, color:'#111827', fontSize:'12px', lineHeight:'1.3' }}>{r.arrendatario_nombre || r.propietario || '—'}</div>
                               {r.folio && r.folio !== '—' && <div style={{ fontSize:'10px', color:'#9CA3AF', fontFamily:'monospace' }}>{r.folio}</div>}
                             </>
@@ -1336,12 +1337,12 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={6} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
+                      <td colSpan={8} style={{ padding:'10px 14px', fontSize:'12px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, fontSize:'13px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, fontSize:'14px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
-                      <td /><td /><td />
+                      <td /><td />
                     </tr>
                   </tfoot>
                 </table>
