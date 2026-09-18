@@ -329,8 +329,8 @@ export default function EDR() {
 
   const loadProyectado = useCallback(async () => {
     const { data } = await supabase
-      .from('prp_contratos').select('renta_mensual')
-      .in('estatus', ['VIGENTE','vigente','Vigente'])
+      .from('contratos').select('renta_mensual')
+      .eq('estatus_operacion', 'OCUPADO')
     if (data) setProyRentas(data.reduce((s, c) => s + (parseFloat(c.renta_mensual)||0), 0))
   }, [])
 
@@ -475,10 +475,10 @@ export default function EDR() {
     setCargando(true)
     const resumen = { rentas: 0, poyPensiones: 0, realPensiones: 0, sueldos: 0 }
 
-    // 1. Rentas proyectadas: contratos vigentes
+    // 1. Rentas proyectadas: todos los locales OCUPADO (independiente de estatus jurídico del contrato)
     const { data: contratos } = await supabase
-      .from('prp_contratos').select('renta_mensual')
-      .in('estatus', ['VIGENTE','vigente','Vigente'])
+      .from('contratos').select('renta_mensual')
+      .eq('estatus_operacion', 'OCUPADO')
     const sumRentas = contratos?.reduce((s, c) => s + (parseFloat(c.renta_mensual)||0), 0) || 0
     resumen.rentas = sumRentas
 
@@ -552,9 +552,10 @@ export default function EDR() {
     const rmSin   = ingresosRenta?.filter(r => !r.factura && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
     const opSin   = ingresosRenta?.filter(r => !r.factura && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
-    // Solo sobreescribe columnas real_* — los proy_* los captura el admin manualmente
+    // Actualiza proyectado de rentas (OCUPADO) y columnas real_*
     setForm(f => ({
       ...f,
+      proy_rentas_contratos:       sumRentas,
       real_rentas_factura:         rFactura,
       real_rentas_sin_factura:     rSinFact,
       real_rentas_factura_mes:     rmFact,
