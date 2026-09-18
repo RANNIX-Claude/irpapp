@@ -49,14 +49,30 @@ const { rowCount: rc2 } = await db.query(`
 `)
 console.log(`cargos_programados actualizados  : ${rc2}`)
 
-// ── 3. gastos_operativos (columnas: ticket_total, monto_pagado) ─────────────
+// ── 3. gastos_operativos — todas las columnas de dinero a $100 ───────────────
+//   · cantidad        = IMPORTE visible en Resumen Semanal / Gastos Operativos
+//   · ticket_total    = monto del comprobante escaneado
+//   · monto_pagado    = lo que se pagó
+//   · monto_comprobante = monto del ticket adjunto
 const { rowCount: rc3 } = await db.query(`
   UPDATE public.gastos_operativos
-  SET    ticket_total      = 100,
+  SET    cantidad          = 100,
+         ticket_total      = 100,
          monto_pagado      = 100,
          monto_comprobante = 100
 `)
 console.log(`gastos_operativos actualizados   : ${rc3}`)
+
+// ── 3b. gasto_detalle — 10 líneas × $10 por gasto ───────────────────────────
+//   precio_unit = $10, cantidad = 1, subtotal = $10
+//   Así cada línea es exactamente $10 y el total del gasto sigue siendo $100
+// subtotal es columna generada (precio_unit * cantidad) — solo tocar las base
+const { rowCount: rc3b } = await db.query(`
+  UPDATE public.gasto_detalle
+  SET    precio_unit = 10,
+         cantidad    = 1
+`)
+console.log(`gasto_detalle normalizado        : ${rc3b} líneas → $10 c/u (subtotal generado auto)`)
 
 // ── 4. aplicaciones_pago PRIMERO — el trigger en ingresos valida que
 //       importe >= suma(importe_aplicado), así que hay que bajar aplicaciones
@@ -89,7 +105,10 @@ const { rows: resumen } = await db.query(`
     (SELECT COUNT(*) FROM public.aplicaciones_pago)                                                  AS total_aplicaciones,
     (SELECT SUM(importe_aplicado) FROM public.aplicaciones_pago)                                     AS suma_aplicado,
     (SELECT COUNT(*) FROM public.gastos_operativos)                                                  AS total_tickets,
-    (SELECT SUM(ticket_total) FROM public.gastos_operativos)                                         AS suma_tickets
+    (SELECT SUM(cantidad) FROM public.gastos_operativos)                                             AS suma_importe_gasto,
+    (SELECT SUM(ticket_total) FROM public.gastos_operativos)                                         AS suma_tickets,
+    (SELECT COUNT(*) FROM public.gasto_detalle)                                                      AS total_detalle,
+    (SELECT SUM(subtotal) FROM public.gasto_detalle)                                                 AS suma_detalle
 `)
 const r = resumen[0]
 const nContratos     = Number(r.contratos_activos)
@@ -110,9 +129,16 @@ console.log(`Aplicaciones de pago             : ${nAplicaciones}`)
 console.log(`Suma importe_aplicado            : $${Number(r.suma_aplicado).toLocaleString('es-MX')}`)
 console.log(`  → ¿cuadra cobrado vs aplicado? ${Number(r.suma_cobrado) === Number(r.suma_aplicado) ? '✅ SÍ' : '⚠ difieren (hay SANCION u otros)'}`)
 console.log(`Total tickets de gasto           : ${nTickets}`)
-console.log(`Suma tickets                     : $${Number(r.suma_tickets).toLocaleString('es-MX')}`)
+console.log(`Suma IMPORTE (cantidad)          : $${Number(r.suma_importe_gasto).toLocaleString('es-MX')}`)
+console.log(`  → ¿cuadra? ${Number(r.suma_importe_gasto) === nTickets * 100 ? '✅ SÍ' : '❌ NO'}`)
+console.log(`Suma tickets (ticket_total)      : $${Number(r.suma_tickets).toLocaleString('es-MX')}`)
 console.log(`  → esperado: ${nTickets} × $100 = $${(nTickets * 100).toLocaleString('es-MX')}`)
 console.log(`  → ¿cuadra? ${Number(r.suma_tickets) === nTickets * 100 ? '✅ SÍ' : '❌ NO'}`)
+const nDetalle = Number(r.total_detalle)
+console.log(`Líneas gasto_detalle             : ${nDetalle}`)
+console.log(`Suma subtotales detalle          : $${Number(r.suma_detalle).toLocaleString('es-MX')}`)
+console.log(`  → esperado: ${nDetalle} × $10 = $${(nDetalle * 10).toLocaleString('es-MX')}`)
+console.log(`  → ¿cuadra? ${Number(r.suma_detalle) === nDetalle * 10 ? '✅ SÍ' : '❌ NO'}`)
 
 // ── Cierre semanal: ¿los ingresos son múltiplo de $10,000? ──────────────────
 const { rows: semanas } = await db.query(`
