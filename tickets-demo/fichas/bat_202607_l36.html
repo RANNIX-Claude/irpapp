@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>* {margin:0;padding:0;box-sizing:border-box;} body {background:#e8e8e8;display:flex;flex-direction:column;align-items:center;padding:24px;gap:14px;font-family:Arial,sans-serif;} .dl-btn {width:480px;padding:11px;background:#7b1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}</style>
+</head><body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar como PNG</button>
+<div id="doc"><div class="doc" style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    Transferencias / Otros Bancos Nacional - SPEI (Mismo día) &nbsp;·&nbsp; No. Operación: BAT-2026-00001024
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Operación:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">Transferencia SPEI</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora de Operación:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/07/2026 14:23:13 horas</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Nombre del Ordenante:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">Daniel Morales Rojas</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">RFC del Ordenante:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">MORD720113HG2</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">****1166</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Nombre del Beneficiario:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA COMERCIAL DEL NORTE S.A. DE C.V.</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">RFC del Beneficiario:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">PCN190315R72</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#333;font-weight:700;">Importe a Transferir:</span>
+    <span style="flex:1;font-size:15px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Número de Referencia:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">202607L36</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Concepto del Pago:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">RENTA JUL 2026 L36</span>
+  </div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Fecha de Aplicación:</span>
+    <span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/07/2026</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;">
+    <span style="width:200px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span>
+    <span style="flex:1;font-size:11px;color:#1a3a6e;font-weight:600;font-family:'Courier New',monospace;word-break:break-all;">BAT20260703000001024</span>
+  </div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010 &nbsp;·&nbsp; Regulado por CNBV
+  </div>
+</div></div>
+<script>function descargar(){html2canvas(document.getElementById('doc'),{scale:2,backgroundColor:'#ffffff'}).then(function(c){var a=document.createElement('a');a.download='bat_202607_l36.png';a.href=c.toDataURL('image/png');a.click();});}</script>
+</body></html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Fichas $10,000 — QA</title>
+<style>
+* {margin:0;padding:0;box-sizing:border-box;}
+body {font-family:Arial,sans-serif;background:#ddd;padding:20px;}
+h1 {font-size:17px;margin-bottom:4px;}
+.nota {font-size:11px;color:#777;margin-bottom:14px;}
+.toolbar {display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+#btnAll {padding:10px 22px;background:#1a3a6e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}
+#btnAll:disabled {background:#888;cursor:default;}
+#status {font-size:12px;color:#555;}
+.grid {display:flex;flex-wrap:wrap;gap:16px;}
+.card {background:#f0f0f0;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:6px;}
+.meta {font-size:11px;color:#666;}
+.meta strong {color:#333;display:block;}
+.dl-btn {padding:7px 14px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;align-self:flex-start;}
+</style>
+</head><body>
+<h1>Fichas Bancarias $10,000 — QA Demo</h1>
+<p class="nota">48 fichas · 16 contratos × 3 meses (Jul-Sep 2026) · $10,000 c/u</p>
+<div class="toolbar">
+  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todas (48 PNG)</button>
+  <span id="status"></span>
+</div>
+<div class="grid">
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L37 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l37.html','ficha_bsr_202607_l37.png')">⬇ ficha_bsr_202607_l37.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L37 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l37.html','ficha_bsr_202608_l37.png')">⬇ ficha_bsr_202608_l37.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L37 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l37.html','ficha_bsr_202609_l37.png')">⬇ ficha_bsr_202609_l37.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L8 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202607_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l8.html','ficha_bvt_202607_l8.png')">⬇ ficha_bvt_202607_l8.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L8 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202608_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l8.html','ficha_bvt_202608_l8.png')">⬇ ficha_bvt_202608_l8.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L8 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202609_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l8.html','ficha_bvt_202609_l8.png')">⬇ ficha_bvt_202609_l8.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L9 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202607_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l9.html','ficha_bat_202607_l9.png')">⬇ ficha_bat_202607_l9.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L9 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202608_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l9.html','ficha_bat_202608_l9.png')">⬇ ficha_bat_202608_l9.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L9 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202609_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l9.html','ficha_bat_202609_l9.png')">⬇ ficha_bat_202609_l9.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L15 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l15.html','ficha_bsr_202607_l15.png')">⬇ ficha_bsr_202607_l15.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L15 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l15.html','ficha_bsr_202608_l15.png')">⬇ ficha_bsr_202608_l15.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L15 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l15.html','ficha_bsr_202609_l15.png')">⬇ ficha_bsr_202609_l15.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L18 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202607_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l18.html','ficha_bvt_202607_l18.png')">⬇ ficha_bvt_202607_l18.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L18 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202608_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l18.html','ficha_bvt_202608_l18.png')">⬇ ficha_bvt_202608_l18.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L18 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202609_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l18.html','ficha_bvt_202609_l18.png')">⬇ ficha_bvt_202609_l18.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L30 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202607_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l30.html','ficha_bat_202607_l30.png')">⬇ ficha_bat_202607_l30.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L30 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202608_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l30.html','ficha_bat_202608_l30.png')">⬇ ficha_bat_202608_l30.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L30 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202609_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l30.html','ficha_bat_202609_l30.png')">⬇ ficha_bat_202609_l30.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L31 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l31.html','ficha_bsr_202607_l31.png')">⬇ ficha_bsr_202607_l31.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L31 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l31.html','ficha_bsr_202608_l31.png')">⬇ ficha_bsr_202608_l31.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L31 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l31.html','ficha_bsr_202609_l31.png')">⬇ ficha_bsr_202609_l31.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L34 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202607_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l34.html','ficha_bvt_202607_l34.png')">⬇ ficha_bvt_202607_l34.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L34 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202608_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l34.html','ficha_bvt_202608_l34.png')">⬇ ficha_bvt_202608_l34.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L34 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202609_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l34.html','ficha_bvt_202609_l34.png')">⬇ ficha_bvt_202609_l34.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L36 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202607_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l36.html','ficha_bat_202607_l36.png')">⬇ ficha_bat_202607_l36.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L36 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202608_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l36.html','ficha_bat_202608_l36.png')">⬇ ficha_bat_202608_l36.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L36 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202609_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l36.html','ficha_bat_202609_l36.png')">⬇ ficha_bat_202609_l36.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L11 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l11.html','ficha_bsr_202607_l11.png')">⬇ ficha_bsr_202607_l11.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L11 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l11.html','ficha_bsr_202608_l11.png')">⬇ ficha_bsr_202608_l11.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L11 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l11.html','ficha_bsr_202609_l11.png')">⬇ ficha_bsr_202609_l11.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L16 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202607_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l16.html','ficha_bvt_202607_l16.png')">⬇ ficha_bvt_202607_l16.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L16 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202608_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l16.html','ficha_bvt_202608_l16.png')">⬇ ficha_bvt_202608_l16.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L16 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202609_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l16.html','ficha_bvt_202609_l16.png')">⬇ ficha_bvt_202609_l16.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L12 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202607_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l12.html','ficha_bat_202607_l12.png')">⬇ ficha_bat_202607_l12.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L12 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202608_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l12.html','ficha_bat_202608_l12.png')">⬇ ficha_bat_202608_l12.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L12 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202609_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l12.html','ficha_bat_202609_l12.png')">⬇ ficha_bat_202609_l12.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L23 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l23.html','ficha_bsr_202607_l23.png')">⬇ ficha_bsr_202607_l23.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L23 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l23.html','ficha_bsr_202608_l23.png')">⬇ ficha_bsr_202608_l23.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L23 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l23.html','ficha_bsr_202609_l23.png')">⬇ ficha_bsr_202609_l23.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L27 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202607_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l27.html','ficha_bvt_202607_l27.png')">⬇ ficha_bvt_202607_l27.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L27 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202608_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l27.html','ficha_bvt_202608_l27.png')">⬇ ficha_bvt_202608_l27.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco Vital</strong>L27 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bvt_202609_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l27.html','ficha_bvt_202609_l27.png')">⬇ ficha_bvt_202609_l27.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L29 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202607_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l29.html','ficha_bat_202607_l29.png')">⬇ ficha_bat_202607_l29.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L29 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202608_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l29.html','ficha_bat_202608_l29.png')">⬇ ficha_bat_202608_l29.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Atlántico</strong>L29 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bat_202609_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l29.html','ficha_bat_202609_l29.png')">⬇ ficha_bat_202609_l29.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L33 · JUL 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202607_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l33.html','ficha_bsr_202607_l33.png')">⬇ ficha_bsr_202607_l33.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L33 · AGO 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202608_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l33.html','ficha_bsr_202608_l33.png')">⬇ ficha_bsr_202608_l33.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>Banco del Sureste</strong>L33 · SEP 2026 · $10,000.00</div>
+  <iframe src="ficha_bsr_202609_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
+  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l33.html','ficha_bsr_202609_l33.png')">⬇ ficha_bsr_202609_l33.png</button>
+</div>
+</div>
+<script>
+async function capHtml(src, fname) {
+  const w = window.open(src, '_blank', 'width=520,height=420');
+  await new Promise(r => setTimeout(r, 1200));
+  if (w && w.descargar) w.descargar();
+  setTimeout(() => w.close(), 3000);
+}
+async function descargarTodos() {
+  const btn = document.getElementById('btnAll');
+  const st  = document.getElementById('status');
+  btn.disabled = true;
+  const items = [{"idx":0,"png":"ficha_bsr_202607_l37.png","html":"ficha_bsr_202607_l37.html"},{"idx":1,"png":"ficha_bsr_202608_l37.png","html":"ficha_bsr_202608_l37.html"},{"idx":2,"png":"ficha_bsr_202609_l37.png","html":"ficha_bsr_202609_l37.html"},{"idx":3,"png":"ficha_bvt_202607_l8.png","html":"ficha_bvt_202607_l8.html"},{"idx":4,"png":"ficha_bvt_202608_l8.png","html":"ficha_bvt_202608_l8.html"},{"idx":5,"png":"ficha_bvt_202609_l8.png","html":"ficha_bvt_202609_l8.html"},{"idx":6,"png":"ficha_bat_202607_l9.png","html":"ficha_bat_202607_l9.html"},{"idx":7,"png":"ficha_bat_202608_l9.png","html":"ficha_bat_202608_l9.html"},{"idx":8,"png":"ficha_bat_202609_l9.png","html":"ficha_bat_202609_l9.html"},{"idx":9,"png":"ficha_bsr_202607_l15.png","html":"ficha_bsr_202607_l15.html"},{"idx":10,"png":"ficha_bsr_202608_l15.png","html":"ficha_bsr_202608_l15.html"},{"idx":11,"png":"ficha_bsr_202609_l15.png","html":"ficha_bsr_202609_l15.html"},{"idx":12,"png":"ficha_bvt_202607_l18.png","html":"ficha_bvt_202607_l18.html"},{"idx":13,"png":"ficha_bvt_202608_l18.png","html":"ficha_bvt_202608_l18.html"},{"idx":14,"png":"ficha_bvt_202609_l18.png","html":"ficha_bvt_202609_l18.html"},{"idx":15,"png":"ficha_bat_202607_l30.png","html":"ficha_bat_202607_l30.html"},{"idx":16,"png":"ficha_bat_202608_l30.png","html":"ficha_bat_202608_l30.html"},{"idx":17,"png":"ficha_bat_202609_l30.png","html":"ficha_bat_202609_l30.html"},{"idx":18,"png":"ficha_bsr_202607_l31.png","html":"ficha_bsr_202607_l31.html"},{"idx":19,"png":"ficha_bsr_202608_l31.png","html":"ficha_bsr_202608_l31.html"},{"idx":20,"png":"ficha_bsr_202609_l31.png","html":"ficha_bsr_202609_l31.html"},{"idx":21,"png":"ficha_bvt_202607_l34.png","html":"ficha_bvt_202607_l34.html"},{"idx":22,"png":"ficha_bvt_202608_l34.png","html":"ficha_bvt_202608_l34.html"},{"idx":23,"png":"ficha_bvt_202609_l34.png","html":"ficha_bvt_202609_l34.html"},{"idx":24,"png":"ficha_bat_202607_l36.png","html":"ficha_bat_202607_l36.html"},{"idx":25,"png":"ficha_bat_202608_l36.png","html":"ficha_bat_202608_l36.html"},{"idx":26,"png":"ficha_bat_202609_l36.png","html":"ficha_bat_202609_l36.html"},{"idx":27,"png":"ficha_bsr_202607_l11.png","html":"ficha_bsr_202607_l11.html"},{"idx":28,"png":"ficha_bsr_202608_l11.png","html":"ficha_bsr_202608_l11.html"},{"idx":29,"png":"ficha_bsr_202609_l11.png","html":"ficha_bsr_202609_l11.html"},{"idx":30,"png":"ficha_bvt_202607_l16.png","html":"ficha_bvt_202607_l16.html"},{"idx":31,"png":"ficha_bvt_202608_l16.png","html":"ficha_bvt_202608_l16.html"},{"idx":32,"png":"ficha_bvt_202609_l16.png","html":"ficha_bvt_202609_l16.html"},{"idx":33,"png":"ficha_bat_202607_l12.png","html":"ficha_bat_202607_l12.html"},{"idx":34,"png":"ficha_bat_202608_l12.png","html":"ficha_bat_202608_l12.html"},{"idx":35,"png":"ficha_bat_202609_l12.png","html":"ficha_bat_202609_l12.html"},{"idx":36,"png":"ficha_bsr_202607_l23.png","html":"ficha_bsr_202607_l23.html"},{"idx":37,"png":"ficha_bsr_202608_l23.png","html":"ficha_bsr_202608_l23.html"},{"idx":38,"png":"ficha_bsr_202609_l23.png","html":"ficha_bsr_202609_l23.html"},{"idx":39,"png":"ficha_bvt_202607_l27.png","html":"ficha_bvt_202607_l27.html"},{"idx":40,"png":"ficha_bvt_202608_l27.png","html":"ficha_bvt_202608_l27.html"},{"idx":41,"png":"ficha_bvt_202609_l27.png","html":"ficha_bvt_202609_l27.html"},{"idx":42,"png":"ficha_bat_202607_l29.png","html":"ficha_bat_202607_l29.html"},{"idx":43,"png":"ficha_bat_202608_l29.png","html":"ficha_bat_202608_l29.html"},{"idx":44,"png":"ficha_bat_202609_l29.png","html":"ficha_bat_202609_l29.html"},{"idx":45,"png":"ficha_bsr_202607_l33.png","html":"ficha_bsr_202607_l33.html"},{"idx":46,"png":"ficha_bsr_202608_l33.png","html":"ficha_bsr_202608_l33.html"},{"idx":47,"png":"ficha_bsr_202609_l33.png","html":"ficha_bsr_202609_l33.html"}];
+  for (let i = 0; i < items.length; i++) {
+    st.textContent = 'Descargando ' + (i+1) + ' de ' + items.length + '...';
+    const w = window.open(items[i].html, '_blank', 'width=520,height=420');
+    await new Promise(r => setTimeout(r, 1500));
+    if (w && w.descargar) w.descargar();
+    await new Promise(r => setTimeout(r, 1200));
+    if (w) w.close();
+  }
+  st.textContent = '✓ Listo — ' + items.length + ' PNGs';
+  btn.disabled = false;
+}
+</script>
+</body></html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>* {margin:0;padding:0;box-sizing:border-box;} body {background:#e8e8e8;display:flex;flex-direction:column;align-items:center;padding:24px;gap:14px;font-family:Arial,sans-serif;} .dl-btn {width:360px;padding:11px;background:#1a3a6e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}</style>
+</head><body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar PNG</button>
+<div id="doc"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">3 de julio de 2026, 10:51 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L34</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****7399</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
+<script>function descargar(){html2canvas(document.getElementById('doc'),{scale:2,backgroundColor:'#ffffff'}).then(function(c){var a=document.createElement('a');a.download='ficha_bvt_202607_l34.png';a.href=c.toDataURL('image/png');a.click();});}</script>
+</body></html>
