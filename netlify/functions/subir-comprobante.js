@@ -31,7 +31,8 @@ const MIMES = [
 ]
 
 const MAX_BYTES = 15 * 1024 * 1024   // 15 MB
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// ingresos.id es bigint (975, 1019...), no uuid — validar como entero positivo.
+const ID_INGRESO = /^\d+$/
 
 // Solo el propio sitio y el entorno de desarrollo. Antes era '*', que dejaba a
 // cualquier página del mundo llamar a la función desde el navegador.
@@ -152,7 +153,7 @@ exports.handler = async (event) => {
     // Los buckets son privados: se guarda la ruta completa y el frontend la firma
     // con urlFirmada(), que acepta este formato.
     if (ingreso_id) {
-      if (!UUID.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
+      if (!ID_INGRESO.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
       await fetch(`${SUPABASE_URL}/rest/v1/ingresos?id=eq.${ingreso_id}`, {
         method: 'PATCH',
         headers: {
