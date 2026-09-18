@@ -403,8 +403,18 @@ producción a propósito) están configuradas directamente en Netlify.
    las políticas RLS estén perfectos. Este fue exactamente el bug que causó "Tu cuenta todavía no está
    vinculada a ningún contrato" en QA la primera vez, con `irp_usuarios` teniendo el `contrato_id`
    correcto — el fallo estaba en el permiso de esquema, no en los datos ni en RLS.
+6. `node scripts/aplicar-storage-buckets.mjs qa` — **igual de fácil de olvidar que el paso 5, y por la misma
+   razón**: los buckets de Storage y sus políticas RLS tampoco son esquema `public`, así que ningún dump los
+   captura. Aplica `supabase/qa-bootstrap/storage-buckets-qa.sql` (crea los 12 buckets que usa el código, con
+   `public`/privado correcto y sus políticas de `authenticated`) contra el ambiente que se le indique.
+   Hallazgo del 2026-09-18: QA llevaba días con solo 2 de los 13 buckets de producción — nadie lo notó hasta
+   que un upload real falló con `Bucket not found`. Sirve de plantilla para un proyecto nuevo (ej. Petra):
+   copiar el `.sql`, apuntar el runner a esa base, correr.
+7. `node scripts/verificar-post-migracion.mjs qa` — **paso de aceptación, no opcional**: corre las 76
+   pruebas de RLS/permisos/storage contra el ambiente recién armado. El ambiente no se considera listo hasta
+   que dé 76/76 — no basta con que la app "cargue algo", como pasó con QA antes de este hallazgo.
 
-Estos cinco scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
+Estos siete scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instalado en esta máquina) — usan
 `pg_catalog`/`information_schema` directamente vía el paquete `pg` de Node.
 
 ---
