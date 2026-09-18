@@ -70,84 +70,97 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST')    return responder(405, { error: 'Método no permitido' })
   if (!SERVICE_KEY)                   return responder(500, { error: 'SUPABASE_SERVICE_ROLE_KEY no configurada' })
 
-  // ── Sesión activa ────────────────────────────────────────────────────────
-  const jwt = (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer\s+/i, '')
-  if (!jwt) return responder(401, { error: 'No autorizado' })
-
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
-  const { data: { user }, error: authErr } = await admin.auth.getUser(jwt)
-  if (authErr || !user) return responder(401, { error: 'Sesión inválida' })
-
-  // Y que sea personal del sistema. Los roles de portal (arrendatario,
-  // prospecto) y el de solo lectura no suben archivos por aquí: el portal del
-  // arrendatario tiene su propia función acotada a su carpeta.
-  const { data: perfil } = await admin
-    .from('irp_usuarios').select('rol_id, activo').eq('id', user.id).single()
-  const VETADOS = ['arrendatario', 'prospecto', 'read_only']
-  if (!perfil?.activo || VETADOS.includes(perfil.rol_id)) {
-    return responder(403, { error: 'Acceso denegado' })
-  }
-
-  // ── Body ─────────────────────────────────────────────────────────────────
-  let body
-  try { body = JSON.parse(event.body) }
-  catch { return responder(400, { error: 'JSON inválido' }) }
-
-  const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id } = body
-  const targetBucket = bucket || 'facturas-cfdi'
-
-  if (!BUCKETS[targetBucket])           return responder(400, { error: 'Bucket no permitido' })
-  if (!rutaCruda || !file_base64 || !mime_type) return responder(400, { error: 'Faltan campos requeridos' })
-  if (!MIMES.includes(mime_type))       return responder(400, { error: 'Tipo de archivo no permitido' })
-
-  const filePath = rutaValida(rutaCruda, targetBucket)
-  if (!filePath) return responder(400, { error: 'Ruta no permitida' })
-
-  const buffer = Buffer.from(file_base64, 'base64')
-  if (!buffer.length)            return responder(400, { error: 'Archivo vacío' })
-  if (buffer.length > MAX_BYTES) return responder(413, { error: 'El archivo excede 15 MB' })
-
-  // ── Subida ───────────────────────────────────────────────────────────────
-  let upRes
+  // Todo el cuerpo va envuelto: si algo truena sin este try/catch (una excepción
+  // real, no un error controlado), Lambda muere sin responder nada y Netlify le
+  // manda al navegador un 502 en blanco — indistinguible de un problema de
+  // Storage. Con esto, cualquier excepción se convierte en un JSON legible.
   try {
-    upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${targetBucket}/${filePath}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'apikey': SERVICE_KEY,
-        'Content-Type': mime_type,
-        'x-upsert': 'true',
-      },
-      body: buffer,
-    })
-  } catch (netErr) {
-    console.error('subir-comprobante network error', netErr)
-    return responder(502, { error: 'Error de red al contactar storage: ' + netErr.message })
+    // ── Sesión activa ──────────────────────────────────────────────────────
+    const jwt = (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer\s+/i, '')
+    if (!jwt) return responder(401, { error: 'No autorizado' })
+
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    const { data: { user }, error: authErr } = await admin.auth.getUser(jwt)
+    if (authErr || !user) return responder(401, { error: 'Sesión inválida' })
+
+    // Y que sea personal del sistema. Los roles de portal (arrendatario,
+    // prospecto) y el de solo lectura no suben archivos por aquí: el portal del
+    // arrendatario tiene su propia función acotada a su carpeta.
+    const { data: perfil, error: perfilErr } = await admin
+      .from('irp_usuarios').select('rol_id, activo').eq('id', user.id).single()
+    if (perfilErr) {
+      console.error('subir-comprobante perfil', perfilErr)
+      return responder(500, { error: 'No se pudo verificar el perfil: ' + perfilErr.message })
+    }
+    const VETADOS = ['arrendatario', 'prospecto', 'read_only']
+    if (!perfil?.activo || VETADOS.includes(perfil.rol_id)) {
+      return responder(403, { error: 'Acceso denegado' })
+    }
+
+    // ── Body ───────────────────────────────────────────────────────────────
+    let body
+    try { body = JSON.parse(event.body) }
+    catch { return responder(400, { error: 'JSON inválido' }) }
+
+    const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id } = body
+    const targetBucket = bucket || 'facturas-cfdi'
+
+    if (!BUCKETS[targetBucket])           return responder(400, { error: 'Bucket no permitido' })
+    if (!rutaCruda || !file_base64 || !mime_type) return responder(400, { error: 'Faltan campos requeridos' })
+    if (!MIMES.includes(mime_type))       return responder(400, { error: 'Tipo de archivo no permitido' })
+
+    const filePath = rutaValida(rutaCruda, targetBucket)
+    if (!filePath) return responder(400, { error: 'Ruta no permitida' })
+
+    const buffer = Buffer.from(file_base64, 'base64')
+    if (!buffer.length)            return responder(400, { error: 'Archivo vacío' })
+    if (buffer.length > MAX_BYTES) return responder(413, { error: 'El archivo excede 15 MB' })
+
+    // ── Subida ─────────────────────────────────────────────────────────────
+    let upRes
+    try {
+      upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${targetBucket}/${filePath}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'apikey': SERVICE_KEY,
+          'Content-Type': mime_type,
+          'x-upsert': 'true',
+        },
+        body: buffer,
+      })
+    } catch (netErr) {
+      console.error('subir-comprobante network error', netErr)
+      return responder(502, { error: 'Error de red al contactar storage: ' + netErr.message })
+    }
+
+    if (!upRes.ok) {
+      const errText = await upRes.text().catch(() => '')
+      console.error('subir-comprobante storage', upRes.status, errText)
+      return responder(502, { error: `Storage devolvió ${upRes.status}: ${errText.slice(0, 200)}` })
+    }
+
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${targetBucket}/${filePath}`
+
+    // Los buckets son privados: se guarda la ruta completa y el frontend la firma
+    // con urlFirmada(), que acepta este formato.
+    if (ingreso_id) {
+      if (!UUID.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
+      await fetch(`${SUPABASE_URL}/rest/v1/ingresos?id=eq.${ingreso_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'apikey': SERVICE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ comprobante_url: publicUrl }),
+      })
+    }
+
+    return responder(200, { url: publicUrl })
+  } catch (err) {
+    console.error('subir-comprobante excepción no controlada', err)
+    return responder(500, { error: 'Error inesperado: ' + err.message })
   }
-
-  if (!upRes.ok) {
-    const errText = await upRes.text().catch(() => '')
-    console.error('subir-comprobante storage', upRes.status, errText)
-    return responder(502, { error: `Storage devolvió ${upRes.status}: ${errText.slice(0, 200)}` })
-  }
-
-  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${targetBucket}/${filePath}`
-
-  // Los buckets son privados: se guarda la ruta completa y el frontend la firma
-  // con urlFirmada(), que acepta este formato.
-  if (ingreso_id) {
-    if (!UUID.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
-    await fetch(`${SUPABASE_URL}/rest/v1/ingresos?id=eq.${ingreso_id}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'apikey': SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal',
-      },
-      body: JSON.stringify({ comprobante_url: publicUrl }),
-    })
-  }
-
-  return responder(200, { url: publicUrl })
 }

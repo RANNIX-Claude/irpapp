@@ -15,6 +15,7 @@ Al resolver: marcar `[x]` y agregar fecha, no borrar la línea (sirve de histori
 ## Cobranza
 - [ ] #001 Revisar ingreso 115 (L27, CINDE) — PARCIALMENTE_APLICADO, $16,649.57 sin distribuir (`prp_ingresos_descuadrados`)
 - [ ] #002 Revisar ingreso 379 (L11/L12, Andrea Castillo) — PARCIALMENTE_APLICADO, $196.00 de diferencia (`prp_ingresos_descuadrados`)
+- [ ] #005 Error 502 al subir comprobante en Ingresos (`subir-comprobante.js`) — crash sin capturar en `auth.getUser`/consulta a `irp_usuarios`, diagnosticado 2026-09-17
 
 ## Contratos
 
@@ -29,5 +30,10 @@ Al resolver: marcar `[x]` y agregar fecha, no borrar la línea (sirve de histori
 ## Prospectos / CRM
 
 ## Validación
+
+## Infraestructura / Storage
+- [ ] #006 Borrar bucket huérfano `comprobantes-pago` (existe sin políticas RLS, sin uso en código desde que se quitó el portal de arrendatario el 2026-09-13) — pedir confirmación antes de borrar
+- [ ] #007 Documentar en `CLAUDE.md` qué bucket usa subida directa del navegador (`supabase.storage.from().upload()`) vs. cuál pasa por `subir-comprobante.js` (service_role) — hoy no hay una regla única y genera confusión al diagnosticar
+- [ ] #008 Limpiar políticas RLS duplicadas en `storage.objects` (mismo bucket con dos políticas casi idénticas, nombradas con convención distinta — ej. `auth-insert-facturas-cfdi` y `auth_insert_facturas_cfdi`) — no rompe nada pero ensucia auditorías futuras
 
 ## General / Config
