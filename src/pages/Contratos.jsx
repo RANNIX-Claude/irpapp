@@ -365,14 +365,18 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
       supabase.from('cat_locales').select('id_local, numero_local, superficie_m2').order('numero_local'),
       supabase.from('contratos_locales').select('local_id, renta_asignada').eq('contrato_id', c.id),
       c.arrendatario_id
-        ? supabase.from('arrendatarios').select('locatario, nombre_negocio').eq('id', c.arrendatario_id).single()
+        ? supabase.from('arrendatarios').select('locatario, nombre_negocio, rfc, telefono, email, domicilio_fiscal').eq('id', c.arrendatario_id).single()
         : Promise.resolve({ data: null }),
     ])
     setLocalesDisp(todos ?? [])
     setLocalesSel((actuales ?? []).map(l => l.local_id))
     setEditForm({
-      arr_locatario:              arr?.locatario      ?? c.arrendatario_nombre ?? '',
-      arr_nombre_negocio:         arr?.nombre_negocio ?? c.nombre_negocio      ?? '',
+      arr_locatario:              arr?.locatario       ?? c.arrendatario_nombre ?? '',
+      arr_nombre_negocio:         arr?.nombre_negocio  ?? c.nombre_negocio      ?? '',
+      arr_rfc:                    arr?.rfc             ?? c.arrendatario_rfc    ?? '',
+      arr_telefono:               arr?.telefono        ?? c.arrendatario_telefono ?? '',
+      arr_email:                  arr?.email           ?? '',
+      arr_domicilio:              arr?.domicilio_fiscal ?? c.arrendatario_domicilio ?? '',
       estatus:                    ['VIGENTE','VENCIDO','RENOVADO','RESCISION'].includes(c.estatus) ? c.estatus : 'VIGENTE',
       estatus_operacion:          c.estatus_operacion === 'DESOCUPADO' ? 'DESOCUPADO' : 'OCUPADO',
       estatus_proceso:            c.estatus_proceso ?? 'EN_EJECUCION',
@@ -389,9 +393,10 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
       horario_inicio:             c.horario_inicio ?? '',
       horario_fin:                c.horario_fin ?? '',
       cancelacion_anticipada_meses: c.cancelacion_anticipada_meses ?? '',
-      fiador_nombre:              c.fiador_nombre ?? '',
-      fiador_rfc:                 c.fiador_rfc ?? '',
+      fiador_nombre:              c.fiador_nombre    ?? '',
+      fiador_rfc:                 c.fiador_rfc       ?? '',
       fiador_domicilio:           c.fiador_domicilio ?? '',
+      fiador_telefono:            c.fiador_telefono  ?? '',
       folio:                      c.folio ?? '',
     })
     setEditErr(null)
@@ -422,9 +427,10 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     if ('horario_inicio' in c)               payload.horario_inicio = editForm.horario_inicio || null
     if ('horario_fin' in c)                  payload.horario_fin = editForm.horario_fin || null
     if ('cancelacion_anticipada_meses' in c) payload.cancelacion_anticipada_meses = editForm.cancelacion_anticipada_meses ? parseInt(editForm.cancelacion_anticipada_meses) : null
-    if ('fiador_nombre' in c)                payload.fiador_nombre = editForm.fiador_nombre || null
-    if ('fiador_rfc' in c)                   payload.fiador_rfc = editForm.fiador_rfc || null
+    if ('fiador_nombre' in c)                payload.fiador_nombre    = editForm.fiador_nombre    || null
+    if ('fiador_rfc' in c)                   payload.fiador_rfc       = editForm.fiador_rfc       || null
     if ('fiador_domicilio' in c)             payload.fiador_domicilio = editForm.fiador_domicilio || null
+    if ('fiador_telefono' in c)              payload.fiador_telefono  = editForm.fiador_telefono  || null
 
     // Actualizar locales_referencia y locales_display en contratos
     const rentaXLocal = localesSel.length > 0 ? (parseFloat(editForm.renta_mensual) || 0) / localesSel.length : 0
@@ -441,8 +447,12 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
     // Actualizar nombre del arrendatario si fue modificado
     if (c.arrendatario_id) {
       await supabase.from('arrendatarios').update({
-        locatario:      editForm.arr_locatario      || null,
-        nombre_negocio: editForm.arr_nombre_negocio || null,
+        locatario:        editForm.arr_locatario      || null,
+        nombre_negocio:   editForm.arr_nombre_negocio || null,
+        rfc:              editForm.arr_rfc?.toUpperCase() || null,
+        telefono:         editForm.arr_telefono       || null,
+        email:            editForm.arr_email?.toLowerCase() || null,
+        domicilio_fiscal: editForm.arr_domicilio      || null,
       }).eq('id', c.arrendatario_id)
     }
 
@@ -594,12 +604,34 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                           placeholder="Nombre completo del arrendatario"
                           style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
                       </div>
-                      <div>
+                      <div style={{ marginTop: 8 }}>
                         <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Nombre negocio / razón social</div>
                         <input value={editForm.arr_nombre_negocio}
                           onChange={e => setEditForm(f => ({ ...f, arr_nombre_negocio: e.target.value }))}
                           placeholder="Nombre del negocio o razón social"
                           style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: 8 }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>RFC</div>
+                          <input value={editForm.arr_rfc} onChange={e => setEditForm(f => ({ ...f, arr_rfc: e.target.value }))}
+                            placeholder="RFC" style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white', fontFamily: 'monospace', textTransform: 'uppercase' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Teléfono</div>
+                          <input value={editForm.arr_telefono} onChange={e => setEditForm(f => ({ ...f, arr_telefono: e.target.value }))}
+                            placeholder="10 dígitos" style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Email</div>
+                        <input type="email" value={editForm.arr_email} onChange={e => setEditForm(f => ({ ...f, arr_email: e.target.value }))}
+                          placeholder="correo@ejemplo.com" style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '3px', fontWeight: 600 }}>Domicilio fiscal</div>
+                        <input value={editForm.arr_domicilio} onChange={e => setEditForm(f => ({ ...f, arr_domicilio: e.target.value }))}
+                          placeholder="Calle, número, colonia, CP, ciudad" style={{ width: '100%', padding: '7px 10px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }} />
                       </div>
                     </div>
 
@@ -690,9 +722,12 @@ function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initi
                       </div>
                     </div>
                     <div style={{ marginTop: '16px', padding: '14px', background: '#FFF8F0', borderRadius: '10px', border: '1px solid #FBBF24' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Fiador</div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '8px' }}>Aval / Fiador</div>
                       <FormRow label="Nombre">{inp('fiador_nombre')}</FormRow>
-                      <FormRow label="RFC">{inp('fiador_rfc')}</FormRow>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <FormRow label="RFC">{inp('fiador_rfc')}</FormRow>
+                        <FormRow label="Teléfono">{inp('fiador_telefono')}</FormRow>
+                      </div>
                       <FormRow label="Domicilio">{inp('fiador_domicilio')}</FormRow>
                     </div>
                     {editErr && <p style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '8px' }}>{editErr}</p>}

@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Tickets $100 — QA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+* {margin:0;padding:0;box-sizing:border-box;}
+body {font-family:Arial,sans-serif;background:#e0e0e0;padding:20px;}
+h1 {font-size:17px;margin-bottom:4px;}
+.nota {font-size:11px;color:#777;margin-bottom:14px;}
+.toolbar {display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+#btnAll {padding:10px 22px;background:#1e8449;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}
+#btnAll:disabled {background:#888;cursor:default;}
+#status {font-size:12px;color:#555;}
+.grid {display:flex;flex-wrap:wrap;gap:16px;}
+.card {background:#f8f8f8;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.meta {font-size:10px;color:#666;margin-bottom:6px;}
+.meta strong {color:#222;display:block;}
+.dl-btn {padding:6px 12px;background:#1a5276;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-top:8px;}
+</style>
+</head><body>
+<h1>Tickets de Compra $100 — QA Demo</h1>
+<p class="nota">20 tickets · $100.00 cada uno · IVA 0%</p>
+<div class="toolbar">
+  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todos (20 PNG)</button>
+  <span id="status"></span>
+</div>
+<div class="grid">
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>VENDING_REPOSICION · VND</div>
+  <iframe src="ticket_01_vending_reposicion.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(0,'ticket_01_vending_reposicion.png','ticket_01_vending_reposicion.html')">⬇ ticket_01_vending_reposicion.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA · LIM</div>
+  <iframe src="ticket_02_limpieza.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(1,'ticket_02_limpieza.png','ticket_02_limpieza.html')">⬇ ticket_02_limpieza.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>FERRETERIA · FER</div>
+  <iframe src="ticket_03_ferreteria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(2,'ticket_03_ferreteria.png','ticket_03_ferreteria.html')">⬇ ticket_03_ferreteria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>SUMINISTROS GENERALES</strong>MANTENIMIENTO · MAN</div>
+  <iframe src="ticket_04_mantenimiento.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(3,'ticket_04_mantenimiento.png','ticket_04_mantenimiento.html')">⬇ ticket_04_mantenimiento.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>PAPELERIA · PAP</div>
+  <iframe src="ticket_05_papeleria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(4,'ticket_05_papeleria.png','ticket_05_papeleria.html')">⬇ ticket_05_papeleria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>FARMACIAS SALUD PLUS</strong>GASTOS_MEDICOS · FAR</div>
+  <iframe src="ticket_06_gastos_medicos.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(5,'ticket_06_gastos_medicos.png','ticket_06_gastos_medicos.html')">⬇ ticket_06_gastos_medicos.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>UNIFORMES · UNI</div>
+  <iframe src="ticket_07_uniformes.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(6,'ticket_07_uniformes.png','ticket_07_uniformes.html')">⬇ ticket_07_uniformes.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA · LIM</div>
+  <iframe src="ticket_08_limpieza.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(7,'ticket_08_limpieza.png','ticket_08_limpieza.html')">⬇ ticket_08_limpieza.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>FERRETERIA · FER</div>
+  <iframe src="ticket_09_ferreteria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(8,'ticket_09_ferreteria.png','ticket_09_ferreteria.html')">⬇ ticket_09_ferreteria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>SUMINISTROS GENERALES</strong>MANTENIMIENTO · MAN</div>
+  <iframe src="ticket_10_mantenimiento.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(9,'ticket_10_mantenimiento.png','ticket_10_mantenimiento.html')">⬇ ticket_10_mantenimiento.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>PAPELERIA · PAP</div>
+  <iframe src="ticket_11_papeleria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(10,'ticket_11_papeleria.png','ticket_11_papeleria.html')">⬇ ticket_11_papeleria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>SUMINISTROS GENERALES</strong>MANTENIMIENTO · MAN</div>
+  <iframe src="ticket_12_mantenimiento.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(11,'ticket_12_mantenimiento.png','ticket_12_mantenimiento.html')">⬇ ticket_12_mantenimiento.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA · LIM</div>
+  <iframe src="ticket_13_limpieza.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(12,'ticket_13_limpieza.png','ticket_13_limpieza.html')">⬇ ticket_13_limpieza.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>OTROS · OTR</div>
+  <iframe src="ticket_14_otros.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(13,'ticket_14_otros.png','ticket_14_otros.html')">⬇ ticket_14_otros.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>OTROS · OTR</div>
+  <iframe src="ticket_15_otros.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(14,'ticket_15_otros.png','ticket_15_otros.html')">⬇ ticket_15_otros.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>ALMACÉN DEL NORTE</strong>LIMPIEZA · LIM</div>
+  <iframe src="ticket_16_limpieza.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(15,'ticket_16_limpieza.png','ticket_16_limpieza.html')">⬇ ticket_16_limpieza.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>SUMINISTROS GENERALES</strong>MANTENIMIENTO · MAN</div>
+  <iframe src="ticket_17_mantenimiento.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(16,'ticket_17_mantenimiento.png','ticket_17_mantenimiento.html')">⬇ ticket_17_mantenimiento.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>FERRETERÍA EL CONSTRUCTOR</strong>FERRETERIA · FER</div>
+  <iframe src="ticket_18_ferreteria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(17,'ticket_18_ferreteria.png','ticket_18_ferreteria.html')">⬇ ticket_18_ferreteria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>PAPELERIA · PAP</div>
+  <iframe src="ticket_19_papeleria.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(18,'ticket_19_papeleria.png','ticket_19_papeleria.html')">⬇ ticket_19_papeleria.png</button>
+</div>
+<div class="card">
+  <div class="meta"><strong>PAPELERÍA METRO</strong>OTROS · OTR</div>
+  <iframe src="ticket_20_otros.html" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
+  <br><button class="dl-btn" onclick="capIframe(19,'ticket_20_otros.png','ticket_20_otros.html')">⬇ ticket_20_otros.png</button>
+</div>
+</div>
+<script>
+async function capIframe(idx, fname, src) {
+  const win = window.open(src, '_blank', 'width=340,height=440');
+  if (!win) { alert('Abre la página individual: ' + src); return; }
+  await new Promise(r => setTimeout(r, 1200));
+  win.descargar && win.descargar();
+  setTimeout(() => win.close(), 3000);
+}
+async function descargarTodos() {
+  const btn = document.getElementById('btnAll');
+  const st  = document.getElementById('status');
+  btn.disabled = true;
+  const items = [{"idx":0,"png":"ticket_01_vending_reposicion.png","nombre":"ticket_01_vending_reposicion.html"},{"idx":1,"png":"ticket_02_limpieza.png","nombre":"ticket_02_limpieza.html"},{"idx":2,"png":"ticket_03_ferreteria.png","nombre":"ticket_03_ferreteria.html"},{"idx":3,"png":"ticket_04_mantenimiento.png","nombre":"ticket_04_mantenimiento.html"},{"idx":4,"png":"ticket_05_papeleria.png","nombre":"ticket_05_papeleria.html"},{"idx":5,"png":"ticket_06_gastos_medicos.png","nombre":"ticket_06_gastos_medicos.html"},{"idx":6,"png":"ticket_07_uniformes.png","nombre":"ticket_07_uniformes.html"},{"idx":7,"png":"ticket_08_limpieza.png","nombre":"ticket_08_limpieza.html"},{"idx":8,"png":"ticket_09_ferreteria.png","nombre":"ticket_09_ferreteria.html"},{"idx":9,"png":"ticket_10_mantenimiento.png","nombre":"ticket_10_mantenimiento.html"},{"idx":10,"png":"ticket_11_papeleria.png","nombre":"ticket_11_papeleria.html"},{"idx":11,"png":"ticket_12_mantenimiento.png","nombre":"ticket_12_mantenimiento.html"},{"idx":12,"png":"ticket_13_limpieza.png","nombre":"ticket_13_limpieza.html"},{"idx":13,"png":"ticket_14_otros.png","nombre":"ticket_14_otros.html"},{"idx":14,"png":"ticket_15_otros.png","nombre":"ticket_15_otros.html"},{"idx":15,"png":"ticket_16_limpieza.png","nombre":"ticket_16_limpieza.html"},{"idx":16,"png":"ticket_17_mantenimiento.png","nombre":"ticket_17_mantenimiento.html"},{"idx":17,"png":"ticket_18_ferreteria.png","nombre":"ticket_18_ferreteria.html"},{"idx":18,"png":"ticket_19_papeleria.png","nombre":"ticket_19_papeleria.html"},{"idx":19,"png":"ticket_20_otros.png","nombre":"ticket_20_otros.html"}];
+  for (let i = 0; i < items.length; i++) {
+    st.textContent = 'Abriendo ' + (i+1) + ' de ' + items.length + '...';
+    const w = window.open(items[i].nombre, '_blank', 'width=340,height=440');
+    await new Promise(r => setTimeout(r, 1500));
+    if (w && w.descargar) w.descargar();
+    await new Promise(r => setTimeout(r, 1200));
+    if (w) w.close();
+  }
+  st.textContent = '✓ Listo';
+  btn.disabled = false;
+}
+</script>
+</body></html>

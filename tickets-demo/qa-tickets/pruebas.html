@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Plan de Pruebas QA — OCR + Inventarios</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,sans-serif; background:#f5f5f5; padding:24px; color:#222; }
+h1 { font-size:20px; margin-bottom:4px; }
+.sub { font-size:12px; color:#777; margin-bottom:24px; }
+.seccion { margin-bottom:32px; }
+.seccion h2 { font-size:14px; font-weight:700; color:#fff; padding:8px 14px; border-radius:4px 4px 0 0; margin-bottom:0; }
+.h2-vending  { background:#4a235a; }
+.h2-ocr      { background:#1a5276; }
+.h2-cobranza { background:#1a6e3c; }
+.h2-gastos   { background:#922b21; }
+.h2-inventario { background:#7d6608; }
+.tabla { width:100%; border-collapse:collapse; background:#fff; border-radius:0 0 4px 4px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.tabla th { background:#f0f0f0; font-size:11px; text-align:left; padding:8px 12px; border-bottom:1px solid #ddd; color:#555; font-weight:600; }
+.tabla td { font-size:12px; padding:8px 12px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
+.tabla tr:last-child td { border-bottom:none; }
+.tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; white-space:nowrap; }
+.tag-critico   { background:#fde8e8; color:#922b21; }
+.tag-importante{ background:#fef3cd; color:#7d6608; }
+.tag-normal    { background:#e8f5ee; color:#1a6e3c; }
+.check { font-size:16px; cursor:pointer; user-select:none; }
+.check:hover { opacity:.7; }
+input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:#1a5276; }
+.valor { font-family:'Courier New',monospace; background:#f8f8f8; padding:1px 6px; border-radius:3px; font-size:11px; color:#1a5276; font-weight:bold; }
+.formula { font-size:11px; color:#555; font-style:italic; }
+.ok-row { background:#f0fff4 !important; }
+.fail-row { background:#fff0f0 !important; }
+.nota { font-size:11px; color:#888; margin-top:2px; }
+#resumen { position:sticky; top:0; background:#1a3c5e; color:#fff; padding:10px 18px; border-radius:4px; margin-bottom:20px; display:flex; gap:32px; align-items:center; font-size:13px; z-index:10; }
+#resumen span { font-size:20px; font-weight:700; }
+.btn-reset { margin-left:auto; padding:6px 16px; background:#fff; color:#1a3c5e; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div id="resumen">
+  <div>✅ Pasaron: <span id="cntOk">0</span></div>
+  <div>❌ Fallaron: <span id="cntFail">0</span></div>
+  <div>⬜ Pendientes: <span id="cntPend">0</span></div>
+  <button class="btn-reset" onclick="resetAll()">Reiniciar</button>
+</div>
+
+<h1>Plan de Pruebas QA — OCR · Inventarios · Cobranza</h1>
+<p class="sub">IRP / Petra · QA · Generado 2026-09-18 · Montos normalizados: rentas $10,000 · tickets $100 (10 ítems × $10)</p>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <h2 class="h2-vending">🥤 A — Control de Inventario Vending</h2>
+  <table class="tabla">
+    <tr><th style="width:32px"></th><th style="width:28px">#</th><th>Prueba</th><th style="width:100px">Valor esperado</th><th style="width:80px">Prioridad</th><th>Notas</th></tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,1)"></td><td>A1</td>
+      <td>Subir <code>ticket_01_vending_reposicion.png</code> al OCR de gastos. El sistema extrae los 10 productos del catálogo vending.</td>
+      <td class="valor">10 líneas</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Productos: Coca-Cola, Pepsi, Agua Ciel, Boing, Sabritas, Doritos, Gansito, Snickers, Pinguino, Jumex</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,2)"></td><td>A2</td>
+      <td>El total extraído del ticket vending es exactamente $100.00</td>
+      <td class="valor">$100.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">10 × $10 = $100. Si da otro valor, el OCR sumó mal o ignoró líneas.</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,3)"></td><td>A3</td>
+      <td>Cada producto individual lee precio unitario $10.00</td>
+      <td class="valor">$10.00 c/u</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">Verificar en el detalle del gasto extraído</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,4)"></td><td>A4</td>
+      <td>Subir el ticket en módulo Vending → Reposición. El movimiento de inventario registra +1 unidad por cada uno de los 10 SKUs.</td>
+      <td class="valor">+1 × 10 SKUs</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Flujo: ticket PNG → OCR → confirmar → inventario vending actualizado</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,5)"></td><td>A5</td>
+      <td>El reporte de semana vending muestra el gasto de reposición = $100 en la semana del ticket.</td>
+      <td class="valor">$100.00</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">prp_vending_semanas debe reflejar el gasto</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,6)"></td><td>A6</td>
+      <td>Subir 3 tickets vending (Jul, Ago, Sep). La suma de reposición en el trimestre es $300.</td>
+      <td class="valor">$300.00</td>
+      <td><span class="tag tag-normal">NORMAL</span></td>
+      <td class="nota">3 × $100. Útil para validar el reporte trimestral de vending.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <h2 class="h2-ocr">📷 B — OCR Tickets de Compra (gastos_operativos)</h2>
+  <table class="tabla">
+    <tr><th style="width:32px"></th><th style="width:28px">#</th><th>Prueba</th><th style="width:100px">Valor esperado</th><th style="width:80px">Prioridad</th><th>Notas</th></tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,7)"></td><td>B1</td>
+      <td>Subir cualquiera de los 20 tickets QA. El total extraído es siempre $100.00 sin importar la categoría.</td>
+      <td class="valor">$100.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Prueba de regresión: todos los tickets deben dar $100</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,8)"></td><td>B2</td>
+      <td>Ticket de limpieza: OCR reconoce correctamente "JABON LIQUIDO 1L", "CLORO CLORALEX 1L", etc.</td>
+      <td class="valor">10 líneas</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">ticket_02_limpieza.png</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,9)"></td><td>B3</td>
+      <td>Ticket de ferretería: OCR lee los SKUs FER-001 al FER-010.</td>
+      <td class="valor">SKUs FER-00X</td>
+      <td><span class="tag tag-normal">NORMAL</span></td>
+      <td class="nota">ticket_03_ferreteria.png</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,10)"></td><td>B4</td>
+      <td>Subir 10 tickets distintos. La suma total en gastos del período = $1,000.</td>
+      <td class="valor">$1,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota"><span class="formula">10 tickets × $100 = $1,000</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,11)"></td><td>B5</td>
+      <td>Subir los 20 tickets. La suma total en gastos = $2,000.</td>
+      <td class="valor">$2,000.00</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota"><span class="formula">20 × $100 = $2,000. Verificar en reporte de gastos.</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,12)"></td><td>B6</td>
+      <td>El ticket de gastos médicos (farmacia) clasifica automáticamente como grupo GASTOS_MEDICOS.</td>
+      <td class="valor">GASTOS_MEDICOS</td>
+      <td><span class="tag tag-normal">NORMAL</span></td>
+      <td class="nota">ticket_06_gastos_medicos.png — Farmacias Salud Plus</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <h2 class="h2-cobranza">💳 C — OCR Fichas Bancarias (cobranza)</h2>
+  <table class="tabla">
+    <tr><th style="width:32px"></th><th style="width:28px">#</th><th>Prueba</th><th style="width:100px">Valor esperado</th><th style="width:80px">Prioridad</th><th>Notas</th></tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,13)"></td><td>C1</td>
+      <td>Subir una ficha SPEI (Banco del Sureste). El OCR extrae importe = $10,000.</td>
+      <td class="valor">$10,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Fichas en tickets-demo/qa-fichas/ — prefijo bsr_</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,14)"></td><td>C2</td>
+      <td>Subir una ficha app (Banco Vital). El OCR extrae importe = $10,000.</td>
+      <td class="valor">$10,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Prefijo bvt_ — diseño app-style diferente al SPEI</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,15)"></td><td>C3</td>
+      <td>Subir una ficha Banco del Atlántico (SPEI). El OCR extrae importe = $10,000.</td>
+      <td class="valor">$10,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Prefijo bat_</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,16)"></td><td>C4</td>
+      <td>El concepto extraído de la ficha contiene el nombre del local (ej. "RENTA AGO 2026 L12").</td>
+      <td class="valor">RENTA + LOCAL</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">Permite conciliar automáticamente con el contrato</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,17)"></td><td>C5</td>
+      <td>Subir 16 fichas (una por contrato, mismo mes). Cobranza del mes = $160,000.</td>
+      <td class="valor">$160,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota"><span class="formula">16 contratos × $10,000 = $160,000</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,18)"></td><td>C6</td>
+      <td>Subir fichas de 3 meses (Jul+Ago+Sep). Cobranza trimestral = $480,000.</td>
+      <td class="valor">$480,000.00</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota"><span class="formula">16 × $10,000 × 3 meses = $480,000</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,19)"></td><td>C7</td>
+      <td>Conciliación bancaria: los 16 pagos del mes quedan en estado CONCILIADO.</td>
+      <td class="valor">16 CONCILIADO</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Ningún pago debe quedar en POR_CONCILIAR después del proceso</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <h2 class="h2-gastos">📊 D — Reportes y EDR</h2>
+  <table class="tabla">
+    <tr><th style="width:32px"></th><th style="width:28px">#</th><th>Prueba</th><th style="width:100px">Valor esperado</th><th style="width:80px">Prioridad</th><th>Notas</th></tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,20)"></td><td>D1</td>
+      <td>EDR de un mes con 16 contratos pagados y 20 tickets de gasto. Ingresos = $160,000, Gastos = $2,000.</td>
+      <td class="valor">$158,000 utilidad</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota"><span class="formula">$160,000 − $2,000 = $158,000 antes de otros</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,21)"></td><td>D2</td>
+      <td>KPI "Suma rentas del mes" en el Dashboard = $160,000.</td>
+      <td class="valor">$160,000.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">Si da otro número, hay contratos con renta distinta a $10,000 o no normalizados</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,22)"></td><td>D3</td>
+      <td>Reporte de gastos muestra subtotal por categoría: VENDING_REPOSICION = $100, LIMPIEZA = $400, etc.</td>
+      <td class="valor">Subtotales × $100</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">4 tickets de limpieza = $400, 3 de ferretería = $300, etc.</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,23)"></td><td>D4</td>
+      <td>Resumen semanal: la semana que contiene los tickets muestra gasto = múltiplo de $100.</td>
+      <td class="valor">N × $100</td>
+      <td><span class="tag tag-normal">NORMAL</span></td>
+      <td class="nota">Fácil de verificar: cualquier total de gastos semanal debe ser divisible entre 100</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,24)"></td><td>D5</td>
+      <td>Feed Ejecutivo muestra cobranza del mes = $160,000 (si hay 16 fichas subidas).</td>
+      <td class="valor">$160,000.00</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">Pantalla feed-ejecutivo, card de cobranza mensual</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <h2 class="h2-inventario">📦 E — Inventario por categoría (verificación cruzada)</h2>
+  <table class="tabla">
+    <tr><th style="width:32px"></th><th style="width:28px">#</th><th>Prueba</th><th style="width:100px">Valor esperado</th><th style="width:80px">Prioridad</th><th>Notas</th></tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,25)"></td><td>E1</td>
+      <td>Ticket vending: cantidad reabastecida de "COCA-COLA 600ML" = 1 unidad × $10.</td>
+      <td class="valor">1 pza · $10</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota">SKU VND-001</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,26)"></td><td>E2</td>
+      <td>Subir 3 tickets vending. El historial de "SABRITAS ORIGINAL 45G" muestra 3 reposiciones.</td>
+      <td class="valor">3 movimientos</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">SKU VND-005 · un ticket por mes (Jul, Ago, Sep)</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,27)"></td><td>E3</td>
+      <td>Suma de inventario vending repuesto en el trimestre = 30 unidades (10 productos × 3 meses).</td>
+      <td class="valor">30 unidades</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota"><span class="formula">10 SKUs × 3 tickets = 30 movimientos de entrada</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,28)"></td><td>E4</td>
+      <td>El valor monetario de la reposición trimestral vending = $300.</td>
+      <td class="valor">$300.00</td>
+      <td><span class="tag tag-critico">CRÍTICO</span></td>
+      <td class="nota"><span class="formula">30 unidades × $10 = $300</span></td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,29)"></td><td>E5</td>
+      <td>Ticket de limpieza: 10 productos registrados en gastos de limpieza, ninguno duplicado.</td>
+      <td class="valor">10 sin dupl.</td>
+      <td><span class="tag tag-normal">NORMAL</span></td>
+      <td class="nota">Verifica que el OCR no genere duplicados al reprocesar el mismo ticket</td>
+    </tr>
+    <tr>
+      <td><input type="checkbox" onchange="marcar(this,30)"></td><td>E6</td>
+      <td>Re-subir el mismo ticket vending. El sistema detecta duplicado o advierte antes de guardar.</td>
+      <td class="valor">Alerta dup.</td>
+      <td><span class="tag tag-importante">IMPORTANTE</span></td>
+      <td class="nota">Prueba de idempotencia del OCR — folio igual = no debe duplicar el gasto</td>
+    </tr>
+  </table>
+</div>
+
+<p style="font-size:11px;color:#aaa;margin-top:16px;text-align:center;">
+  IRP · QA · scripts/generar-tickets-qa.mjs · scripts/normalizar-montos-qa.mjs
+  · Rentas normalizadas: $10,000 · Tickets: 10 ítems × $10 = $100 · 2026-09-18
+</p>
+
+<script>
+const TOTAL = 30
+const estado = {}
+
+function actualizar() {
+  let ok = 0, fail = 0
+  for (const v of Object.values(estado)) {
+    if (v === 'ok') ok++
+    else if (v === 'fail') fail++
+  }
+  document.getElementById('cntOk').textContent   = ok
+  document.getElementById('cntFail').textContent = fail
+  document.getElementById('cntPend').textContent = TOTAL - ok - fail
+}
+
+function marcar(cb, id) {
+  const tr = cb.closest('tr')
+  if (cb.checked) {
+    if (!estado[id]) {
+      estado[id] = 'ok'
+      tr.classList.add('ok-row')
+    }
+  } else {
+    delete estado[id]
+    tr.classList.remove('ok-row')
+    tr.classList.remove('fail-row')
+  }
+  actualizar()
+}
+
+document.addEventListener('contextmenu', e => {
+  const cb = e.target.closest('input[type=checkbox]')
+  if (!cb) return
+  e.preventDefault()
+  const id = parseInt(cb.getAttribute('onchange').match(/\d+/)[0])
+  const tr = cb.closest('tr')
+  if (estado[id] === 'fail') {
+    delete estado[id]
+    cb.checked = false
+    tr.classList.remove('fail-row')
+  } else {
+    estado[id] = 'fail'
+    cb.checked = true
+    tr.classList.remove('ok-row')
+    tr.classList.add('fail-row')
+  }
+  actualizar()
+})
+
+function resetAll() {
+  for (const k in estado) delete estado[k]
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false)
+  document.querySelectorAll('tr').forEach(tr => { tr.classList.remove('ok-row'); tr.classList.remove('fail-row') })
+  actualizar()
+}
+
+actualizar()
+</script>
+</body>
+</html>

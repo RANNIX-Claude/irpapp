@@ -357,6 +357,23 @@ export default function ExpedienteContrato() {
   const [ingresoDetalleApls, setIngresoDetalleApls] = useState([]) // aplicaciones del ingreso
   const [zoomComprobante, setZoomComprobante] = useState(null)    // URL para zoom overlay
   const [editIngreso, setEditIngreso] = useState(null)            // abrir IngresoModal
+  const [uploadingDoc, setUploadingDoc] = useState(null)          // key del doc que se está subiendo
+
+  const subirDocContrato = async (key, file) => {
+    if (!file || !id) return
+    setUploadingDoc(key)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase() || 'pdf'
+      const path = `contratos/${id}/docs/${key}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('contratos-firmados').upload(path, file, { upsert: true })
+      if (upErr) { toast.error('Error al subir: ' + upErr.message); return }
+      const url = await urlFirmada('contratos-firmados', path)
+      setDocsStorage(prev => ({ ...prev, [key]: url }))
+      toast.success('Documento actualizado')
+    } catch (e) { toast.error('Error: ' + e.message) }
+    setUploadingDoc(null)
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -787,23 +804,37 @@ export default function ExpedienteContrato() {
             const totalReq        = acreditadoItems.filter(c => c.req).length + (hasFiador ? fiadorItems.filter(c => c.req).length : 0)
             const totalOk         = acreditadoItems.filter(c => c.req && c.url).length + (hasFiador ? fiadorItems.filter(c => c.req && c.url).length : 0)
 
-            const DocFila = ({ item }) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${item.url ? C.border : C.border}`, borderRadius: 8, background: item.url ? C.surface : C.light }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.url ? '#EFF6FF' : '#F9FAFB', flexShrink: 0 }}>
-                  <FileText size={14} color={item.url ? C.primary : C.border} />
+            const DocFila = ({ item }) => {
+              const subiendo = uploadingDoc === item.key
+              const fileRef = useRef(null)
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${item.url ? C.border : '#FDE68A'}`, borderRadius: 8, background: item.url ? C.surface : '#FFFBEB' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.url ? '#EFF6FF' : '#FEF3C7', flexShrink: 0 }}>
+                    <FileText size={14} color={item.url ? C.primary : '#D97706'} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{item.label}</div>
+                    {item.req && !item.url && <div style={{ fontSize: 10, color: C.danger, marginTop: 1 }}>Requerido — no cargado</div>}
+                    {item.url && <div style={{ fontSize: 10, color: C.success, marginTop: 1 }}>✓ Cargado</div>}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                    onChange={e => { if (e.target.files[0]) subirDocContrato(item.key, e.target.files[0]); e.target.value = '' }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {item.url && (
+                      <a href={item.url} target="_blank" rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.light, fontSize: 11, color: C.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        <Eye size={12} /> Ver
+                      </a>
+                    )}
+                    <button onClick={() => fileRef.current?.click()} disabled={subiendo}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, fontSize: 11, color: C.dark, cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                      {subiendo ? <Clock size={12} /> : <Upload size={12} />}
+                      {subiendo ? 'Subiendo…' : item.url ? 'Cambiar' : 'Subir'}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: item.url ? C.text : C.muted }}>{item.label}</div>
-                  {item.req && !item.url && <div style={{ fontSize: 10, color: C.danger, marginTop: 1 }}>Requerido — no cargado</div>}
-                </div>
-                {item.url
-                  ? <a href={item.url} target="_blank" rel="noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.light, fontSize: 11, color: C.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      <Eye size={12} /> Ver
-                    </a>
-                  : <span style={{ fontSize: 11, color: C.border, padding: '5px 10px' }}>—</span>}
-              </div>
-            )
+              )
+            }
 
             return (
               <div style={{ display: 'grid', gap: 20 }}>

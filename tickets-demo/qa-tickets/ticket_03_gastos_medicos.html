@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#f0f0f0; display:flex; flex-direction:column; align-items:center; padding:20px; gap:12px; font-family:'Courier New',monospace; }
+.dl-btn { width:300px; padding:10px; background:#1e8449; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:bold; }
+.ticket { background:#fff; width:300px; padding:12px 14px; font-size:10.5px; line-height:1.5; color:#111; border:1px solid #ddd; }
+.center { text-align:center; }
+.bold { font-weight:bold; }
+.big { font-size:13px; font-weight:bold; }
+.sep { border:none; border-top:1px dashed #555; margin:6px 0; }
+.sep-solid { border-top:1px solid #555; margin:6px 0; }
+.row { display:flex; justify-content:space-between; margin:1px 0; }
+.total-row { display:flex; justify-content:space-between; font-size:13px; font-weight:bold; margin:3px 0; }
+.label { color:#444; }
+.barcode { font-size:9px; letter-spacing:3px; color:#333; }
+.small { font-size:9px; color:#555; }
+.importe-box { background:#1e844910; border:1.5px solid #1e8449; border-radius:4px; padding:6px 10px; margin:6px 0; }
+</style>
+</head><body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">FARMACIAS SALUD PLUS</div>
+  <div class="center small">RFC: SPF920318J78</div>
+  <div class="center small">Blvd. de la Salud 789, Metepec, Méx.</div>
+  <div class="center small">TEL: (722) 456-1122</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>14/07/2026 09:38:47</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>SPF20260903</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>SARA L.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>04</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div style="margin:5px 0;">
+    <span style="font-size:9px;color:#555;display:block;">FAR-100</span>
+    <span style="display:block;font-size:10px;font-weight:bold;">BOTIQUÍN DE PRIMEROS AUXILIOS</span>
+    <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:2px;">
+      <span>1 PZA/SRV</span>
+      <span style="font-weight:bold;">$100.00 E</span>
+    </div>
+  </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL (IVA 0%):</span><span>$100.00</span></div>
+  <div class="row"><span class="label">IVA:</span><span>$0.00</span></div>
+  <hr class="sep">
+  <div class="importe-box">
+    <div class="total-row" style="color:#1e8449;">
+      <span>TOTAL:</span><span>$100.00</span>
+    </div>
+  </div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$100.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$0.00</span></div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 1</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center barcode">||||| SPF20260903 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+</div>
+<script>
+function descargar() {
+  html2canvas(document.getElementById('ticket'), { scale:2, backgroundColor:'#ffffff' }).then(function(c) {
+    var a = document.createElement('a'); a.download = 'spf20260903.png'; a.href = c.toDataURL('image/png'); a.click();
+  });
+}
+</script>
+</body></html>

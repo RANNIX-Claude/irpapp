@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#f0f0f0; display:flex; flex-direction:column; align-items:center; padding:20px; gap:12px; font-family:'Courier New',monospace; }
+.dl-btn { width:300px; padding:10px; background:#7d6608; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:bold; }
+.ticket { background:#fff; width:300px; padding:12px 14px; font-size:10.5px; line-height:1.5; color:#111; border:1px solid #ddd; }
+.center { text-align:center; }
+.bold { font-weight:bold; }
+.big { font-size:13px; font-weight:bold; }
+.sep { border:none; border-top:1px dashed #555; margin:6px 0; }
+.sep-solid { border-top:1px solid #555; margin:6px 0; }
+.row { display:flex; justify-content:space-between; margin:1px 0; }
+.total-row { display:flex; justify-content:space-between; font-size:13px; font-weight:bold; margin:3px 0; }
+.label { color:#444; }
+.barcode { font-size:9px; letter-spacing:3px; color:#333; }
+.small { font-size:9px; color:#555; }
+.importe-box { background:#7d660810; border:1.5px solid #7d6608; border-radius:4px; padding:6px 10px; margin:6px 0; }
+</style>
+</head><body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar PNG</button>
+<div class="ticket" id="ticket">
+  <div class="center bold big">PAPELERÍA METRO</div>
+  <div class="center small">RFC: PSM010912A56</div>
+  <div class="center small">Av. Tecnológico 321, Toluca, Méx.</div>
+  <div class="center small">TEL: (722) 213-9900</div>
+  <hr class="sep">
+  <div class="row"><span class="label">FECHA:</span><span>02/09/2026 13:23:01</span></div>
+  <div class="row"><span class="label">FOLIO:</span><span>PSM20260911</span></div>
+  <div class="row"><span class="label">CAJERO:</span><span>CRISTINA P.</span></div>
+  <div class="row"><span class="label">CAJA:</span><span>01</span></div>
+  <hr class="sep">
+  <div class="center bold small">DESCRIPCION DE COMPRA</div>
+  <hr class="sep">
+  <div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">RESMA PAPEL CARTA 75G</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-001 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">BOLIGRAFO BIC AZUL 10PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-002 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">FOLDER MANILA CARTA 25PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-003 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">CARPETA ARGOLLAS 1"</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-004 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">GRAPAS ESTANDAR 5000PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-005 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">CINTA ADHESIVA 12MM 3PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-006 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">POST-IT 3X3 COLORES 4PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-007 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">MARCADOR PERMANENTE 5PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-008 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">SOBRE BLANCO T/CARTA 25PZ</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-009 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div><div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">CORRECTOR LIQUIDO 20ML</span>
+        <span style="font-size:9.5px;font-weight:bold;white-space:nowrap;">$10.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;">
+        <span>PAP-010 · 1 PZA</span>
+        <span>$10.00 E</span>
+      </div>
+    </div>
+  <hr class="sep-solid">
+  <div class="row"><span class="label">SUBTOTAL (IVA 0%):</span><span>$100.00</span></div>
+  <div class="row"><span class="label">IVA:</span><span>$0.00</span></div>
+  <hr class="sep">
+  <div class="importe-box">
+    <div class="total-row" style="color:#7d6608;">
+      <span>TOTAL:</span><span>$100.00</span>
+    </div>
+  </div>
+  <hr class="sep">
+  <div class="row"><span class="label">FORMA DE PAGO:</span><span>EFECTIVO</span></div>
+  <div class="row"><span class="label">EFECTIVO:</span><span>$100.00</span></div>
+  <div class="row"><span class="label">CAMBIO:</span><span>$0.00</span></div>
+  <hr class="sep">
+  <div class="center bold">TOTAL ARTICULOS: 10</div>
+  <hr class="sep">
+  <div class="center small">ESTE COMPROBANTE NO ES CFDI</div>
+  <div class="center barcode">||||| PSM20260911 |||||</div>
+  <div class="center small" style="margin-top:4px">GRACIAS POR SU COMPRA</div>
+</div>
+<script>
+function descargar() {
+  html2canvas(document.getElementById('ticket'), { scale:2, backgroundColor:'#ffffff' }).then(function(c) {
+    var a = document.createElement('a'); a.download = 'psm20260911.png'; a.href = c.toDataURL('image/png'); a.click();
+  });
+}
+</script>
+</body></html>
