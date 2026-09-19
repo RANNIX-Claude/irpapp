@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, MessageCircle, Send, X } from 'lucide-react'
+import { RefreshCw, MessageCircle, Send, X, Plus, Camera, ImageIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // ── Utilidades ────────────────────────────────────────────────────────────────
@@ -173,6 +173,185 @@ function generarTarjetas(d) {
   return cards.sort((a, b) => a.pri - b.pri)
 }
 
+// ── Categorías de actividad ───────────────────────────────────────────────────
+const CATS = {
+  MANTENIMIENTO: { emoji: '🔧', color: '#D97706', bg: '#FEF3C7', label: 'Mantenimiento' },
+  MEJORA:        { emoji: '✨', color: '#7B5EA7', bg: '#F5F3FF', label: 'Mejora'        },
+  OPERACION:     { emoji: '⚙️', color: '#2563EB', bg: '#EFF6FF', label: 'Operación'     },
+  PROYECTO:      { emoji: '🏗️', color: '#059669', bg: '#ECFDF5', label: 'Proyecto'      },
+  INCIDENCIA:    { emoji: '🚨', color: '#DC2626', bg: '#FEF2F2', label: 'Incidencia'    },
+}
+
+const timeAgo = iso => {
+  const diff = (Date.now() - new Date(iso)) / 1000
+  if (diff < 60)      return 'hace un momento'
+  if (diff < 3600)    return `hace ${Math.floor(diff/60)} min`
+  if (diff < 86400)   return `hace ${Math.floor(diff/3600)} h`
+  return new Date(iso).toLocaleDateString('es-MX', { day:'numeric', month:'short' })
+}
+
+// ── Tarjeta de actividad operativa (con foto) ─────────────────────────────────
+function TarjetaActividad({ act }) {
+  const cat = CATS[act.categoria] || CATS.MANTENIMIENTO
+  const [fotoUrl, setFotoUrl] = useState(null)
+
+  useEffect(() => {
+    if (!act.foto_url) return
+    supabase.storage.from('ot-evidencias').createSignedUrl(act.foto_url, 3600)
+      .then(({ data }) => data?.signedUrl && setFotoUrl(data.signedUrl))
+  }, [act.foto_url])
+
+  return (
+    <div style={{ borderRadius: 24, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.14)', marginBottom: 16, background: 'white' }}>
+      {/* Foto (si existe) */}
+      {fotoUrl && (
+        <img src={fotoUrl} alt={act.titulo}
+          style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+      )}
+      {/* Sin foto: banner de color */}
+      {!fotoUrl && (
+        <div style={{ background: cat.bg, padding: '32px 24px', textAlign: 'center', fontSize: 52 }}>{cat.emoji}</div>
+      )}
+
+      {/* Contenido */}
+      <div style={{ padding: '16px 20px 18px' }}>
+        {/* Badge categoría + tiempo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, background: cat.bg, color: cat.color,
+            padding: '3px 10px', borderRadius: 20, letterSpacing: .5 }}>
+            {cat.emoji} {cat.label.toUpperCase()}
+          </span>
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(act.fecha)}</span>
+        </div>
+
+        <div style={{ fontSize: 17, fontWeight: 800, color: '#1E293B', marginBottom: act.descripcion ? 6 : 0 }}>
+          {act.titulo}
+        </div>
+        {act.descripcion && (
+          <div style={{ fontSize: 14, color: '#64748B', lineHeight: 1.5 }}>{act.descripcion}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: nueva actividad ────────────────────────────────────────────────────
+function ModalNuevaActividad({ onClose, onCreada }) {
+  const fileRef = useRef()
+  const [titulo, setTitulo]       = useState('')
+  const [desc, setDesc]           = useState('')
+  const [cat, setCat]             = useState('MANTENIMIENTO')
+  const [foto, setFoto]           = useState(null)       // File object
+  const [preview, setPreview]     = useState(null)       // data URL
+  const [enviando, setEnviando]   = useState(false)
+  const [error, setError]         = useState('')
+
+  const elegirFoto = e => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFoto(f)
+    const reader = new FileReader()
+    reader.onload = ev => setPreview(ev.target.result)
+    reader.readAsDataURL(f)
+  }
+
+  const publicar = async () => {
+    if (!titulo.trim()) { setError('Escribe un título'); return }
+    setEnviando(true); setError('')
+    try {
+      let foto_url = null
+      if (foto) {
+        const ext  = foto.name.split('.').pop()
+        const path = `feed/${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage.from('ot-evidencias').upload(path, foto, { upsert: false })
+        if (upErr) throw upErr
+        foto_url = path
+      }
+      const { error: dbErr } = await supabase.from('feed_actividades').insert({
+        titulo: titulo.trim(), descripcion: desc.trim() || null,
+        categoria: cat, foto_url,
+      })
+      if (dbErr) throw dbErr
+      onCreada()
+      onClose()
+    } catch (e) {
+      setError(e.message || 'Error al publicar')
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center' }}
+      onClick={onClose}>
+      <div style={{ background:'white',borderRadius:'22px 22px 0 0',width:'100%',maxWidth:520,maxHeight:'92vh',overflowY:'auto' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Handle */}
+        <div style={{ display:'flex',justifyContent:'center',padding:'12px 0 6px' }}>
+          <div style={{ width:40,height:4,borderRadius:2,background:'#D1D5DB' }}/>
+        </div>
+
+        <div style={{ padding:'4px 20px 32px' }}>
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18 }}>
+            <div style={{ fontSize:17,fontWeight:900,color:'#1E293B' }}>📸 Nueva actividad</div>
+            <button onClick={onClose} style={{ background:'#F3F4F6',border:'none',borderRadius:8,padding:'6px 8px',cursor:'pointer' }}><X size={16}/></button>
+          </div>
+
+          {/* Foto */}
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={elegirFoto} style={{ display:'none' }}/>
+          {preview
+            ? <div style={{ position:'relative',marginBottom:14 }}>
+                <img src={preview} style={{ width:'100%',height:200,objectFit:'cover',borderRadius:14,display:'block' }} alt="preview"/>
+                <button onClick={() => { setFoto(null); setPreview(null) }}
+                  style={{ position:'absolute',top:8,right:8,background:'rgba(0,0,0,.6)',border:'none',borderRadius:8,padding:'4px 8px',cursor:'pointer',color:'white',display:'flex',alignItems:'center',gap:4,fontSize:12 }}>
+                  <X size={12}/> Quitar
+                </button>
+              </div>
+            : <button onClick={() => fileRef.current.click()}
+                style={{ width:'100%',padding:'18px',background:'#F8FAFC',border:'2px dashed #CBD5E1',borderRadius:14,cursor:'pointer',
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:14,color:'#64748B' }}>
+                <Camera size={28} color="#94A3B8"/>
+                <span style={{ fontSize:14,fontWeight:600 }}>Agregar foto (opcional)</span>
+                <span style={{ fontSize:12 }}>Toca para abrir cámara o galería</span>
+              </button>
+          }
+
+          {/* Categoría */}
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:14 }}>
+            {Object.entries(CATS).map(([k, v]) => (
+              <button key={k} onClick={() => setCat(k)}
+                style={{ padding:'8px 4px',border:`2px solid ${cat===k?v.color:'#E5E7EB'}`,borderRadius:10,
+                  background:cat===k?v.bg:'white',cursor:'pointer',textAlign:'center' }}>
+                <div style={{ fontSize:18 }}>{v.emoji}</div>
+                <div style={{ fontSize:9,fontWeight:700,color:cat===k?v.color:'#9CA3AF',marginTop:2 }}>{v.label.toUpperCase()}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Título */}
+          <input value={titulo} onChange={e => setTitulo(e.target.value)}
+            placeholder="¿Qué se hizo? ej: Cambio de jaboneras"
+            style={{ width:'100%',border:'1.5px solid #E5E7EB',borderRadius:12,padding:'12px 14px',fontSize:15,outline:'none',marginBottom:10,boxSizing:'border-box',fontFamily:'inherit' }}/>
+
+          {/* Descripción */}
+          <textarea value={desc} onChange={e => setDesc(e.target.value)}
+            placeholder="Detalles adicionales (opcional)…"
+            style={{ width:'100%',minHeight:70,border:'1.5px solid #E5E7EB',borderRadius:12,padding:'12px 14px',fontSize:14,resize:'none',outline:'none',marginBottom:14,boxSizing:'border-box',fontFamily:'inherit' }}/>
+
+          {error && <div style={{ color:'#DC2626',fontSize:13,marginBottom:10 }}>⚠️ {error}</div>}
+
+          <button onClick={publicar} disabled={enviando || !titulo.trim()}
+            style={{ width:'100%',padding:'14px',background:titulo.trim()&&!enviando?'#7B5EA7':'#E5E7EB',border:'none',borderRadius:14,
+              color:titulo.trim()&&!enviando?'white':'#9CA3AF',fontSize:16,fontWeight:900,cursor:titulo.trim()&&!enviando?'pointer':'default',
+              display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}>
+            {enviando ? 'Publicando…' : <><Send size={16}/> Publicar en el feed</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Mini modal de comentario ──────────────────────────────────────────────────
 function ModalComentario({ cardLabel, onClose }) {
   const [texto, setTexto] = useState('')
@@ -301,9 +480,11 @@ function TarjetaFeed({ card }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function FeedEjecutivo() {
-  const [tarjetas, setTarjetas] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [actualizado, setAct]   = useState(null)
+  const [tarjetas, setTarjetas]     = useState([])
+  const [actividades, setActivs]    = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [actualizado, setAct]       = useState(null)
+  const [nuevaAct, setNuevaAct]     = useState(false)
   const navigate = useNavigate()
 
   const cargar = useCallback(async () => {
@@ -312,7 +493,7 @@ export default function FeedEjecutivo() {
     const lun  = lunesDe(hoy)
     const pmes = primerMes(hoy)
 
-    const [ingH, gasH, ingS, gasS, cob, emps, asist, contr] = await Promise.all([
+    const [ingH, gasH, ingS, gasS, cob, emps, asist, contr, acts] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').eq('fecha', hoy),
       supabase.from('prp_gastos').select('importe').eq('fecha', hoy),
       supabase.from('prp_ingresos').select('importe').gte('fecha', lun).lte('fecha', hoy),
@@ -321,6 +502,7 @@ export default function FeedEjecutivo() {
       supabase.from('prp_empleados').select('id,nombre_completo,estado_id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('numero_empleado,estado').eq('fecha', hoy),
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
+      supabase.from('prp_feed_actividades').select('*').order('fecha', { ascending: false }).limit(20),
     ])
 
     const data = {
@@ -331,6 +513,7 @@ export default function FeedEjecutivo() {
     }
 
     setTarjetas(generarTarjetas(data))
+    setActivs(acts.data || [])
     setAct(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
     setLoading(false)
   }, [])
@@ -346,7 +529,7 @@ export default function FeedEjecutivo() {
           {actualizado && <div style={{ fontSize: 11, color: '#9CA3AF' }}>Actualizado {actualizado}</div>}
         </div>
         <button onClick={cargar} disabled={loading}
-          style={{ background: loading ? '#F3F4F6' : '#7B5EA7', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: loading ? '#9CA3AF' : 'white', fontSize: 13, fontWeight: 700 }}>
+          style={{ background: loading ? '#F3F4F6' : '#5A4080', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: loading ? '#9CA3AF' : 'white', fontSize: 13, fontWeight: 700 }}>
           <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           {loading ? 'Cargando…' : 'Actualizar'}
         </button>
@@ -355,23 +538,57 @@ export default function FeedEjecutivo() {
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
 
       {/* Feed */}
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 14px 40px' }}>
+      <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 14px 100px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 80 }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
             <div style={{ fontSize: 16, color: '#64748B', fontWeight: 600 }}>Preparando tu feed…</div>
           </div>
-        ) : tarjetas.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 80 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
-            <div style={{ fontSize: 16, color: '#64748B' }}>Sin datos por el momento</div>
-          </div>
-        ) : tarjetas.map(card =>
-          card.type === 'buenos_dias'
-            ? <TarjetaBuenosDias key={card.id} card={card} />
-            : <TarjetaFeed key={card.id} card={card} />
+        ) : (
+          <>
+            {/* Tarjetas financieras / KPI */}
+            {tarjetas.map(card =>
+              card.type === 'buenos_dias'
+                ? <TarjetaBuenosDias key={card.id} card={card} />
+                : <TarjetaFeed key={card.id} card={card} />
+            )}
+
+            {/* Actividades operativas */}
+            {actividades.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#9CA3AF', letterSpacing: 1.5, textTransform: 'uppercase', margin: '20px 4px 12px' }}>
+                  🔧 Actividades de la plaza
+                </div>
+                {actividades.map(a => <TarjetaActividad key={a.id} act={a} />)}
+              </>
+            )}
+
+            {tarjetas.length === 0 && actividades.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 80 }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+                <div style={{ fontSize: 16, color: '#64748B' }}>Sin datos por el momento</div>
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* FAB — publicar actividad */}
+      <button onClick={() => setNuevaAct(true)}
+        style={{ position:'fixed', bottom:24, right:20, width:60, height:60,
+          background:'linear-gradient(135deg,#5A4080,#7B5EA7)',
+          border:'none', borderRadius:'50%', cursor:'pointer',
+          boxShadow:'0 6px 24px rgba(91,64,128,.5)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:50 }}>
+        <Plus size={28} color="white" strokeWidth={2.5}/>
+      </button>
+
+      {nuevaAct && (
+        <ModalNuevaActividad
+          onClose={() => setNuevaAct(false)}
+          onCreada={() => { setNuevaAct(false); cargar() }}
+        />
+      )}
     </div>
   )
 }
