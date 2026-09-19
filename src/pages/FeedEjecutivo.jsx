@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Send, X, Plus, Camera } from 'lucide-react'
+import { RefreshCw, Send, X, Plus, Camera, MessageCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { AppContext } from '../context/AppContext'
 
