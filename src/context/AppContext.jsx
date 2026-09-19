@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const AppContext = createContext(null)
+export const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [user, setUser]         = useState(null)
