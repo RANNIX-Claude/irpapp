@@ -8,7 +8,7 @@ import {
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
   Grid, AlignJustify, Printer, FolderOpen, LayoutGrid,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Shield,
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -316,6 +316,64 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
   )
 }
 
+// ─── Catálogos de documentos del expediente ─────────────────────────────────
+const CAMPOS_DOC_FISICA = [
+  { key: 'ine',                    label: 'INE / Pasaporte / Cédula Profesional',        req: true },
+  { key: 'comprobante_domicilio',  label: 'Comprobante de domicilio (≤3 meses)',          req: true },
+  { key: 'comprobante_ingresos_1', label: 'Comprobante de ingresos — mes 1',              req: true },
+  { key: 'comprobante_ingresos_2', label: 'Comprobante de ingresos — mes 2',              req: true },
+  { key: 'comprobante_ingresos_3', label: 'Comprobante de ingresos — mes 3',              req: true },
+  { key: 'curp',                   label: 'CURP',                                         req: false },
+  { key: 'acta_nacimiento',        label: 'Acta de nacimiento',                            req: false },
+]
+const CAMPOS_DOC_MORAL = [
+  { key: 'acta_constitutiva',      label: 'Acta Constitutiva / Instrumento Notarial',    req: true },
+  { key: 'poder_rep',              label: 'Poder notarial del representante legal',       req: true },
+  { key: 'ine_rep',                label: 'INE del representante legal',                   req: true },
+  { key: 'cif',                    label: 'Constancia de Situación Fiscal / RFC',         req: true },
+  { key: 'comprobante_domicilio',  label: 'Comprobante de domicilio fiscal (≤3 meses)',   req: true },
+  { key: 'estado_cuenta_1',        label: 'Estado de cuenta bancario — mes 1',            req: true },
+  { key: 'estado_cuenta_2',        label: 'Estado de cuenta bancario — mes 2',            req: true },
+  { key: 'estado_cuenta_3',        label: 'Estado de cuenta bancario — mes 3',            req: true },
+]
+const CAMPOS_FIADOR_EXP = [
+  { key: 'fiador_ine',           label: 'INE / Identificación oficial',                   req: true },
+  { key: 'fiador_domicilio_doc', label: 'Comprobante de domicilio (≤3 meses)',             req: true },
+  { key: 'fiador_ingresos',      label: 'Comprobante de ingresos / estado de cuenta',     req: false },
+  { key: 'fiador_escrituras',    label: 'Escrituras / garantía inmobiliaria',               req: false },
+]
+
+// Fila de documento reutilizable para el modal (se define aquí, fuera del render, para no recrearla)
+function DocFilaModal({ item, url, uploadingKey, onSubir }) {
+  const fileRef = useRef(null)
+  const subiendo = uploadingKey === item.key
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: `1px solid ${item.url || url ? '#D1FAE5' : item.req ? '#FDE68A' : '#E5E7EB'}`, borderRadius: 8, background: url ? '#F0FDF4' : item.req ? '#FFFBEB' : 'white' }}>
+      <FileText size={14} color={url ? '#057642' : item.req ? '#D97706' : '#9CA3AF'} style={{ flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#1E293B' }}>{item.label}</div>
+        {item.req && !url && <div style={{ fontSize: 10, color: '#B24020', marginTop: 1 }}>Requerido</div>}
+        {url && <div style={{ fontSize: 10, color: '#057642', marginTop: 1 }}>✓ Cargado</div>}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+        onChange={e => { if (e.target.files[0]) onSubir(item.key, e.target.files[0]); e.target.value = '' }} />
+      <div style={{ display: 'flex', gap: 5 }}>
+        {url && (
+          <a href={url} target="_blank" rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white', fontSize: 11, color: '#5A4080', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            <Eye size={11} /> Ver
+          </a>
+        )}
+        <button onClick={() => fileRef.current?.click()} disabled={subiendo}
+          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white', fontSize: 11, color: '#374151', cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+          {subiendo ? <Clock size={11} /> : <Upload size={11} />}
+          {subiendo ? 'Subiendo…' : url ? 'Cambiar' : 'Subir'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Modal de detalle con tabs ───────────────────────────────────────────────
 
 export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initialEditMode = false }) {
@@ -344,7 +402,11 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
   const [localesDisp, setLocalesDisp] = useState([])
   const [localesSel, setLocalesSel] = useState([])
   const pdfRef = useRef()
+  const adenumRef = useRef()
+  const anexoRef = useRef()
   const firstRenderRef = useRef(true)
+  const [docsContrato, setDocsContrato] = useState({})
+  const [uploadingDocContrato, setUploadingDocContrato] = useState(null)
 
   // Reset edit state when switching between contracts (not on first render, to preserve initialEditMode)
   useEffect(() => {
@@ -487,6 +549,7 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
 
   useEffect(() => {
     if (tab === 'notas' && c) cargarNotas()
+    if ((tab === 'documentos' || tab === 'documento') && c) cargarDocsContrato()
   }, [tab])
 
   const cargarNotas = async () => {
@@ -524,6 +587,33 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
     setPdfUrl(await urlFirmada('contratos-firmados', path))
     setUploadingPDF(false)
     onUpdated?.()
+  }
+
+  const cargarDocsContrato = async () => {
+    if (!c?.id) return
+    const { data } = await supabase.storage.from('contratos-firmados').list(`contratos/${c.id}/docs`)
+    if (!data || data.length === 0) return
+    const urls = {}
+    await Promise.all(data.map(async f => {
+      const key = f.name.replace(/\.[^.]+$/, '')
+      urls[key] = await urlFirmada('contratos-firmados', `contratos/${c.id}/docs/${f.name}`)
+    }))
+    setDocsContrato(urls)
+  }
+
+  const subirDocContrato = async (key, file) => {
+    if (!file || !c?.id) return
+    setUploadingDocContrato(key)
+    try {
+      const ext = file.name.split('.').pop().toLowerCase() || 'pdf'
+      const path = `contratos/${c.id}/docs/${key}.${ext}`
+      const { error } = await supabase.storage.from('contratos-firmados').upload(path, file, { upsert: true })
+      if (error) { alert('Error al subir: ' + error.message); return }
+      const url = await urlFirmada('contratos-firmados', path)
+      setDocsContrato(prev => ({ ...prev, [key]: url }))
+    } finally {
+      setUploadingDocContrato(null)
+    }
   }
 
   if (!c) return null
@@ -569,9 +659,10 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
           </div>
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '0', overflowX: 'auto' }}>
-            <Tab id="datos"     label="Datos del contrato" icon={FileText} />
-            <Tab id="documento" label="Contrato firmado"   icon={Paperclip} />
-            <Tab id="notas"     label="Notas y comentarios" icon={MessageSquare} />
+            <Tab id="datos"       label="Datos del contrato"   icon={FileText} />
+            <Tab id="documento"   label="Contrato firmado"     icon={Paperclip} />
+            <Tab id="documentos"  label="Documentos"           icon={Shield} />
+            <Tab id="notas"       label="Notas y comentarios"  icon={MessageSquare} />
           </div>
         </div>
 
@@ -943,8 +1034,142 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
                 </div>
               )}
               <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={subirPDF} />
+
+              {/* ── Adéndum ── */}
+              <div style={{ marginTop: '24px', borderTop: '1px solid #E5E7EB', paddingTop: '20px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Adéndum</div>
+                {docsContrato.adenum ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px' }}>
+                    <Paperclip size={18} color="#057642" />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Adéndum adjunto</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <a href={docsContrato.adenum} target="_blank" rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#057642', color: 'white', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                        <Eye size={13} /> Ver
+                      </a>
+                      <button onClick={() => adenumRef.current?.click()}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        <Upload size={13} /> Reemplazar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div onClick={() => adenumRef.current?.click()}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
+                    {uploadingDocContrato === 'adenum' ? (
+                      <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo adéndum…</span></>
+                    ) : (
+                      <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar adéndum (PDF o imagen)</span></>
+                    )}
+                  </div>
+                )}
+                <input ref={adenumRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                  onChange={e => { if (e.target.files?.[0]) subirDocContrato('adenum', e.target.files[0]); e.target.value = '' }} />
+              </div>
+
+              {/* ── Anexo ── */}
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Anexo</div>
+                {docsContrato.anexo ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px' }}>
+                    <Paperclip size={18} color="#057642" />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Anexo adjunto</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <a href={docsContrato.anexo} target="_blank" rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#057642', color: 'white', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                        <Eye size={13} /> Ver
+                      </a>
+                      <button onClick={() => anexoRef.current?.click()}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        <Upload size={13} /> Reemplazar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div onClick={() => anexoRef.current?.click()}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
+                    {uploadingDocContrato === 'anexo' ? (
+                      <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo anexo…</span></>
+                    ) : (
+                      <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar anexo (PDF o imagen)</span></>
+                    )}
+                  </div>
+                )}
+                <input ref={anexoRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                  onChange={e => { if (e.target.files?.[0]) subirDocContrato('anexo', e.target.files[0]); e.target.value = '' }} />
+              </div>
             </div>
           )}
+
+          {/* ── TAB DOCUMENTOS ── */}
+          {tab === 'documentos' && (() => {
+            const camposAcreditado = c?.tipo_persona === 'MORAL' ? CAMPOS_DOC_MORAL : CAMPOS_DOC_FISICA
+            const acreditadoItems = camposAcreditado.map(f => ({ ...f, url: docsContrato[f.key] || null }))
+            const fiadorItems     = CAMPOS_FIADOR_EXP.map(f => ({ ...f, url: docsContrato[f.key] || null }))
+            const totalReq = acreditadoItems.filter(f => f.req).length + fiadorItems.filter(f => f.req).length
+            const totalOk  = acreditadoItems.filter(f => f.req && f.url).length + fiadorItems.filter(f => f.req && f.url).length
+            const pctExp   = totalReq ? Math.round(totalOk / totalReq * 100) : 0
+
+            return (
+              <div>
+                {/* Progreso */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>Documentos obligatorios</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: totalOk === totalReq ? '#057642' : '#F59E0B' }}>{totalOk}/{totalReq}</span>
+                </div>
+                <div style={{ background: '#E5E7EB', borderRadius: 4, height: 6, overflow: 'hidden', marginBottom: 20 }}>
+                  <div style={{ height: '100%', width: `${pctExp}%`, background: totalOk === totalReq ? '#057642' : '#7B5EA7', transition: 'width .4s', borderRadius: 4 }} />
+                </div>
+
+                {/* Arrendatario */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', paddingBottom: '6px', borderBottom: '2px solid #EEF2FF' }}>
+                    Documentación del acreditado{c?.tipo_persona === 'MORAL' ? ' (persona moral)' : ' (persona física)'}
+                  </div>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {acreditadoItems.map(item => (
+                      <DocFilaModal key={item.key} item={item} url={item.url} uploadingKey={uploadingDocContrato} onSubir={subirDocContrato} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Fiador */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', paddingBottom: '6px', borderBottom: '2px solid #FEF3C7' }}>
+                    Documentación del aval / fiador
+                  </div>
+                  {c?.fiador_nombre ? (
+                    <>
+                      <div style={{ background: '#FFF8F0', border: '1px solid #FBBF24', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
+                        <span style={{ fontWeight: 700, color: '#D97706' }}>{c.fiador_nombre}</span>
+                        {c.fiador_rfc && <span style={{ color: '#9CA3AF', marginLeft: 10, fontFamily: 'monospace' }}>{c.fiador_rfc}</span>}
+                      </div>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {fiadorItems.map(item => (
+                          <DocFilaModal key={item.key} item={item} url={item.url} uploadingKey={uploadingDocContrato} onSubir={subirDocContrato} />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>
+                      Este contrato no tiene aval registrado.{' '}
+                      <button onClick={() => setTab('datos')} style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 13, fontWeight: 600 }}>
+                        Agregar en Datos del contrato
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ── TAB NOTAS ── */}
           {tab === 'notas' && (
