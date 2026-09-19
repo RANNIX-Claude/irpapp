@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, MessageCircle, Send, X, Plus, Camera, ImageIcon } from 'lucide-react'
+import { RefreshCw, Send, X, Plus, Camera } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { AppContext } from '../context/AppContext'
 
 // ── Utilidades ────────────────────────────────────────────────────────────────
 const isoHoy    = () => new Date().toISOString().split('T')[0]
@@ -190,39 +191,85 @@ const timeAgo = iso => {
   return new Date(iso).toLocaleDateString('es-MX', { day:'numeric', month:'short' })
 }
 
-// ── Tarjeta de actividad operativa (con foto) ─────────────────────────────────
+// ── Tarjeta de actividad operativa (con fotos + autor) ───────────────────────
 function TarjetaActividad({ act }) {
   const cat = CATS[act.categoria] || CATS.MANTENIMIENTO
-  const [fotoUrl, setFotoUrl] = useState(null)
+  const fotos = act.fotos || (act.foto_url ? [act.foto_url] : [])
+  const [fotoUrls, setFotoUrls] = useState([])
 
   useEffect(() => {
-    if (!act.foto_url) return
-    supabase.storage.from('ot-evidencias').createSignedUrl(act.foto_url, 3600)
-      .then(({ data }) => data?.signedUrl && setFotoUrl(data.signedUrl))
-  }, [act.foto_url])
+    if (!fotos.length) return
+    Promise.all(
+      fotos.map(p => supabase.storage.from('ot-evidencias').createSignedUrl(p, 3600)
+        .then(({ data }) => data?.signedUrl || null))
+    ).then(urls => setFotoUrls(urls.filter(Boolean)))
+  }, [fotos.join(',')])
 
+  const grid = fotoUrls.length
   return (
     <div style={{ borderRadius: 24, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.14)', marginBottom: 16, background: 'white' }}>
-      {/* Foto (si existe) */}
-      {fotoUrl && (
-        <img src={fotoUrl} alt={act.titulo}
-          style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+      {/* Fotos */}
+      {grid === 1 && (
+        <img src={fotoUrls[0]} alt={act.titulo}
+          style={{ width: '100%', maxHeight: 300, objectFit: 'cover', display: 'block' }} />
       )}
-      {/* Sin foto: banner de color */}
-      {!fotoUrl && (
+      {grid === 2 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          {fotoUrls.map((u, i) => <img key={i} src={u} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />)}
+        </div>
+      )}
+      {grid >= 3 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gridTemplateRows: '150px 150px', gap: 2 }}>
+          <img src={fotoUrls[0]} style={{ gridRow: '1 / 3', width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          {fotoUrls.slice(1, 3).map((u, i) => (
+            <div key={i} style={{ position: 'relative' }}>
+              <img src={u} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              {i === 1 && grid > 3 && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 22, fontWeight: 900 }}>
+                  +{grid - 3}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {grid === 0 && (
         <div style={{ background: cat.bg, padding: '32px 24px', textAlign: 'center', fontSize: 52 }}>{cat.emoji}</div>
       )}
 
       {/* Contenido */}
-      <div style={{ padding: '16px 20px 18px' }}>
-        {/* Badge categoría + tiempo */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, background: cat.bg, color: cat.color,
-            padding: '3px 10px', borderRadius: 20, letterSpacing: .5 }}>
-            {cat.emoji} {cat.label.toUpperCase()}
-          </span>
-          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(act.fecha)}</span>
-        </div>
+      <div style={{ padding: '14px 18px 16px' }}>
+        {/* Autor */}
+        {(act.autor_nombre || act.autor_foto_url) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            {act.autor_foto_url
+              ? <img src={act.autor_foto_url} alt={act.autor_nombre}
+                  style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #7B5EA7' }} />
+              : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#3D1A6B,#7B5EA7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, fontWeight: 800 }}>
+                  {(act.autor_nombre || '?')[0].toUpperCase()}
+                </div>
+            }
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#1E293B' }}>{act.autor_nombre || 'Staff'}</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(act.fecha)}</div>
+            </div>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, background: cat.bg, color: cat.color,
+              padding: '3px 9px', borderRadius: 20, letterSpacing: .4 }}>
+              {cat.emoji} {cat.label.toUpperCase()}
+            </span>
+          </div>
+        )}
+
+        {!(act.autor_nombre || act.autor_foto_url) && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, background: cat.bg, color: cat.color,
+              padding: '3px 10px', borderRadius: 20, letterSpacing: .5 }}>
+              {cat.emoji} {cat.label.toUpperCase()}
+            </span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(act.fecha)}</span>
+          </div>
+        )}
 
         <div style={{ fontSize: 17, fontWeight: 800, color: '#1E293B', marginBottom: act.descripcion ? 6 : 0 }}>
           {act.titulo}
@@ -235,41 +282,51 @@ function TarjetaActividad({ act }) {
   )
 }
 
-// ── Modal: nueva actividad ────────────────────────────────────────────────────
+// ── Modal: nueva publicación (multi-foto) ────────────────────────────────────
 function ModalNuevaActividad({ onClose, onCreada }) {
+  const { perfil } = useContext(AppContext)
   const fileRef = useRef()
   const [titulo, setTitulo]       = useState('')
   const [desc, setDesc]           = useState('')
   const [cat, setCat]             = useState('MANTENIMIENTO')
-  const [foto, setFoto]           = useState(null)       // File object
-  const [preview, setPreview]     = useState(null)       // data URL
+  const [fotos, setFotos]         = useState([])   // [{ file, preview }]
   const [enviando, setEnviando]   = useState(false)
   const [error, setError]         = useState('')
 
-  const elegirFoto = e => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setFoto(f)
-    const reader = new FileReader()
-    reader.onload = ev => setPreview(ev.target.result)
-    reader.readAsDataURL(f)
+  const agregarFotos = e => {
+    const files = Array.from(e.target.files || [])
+    const nuevas = files.slice(0, 10 - fotos.length).map(f => {
+      const preview = URL.createObjectURL(f)
+      return { file: f, preview }
+    })
+    setFotos(prev => [...prev, ...nuevas])
+    e.target.value = ''
   }
+
+  const quitarFoto = i => setFotos(prev => prev.filter((_, idx) => idx !== i))
 
   const publicar = async () => {
     if (!titulo.trim()) { setError('Escribe un título'); return }
     setEnviando(true); setError('')
     try {
-      let foto_url = null
-      if (foto) {
-        const ext  = foto.name.split('.').pop()
-        const path = `feed/${Date.now()}.${ext}`
-        const { error: upErr } = await supabase.storage.from('ot-evidencias').upload(path, foto, { upsert: false })
+      const paths = await Promise.all(fotos.map(async ({ file }) => {
+        const ext  = file.name.split('.').pop()
+        const path = `feed/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: upErr } = await supabase.storage.from('ot-evidencias').upload(path, file, { upsert: false })
         if (upErr) throw upErr
-        foto_url = path
-      }
-      const { error: dbErr } = await supabase.from('feed_actividades').insert({
-        titulo: titulo.trim(), descripcion: desc.trim() || null,
-        categoria: cat, foto_url,
+        return path
+      }))
+
+      const autorNombre = perfil ? `${perfil.nombre || ''}${perfil.apellido ? ' ' + perfil.apellido : ''}`.trim() : null
+      const autorFoto   = perfil?.foto_url || null
+
+      const { error: dbErr } = await supabase.from('publicaciones').insert({
+        titulo: titulo.trim(),
+        descripcion: desc.trim() || null,
+        categoria: cat,
+        fotos: paths,
+        autor_nombre: autorNombre || undefined,
+        autor_foto_url: autorFoto || undefined,
       })
       if (dbErr) throw dbErr
       onCreada()
@@ -293,28 +350,44 @@ function ModalNuevaActividad({ onClose, onCreada }) {
 
         <div style={{ padding:'4px 20px 32px' }}>
           <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18 }}>
-            <div style={{ fontSize:17,fontWeight:900,color:'#1E293B' }}>📸 Nueva actividad</div>
+            <div style={{ fontSize:17,fontWeight:900,color:'#1E293B' }}>📸 Nueva publicación</div>
             <button onClick={onClose} style={{ background:'#F3F4F6',border:'none',borderRadius:8,padding:'6px 8px',cursor:'pointer' }}><X size={16}/></button>
           </div>
 
-          {/* Foto */}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={elegirFoto} style={{ display:'none' }}/>
-          {preview
-            ? <div style={{ position:'relative',marginBottom:14 }}>
-                <img src={preview} style={{ width:'100%',height:200,objectFit:'cover',borderRadius:14,display:'block' }} alt="preview"/>
-                <button onClick={() => { setFoto(null); setPreview(null) }}
-                  style={{ position:'absolute',top:8,right:8,background:'rgba(0,0,0,.6)',border:'none',borderRadius:8,padding:'4px 8px',cursor:'pointer',color:'white',display:'flex',alignItems:'center',gap:4,fontSize:12 }}>
-                  <X size={12}/> Quitar
-                </button>
+          {/* Fotos */}
+          <input ref={fileRef} type="file" accept="image/*" multiple onChange={agregarFotos} style={{ display:'none' }}/>
+          {fotos.length > 0 ? (
+            <div style={{ marginBottom:14 }}>
+              <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:8 }}>
+                {fotos.map((f, i) => (
+                  <div key={i} style={{ position:'relative',borderRadius:10,overflow:'hidden' }}>
+                    <img src={f.preview} style={{ width:'100%',height:90,objectFit:'cover',display:'block' }}/>
+                    <button onClick={() => quitarFoto(i)}
+                      style={{ position:'absolute',top:4,right:4,background:'rgba(0,0,0,.6)',border:'none',borderRadius:6,
+                        padding:'2px 5px',cursor:'pointer',color:'white',fontSize:10,display:'flex',alignItems:'center' }}>
+                      <X size={10}/>
+                    </button>
+                  </div>
+                ))}
+                {fotos.length < 10 && (
+                  <button onClick={() => fileRef.current.click()}
+                    style={{ height:90,background:'#F8FAFC',border:'2px dashed #CBD5E1',borderRadius:10,cursor:'pointer',
+                      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,color:'#94A3B8' }}>
+                    <Plus size={18}/>
+                    <span style={{ fontSize:9,fontWeight:600 }}>MÁS</span>
+                  </button>
+                )}
               </div>
-            : <button onClick={() => fileRef.current.click()}
-                style={{ width:'100%',padding:'18px',background:'#F8FAFC',border:'2px dashed #CBD5E1',borderRadius:14,cursor:'pointer',
-                  display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:14,color:'#64748B' }}>
-                <Camera size={28} color="#94A3B8"/>
-                <span style={{ fontSize:14,fontWeight:600 }}>Agregar foto (opcional)</span>
-                <span style={{ fontSize:12 }}>Toca para abrir cámara o galería</span>
-              </button>
-          }
+            </div>
+          ) : (
+            <button onClick={() => fileRef.current.click()}
+              style={{ width:'100%',padding:'18px',background:'#F8FAFC',border:'2px dashed #CBD5E1',borderRadius:14,cursor:'pointer',
+                display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:14,color:'#64748B' }}>
+              <Camera size={28} color="#94A3B8"/>
+              <span style={{ fontSize:14,fontWeight:600 }}>Agregar fotos (hasta 10)</span>
+              <span style={{ fontSize:12 }}>Toca para abrir cámara o galería</span>
+            </button>
+          )}
 
           {/* Categoría */}
           <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,marginBottom:14 }}>
@@ -502,7 +575,7 @@ export default function FeedEjecutivo() {
       supabase.from('prp_empleados').select('id,nombre_completo,estado_id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('numero_empleado,estado').eq('fecha', hoy),
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
-      supabase.from('prp_feed_actividades').select('*').order('fecha', { ascending: false }).limit(20),
+      supabase.from('prp_publicaciones').select('*').order('fecha', { ascending: false }).limit(20),
     ])
 
     const data = {
@@ -525,7 +598,7 @@ export default function FeedEjecutivo() {
       {/* Header */}
       <div style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#1E293B' }}>Feed Ejecutivo</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#1E293B' }}>Feed</div>
           {actualizado && <div style={{ fontSize: 11, color: '#9CA3AF' }}>Actualizado {actualizado}</div>}
         </div>
         <button onClick={cargar} disabled={loading}
