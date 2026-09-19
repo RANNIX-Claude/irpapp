@@ -47,18 +47,19 @@ ORDER BY p.fecha DESC;
 
 GRANT SELECT ON prp_publicaciones TO authenticated;
 
--- ── Migrar datos existentes de feed_actividades (si los hay) ─────────────────
-INSERT INTO publicaciones (id, titulo, descripcion, fotos, categoria, fecha, creado_por, created_at)
-SELECT
-  id,
-  titulo,
-  descripcion,
-  CASE WHEN foto_url IS NOT NULL THEN ARRAY[foto_url] ELSE '{}' END,
-  categoria,
-  fecha,
-  creado_por,
-  created_at
-FROM feed_actividades
-ON CONFLICT (id) DO NOTHING;
+-- ── Migrar datos existentes de feed_actividades (si la tabla existe) ─────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'public' AND table_name = 'feed_actividades') THEN
+    INSERT INTO publicaciones (id, titulo, descripcion, fotos, categoria, fecha, creado_por, created_at)
+    SELECT
+      id, titulo, descripcion,
+      CASE WHEN foto_url IS NOT NULL THEN ARRAY[foto_url] ELSE '{}' END,
+      categoria, fecha, creado_por, created_at
+    FROM feed_actividades
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
 
 NOTIFY pgrst, 'reload schema';
