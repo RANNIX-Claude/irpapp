@@ -369,20 +369,28 @@ export default function EDR() {
     const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
     // Base caja: pagos con fecha en el mes. Concepto y periodo vienen del cobro cubierto.
+    // Fallback: si el ingreso no tiene aplicaciones_pago, usa clasificacion/mes/anio del ingreso.
     const { data } = await supabase
       .from('ingresos')
-      .select('id, origen, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
+      .select('id, origen, importe, clasificacion, mes, anio, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const filas = data.flatMap(ing =>
-        (ing.aplicaciones_pago ?? []).map(ap => ({
-          importe:      parseFloat(ap.importe_aplicado) || 0,
-          concepto:     ap.cargo?.concepto,
-          periodo_mes:  ap.cargo?.periodo_mes,
-          periodo_anio: ap.cargo?.periodo_anio,
-          origen:       ing.origen,
-        }))
-      )
+      const filas = data.flatMap(ing => {
+        const apps = ing.aplicaciones_pago ?? []
+        if (apps.length > 0) {
+          return apps.map(ap => ({
+            importe:      parseFloat(ap.importe_aplicado) || 0,
+            concepto:     ap.cargo?.concepto,
+            periodo_mes:  ap.cargo?.periodo_mes,
+            periodo_anio: ap.cargo?.periodo_anio,
+            origen:       ing.origen,
+          }))
+        }
+        // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso
+        const c = ing.clasificacion
+        if (!c || !['RENTA','SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
+        return [{ importe: parseFloat(ing.importe)||0, concepto:c, periodo_mes:ing.mes, periodo_anio:ing.anio, origen:ing.origen }]
+      })
       const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
       const esMes      = r => r.periodo_mes === m && r.periodo_anio === a
       const sum        = (rows, pred) => rows.filter(pred ?? (() => true)).reduce((s, r) => s + r.importe, 0)
@@ -550,18 +558,25 @@ export default function EDR() {
 
     const { data: ingresosRaw } = await supabase
       .from('ingresos')
-      .select('id, origen, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
+      .select('id, origen, importe, clasificacion, mes, anio, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
       .gte('fecha', fechaIniR).lte('fecha', fechaFinR)
 
-    const filas = (ingresosRaw ?? []).flatMap(ing =>
-      (ing.aplicaciones_pago ?? []).map(ap => ({
-        importe:      parseFloat(ap.importe_aplicado) || 0,
-        concepto:     ap.cargo?.concepto,
-        periodo_mes:  ap.cargo?.periodo_mes,
-        periodo_anio: ap.cargo?.periodo_anio,
-        origen:       ing.origen,
-      }))
-    )
+    const filas = (ingresosRaw ?? []).flatMap(ing => {
+      const apps = ing.aplicaciones_pago ?? []
+      if (apps.length > 0) {
+        return apps.map(ap => ({
+          importe:      parseFloat(ap.importe_aplicado) || 0,
+          concepto:     ap.cargo?.concepto,
+          periodo_mes:  ap.cargo?.periodo_mes,
+          periodo_anio: ap.cargo?.periodo_anio,
+          origen:       ing.origen,
+        }))
+      }
+      // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso
+      const c = ing.clasificacion
+      if (!c || !['RENTA','SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
+      return [{ importe: parseFloat(ing.importe)||0, concepto:c, periodo_mes:ing.mes, periodo_anio:ing.anio, origen:ing.origen }]
+    })
 
     const rentas    = filas.filter(r => r.concepto === 'RENTA')
     const sanciones = filas.filter(r => r.concepto === 'SANCION')
