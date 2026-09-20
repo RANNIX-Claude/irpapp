@@ -486,11 +486,13 @@ export default function EDR() {
     const fechaIniR = `${anio}-${String(mes).padStart(2,'0')}-01`
     const fechaFinR = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
     const { data: ingresosRenta } = await supabase
-      .from('ingresos').select('importe, factura, mes, anio')
+      .from('ingresos').select('importe, factura, origen, mes, anio')
       .eq('tipo', 'RENTA')
       .gte('fecha', fechaIniR).lte('fecha', fechaFinR)
-    const rFactura = ingresosRenta?.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
-    const rSinFact = ingresosRenta?.filter(r => !r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+    // Efectivo = origen 'EFECTIVO' (igual que ResumenSemanal); el resto son transferencias
+    const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
+    const rFactura = ingresosRenta?.filter(r => !isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+    const rSinFact = ingresosRenta?.filter(r =>  isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
 
     // 3. Pensiones y estacionamiento: sistema de tickets. Vending: esta base.
     let poyPensiones = 0, realPensiones = 0, realEstacParking = 0, realVendingParking = 0
@@ -545,12 +547,12 @@ export default function EDR() {
     const sumSueldos = nominas?.reduce((s, n) => s + (parseFloat(n.total_neto)||0), 0) || 0
     resumen.sueldos = sumSueldos
 
-    // Splits cash-basis desde ingresos (sugerencias para captura)
+    // Splits mes/otros: efectivo = origen 'EFECTIVO', el resto = transferencia/factura
     const esMesCurrent = r => r.mes === mes && r.anio === anio
-    const rmFact  = ingresosRenta?.filter(r => r.factura  && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opFact  = ingresosRenta?.filter(r => r.factura  && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const rmSin   = ingresosRenta?.filter(r => !r.factura && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opSin   = ingresosRenta?.filter(r => !r.factura && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const rmFact  = ingresosRenta?.filter(r => !isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const opFact  = ingresosRenta?.filter(r => !isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const rmSin   = ingresosRenta?.filter(r =>  isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const opSin   = ingresosRenta?.filter(r =>  isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
     // Actualiza proyectado de rentas (OCUPADO) y columnas real_*
     setForm(f => ({
