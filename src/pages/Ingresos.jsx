@@ -55,6 +55,9 @@ const VALIDACION = {
   OBSERVADO:   { label: 'Observado',   bg: '#FEE2E2', color: '#991B1B' },
 }
 const VALIDACION_DEFAULT = 'POR_VALIDAR'
+// Solo un ingreso VALIDADO (cotejado contra el banco) cuenta como cobrado en las
+// tarjetas; POR_VALIDAR y OBSERVADO aparecen aparte como "sin validar".
+const esValidado = r => (r.estatus_validacion || VALIDACION_DEFAULT) === 'VALIDADO'
 
 /**
  * Cuadre del depósito contra lo que se repartió en la cartera.
@@ -1062,8 +1065,17 @@ export default function Ingresos() {
     [lista, filtroMes, filtroAnio, filtroModo],
   )
   const suma = arr => arr.reduce((a, b) => a + (parseFloat(b.importe) || 0), 0)
-  const totalRenta = suma(delPeriodo.filter(r => r.tipo === 'RENTA'))
-  const totalSanciones = suma(delPeriodo.filter(r => r.tipo === 'SANCION'))
+  const validadas = arr => arr.filter(esValidado)
+  const notaSinValidar = arr => {
+    const p = arr.filter(r => !esValidado(r))
+    return p.length ? ` · ${p.length} sin validar (${fmt(suma(p))})` : ''
+  }
+  const rentasPeriodo = delPeriodo.filter(r => r.tipo === 'RENTA')
+  const sancionesPeriodo = delPeriodo.filter(r => r.tipo === 'SANCION')
+  const rentasCobradas = validadas(rentasPeriodo)
+  const sancionesCobradas = validadas(sancionesPeriodo)
+  const totalRenta = suma(rentasCobradas)
+  const totalSanciones = suma(sancionesCobradas)
 
   // Por cobrar: la renta de los locales EN OPERACIÓN. No se usa `estatus` ni la
   // fecha de fin — hay contratos vencidos que siguen ocupando y pagando, y su
@@ -1118,19 +1130,19 @@ export default function Ingresos() {
           icon={Target} color="var(--color-primary)" />
         <KPICard title="Rentas cobradas"
           value={fmtK(totalRenta)}
-          subtitle={`${delPeriodo.filter(r => r.tipo === 'RENTA').length} pagos de renta`}
+          subtitle={`${rentasCobradas.length} pagos de renta${notaSinValidar(rentasPeriodo)}`}
           icon={DollarSign} color="var(--color-success)" />
         <KPICard title="Sanciones"
           value={fmtK(totalSanciones)}
-          subtitle={`${delPeriodo.filter(r => r.tipo === 'SANCION').length} sanciones por mora`}
+          subtitle={`${sancionesCobradas.length} sanciones por mora${notaSinValidar(sancionesPeriodo)}`}
           icon={AlertCircle} color="var(--color-danger)" />
         <KPICard title="Del mes en turno"
-          value={fmtK(suma(rentaDelMesEnTurno))}
-          subtitle={`${rentaDelMesEnTurno.length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}`}
+          value={fmtK(suma(validadas(rentaDelMesEnTurno)))}
+          subtitle={`${validadas(rentaDelMesEnTurno).length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}${notaSinValidar(rentaDelMesEnTurno)}`}
           icon={CalendarCheck} color="var(--color-success)" />
         <KPICard title="De meses anteriores"
-          value={fmtK(suma(rentaDeMesesAnteriores))}
-          subtitle={`${rentaDeMesesAnteriores.length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados`}
+          value={fmtK(suma(validadas(rentaDeMesesAnteriores)))}
+          subtitle={`${validadas(rentaDeMesesAnteriores).length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados${notaSinValidar(rentaDeMesesAnteriores)}`}
           icon={History} color="var(--color-warning)" />
         <KPICard title="Registros"
           value={delPeriodo.length}
