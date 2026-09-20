@@ -339,19 +339,23 @@ export default function EDR() {
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
     // Base caja: todo cobrado en el mes calendario, todos los tipos
     const { data } = await supabase.from('ingresos')
-      .select('importe, factura, mes, anio, tipo')
+      .select('importe, factura, origen, mes, anio, tipo')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const esMes = r => r.mes === m && r.anio === a
-      const sum   = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const esMes      = r => r.mes === m && r.anio === a
+      const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
+      const sum        = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
 
-      // RENTA
+      // RENTA: clasifica por origen='EFECTIVO' (igual que cargarDatosAutomaticos)
       const rentas      = data.filter(r => r.tipo === 'RENTA')
       const rentasMes   = rentas.filter(esMes)
       const rentasOtros = rentas.filter(r => !esMes(r))
-      const factura     = rentasMes.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      // factura = rentas con transferencia/SPEI (no efectivo); rsf = efectivo
+      const factura     = sum(rentasMes.filter(r => !isEfectivo(r)))
+      const rsfMes      = sum(rentasMes.filter(r =>  isEfectivo(r)))
       setRealRentas({
         factura,
+        rsfMes,
         total:          sum(rentas),
         rentas_mes:     sum(rentasMes),
         otros_periodos: sum(rentasOtros),
@@ -444,9 +448,9 @@ export default function EDR() {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
-      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura           || 0,
-      real_rentas_factura_otros: f.real_rentas_factura_otros || (realRentas.otros_periodos   || 0),
-      real_rsf_mes:              f.real_rsf_mes              || ((realRentas.rentas_mes || 0) - (realRentas.factura || 0)) || 0,
+      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura  || 0,
+      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos || 0,
+      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes   || 0,
       real_rsf_otros:            f.real_rsf_otros            || 0,
       // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
       real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
