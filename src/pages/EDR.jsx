@@ -1209,15 +1209,19 @@ export default function EDR() {
                 {/* Rentas y sanciones: lectura automática desde aplicaciones_pago */}
                 <CalcRowE label="Rentas con Factura"
                   proy={parseFloat(fForm.proy_rentas_contratos) || proyRentas}
-                  total={eRentaFact} mes={eRentaCFMes} otros={eRentaCFOtros} />
+                  total={eRentaFact} mes={eRentaCFMes} otros={eRentaCFOtros}
+                  detalle="rentas_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Rentas sin Factura"
                   proy={parseFloat(fForm.proy_rsf) || 0}
-                  total={eRentaSin} mes={eRentaSFMes} otros={eRentaSFOtros} />
+                  total={eRentaSin} mes={eRentaSFMes} otros={eRentaSFOtros}
+                  detalle="rentas_sf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones con Factura"
                   proy={parseFloat(fForm.proy_penaliz) || 0}
-                  total={eSanCFMes + eSanCFOtros} mes={eSanCFMes} otros={eSanCFOtros} />
+                  total={eSanCFMes + eSanCFOtros} mes={eSanCFMes} otros={eSanCFOtros}
+                  detalle="sanciones_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones sin Factura"
-                  total={eSanSFMes + eSanSFOtros} mes={eSanSFMes} otros={eSanSFOtros} />
+                  total={eSanSFMes + eSanSFOtros} mes={eSanSFMes} otros={eSanSFOtros}
+                  detalle="sanciones_sf" onDetalle={setDetalle} />
 
                 <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
                   mes={eRmTotalRentas} otros={eOpTotalRentas} />

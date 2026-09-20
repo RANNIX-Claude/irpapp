@@ -33,37 +33,57 @@ const FUENTES = {
   // obtiene por diferencia. Aquí se ve renglón por renglón cuál cayó en cuál.
   rentas_factura: {
     titulo: 'Rentas con factura',
-    tabla: 'ingresos',
-    nota: 'Cobros de renta del mes que traen número de factura capturado.',
+    tabla: 'prp_ingresos',
+    nota: 'Cobros clasificados como RENTA cuyo origen es transferencia (= con factura). La regla fiscal: transferencia/depósito → factura emitida; efectivo → sin factura.',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['folio', 'Contrato'],
-      ['factura', 'Factura'],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
       ['origen', 'Origen', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => {
-      const { filas } = await cobrosDelMes(m, a, ['RENTA'])
-      return { filas: filas.filter(r => r.factura), campoTotal: 'importe' }
-    },
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: false }),
   },
   rentas_sin_factura: {
     titulo: 'Rentas sin factura',
-    tabla: 'ingresos',
-    nota: 'El EDR no lee este renglón: lo calcula restando lo facturado del total de renta cobrada. Estos son los cobros de renta del mes a los que NO se les capturó número de factura — que es lo mismo que esa diferencia.',
+    tabla: 'prp_ingresos',
+    nota: 'Cobros clasificados como RENTA cuyo origen es EFECTIVO (= sin factura). La regla fiscal: solo el pago en efectivo corresponde a un ingreso sin factura.',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['folio', 'Contrato'],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
       ['origen', 'Origen', v => v || '—'],
-      ['nota', 'Nota', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => {
-      const { filas } = await cobrosDelMes(m, a, ['RENTA'])
-      return { filas: filas.filter(r => !r.factura), campoTotal: 'importe' }
-    },
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: true }),
+  },
+  rentas_cf: {
+    titulo: 'Rentas con Factura — detalle',
+    tabla: 'prp_ingresos',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
+      ['origen', 'Origen', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: false }),
+  },
+  rentas_sf: {
+    titulo: 'Rentas sin Factura — detalle',
+    tabla: 'prp_ingresos',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
+      ['origen', 'Origen'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: true }),
   },
   estacionamiento: {
     titulo: 'Estacionamiento',
@@ -90,16 +110,46 @@ const FUENTES = {
     cargar: async (m, a) => cobrosDelMes(m, a, ['PENSION']),
   },
   sanciones: {
-    titulo: 'Penalizaciones cobradas',
-    tabla: 'ingresos',
+    titulo: 'Sanciones cobradas',
+    tabla: 'prp_ingresos',
+    nota: 'Todos los cobros clasificados como SANCION en el período (con y sin factura).',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['folio', 'Contrato'],
-      ['nota', 'Nota', v => v || '—'],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
+      ['origen', 'Origen', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMes(m, a, ['SANCION']),
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION']),
+  },
+  sanciones_cf: {
+    titulo: 'Sanciones con Factura — detalle',
+    tabla: 'prp_ingresos',
+    nota: 'Sanciones pagadas por transferencia (= con factura emitida, IVA acreditable).',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
+      ['origen', 'Origen', v => v || '—'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION'], { efectivo: false }),
+  },
+  sanciones_sf: {
+    titulo: 'Sanciones sin Factura — detalle',
+    tabla: 'prp_ingresos',
+    nota: 'Sanciones pagadas en efectivo (= sin factura, no generan IVA acreditable).',
+    columnas: [
+      ['fecha', 'Fecha pago', fmtD],
+      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
+      ['locales_display', 'Local', v => v || '—'],
+      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
+      ['origen', 'Origen'],
+      ['importe', 'Importe', fmt, 'num'],
+    ],
+    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION'], { efectivo: true }),
   },
   agua_ingreso: {
     titulo: 'Agua cobrada',
@@ -215,12 +265,28 @@ async function cobrosDelMes(mes, anio, tipos) {
   const ini = `${anio}-${String(mes).padStart(2, '0')}-01`
   const fin = `${anio}-${String(mes).padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`
   const { data, error } = await supabase.from('prp_ingresos')
-    .select('id, fecha, mes, anio, tipo, importe, factura, origen, nota, folio')
+    .select('id, fecha, mes, anio, tipo, clasificacion, importe, factura, origen, nota, folio, arrendatario_nombre, locales_display')
     .gte('fecha', ini).lte('fecha', fin)
     .in('tipo', tipos)
     .order('fecha', { ascending: false })
   if (error) throw error
   return { filas: data ?? [], campoTotal: 'importe' }
+}
+
+// Filtra por clasificacion (campo auto-calculado) y opcionalmente por origen
+async function cobrosDelMesPorClasif(mes, anio, clasificaciones, { efectivo } = {}) {
+  const ini = `${anio}-${String(mes).padStart(2, '0')}-01`
+  const fin = `${anio}-${String(mes).padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`
+  const { data, error } = await supabase.from('prp_ingresos')
+    .select('id, fecha, mes, anio, clasificacion, importe, factura, origen, nota, folio, arrendatario_nombre, locales_display')
+    .gte('fecha', ini).lte('fecha', fin)
+    .in('clasificacion', clasificaciones)
+    .order('fecha', { ascending: false })
+  if (error) throw error
+  let filas = data ?? []
+  if (efectivo === true)  filas = filas.filter(r => (r.origen||'').toUpperCase() === 'EFECTIVO')
+  if (efectivo === false) filas = filas.filter(r => (r.origen||'').toUpperCase() !== 'EFECTIVO')
+  return { filas, campoTotal: 'importe' }
 }
 
 export const CONCEPTOS_CON_DETALLE = Object.keys(FUENTES)
