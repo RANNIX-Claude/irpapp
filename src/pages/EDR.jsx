@@ -1028,8 +1028,11 @@ export default function EDR() {
             // y las de efectivo suman Total Rentas; la penalización va aparte.
             const eTotalRentas  = eRentaFact + eRentaSin
             const eRentasBrutas = eTotalRentas + ePenaliz
-            const eRmRentas   = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)   + (parseFloat(fForm.real_penaliz_mes)||0)
-            const eOpRentas   = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0) + (parseFloat(fForm.real_penaliz_otros)||0)
+            // Total Rentas (mes/otros) = solo factura + rsf; penaliz va en Ingresos Netos
+            const eRmTotalRentas = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)
+            const eOpTotalRentas = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0)
+            const eRmIngNeto     = eRmTotalRentas + (parseFloat(fForm.real_penaliz_mes)||0)   - eIvaMes
+            const eOpIngNeto     = eOpTotalRentas + (parseFloat(fForm.real_penaliz_otros)||0) - eIvaOtros
             const eIngNeto    = eRentasBrutas + eIva
             const eEstac      = (parseFloat(fForm.real_estac_mes)||0)    + (parseFloat(fForm.real_estac_otros)||0)
             const ePension    = (parseFloat(fForm.real_pension_mes)||0)  + (parseFloat(fForm.real_pension_otros)||0)
@@ -1086,13 +1089,14 @@ export default function EDR() {
                   fieldP="proy_locales_vacantes"
                   form={fForm} setField={sf} indent={2} />
 
-                {/* Subtotal + desglose real (igual orden que Tablero) */}
-                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
-                  mes={eRmRentas} otros={eOpRentas} />
-                <EditRow label="Rentas sin Factura" detalle="rentas_sin_factura" onDetalle={setDetalle}
+                {/* Rentas sin Factura ANTES del subtotal — mismo orden que Tablero */}
+                <EditRow label="Rentas en Efectivo (sin Factura)" detalle="rentas_sin_factura" onDetalle={setDetalle}
                   fieldP="proy_rsf"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
-                  form={fForm} setField={sf} indent={1} />
+                  form={fForm} setField={sf} />
+
+                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
+                  mes={eRmTotalRentas} otros={eOpTotalRentas} />
                 <EditRow label="Penalizaciones" detalle="sanciones" onDetalle={setDetalle}
                   fieldP="proy_penaliz"
                   fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
@@ -1122,8 +1126,8 @@ export default function EDR() {
                   form={fForm} setField={sf} />
 
                 <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight composicion={compTotalIng} onDetalle={setDetalle}
-                  mes={eRmEstac + eRmPension + eRmMaq + eRmAgua + eRmRentas}
-                  otros={eOpEstac + eOpPension + eOpMaq + eOpAgua + eOpRentas} />
+                  mes={eRmIngNeto + eRmEstac + eRmPension + eRmMaq + eRmAgua}
+                  otros={eOpIngNeto + eOpEstac + eOpPension + eOpMaq + eOpAgua} />
 
                 <SecHdr label="Gastos Variables" />
                 <EditRow label="Sueldos" detalle="sueldos" onDetalle={setDetalle}          fieldP="proy_sueldos"          fieldR="real_sueldos"          form={fForm} setField={sf} hintP={`RH: ${fmt(proySueldos)}`} />
