@@ -337,41 +337,60 @@ export default function EDR() {
   const loadRealRentas = useCallback(async (m, a) => {
     const fechaIni = `${a}-${String(m).padStart(2,'0')}-01`
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
-    // Base caja: todo cobrado en el mes calendario, todos los tipos
-    const { data } = await supabase.from('ingresos')
-      .select('importe, factura, origen, mes, anio, tipo')
+    // Base caja: pagos con fecha en el mes. Concepto y periodo vienen del cobro cubierto.
+    const { data } = await supabase
+      .from('ingresos')
+      .select('id, origen, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const esMes      = r => r.mes === m && r.anio === a
+      const filas = data.flatMap(ing =>
+        (ing.aplicaciones_pago ?? []).map(ap => ({
+          importe:      parseFloat(ap.importe_aplicado) || 0,
+          concepto:     ap.cargo?.concepto,
+          periodo_mes:  ap.cargo?.periodo_mes,
+          periodo_anio: ap.cargo?.periodo_anio,
+          origen:       ing.origen,
+        }))
+      )
       const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
-      const sum        = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const esMes      = r => r.periodo_mes === m && r.periodo_anio === a
+      const sum        = (rows, pred) => rows.filter(pred ?? (() => true)).reduce((s, r) => s + r.importe, 0)
 
-      // RENTA: clasifica por origen='EFECTIVO' (igual que cargarDatosAutomaticos)
-      const rentas      = data.filter(r => r.tipo === 'RENTA')
+      // RENTA: transferencia=con factura, efectivo=sin factura (regla fiscal)
+      const rentas      = filas.filter(r => r.concepto === 'RENTA')
       const rentasMes   = rentas.filter(esMes)
       const rentasOtros = rentas.filter(r => !esMes(r))
-      // factura = rentas con transferencia/SPEI (no efectivo); rsf = efectivo
-      const factura     = sum(rentasMes.filter(r => !isEfectivo(r)))
-      const rsfMes      = sum(rentasMes.filter(r =>  isEfectivo(r)))
       setRealRentas({
-        factura,
-        rsfMes,
+        factura:        sum(rentasMes, r => !isEfectivo(r)),
+        rsfMes:         sum(rentasMes, r =>  isEfectivo(r)),
         total:          sum(rentas),
         rentas_mes:     sum(rentasMes),
         otros_periodos: sum(rentasOtros),
       })
 
-      // Otros tipos — split mes/otros base caja
+      // SANCION: mismo criterio fiscal
+      const sanciones = filas.filter(r => r.concepto === 'SANCION')
+      setRealIngByTipo(prev => ({
+        ...prev,
+        SANCION: {
+          cf_mes:   sum(sanciones, r => !isEfectivo(r) &&  esMes(r)),
+          sf_mes:   sum(sanciones, r =>  isEfectivo(r) &&  esMes(r)),
+          cf_otros: sum(sanciones, r => !isEfectivo(r) && !esMes(r)),
+          sf_otros: sum(sanciones, r =>  isEfectivo(r) && !esMes(r)),
+        }
+      }))
+
+      // Otros tipos — split mes/otros base cobro
       const byTipo = {}
       for (const tipo of ['ESTACIONAMIENTO','PENSION','MAQUINITA','AGUA']) {
-        const rows = data.filter(r => r.tipo === tipo)
+        const rows = filas.filter(r => r.concepto === tipo)
         byTipo[tipo] = {
-          mes:   sum(rows.filter(esMes)),
-          otros: sum(rows.filter(r => !esMes(r))),
+          mes:   sum(rows, esMes),
+          otros: sum(rows, r => !esMes(r)),
           total: sum(rows),
         }
       }
-      setRealIngByTipo(byTipo)
+      setRealIngByTipo(prev => ({ ...prev, ...byTipo }))
     }
   }, [])
 
@@ -448,10 +467,15 @@ export default function EDR() {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
-      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura  || 0,
-      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos || 0,
-      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes   || 0,
+      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura              || 0,
+      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos       || 0,
+      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes               || 0,
       real_rsf_otros:            f.real_rsf_otros            || 0,
+      // Sanciones: cf=con factura (transferencia), sf=sin factura (efectivo)
+      real_penaliz_cf_mes:       f.real_penaliz_cf_mes       || realIngByTipo.SANCION?.cf_mes   || 0,
+      real_penaliz_sf_mes:       f.real_penaliz_sf_mes       || realIngByTipo.SANCION?.sf_mes   || 0,
+      real_penaliz_cf_otros:     f.real_penaliz_cf_otros     || realIngByTipo.SANCION?.cf_otros || 0,
+      real_penaliz_sf_otros:     f.real_penaliz_sf_otros     || realIngByTipo.SANCION?.sf_otros || 0,
       // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
       real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
       real_estac_otros:          f.real_estac_otros          || realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
@@ -486,17 +510,32 @@ export default function EDR() {
     const sumRentas = contratos?.reduce((s, c) => s + (parseFloat(c.renta_mensual)||0), 0) || 0
     resumen.rentas = sumRentas
 
-    // 2. Rentas reales: ingresos cobrados en el mes (base caja), tipo RENTA
+    // 2. Rentas y sanciones: base caja (fecha de pago en el mes).
+    //    Concepto y periodo_mes/anio vienen del cobro cubierto (cargos_programados).
+    //    Regla fiscal: origen=EFECTIVO → sin factura; resto → con factura.
     const fechaIniR = `${anio}-${String(mes).padStart(2,'0')}-01`
     const fechaFinR = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
-    const { data: ingresosRenta } = await supabase
-      .from('ingresos').select('importe, factura, origen, mes, anio')
-      .eq('tipo', 'RENTA')
-      .gte('fecha', fechaIniR).lte('fecha', fechaFinR)
-    // Efectivo = origen 'EFECTIVO' (igual que ResumenSemanal); el resto son transferencias
     const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
-    const rFactura = ingresosRenta?.filter(r => !isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
-    const rSinFact = ingresosRenta?.filter(r =>  isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+
+    const { data: ingresosRaw } = await supabase
+      .from('ingresos')
+      .select('id, origen, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
+      .gte('fecha', fechaIniR).lte('fecha', fechaFinR)
+
+    const filas = (ingresosRaw ?? []).flatMap(ing =>
+      (ing.aplicaciones_pago ?? []).map(ap => ({
+        importe:      parseFloat(ap.importe_aplicado) || 0,
+        concepto:     ap.cargo?.concepto,
+        periodo_mes:  ap.cargo?.periodo_mes,
+        periodo_anio: ap.cargo?.periodo_anio,
+        origen:       ing.origen,
+      }))
+    )
+
+    const rentas    = filas.filter(r => r.concepto === 'RENTA')
+    const sanciones = filas.filter(r => r.concepto === 'SANCION')
+    const rFactura  = rentas.filter(r => !isEfectivo(r)).reduce((s, r) => s + r.importe, 0)
+    const rSinFact  = rentas.filter(r =>  isEfectivo(r)).reduce((s, r) => s + r.importe, 0)
 
     // 3. Pensiones y estacionamiento: sistema de tickets. Vending: esta base.
     let poyPensiones = 0, realPensiones = 0, realEstacParking = 0, realVendingParking = 0
@@ -551,12 +590,23 @@ export default function EDR() {
     const sumSueldos = nominas?.reduce((s, n) => s + (parseFloat(n.total_neto)||0), 0) || 0
     resumen.sueldos = sumSueldos
 
-    // Splits mes/otros: efectivo = origen 'EFECTIVO', el resto = transferencia/factura
-    const esMesCurrent = r => r.mes === mes && r.anio === anio
-    const rmFact  = ingresosRenta?.filter(r => !isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opFact  = ingresosRenta?.filter(r => !isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const rmSin   = ingresosRenta?.filter(r =>  isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opSin   = ingresosRenta?.filter(r =>  isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    // Splits mes/otros: "mes actual" = periodo_mes/anio del cargo cubierto (no del ingreso)
+    const esMesCurrent = r => r.periodo_mes === mes && r.periodo_anio === anio
+    const sum = (rows, pred) => rows.filter(pred ?? (() => true)).reduce((s, r) => s + r.importe, 0)
+
+    // Rentas
+    const rmFact  = sum(rentas, r => !isEfectivo(r) &&  esMesCurrent(r))
+    const opFact  = sum(rentas, r => !isEfectivo(r) && !esMesCurrent(r))
+    const rmSin   = sum(rentas, r =>  isEfectivo(r) &&  esMesCurrent(r))
+    const opSin   = sum(rentas, r =>  isEfectivo(r) && !esMesCurrent(r))
+
+    // Sanciones: con factura (CF) = transferencia, sin factura (SF) = efectivo
+    const sCfMes   = sum(sanciones, r => !isEfectivo(r) &&  esMesCurrent(r))
+    const sCfOtros = sum(sanciones, r => !isEfectivo(r) && !esMesCurrent(r))
+    const sSfMes   = sum(sanciones, r =>  isEfectivo(r) &&  esMesCurrent(r))
+    const sSfOtros = sum(sanciones, r =>  isEfectivo(r) && !esMesCurrent(r))
+    const sTotalMes   = sCfMes + sSfMes
+    const sTotalOtros = sCfOtros + sSfOtros
 
     // Actualiza solo columnas real_* — proy_* son input manual del admin, nunca se pisan
     setForm(f => ({
@@ -567,6 +617,13 @@ export default function EDR() {
       real_rentas_factura_otros:   opFact,
       real_rsf_mes:                rmSin,
       real_rsf_otros:              opSin,
+      real_penaliz_cf_mes:         sCfMes,
+      real_penaliz_cf_otros:       sCfOtros,
+      real_penaliz_sf_mes:         sSfMes,
+      real_penaliz_sf_otros:       sSfOtros,
+      real_penalizaciones:         sTotalMes + sTotalOtros,
+      real_penaliz_mes:            sTotalMes,
+      real_penaliz_otros:          sTotalOtros,
       real_pensiones:              realPensiones,
       real_pension_mes:            realPensiones,
       real_pension_otros:          0,
@@ -1022,23 +1079,34 @@ export default function EDR() {
             }
             const sf = setField
 
-            // Totales auto en En Elaboración (para SubTot)
-            const eRentaFact  = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rentas_factura_otros)||0)
-            const eRentaSin   = (parseFloat(fForm.real_rsf_mes)||0)              + (parseFloat(fForm.real_rsf_otros)||0)
-            const ePenaliz    = (parseFloat(fForm.real_penaliz_mes)||0)          + (parseFloat(fForm.real_penaliz_otros)||0)
-            const eIvaMes     = parseFloat(fForm.real_iva_mes)   || 0
-            const eIvaOtros   = parseFloat(fForm.real_iva_otros)  || 0
-            const eIva        = -(eIvaMes + eIvaOtros) || -(Math.abs(parseFloat(fForm.real_iva)||0))
-            // Misma estructura que el anexo del cliente: las rentas facturadas
-            // y las de efectivo suman Total Rentas; la penalización va aparte.
-            const eTotalRentas  = eRentaFact + eRentaSin
-            const eRentasBrutas = eTotalRentas + ePenaliz
-            // Total Rentas (mes/otros) = solo factura + rsf; penaliz va en Ingresos Netos
-            const eRmTotalRentas = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)
-            const eOpTotalRentas = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0)
-            const eRmIngNeto     = eRmTotalRentas + (parseFloat(fForm.real_penaliz_mes)||0)   - eIvaMes
-            const eOpIngNeto     = eOpTotalRentas + (parseFloat(fForm.real_penaliz_otros)||0) - eIvaOtros
-            const eIngNeto    = eRentasBrutas + eIva
+            // Totales auto en En Elaboración
+            // Rentas
+            const eRentaCFMes   = parseFloat(fForm.real_rentas_factura_mes)   || 0
+            const eRentaCFOtros = parseFloat(fForm.real_rentas_factura_otros) || 0
+            const eRentaSFMes   = parseFloat(fForm.real_rsf_mes)              || 0
+            const eRentaSFOtros = parseFloat(fForm.real_rsf_otros)            || 0
+            const eRentaFact    = eRentaCFMes + eRentaCFOtros
+            const eRentaSin     = eRentaSFMes + eRentaSFOtros
+            // Sanciones (cf=con factura/transferencia, sf=sin factura/efectivo)
+            const eSanCFMes     = parseFloat(fForm.real_penaliz_cf_mes)   || 0
+            const eSanCFOtros   = parseFloat(fForm.real_penaliz_cf_otros) || 0
+            const eSanSFMes     = parseFloat(fForm.real_penaliz_sf_mes)   || 0
+            const eSanSFOtros   = parseFloat(fForm.real_penaliz_sf_otros) || 0
+            const eSancion      = eSanCFMes + eSanCFOtros + eSanSFMes + eSanSFOtros
+            const ePenaliz      = eSancion  // alias para compat
+            // Total Rentas Obtenidas (mes y otros)
+            const eRmTotalRentas = eRentaCFMes   + eRentaSFMes   + eSanCFMes   + eSanSFMes
+            const eOpTotalRentas = eRentaCFOtros + eRentaSFOtros + eSanCFOtros + eSanSFOtros
+            const eTotalRentas   = eRmTotalRentas + eOpTotalRentas
+            const eRentasBrutas  = eTotalRentas   // rentas + sanciones = brutas
+            // IVA
+            const eIvaMes    = parseFloat(fForm.real_iva_mes)   || 0
+            const eIvaOtros  = parseFloat(fForm.real_iva_otros) || 0
+            const eIva       = -(eIvaMes + eIvaOtros) || -(Math.abs(parseFloat(fForm.real_iva)||0))
+            // Ingresos Netos Renta
+            const eRmIngNeto = eRmTotalRentas - eIvaMes
+            const eOpIngNeto = eOpTotalRentas - eIvaOtros
+            const eIngNeto   = eRentasBrutas + eIva
             const eEstac      = (parseFloat(fForm.real_estac_mes)||0)    + (parseFloat(fForm.real_estac_otros)||0)
             const ePension    = (parseFloat(fForm.real_pension_mes)||0)  + (parseFloat(fForm.real_pension_otros)||0)
             const eMaquinita  = (parseFloat(fForm.real_maquinita_mes)||0) + (parseFloat(fForm.real_maquinita_otros)||0)
@@ -1077,8 +1145,7 @@ export default function EDR() {
                 </div>
 
                 <SecHdr label="Ingresos" />
-                {/* Sección proyectada — referencia de presupuesto */}
-                <EditRow label="* Rentas totales" detalle="proyectado" onDetalle={setDetalle}
+                <EditRow label="Rentas con Factura" detalle="proyectado" onDetalle={setDetalle}
                   fieldP="proy_rentas_contratos"
                   fieldMes="real_rentas_factura_mes" fieldOtros="real_rentas_factura_otros"
                   form={fForm} setField={sf}
@@ -1094,18 +1161,22 @@ export default function EDR() {
                   fieldP="proy_locales_vacantes"
                   form={fForm} setField={sf} indent={2} />
 
-                {/* Rentas sin Factura ANTES del subtotal — mismo orden que Tablero */}
-                <EditRow label="Rentas en Efectivo (sin Factura)" detalle="rentas_sin_factura" onDetalle={setDetalle}
+                <EditRow label="Rentas sin Factura" detalle="rentas_sin_factura" onDetalle={setDetalle}
                   fieldP="proy_rsf"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
                   form={fForm} setField={sf} />
 
-                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
-                  mes={eRmTotalRentas} otros={eOpTotalRentas} />
-                <EditRow label="Penalizaciones" detalle="sanciones" onDetalle={setDetalle}
+                <EditRow label="Sanciones con Factura" detalle="sanciones" onDetalle={setDetalle}
                   fieldP="proy_penaliz"
-                  fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
-                  form={fForm} setField={sf} indent={1} />
+                  fieldMes="real_penaliz_cf_mes" fieldOtros="real_penaliz_cf_otros"
+                  form={fForm} setField={sf} />
+
+                <EditRow label="Sanciones sin Factura"
+                  fieldMes="real_penaliz_sf_mes" fieldOtros="real_penaliz_sf_otros"
+                  form={fForm} setField={sf} />
+
+                <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
+                  mes={eRmTotalRentas} otros={eOpTotalRentas} />
                 <EditRow label="IVA retenido"
                   fieldP="proy_iva"
                   fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
