@@ -835,8 +835,17 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
                 {loadingCargos ? (
                   <div style={{ fontSize:'13px', color:'#6B7280', padding:'10px 0' }}>Cargando cargos...</div>
                 ) : cargos.length === 0 ? (
-                  <div style={{ fontSize:'13px', color:'#6B7280', padding:'10px 12px', background:'#F9FAFB', borderRadius:'8px', border:'1px solid #E5E7EB' }}>
-                    Sin cargos pendientes para este contrato
+                  <div style={{ padding:'12px 14px', background:'#FFFBEB', borderRadius:'8px', border:'1px solid #FDE68A', display:'flex', gap:'10px', alignItems:'flex-start' }}>
+                    <AlertCircle size={16} style={{ color:'#D97706', flexShrink:0, marginTop:'1px' }} />
+                    <div>
+                      <div style={{ fontSize:'13px', fontWeight:700, color:'#92400E', marginBottom:'3px' }}>
+                        Sin cargos pendientes para este contrato
+                      </div>
+                      <div style={{ fontSize:'12px', color:'#78350F', lineHeight:'1.5' }}>
+                        Si recibes una <strong>sanción u otro concepto</strong> que no aparece en la lista,
+                        usa el botón <strong>"+ Agregar cobro"</strong> de arriba para registrarlo antes de aplicar el pago.
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div style={{ border:'1px solid #E5E7EB', borderRadius:'8px', overflow:'hidden' }}>
