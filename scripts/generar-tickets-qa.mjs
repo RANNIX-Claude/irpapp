@@ -293,12 +293,15 @@ function buildFicha(contrato, banco, anio, mes, idx) {
   const fechaDisp = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${anio}`
   const fechaLarga = `${dia} de ${MESES_ES[mes]} de ${anio}`
   const importe = `$${Number(contrato.renta_mensual).toLocaleString('es-MX', { minimumFractionDigits:2 })}`
-  const localSlug = (contrato.locales_display || '').split(',')[0].trim().replace(/\s+/g,'') || `L${idx}`
+  // Extrae número de local y zero-padea: "LOCAL 06" → "L06", "LOCAL 6" → "L06"
+  const rawNum = ((contrato.locales_display || '').split(',')[0].match(/(\d+)/) || [,''])[1]
+  const localSlug = rawNum ? `L${rawNum.padStart(2,'0')}` : `L${String(idx).padStart(2,'0')}`
   const referencia = `${anio}${String(mes).padStart(2,'0')}${localSlug}`
   const concepto = `RENTA ${MESES_ABR[mes]} ${anio} ${localSlug}`
   const claveRastreo = `${banco.key}${anio}${String(mes).padStart(2,'0')}${String(dia).padStart(2,'0')}${String(idx).padStart(9,'0')}`
   const numOp = `${banco.key}-${anio}-${String(idx).padStart(8,'0')}`
-  const nombrePng = `ficha_${banco.key.toLowerCase()}_${anio}${String(mes).padStart(2,'0')}_${localSlug.toLowerCase()}.png`
+  // Formato: L06_2608_FICHA_BSR
+  const nombrePng = `${localSlug}_${String(anio).slice(2)}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.png`
 
   let inner = ''
   if (banco.estilo === 'spei') {
@@ -350,7 +353,7 @@ function buildFicha(contrato, banco, anio, mes, idx) {
   }
 
   const width = banco.estilo === 'spei' ? 480 : 360
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  const fullHtml = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>* {margin:0;padding:0;box-sizing:border-box;} body {background:#e8e8e8;display:flex;flex-direction:column;align-items:center;padding:24px;gap:14px;font-family:Arial,sans-serif;} .dl-btn {width:${width}px;padding:11px;background:${banco.color};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}</style>
 </head><body>
@@ -358,6 +361,52 @@ function buildFicha(contrato, banco, anio, mes, idx) {
 <div id="doc">${inner}</div>
 <script>function descargar(){html2canvas(document.getElementById('doc'),{scale:2,backgroundColor:'#ffffff'}).then(function(c){var a=document.createElement('a');a.download='${nombrePng}';a.href=c.toDataURL('image/png');a.click();});}</script>
 </body></html>`
+  return { fullHtml, inner }
+}
+
+// ── Extrae el innerHTML del ticket (sin la página wrapper) ──────────────────────
+function ticketInner(cat, tienda, fecha, folio) {
+  const [anio, mes, dia] = fecha.split('-')
+  const fechaDisp = `${dia}/${mes}/${anio}`
+  const hora = `${(8 + Math.floor(Math.random() * 10)).toString().padStart(2,'0')}:${(Math.floor(Math.random() * 60)).toString().padStart(2,'0')}:${(Math.floor(Math.random() * 60)).toString().padStart(2,'0')}`
+  const c = tienda.color
+  const lineas = cat.items.map(it =>
+    `<div style="margin:3px 0;border-bottom:1px dotted #ddd;padding-bottom:3px;">
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:9.5px;font-weight:bold;flex:1;padding-right:4px;">${it.desc}</span><span style="font-size:9.5px;font-weight:bold;">$10.00</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#555;"><span>${it.sku} · 1 PZA</span><span>$10.00 E</span></div>
+    </div>`
+  ).join('')
+  return `<div style="background:#fff;width:300px;padding:12px 14px;font-size:10.5px;line-height:1.5;color:#111;border:1px solid #ddd;font-family:'Courier New',monospace;">
+  <div style="text-align:center;font-size:13px;font-weight:bold;">${tienda.nombre}</div>
+  <div style="text-align:center;font-size:9px;color:#555;">RFC: ${tienda.rfc}</div>
+  <div style="text-align:center;font-size:9px;color:#555;">${tienda.dir}</div>
+  <div style="text-align:center;font-size:9px;color:#555;">TEL: ${tienda.tel}</div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">FECHA:</span><span>${fechaDisp} ${hora}</span></div>
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">FOLIO:</span><span>${folio}</span></div>
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">CAJERO:</span><span>${tienda.cajero}</span></div>
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">CAJA:</span><span>${tienda.caja}</span></div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="text-align:center;font-weight:bold;font-size:9px;">DESCRIPCION DE COMPRA</div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  ${lineas}
+  <hr style="border-top:1px solid #555;margin:6px 0;">
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">SUBTOTAL (IVA 0%):</span><span>$100.00</span></div>
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">IVA:</span><span>$0.00</span></div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="background:${c}10;border:1.5px solid ${c};border-radius:4px;padding:6px 10px;margin:6px 0;">
+    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:bold;color:${c};"><span>TOTAL:</span><span>$100.00</span></div>
+  </div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">EFECTIVO:</span><span>$100.00</span></div>
+  <div style="display:flex;justify-content:space-between;margin:1px 0;"><span style="color:#444;">CAMBIO:</span><span>$0.00</span></div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="text-align:center;font-weight:bold;">TOTAL ARTICULOS: 10</div>
+  <hr style="border:none;border-top:1px dashed #555;margin:6px 0;">
+  <div style="text-align:center;font-size:9px;color:#555;">ESTE COMPROBANTE NO ES CFDI</div>
+  <div style="text-align:center;font-size:9px;letter-spacing:3px;color:#333;">||||| ${folio} |||||</div>
+  <div style="text-align:center;font-size:9px;color:#555;margin-top:4px;">GRACIAS POR SU COMPRA</div>
+</div>`
 }
 
 // ── PASO 1: Tickets de compra ─────────────────────────────────────────────────
@@ -365,7 +414,7 @@ if (modo === 'tickets' || modo === 'all') {
   const OUT = 'tickets-demo/qa-tickets'
   fs.mkdirSync(OUT, { recursive: true })
 
-  const archivos = []
+  const items = []  // { pngName, inner }
   let folioNum = 20260901
 
   for (let i = 0; i < ARTICULOS_100.length; i++) {
@@ -374,78 +423,85 @@ if (modo === 'tickets' || modo === 'all') {
     const tienda = TIENDAS[cat.tienda]
     const fecha  = FECHAS[i % FECHAS.length]
     const folio  = `${tienda.rfc.slice(0,3)}${folioNum++}`
-    const nombre = `ticket_${String(i+1).padStart(2,'0')}_${cat.grupo.toLowerCase()}.html`
-
-    const html = buildTicket(cat, tienda, fecha, folio)
-    fs.writeFileSync(path.join(OUT, nombre), html, 'utf8')
-    archivos.push({ i, nombre, nombrePng: nombre.replace('.html', '.png'), tienda: tienda.nombre, sku: cat.items[0].sku.replace('-001',''), desc: cat.grupo, grupo: cat.grupo })
-    console.log(`  ✓ ${nombre}`)
+    const pngName = `ticket_${String(i+1).padStart(2,'0')}_${cat.grupo.toLowerCase()}.png`
+    const inner = ticketInner(cat, tienda, fecha, folio)
+    // Archivo individual (para referencia / descarga individual)
+    const htmlInd = buildTicket(cat, tienda, fecha, folio)
+    fs.writeFileSync(path.join(OUT, pngName.replace('.png', '.html')), htmlInd, 'utf8')
+    items.push({ id: `t${i}`, pngName, inner, label: `${cat.grupo} · ${tienda.nombre}` })
+    console.log(`  ✓ ${pngName}`)
   }
 
-  // Index con gallery + "Descargar todos"
-  const itemsJson = JSON.stringify(archivos.map(a => ({ idx: a.i, png: a.nombrePng, nombre: a.nombre })))
+  // Index con JSZip — un clic descarga todos los PNGs en un ZIP
   const indexHtml = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Tickets $100 — QA</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-* {margin:0;padding:0;box-sizing:border-box;}
-body {font-family:Arial,sans-serif;background:#e0e0e0;padding:20px;}
-h1 {font-size:17px;margin-bottom:4px;}
-.nota {font-size:11px;color:#777;margin-bottom:14px;}
-.toolbar {display:flex;align-items:center;gap:12px;margin-bottom:20px;}
-#btnAll {padding:10px 22px;background:#1e8449;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}
-#btnAll:disabled {background:#888;cursor:default;}
-#status {font-size:12px;color:#555;}
-.grid {display:flex;flex-wrap:wrap;gap:16px;}
-.card {background:#f8f8f8;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
-.meta {font-size:10px;color:#666;margin-bottom:6px;}
-.meta strong {color:#222;display:block;}
-.dl-btn {padding:6px 12px;background:#1a5276;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-top:8px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#e0e0e0;padding:20px;}
+h1{font-size:18px;margin-bottom:4px;}
+.nota{font-size:11px;color:#777;margin-bottom:16px;}
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+#btnZip{padding:12px 28px;background:#1e8449;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;letter-spacing:.3px;}
+#btnZip:disabled{background:#888;cursor:default;}
+.prog{font-size:12px;color:#444;min-width:200px;}
+.bar-wrap{width:260px;height:8px;background:#ccc;border-radius:4px;overflow:hidden;display:none;}
+.bar{height:100%;background:#1e8449;width:0;transition:width .2s;}
+.grid{display:flex;flex-wrap:wrap;gap:16px;}
+.card{background:#f8f8f8;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:6px;align-items:center;}
+.lbl{font-size:10px;color:#555;text-align:center;}
 </style>
 </head><body>
-<h1>Tickets de Compra $100 — QA Demo</h1>
-<p class="nota">${archivos.length} tickets · $100.00 cada uno · IVA 0%</p>
+<h1>Tickets de Compra $100 — QA</h1>
+<p class="nota">${items.length} tickets · $100.00 c/u · IVA 0% · Un clic = ZIP completo</p>
 <div class="toolbar">
-  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todos (${archivos.length} PNG)</button>
-  <span id="status"></span>
+  <button id="btnZip" onclick="zipTodo()">⬇ Descargar ZIP (${items.length} PNGs)</button>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <div class="prog" id="prog">Listo para descargar</div>
+    <div class="bar-wrap" id="barWrap"><div class="bar" id="bar"></div></div>
+  </div>
 </div>
-<div class="grid">
-${archivos.map(a => `<div class="card">
-  <div class="meta"><strong>${a.tienda}</strong>${a.grupo} · ${a.sku}</div>
-  <iframe src="${a.nombre}" style="width:320px;height:420px;border:none;border-radius:4px;"></iframe>
-  <br><button class="dl-btn" onclick="capIframe(${a.i},'${a.nombrePng}','${a.nombre}')">⬇ ${a.nombrePng}</button>
+<div class="grid" id="grid">
+${items.map(it => `<div class="card">
+  <div class="lbl">${it.label}</div>
+  <div id="${it.id}">${it.inner}</div>
 </div>`).join('\n')}
 </div>
 <script>
-async function capIframe(idx, fname, src) {
-  const win = window.open(src, '_blank', 'width=340,height=440');
-  if (!win) { alert('Abre la página individual: ' + src); return; }
-  await new Promise(r => setTimeout(r, 1200));
-  win.descargar && win.descargar();
-  setTimeout(() => win.close(), 3000);
-}
-async function descargarTodos() {
-  const btn = document.getElementById('btnAll');
-  const st  = document.getElementById('status');
+const ITEMS = ${JSON.stringify(items.map(it => ({ id: it.id, png: it.pngName })))};
+async function zipTodo() {
+  const btn = document.getElementById('btnZip');
+  const prog = document.getElementById('prog');
+  const barWrap = document.getElementById('barWrap');
+  const bar = document.getElementById('bar');
   btn.disabled = true;
-  const items = ${itemsJson};
-  for (let i = 0; i < items.length; i++) {
-    st.textContent = 'Abriendo ' + (i+1) + ' de ' + items.length + '...';
-    const w = window.open(items[i].nombre, '_blank', 'width=340,height=440');
-    await new Promise(r => setTimeout(r, 1500));
-    if (w && w.descargar) w.descargar();
-    await new Promise(r => setTimeout(r, 1200));
-    if (w) w.close();
+  barWrap.style.display = 'block';
+  const zip = new JSZip();
+  for (let i = 0; i < ITEMS.length; i++) {
+    prog.textContent = 'Procesando ' + (i+1) + ' de ' + ITEMS.length + '...';
+    bar.style.width = ((i+1)/ITEMS.length*100) + '%';
+    const el = document.getElementById(ITEMS[i].id).firstElementChild;
+    const canvas = await html2canvas(el, { scale:2, backgroundColor:'#ffffff', useCORS:false });
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    zip.file(ITEMS[i].png, blob);
   }
-  st.textContent = '✓ Listo';
+  prog.textContent = 'Comprimiendo...';
+  const content = await zip.generateAsync({ type:'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = 'tickets-qa.zip';
+  a.click();
+  prog.textContent = '✓ Descargado tickets-qa.zip (' + ITEMS.length + ' PNGs)';
+  bar.style.width = '100%';
   btn.disabled = false;
 }
 </script>
 </body></html>`
 
   fs.writeFileSync(path.join(OUT, 'index.html'), indexHtml, 'utf8')
-  console.log(`\n✓ ${archivos.length} tickets ($100) en ${OUT}/`)
-  console.log(`  → Abre tickets-demo/qa-tickets/index.html en Chrome`)
+  console.log(`\n✓ ${items.length} tickets ($100) en ${OUT}/`)
+  console.log(`  → Abre tickets-demo/qa-tickets/index.html en Chrome → botón ZIP`)
 }
 
 // ── PASO 2: Fichas bancarias desde QA ─────────────────────────────────────────
@@ -480,70 +536,81 @@ if (modo === 'fichas' || modo === 'all') {
     const contrato = contratos[ci]
     const banco = BANCOS[ci % BANCOS.length]
     for (const { anio, mes } of PERIODOS) {
-      const html = buildFicha(contrato, banco, anio, mes, total + 1000)
-      const localSlug = (contrato.locales_display || '').split(',')[0].trim().replace(/\s+/g,'') || `L${ci+1}`
-      const nombreHtml = `ficha_${banco.key.toLowerCase()}_${anio}${String(mes).padStart(2,'0')}_${localSlug.toLowerCase()}.html`
+      const { fullHtml, inner: innerHtml } = buildFicha(contrato, banco, anio, mes, total + 1000)
+      // Extrae número de local con zero-padding: "LOCAL 06" → "L06"
+      const rawNum = ((contrato.locales_display || '').split(',')[0].match(/(\d+)/) || [,''])[1]
+      const localSlug = rawNum ? `L${rawNum.padStart(2,'0')}` : `L${String(ci+1).padStart(2,'0')}`
+      // Formato: L06_2608_FICHA_BSR
+      const nombreHtml = `${localSlug}_${String(anio).slice(2)}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.html`
       const nombrePng  = nombreHtml.replace('.html', '.png')
-      fs.writeFileSync(path.join(OUT, nombreHtml), html, 'utf8')
-      archivos.push({ idx: total, nombreHtml, nombrePng, banco: banco.nombre, local: localSlug, mes: `${MESES_ABR[mes]} ${anio}`, importe: `$${Number(contrato.renta_mensual).toLocaleString('es-MX', { minimumFractionDigits:2 })}` })
+      fs.writeFileSync(path.join(OUT, nombreHtml), fullHtml, 'utf8')
+      archivos.push({ idx: total, nombreHtml, nombrePng, innerHtml, banco: banco.nombre, local: localSlug, mes: `${MESES_ABR[mes]} ${anio}`, importe: `$${Number(contrato.renta_mensual).toLocaleString('es-MX', { minimumFractionDigits:2 })}` })
       console.log(`  ✓ ${nombreHtml}`)
       total++
     }
   }
 
-  const itemsJson = JSON.stringify(archivos.map(a => ({ idx: a.idx, png: a.nombrePng, html: a.nombreHtml })))
   const indexHtml = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Fichas $10,000 — QA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-* {margin:0;padding:0;box-sizing:border-box;}
-body {font-family:Arial,sans-serif;background:#ddd;padding:20px;}
-h1 {font-size:17px;margin-bottom:4px;}
-.nota {font-size:11px;color:#777;margin-bottom:14px;}
-.toolbar {display:flex;align-items:center;gap:12px;margin-bottom:20px;}
-#btnAll {padding:10px 22px;background:#1a3a6e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}
-#btnAll:disabled {background:#888;cursor:default;}
-#status {font-size:12px;color:#555;}
-.grid {display:flex;flex-wrap:wrap;gap:16px;}
-.card {background:#f0f0f0;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:6px;}
-.meta {font-size:11px;color:#666;}
-.meta strong {color:#333;display:block;}
-.dl-btn {padding:7px 14px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;align-self:flex-start;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#d4d4d4;padding:20px;}
+h1{font-size:18px;margin-bottom:4px;}
+.nota{font-size:11px;color:#777;margin-bottom:16px;}
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+#btnZip{padding:12px 28px;background:#1a3a6e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;}
+#btnZip:disabled{background:#888;cursor:default;}
+.prog{font-size:12px;color:#444;min-width:220px;}
+.bar-wrap{width:280px;height:8px;background:#bbb;border-radius:4px;overflow:hidden;display:none;}
+.bar{height:100%;background:#1a3a6e;width:0;transition:width .15s;}
+.grid{display:flex;flex-wrap:wrap;gap:16px;}
+.card{background:#f0f0f0;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:6px;align-items:center;}
+.lbl{font-size:10px;color:#555;text-align:center;font-weight:bold;}
 </style>
 </head><body>
-<h1>Fichas Bancarias $10,000 — QA Demo</h1>
-<p class="nota">${total} fichas · ${contratos.length} contratos × 3 meses (Jul-Sep 2026) · $10,000 c/u</p>
+<h1>Fichas Bancarias $10,000 — QA</h1>
+<p class="nota">${total} fichas · ${contratos.length} contratos × 3 meses (Jul-Sep 2026) · Un clic = ZIP completo</p>
 <div class="toolbar">
-  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todas (${total} PNG)</button>
-  <span id="status"></span>
+  <button id="btnZip" onclick="zipTodo()">⬇ Descargar ZIP (${total} PNGs)</button>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <div class="prog" id="prog">Listo para descargar</div>
+    <div class="bar-wrap" id="barWrap"><div class="bar" id="bar"></div></div>
+  </div>
 </div>
-<div class="grid">
-${archivos.map(a => `<div class="card">
-  <div class="meta"><strong>${a.banco}</strong>${a.local} · ${a.mes} · ${a.importe}</div>
-  <iframe src="${a.nombreHtml}" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('${a.nombreHtml}','${a.nombrePng}')">⬇ ${a.nombrePng}</button>
+<div class="grid" id="grid">
+${archivos.map((a, i) => `<div class="card">
+  <div class="lbl">${a.banco} · ${a.local} · ${a.mes}</div>
+  <div id="f${a.idx}">${a.innerHtml}</div>
 </div>`).join('\n')}
 </div>
 <script>
-async function capHtml(src, fname) {
-  const w = window.open(src, '_blank', 'width=520,height=420');
-  await new Promise(r => setTimeout(r, 1200));
-  if (w && w.descargar) w.descargar();
-  setTimeout(() => w.close(), 3000);
-}
-async function descargarTodos() {
-  const btn = document.getElementById('btnAll');
-  const st  = document.getElementById('status');
+const ITEMS = ${JSON.stringify(archivos.map(a => ({ id: 'f'+a.idx, png: a.nombrePng })))};
+async function zipTodo() {
+  const btn = document.getElementById('btnZip');
+  const prog = document.getElementById('prog');
+  const barWrap = document.getElementById('barWrap');
+  const bar = document.getElementById('bar');
   btn.disabled = true;
-  const items = ${itemsJson};
-  for (let i = 0; i < items.length; i++) {
-    st.textContent = 'Descargando ' + (i+1) + ' de ' + items.length + '...';
-    const w = window.open(items[i].html, '_blank', 'width=520,height=420');
-    await new Promise(r => setTimeout(r, 1500));
-    if (w && w.descargar) w.descargar();
-    await new Promise(r => setTimeout(r, 1200));
-    if (w) w.close();
+  barWrap.style.display = 'block';
+  const zip = new JSZip();
+  for (let i = 0; i < ITEMS.length; i++) {
+    prog.textContent = 'Procesando ' + (i+1) + ' de ' + ITEMS.length + '...';
+    bar.style.width = ((i+1)/ITEMS.length*100) + '%';
+    const el = document.getElementById(ITEMS[i].id).firstElementChild;
+    const canvas = await html2canvas(el, { scale:2, backgroundColor:'#ffffff', useCORS:false });
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    zip.file(ITEMS[i].png, blob);
   }
-  st.textContent = '✓ Listo — ' + items.length + ' PNGs';
+  prog.textContent = 'Comprimiendo...';
+  const content = await zip.generateAsync({ type:'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = 'fichas-qa.zip';
+  a.click();
+  prog.textContent = '✓ Descargado fichas-qa.zip (' + ITEMS.length + ' PNGs)';
+  bar.style.width = '100%';
   btn.disabled = false;
 }
 </script>

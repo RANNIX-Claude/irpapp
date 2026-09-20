@@ -1,290 +1,1176 @@
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Fichas $10,000 — QA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-* {margin:0;padding:0;box-sizing:border-box;}
-body {font-family:Arial,sans-serif;background:#ddd;padding:20px;}
-h1 {font-size:17px;margin-bottom:4px;}
-.nota {font-size:11px;color:#777;margin-bottom:14px;}
-.toolbar {display:flex;align-items:center;gap:12px;margin-bottom:20px;}
-#btnAll {padding:10px 22px;background:#1a3a6e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}
-#btnAll:disabled {background:#888;cursor:default;}
-#status {font-size:12px;color:#555;}
-.grid {display:flex;flex-wrap:wrap;gap:16px;}
-.card {background:#f0f0f0;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:6px;}
-.meta {font-size:11px;color:#666;}
-.meta strong {color:#333;display:block;}
-.dl-btn {padding:7px 14px;background:#555;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;align-self:flex-start;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#d4d4d4;padding:20px;}
+h1{font-size:18px;margin-bottom:4px;}
+.nota{font-size:11px;color:#777;margin-bottom:16px;}
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+#btnZip{padding:12px 28px;background:#1a3a6e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;}
+#btnZip:disabled{background:#888;cursor:default;}
+.prog{font-size:12px;color:#444;min-width:220px;}
+.bar-wrap{width:280px;height:8px;background:#bbb;border-radius:4px;overflow:hidden;display:none;}
+.bar{height:100%;background:#1a3a6e;width:0;transition:width .15s;}
+.grid{display:flex;flex-wrap:wrap;gap:16px;}
+.card{background:#f0f0f0;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:6px;align-items:center;}
+.lbl{font-size:10px;color:#555;text-align:center;font-weight:bold;}
 </style>
 </head><body>
-<h1>Fichas Bancarias $10,000 — QA Demo</h1>
-<p class="nota">48 fichas · 16 contratos × 3 meses (Jul-Sep 2026) · $10,000 c/u</p>
+<h1>Fichas Bancarias $10,000 — QA</h1>
+<p class="nota">48 fichas · 16 contratos × 3 meses (Jul-Sep 2026) · Un clic = ZIP completo</p>
 <div class="toolbar">
-  <button id="btnAll" onclick="descargarTodos()">⬇ Descargar todas (48 PNG)</button>
-  <span id="status"></span>
+  <button id="btnZip" onclick="zipTodo()">⬇ Descargar ZIP (48 PNGs)</button>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <div class="prog" id="prog">Listo para descargar</div>
+    <div class="bar-wrap" id="barWrap"><div class="bar" id="bar"></div></div>
+  </div>
 </div>
-<div class="grid">
+<div class="grid" id="grid">
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L37 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l37.html','ficha_bsr_202607_l37.png')">⬇ ficha_bsr_202607_l37.png</button>
-</div>
-<div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L37 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l37.html','ficha_bsr_202608_l37.png')">⬇ ficha_bsr_202608_l37.png</button>
-</div>
-<div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L37 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l37.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l37.html','ficha_bsr_202609_l37.png')">⬇ ficha_bsr_202609_l37.png</button>
-</div>
-<div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L8 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202607_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l8.html','ficha_bvt_202607_l8.png')">⬇ ficha_bvt_202607_l8.png</button>
-</div>
-<div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L8 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202608_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l8.html','ficha_bvt_202608_l8.png')">⬇ ficha_bvt_202608_l8.png</button>
-</div>
-<div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L8 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202609_l8.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l8.html','ficha_bvt_202609_l8.png')">⬇ ficha_bvt_202609_l8.png</button>
+  <div class="lbl">Banco del Sureste · L37 · JUL 2026</div>
+  <div id="f0"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001000
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">13/07/2026 13:22:24</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Irma Cruz Uribe</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CRUI750416MN5</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****4583</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260713000001000</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L9 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202607_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l9.html','ficha_bat_202607_l9.png')">⬇ ficha_bat_202607_l9.png</button>
+  <div class="lbl">Banco del Sureste · L37 · AGO 2026</div>
+  <div id="f1"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001001
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">12/08/2026 10:44:40</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Irma Cruz Uribe</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CRUI750416MN5</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****1223</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260812000001001</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L9 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202608_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l9.html','ficha_bat_202608_l9.png')">⬇ ficha_bat_202608_l9.png</button>
+  <div class="lbl">Banco del Sureste · L37 · SEP 2026</div>
+  <div id="f2"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001002
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">06/09/2026 14:12:04</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Irma Cruz Uribe</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CRUI750416MN5</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****7541</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260906000001002</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L9 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202609_l9.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l9.html','ficha_bat_202609_l9.png')">⬇ ficha_bat_202609_l9.png</button>
+  <div class="lbl">Banco Vital · L08 · JUL 2026</div>
+  <div id="f3"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">11 de julio de 2026, 11:56 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L08</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****8223</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L15 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l15.html','ficha_bsr_202607_l15.png')">⬇ ficha_bsr_202607_l15.png</button>
+  <div class="lbl">Banco Vital · L08 · AGO 2026</div>
+  <div id="f4"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">8 de agosto de 2026, 08:34 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA AGO 2026 L08</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****1541</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L15 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l15.html','ficha_bsr_202608_l15.png')">⬇ ficha_bsr_202608_l15.png</button>
+  <div class="lbl">Banco Vital · L08 · SEP 2026</div>
+  <div id="f5"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">13 de septiembre de 2026, 16:10 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA SEP 2026 L08</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****5395</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L15 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l15.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l15.html','ficha_bsr_202609_l15.png')">⬇ ficha_bsr_202609_l15.png</button>
+  <div class="lbl">Banco del Atlántico · L09 · JUL 2026</div>
+  <div id="f6"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001006
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">02/07/2026 17:04:18</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Eduardo Flores Ponce</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">FLPE701111GJ0</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****8600</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260702000001006</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L18 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202607_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l18.html','ficha_bvt_202607_l18.png')">⬇ ficha_bvt_202607_l18.png</button>
+  <div class="lbl">Banco del Atlántico · L09 · AGO 2026</div>
+  <div id="f7"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001007
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">08/08/2026 14:16:16</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Eduardo Flores Ponce</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">FLPE701111GJ0</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****4535</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260808000001007</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L18 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202608_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l18.html','ficha_bvt_202608_l18.png')">⬇ ficha_bvt_202608_l18.png</button>
+  <div class="lbl">Banco del Atlántico · L09 · SEP 2026</div>
+  <div id="f8"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001008
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">12/09/2026 12:20:37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Eduardo Flores Ponce</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">FLPE701111GJ0</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****8948</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L09</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260912000001008</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L18 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202609_l18.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l18.html','ficha_bvt_202609_l18.png')">⬇ ficha_bvt_202609_l18.png</button>
+  <div class="lbl">Banco del Sureste · L15 · JUL 2026</div>
+  <div id="f9"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001009
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/07/2026 15:20:51</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Francisco Rodríguez Luna</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ROLF660707CO6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5008</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260703000001009</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L30 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202607_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l30.html','ficha_bat_202607_l30.png')">⬇ ficha_bat_202607_l30.png</button>
+  <div class="lbl">Banco del Sureste · L15 · AGO 2026</div>
+  <div id="f10"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001010
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">02/08/2026 08:30:04</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Francisco Rodríguez Luna</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ROLF660707CO6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5007</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260802000001010</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L30 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202608_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l30.html','ficha_bat_202608_l30.png')">⬇ ficha_bat_202608_l30.png</button>
+  <div class="lbl">Banco del Sureste · L15 · SEP 2026</div>
+  <div id="f11"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001011
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">12/09/2026 09:41:23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Francisco Rodríguez Luna</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ROLF660707CO6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****9393</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L15</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260912000001011</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L30 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202609_l30.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l30.html','ficha_bat_202609_l30.png')">⬇ ficha_bat_202609_l30.png</button>
+  <div class="lbl">Banco Vital · L18 · JUL 2026</div>
+  <div id="f12"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">14 de julio de 2026, 18:13 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L18</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****3154</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L31 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l31.html','ficha_bsr_202607_l31.png')">⬇ ficha_bsr_202607_l31.png</button>
+  <div class="lbl">Banco Vital · L18 · AGO 2026</div>
+  <div id="f13"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">1 de agosto de 2026, 10:31 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA AGO 2026 L18</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****6508</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L31 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l31.html','ficha_bsr_202608_l31.png')">⬇ ficha_bsr_202608_l31.png</button>
+  <div class="lbl">Banco Vital · L18 · SEP 2026</div>
+  <div id="f14"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">10 de septiembre de 2026, 09:06 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA SEP 2026 L18</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****6581</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L31 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l31.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l31.html','ficha_bsr_202609_l31.png')">⬇ ficha_bsr_202609_l31.png</button>
+  <div class="lbl">Banco del Atlántico · L30 · JUL 2026</div>
+  <div id="f15"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001015
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">13/07/2026 11:27:49</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Norma Castro Ware</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CAWN770618NE7</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5479</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260713000001015</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L34 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202607_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l34.html','ficha_bvt_202607_l34.png')">⬇ ficha_bvt_202607_l34.png</button>
+  <div class="lbl">Banco del Atlántico · L30 · AGO 2026</div>
+  <div id="f16"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001016
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">06/08/2026 18:35:44</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Norma Castro Ware</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CAWN770618NE7</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****6434</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260806000001016</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L34 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202608_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l34.html','ficha_bvt_202608_l34.png')">⬇ ficha_bvt_202608_l34.png</button>
+  <div class="lbl">Banco del Atlántico · L30 · SEP 2026</div>
+  <div id="f17"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001017
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/09/2026 18:37:22</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Norma Castro Ware</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">CAWN770618NE7</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5047</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L30</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260903000001017</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L34 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202609_l34.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l34.html','ficha_bvt_202609_l34.png')">⬇ ficha_bvt_202609_l34.png</button>
+  <div class="lbl">Banco del Sureste · L31 · JUL 2026</div>
+  <div id="f18"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001018
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">04/07/2026 15:18:06</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Manuel Reyes Téllez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RETM740315MC4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****7500</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260704000001018</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L36 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202607_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l36.html','ficha_bat_202607_l36.png')">⬇ ficha_bat_202607_l36.png</button>
+  <div class="lbl">Banco del Sureste · L31 · AGO 2026</div>
+  <div id="f19"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001019
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/08/2026 10:14:03</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Manuel Reyes Téllez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RETM740315MC4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****9962</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260803000001019</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L36 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202608_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l36.html','ficha_bat_202608_l36.png')">⬇ ficha_bat_202608_l36.png</button>
+  <div class="lbl">Banco del Sureste · L31 · SEP 2026</div>
+  <div id="f20"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001020
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">11/09/2026 09:15:56</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Manuel Reyes Téllez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RETM740315MC4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3538</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L31</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260911000001020</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L36 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202609_l36.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l36.html','ficha_bat_202609_l36.png')">⬇ ficha_bat_202609_l36.png</button>
+  <div class="lbl">Banco Vital · L34 · JUL 2026</div>
+  <div id="f21"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">5 de julio de 2026, 10:00 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L34</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****6340</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L11 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l11.html','ficha_bsr_202607_l11.png')">⬇ ficha_bsr_202607_l11.png</button>
+  <div class="lbl">Banco Vital · L34 · AGO 2026</div>
+  <div id="f22"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">5 de agosto de 2026, 18:28 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA AGO 2026 L34</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****5653</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L11 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l11.html','ficha_bsr_202608_l11.png')">⬇ ficha_bsr_202608_l11.png</button>
+  <div class="lbl">Banco Vital · L34 · SEP 2026</div>
+  <div id="f23"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">9 de septiembre de 2026, 13:35 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA SEP 2026 L34</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****9743</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L11 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l11.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l11.html','ficha_bsr_202609_l11.png')">⬇ ficha_bsr_202609_l11.png</button>
+  <div class="lbl">Banco del Atlántico · L36 · JUL 2026</div>
+  <div id="f24"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001024
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">14/07/2026 13:51:21</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Daniel Morales Rojas</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MORD720113HG2</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****7063</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260714000001024</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L16 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202607_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l16.html','ficha_bvt_202607_l16.png')">⬇ ficha_bvt_202607_l16.png</button>
+  <div class="lbl">Banco del Atlántico · L36 · AGO 2026</div>
+  <div id="f25"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001025
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">13/08/2026 16:26:12</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Daniel Morales Rojas</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MORD720113HG2</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3602</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260813000001025</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L16 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202608_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l16.html','ficha_bvt_202608_l16.png')">⬇ ficha_bvt_202608_l16.png</button>
+  <div class="lbl">Banco del Atlántico · L36 · SEP 2026</div>
+  <div id="f26"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001026
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">01/09/2026 15:25:21</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Daniel Morales Rojas</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MORD720113HG2</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3557</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L36</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260901000001026</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L16 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202609_l16.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l16.html','ficha_bvt_202609_l16.png')">⬇ ficha_bvt_202609_l16.png</button>
+  <div class="lbl">Banco del Sureste · L11 · JUL 2026</div>
+  <div id="f27"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001027
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">12/07/2026 17:23:04</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Luis Hernández Juárez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">HEJL640505CI4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****6896</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260712000001027</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L12 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202607_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l12.html','ficha_bat_202607_l12.png')">⬇ ficha_bat_202607_l12.png</button>
+  <div class="lbl">Banco del Sureste · L11 · AGO 2026</div>
+  <div id="f28"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001028
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">07/08/2026 18:08:25</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Luis Hernández Juárez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">HEJL640505CI4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****2257</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260807000001028</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L12 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202608_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l12.html','ficha_bat_202608_l12.png')">⬇ ficha_bat_202608_l12.png</button>
+  <div class="lbl">Banco del Sureste · L11 · SEP 2026</div>
+  <div id="f29"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001029
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">08/09/2026 10:36:29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Luis Hernández Juárez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">HEJL640505CI4</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5037</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L11</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260908000001029</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L12 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202609_l12.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l12.html','ficha_bat_202609_l12.png')">⬇ ficha_bat_202609_l12.png</button>
+  <div class="lbl">Banco Vital · L16 · JUL 2026</div>
+  <div id="f30"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">8 de julio de 2026, 16:25 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L16</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****3844</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L23 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l23.html','ficha_bsr_202607_l23.png')">⬇ ficha_bsr_202607_l23.png</button>
+  <div class="lbl">Banco Vital · L16 · AGO 2026</div>
+  <div id="f31"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">9 de agosto de 2026, 08:14 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA AGO 2026 L16</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****3197</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L23 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l23.html','ficha_bsr_202608_l23.png')">⬇ ficha_bsr_202608_l23.png</button>
+  <div class="lbl">Banco Vital · L16 · SEP 2026</div>
+  <div id="f32"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">10 de septiembre de 2026, 10:17 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA SEP 2026 L16</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****6787</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L23 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l23.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l23.html','ficha_bsr_202609_l23.png')">⬇ ficha_bsr_202609_l23.png</button>
+  <div class="lbl">Banco del Atlántico · L12 · JUL 2026</div>
+  <div id="f33"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001033
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">05/07/2026 14:36:00</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rafael Ortega Valdez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ORVR760517MS6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****8176</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L1033</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L1033</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260705000001033</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L27 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202607_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202607_l27.html','ficha_bvt_202607_l27.png')">⬇ ficha_bvt_202607_l27.png</button>
+  <div class="lbl">Banco del Atlántico · L12 · AGO 2026</div>
+  <div id="f34"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001034
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">08/08/2026 13:25:02</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rafael Ortega Valdez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ORVR760517MS6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****8971</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L1034</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L1034</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260808000001034</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L27 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202608_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202608_l27.html','ficha_bvt_202608_l27.png')">⬇ ficha_bvt_202608_l27.png</button>
+  <div class="lbl">Banco del Atlántico · L12 · SEP 2026</div>
+  <div id="f35"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001035
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">09/09/2026 09:27:35</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rafael Ortega Valdez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ORVR760517MS6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****1169</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L1035</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L1035</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260909000001035</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco Vital</strong>L27 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bvt_202609_l27.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bvt_202609_l27.html','ficha_bvt_202609_l27.png')">⬇ ficha_bvt_202609_l27.png</button>
+  <div class="lbl">Banco del Sureste · L23 · JUL 2026</div>
+  <div id="f36"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001036
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">11/07/2026 14:09:23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rosa González Ibarra</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">GOIR630404CH3</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****2674</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260711000001036</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L29 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202607_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202607_l29.html','ficha_bat_202607_l29.png')">⬇ ficha_bat_202607_l29.png</button>
+  <div class="lbl">Banco del Sureste · L23 · AGO 2026</div>
+  <div id="f37"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001037
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">05/08/2026 15:35:44</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rosa González Ibarra</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">GOIR630404CH3</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5216</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260805000001037</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L29 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202608_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202608_l29.html','ficha_bat_202608_l29.png')">⬇ ficha_bat_202608_l29.png</button>
+  <div class="lbl">Banco del Sureste · L23 · SEP 2026</div>
+  <div id="f38"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001038
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">04/09/2026 10:00:14</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rosa González Ibarra</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">GOIR630404CH3</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5839</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L23</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260904000001038</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Atlántico</strong>L29 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bat_202609_l29.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bat_202609_l29.html','ficha_bat_202609_l29.png')">⬇ ficha_bat_202609_l29.png</button>
+  <div class="lbl">Banco Vital · L27 · JUL 2026</div>
+  <div id="f39"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">9 de julio de 2026, 17:53 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA JUL 2026 L27</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****4098</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L33 · JUL 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202607_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202607_l33.html','ficha_bsr_202607_l33.png')">⬇ ficha_bsr_202607_l33.png</button>
+  <div class="lbl">Banco Vital · L27 · AGO 2026</div>
+  <div id="f40"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">1 de agosto de 2026, 11:27 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA AGO 2026 L27</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****4827</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L33 · AGO 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202608_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202608_l33.html','ficha_bsr_202608_l33.png')">⬇ ficha_bsr_202608_l33.png</button>
+  <div class="lbl">Banco Vital · L27 · SEP 2026</div>
+  <div id="f41"><div style="background:#fff;width:360px;border:1px solid #ccc;border-radius:12px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a3a6e;padding:18px 24px 22px;color:#fff;">
+    <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Banco Vital</div>
+    <div style="font-size:28px;margin-bottom:4px;">✓</div>
+    <div style="font-size:13px;opacity:.85;">Transferencia exitosa</div>
+  </div>
+  <div style="padding:0 0 18px;">
+    <div style="background:#fff;margin:-14px 16px 0;border-radius:10px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <div style="font-size:26px;font-weight:700;color:#1a3a6e;">$10,000.00</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;">a PLAZA IWOL S.A. DE C.V.</div>
+    </div>
+    <div style="padding:18px 24px 4px;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Fecha</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">7 de septiembre de 2026, 10:41 h</div>
+      <hr style="border:none;border-top:1px solid #eee;margin:10px 0;">
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Concepto</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">RENTA SEP 2026 L27</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;margin-bottom:4px;">Desde</div>
+      <div style="font-size:13px;color:#111;font-weight:600;margin-bottom:10px;">Banco Vital ****8045</div>
+      <span style="display:inline-block;background:#e8eef5;color:#1a3a6e;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;">✓ Procesada</span>
+    </div>
+  </div>
+</div></div>
 </div>
 <div class="card">
-  <div class="meta"><strong>Banco del Sureste</strong>L33 · SEP 2026 · $10,000.00</div>
-  <iframe src="ficha_bsr_202609_l33.html" style="width:500px;height:380px;border:none;border-radius:4px;"></iframe>
-  <button class="dl-btn" onclick="capHtml('ficha_bsr_202609_l33.html','ficha_bsr_202609_l33.png')">⬇ ficha_bsr_202609_l33.png</button>
+  <div class="lbl">Banco del Atlántico · L29 · JUL 2026</div>
+  <div id="f42"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001042
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">11/07/2026 12:18:29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Verónica Rivera Quiroga</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RIQV711212GR1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****5316</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260711000001042</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
+</div>
+<div class="card">
+  <div class="lbl">Banco del Atlántico · L29 · AGO 2026</div>
+  <div id="f43"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001043
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">06/08/2026 17:21:37</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Verónica Rivera Quiroga</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RIQV711212GR1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****1899</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260806000001043</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
+</div>
+<div class="card">
+  <div class="lbl">Banco del Atlántico · L29 · SEP 2026</div>
+  <div id="f44"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001044
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">07/09/2026 17:27:03</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Verónica Rivera Quiroga</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">RIQV711212GR1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****4757</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L29</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260907000001044</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
+</div>
+<div class="card">
+  <div class="lbl">Banco del Sureste · L33 · JUL 2026</div>
+  <div id="f45"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001045
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">01/07/2026 09:25:52</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Ana Martínez Guerrero</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MAGA610202BC1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****2388</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA JUL 2026 L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202607L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260701000001045</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
+</div>
+<div class="card">
+  <div class="lbl">Banco del Sureste · L33 · AGO 2026</div>
+  <div id="f46"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001046
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">01/08/2026 11:33:24</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Ana Martínez Guerrero</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MAGA610202BC1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****1105</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA AGO 2026 L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202608L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260801000001046</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
+</div>
+<div class="card">
+  <div class="lbl">Banco del Sureste · L33 · SEP 2026</div>
+  <div id="f47"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#1a6e3c;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Sureste</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#e8f5ee;padding:8px 20px;font-size:11px;color:#1a6e3c;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BSR-2026-00001047
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">03/09/2026 09:14:45</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Ana Martínez Guerrero</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">MAGA610202BC1</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****7820</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#1a6e3c;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L33</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BSR20260903000001047</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#1a6e3c;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Sureste &nbsp;·&nbsp; Tel. 800 900 2020
+  </div>
+</div></div>
 </div>
 </div>
 <script>
-async function capHtml(src, fname) {
-  const w = window.open(src, '_blank', 'width=520,height=420');
-  await new Promise(r => setTimeout(r, 1200));
-  if (w && w.descargar) w.descargar();
-  setTimeout(() => w.close(), 3000);
-}
-async function descargarTodos() {
-  const btn = document.getElementById('btnAll');
-  const st  = document.getElementById('status');
+const ITEMS = [{"id":"f0","png":"L37_2607_FICHA_BSR.png"},{"id":"f1","png":"L37_2608_FICHA_BSR.png"},{"id":"f2","png":"L37_2609_FICHA_BSR.png"},{"id":"f3","png":"L08_2607_FICHA_BVT.png"},{"id":"f4","png":"L08_2608_FICHA_BVT.png"},{"id":"f5","png":"L08_2609_FICHA_BVT.png"},{"id":"f6","png":"L09_2607_FICHA_BAT.png"},{"id":"f7","png":"L09_2608_FICHA_BAT.png"},{"id":"f8","png":"L09_2609_FICHA_BAT.png"},{"id":"f9","png":"L15_2607_FICHA_BSR.png"},{"id":"f10","png":"L15_2608_FICHA_BSR.png"},{"id":"f11","png":"L15_2609_FICHA_BSR.png"},{"id":"f12","png":"L18_2607_FICHA_BVT.png"},{"id":"f13","png":"L18_2608_FICHA_BVT.png"},{"id":"f14","png":"L18_2609_FICHA_BVT.png"},{"id":"f15","png":"L30_2607_FICHA_BAT.png"},{"id":"f16","png":"L30_2608_FICHA_BAT.png"},{"id":"f17","png":"L30_2609_FICHA_BAT.png"},{"id":"f18","png":"L31_2607_FICHA_BSR.png"},{"id":"f19","png":"L31_2608_FICHA_BSR.png"},{"id":"f20","png":"L31_2609_FICHA_BSR.png"},{"id":"f21","png":"L34_2607_FICHA_BVT.png"},{"id":"f22","png":"L34_2608_FICHA_BVT.png"},{"id":"f23","png":"L34_2609_FICHA_BVT.png"},{"id":"f24","png":"L36_2607_FICHA_BAT.png"},{"id":"f25","png":"L36_2608_FICHA_BAT.png"},{"id":"f26","png":"L36_2609_FICHA_BAT.png"},{"id":"f27","png":"L11_2607_FICHA_BSR.png"},{"id":"f28","png":"L11_2608_FICHA_BSR.png"},{"id":"f29","png":"L11_2609_FICHA_BSR.png"},{"id":"f30","png":"L16_2607_FICHA_BVT.png"},{"id":"f31","png":"L16_2608_FICHA_BVT.png"},{"id":"f32","png":"L16_2609_FICHA_BVT.png"},{"id":"f33","png":"L12_2607_FICHA_BAT.png"},{"id":"f34","png":"L12_2608_FICHA_BAT.png"},{"id":"f35","png":"L12_2609_FICHA_BAT.png"},{"id":"f36","png":"L23_2607_FICHA_BSR.png"},{"id":"f37","png":"L23_2608_FICHA_BSR.png"},{"id":"f38","png":"L23_2609_FICHA_BSR.png"},{"id":"f39","png":"L27_2607_FICHA_BVT.png"},{"id":"f40","png":"L27_2608_FICHA_BVT.png"},{"id":"f41","png":"L27_2609_FICHA_BVT.png"},{"id":"f42","png":"L29_2607_FICHA_BAT.png"},{"id":"f43","png":"L29_2608_FICHA_BAT.png"},{"id":"f44","png":"L29_2609_FICHA_BAT.png"},{"id":"f45","png":"L33_2607_FICHA_BSR.png"},{"id":"f46","png":"L33_2608_FICHA_BSR.png"},{"id":"f47","png":"L33_2609_FICHA_BSR.png"}];
+async function zipTodo() {
+  const btn = document.getElementById('btnZip');
+  const prog = document.getElementById('prog');
+  const barWrap = document.getElementById('barWrap');
+  const bar = document.getElementById('bar');
   btn.disabled = true;
-  const items = [{"idx":0,"png":"ficha_bsr_202607_l37.png","html":"ficha_bsr_202607_l37.html"},{"idx":1,"png":"ficha_bsr_202608_l37.png","html":"ficha_bsr_202608_l37.html"},{"idx":2,"png":"ficha_bsr_202609_l37.png","html":"ficha_bsr_202609_l37.html"},{"idx":3,"png":"ficha_bvt_202607_l8.png","html":"ficha_bvt_202607_l8.html"},{"idx":4,"png":"ficha_bvt_202608_l8.png","html":"ficha_bvt_202608_l8.html"},{"idx":5,"png":"ficha_bvt_202609_l8.png","html":"ficha_bvt_202609_l8.html"},{"idx":6,"png":"ficha_bat_202607_l9.png","html":"ficha_bat_202607_l9.html"},{"idx":7,"png":"ficha_bat_202608_l9.png","html":"ficha_bat_202608_l9.html"},{"idx":8,"png":"ficha_bat_202609_l9.png","html":"ficha_bat_202609_l9.html"},{"idx":9,"png":"ficha_bsr_202607_l15.png","html":"ficha_bsr_202607_l15.html"},{"idx":10,"png":"ficha_bsr_202608_l15.png","html":"ficha_bsr_202608_l15.html"},{"idx":11,"png":"ficha_bsr_202609_l15.png","html":"ficha_bsr_202609_l15.html"},{"idx":12,"png":"ficha_bvt_202607_l18.png","html":"ficha_bvt_202607_l18.html"},{"idx":13,"png":"ficha_bvt_202608_l18.png","html":"ficha_bvt_202608_l18.html"},{"idx":14,"png":"ficha_bvt_202609_l18.png","html":"ficha_bvt_202609_l18.html"},{"idx":15,"png":"ficha_bat_202607_l30.png","html":"ficha_bat_202607_l30.html"},{"idx":16,"png":"ficha_bat_202608_l30.png","html":"ficha_bat_202608_l30.html"},{"idx":17,"png":"ficha_bat_202609_l30.png","html":"ficha_bat_202609_l30.html"},{"idx":18,"png":"ficha_bsr_202607_l31.png","html":"ficha_bsr_202607_l31.html"},{"idx":19,"png":"ficha_bsr_202608_l31.png","html":"ficha_bsr_202608_l31.html"},{"idx":20,"png":"ficha_bsr_202609_l31.png","html":"ficha_bsr_202609_l31.html"},{"idx":21,"png":"ficha_bvt_202607_l34.png","html":"ficha_bvt_202607_l34.html"},{"idx":22,"png":"ficha_bvt_202608_l34.png","html":"ficha_bvt_202608_l34.html"},{"idx":23,"png":"ficha_bvt_202609_l34.png","html":"ficha_bvt_202609_l34.html"},{"idx":24,"png":"ficha_bat_202607_l36.png","html":"ficha_bat_202607_l36.html"},{"idx":25,"png":"ficha_bat_202608_l36.png","html":"ficha_bat_202608_l36.html"},{"idx":26,"png":"ficha_bat_202609_l36.png","html":"ficha_bat_202609_l36.html"},{"idx":27,"png":"ficha_bsr_202607_l11.png","html":"ficha_bsr_202607_l11.html"},{"idx":28,"png":"ficha_bsr_202608_l11.png","html":"ficha_bsr_202608_l11.html"},{"idx":29,"png":"ficha_bsr_202609_l11.png","html":"ficha_bsr_202609_l11.html"},{"idx":30,"png":"ficha_bvt_202607_l16.png","html":"ficha_bvt_202607_l16.html"},{"idx":31,"png":"ficha_bvt_202608_l16.png","html":"ficha_bvt_202608_l16.html"},{"idx":32,"png":"ficha_bvt_202609_l16.png","html":"ficha_bvt_202609_l16.html"},{"idx":33,"png":"ficha_bat_202607_l12.png","html":"ficha_bat_202607_l12.html"},{"idx":34,"png":"ficha_bat_202608_l12.png","html":"ficha_bat_202608_l12.html"},{"idx":35,"png":"ficha_bat_202609_l12.png","html":"ficha_bat_202609_l12.html"},{"idx":36,"png":"ficha_bsr_202607_l23.png","html":"ficha_bsr_202607_l23.html"},{"idx":37,"png":"ficha_bsr_202608_l23.png","html":"ficha_bsr_202608_l23.html"},{"idx":38,"png":"ficha_bsr_202609_l23.png","html":"ficha_bsr_202609_l23.html"},{"idx":39,"png":"ficha_bvt_202607_l27.png","html":"ficha_bvt_202607_l27.html"},{"idx":40,"png":"ficha_bvt_202608_l27.png","html":"ficha_bvt_202608_l27.html"},{"idx":41,"png":"ficha_bvt_202609_l27.png","html":"ficha_bvt_202609_l27.html"},{"idx":42,"png":"ficha_bat_202607_l29.png","html":"ficha_bat_202607_l29.html"},{"idx":43,"png":"ficha_bat_202608_l29.png","html":"ficha_bat_202608_l29.html"},{"idx":44,"png":"ficha_bat_202609_l29.png","html":"ficha_bat_202609_l29.html"},{"idx":45,"png":"ficha_bsr_202607_l33.png","html":"ficha_bsr_202607_l33.html"},{"idx":46,"png":"ficha_bsr_202608_l33.png","html":"ficha_bsr_202608_l33.html"},{"idx":47,"png":"ficha_bsr_202609_l33.png","html":"ficha_bsr_202609_l33.html"}];
-  for (let i = 0; i < items.length; i++) {
-    st.textContent = 'Descargando ' + (i+1) + ' de ' + items.length + '...';
-    const w = window.open(items[i].html, '_blank', 'width=520,height=420');
-    await new Promise(r => setTimeout(r, 1500));
-    if (w && w.descargar) w.descargar();
-    await new Promise(r => setTimeout(r, 1200));
-    if (w) w.close();
+  barWrap.style.display = 'block';
+  const zip = new JSZip();
+  for (let i = 0; i < ITEMS.length; i++) {
+    prog.textContent = 'Procesando ' + (i+1) + ' de ' + ITEMS.length + '...';
+    bar.style.width = ((i+1)/ITEMS.length*100) + '%';
+    const el = document.getElementById(ITEMS[i].id).firstElementChild;
+    const canvas = await html2canvas(el, { scale:2, backgroundColor:'#ffffff', useCORS:false });
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    zip.file(ITEMS[i].png, blob);
   }
-  st.textContent = '✓ Listo — ' + items.length + ' PNGs';
+  prog.textContent = 'Comprimiendo...';
+  const content = await zip.generateAsync({ type:'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = 'fichas-qa.zip';
+  a.click();
+  prog.textContent = '✓ Descargado fichas-qa.zip (' + ITEMS.length + ' PNGs)';
+  bar.style.width = '100%';
   btn.disabled = false;
 }
 </script>
