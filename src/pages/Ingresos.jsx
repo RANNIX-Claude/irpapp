@@ -1122,34 +1122,6 @@ export default function Ingresos() {
         </button>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
-        <KPICard title="Por cobrar (locales ocupados)"
-          value={fmtK(totalProyectado)}
-          subtitle={`${contratosOcupados.length} en operación${ocupadosSinContrato ? ` · ${ocupadosSinContrato} sin contrato vigente` : ''}`}
-          icon={Target} color="var(--color-primary)" />
-        <KPICard title="Rentas cobradas"
-          value={fmtK(totalRenta)}
-          subtitle={`${rentasCobradas.length} pagos de renta${notaSinValidar(rentasPeriodo)}`}
-          icon={DollarSign} color="var(--color-success)" />
-        <KPICard title="Sanciones"
-          value={fmtK(totalSanciones)}
-          subtitle={`${sancionesCobradas.length} sanciones por mora${notaSinValidar(sancionesPeriodo)}`}
-          icon={AlertCircle} color="var(--color-danger)" />
-        <KPICard title="Del mes en turno"
-          value={fmtK(suma(validadas(rentaDelMesEnTurno)))}
-          subtitle={`${validadas(rentaDelMesEnTurno).length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}${notaSinValidar(rentaDelMesEnTurno)}`}
-          icon={CalendarCheck} color="var(--color-success)" />
-        <KPICard title="De meses anteriores"
-          value={fmtK(suma(validadas(rentaDeMesesAnteriores)))}
-          subtitle={`${validadas(rentaDeMesesAnteriores).length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados${notaSinValidar(rentaDeMesesAnteriores)}`}
-          icon={History} color="var(--color-warning)" />
-        <KPICard title="Registros"
-          value={delPeriodo.length}
-          subtitle={`Ingresos de todo tipo en el ${filtroModo === 'fecha_pago' ? 'mes de pago' : 'período de renta'}`}
-          icon={Calendar} color="var(--color-secondary)" />
-      </div>
-
       {/* Filtros */}
       <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap', alignItems:'center' }}>
 
@@ -1230,6 +1202,34 @@ export default function Ingresos() {
         </div>
 
         <LimpiarTabla tabla={tabla} />
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
+        <KPICard title="Por cobrar (locales ocupados)"
+          value={fmtK(totalProyectado)}
+          subtitle={`${contratosOcupados.length} en operación${ocupadosSinContrato ? ` · ${ocupadosSinContrato} sin contrato vigente` : ''}`}
+          icon={Target} color="var(--color-primary)" />
+        <KPICard title="Rentas cobradas"
+          value={fmtK(totalRenta)}
+          subtitle={`${rentasCobradas.length} pagos de renta${notaSinValidar(rentasPeriodo)}`}
+          icon={DollarSign} color="var(--color-success)" />
+        <KPICard title="Sanciones"
+          value={fmtK(totalSanciones)}
+          subtitle={`${sancionesCobradas.length} sanciones por mora${notaSinValidar(sancionesPeriodo)}`}
+          icon={AlertCircle} color="var(--color-danger)" />
+        <KPICard title="Del mes en turno"
+          value={fmtK(suma(validadas(rentaDelMesEnTurno)))}
+          subtitle={`${validadas(rentaDelMesEnTurno).length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}${notaSinValidar(rentaDelMesEnTurno)}`}
+          icon={CalendarCheck} color="var(--color-success)" />
+        <KPICard title="De meses anteriores"
+          value={fmtK(suma(validadas(rentaDeMesesAnteriores)))}
+          subtitle={`${validadas(rentaDeMesesAnteriores).length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados${notaSinValidar(rentaDeMesesAnteriores)}`}
+          icon={History} color="var(--color-warning)" />
+        <KPICard title="Registros"
+          value={delPeriodo.length}
+          subtitle={`Ingresos de todo tipo en el ${filtroModo === 'fecha_pago' ? 'mes de pago' : 'período de renta'}`}
+          icon={Calendar} color="var(--color-secondary)" />
       </div>
 
       {/* Tabla */}
