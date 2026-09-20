@@ -677,16 +677,18 @@ export default function EDR() {
       real_penalizaciones:         sTotalMes + sTotalOtros,
       real_penaliz_mes:            sTotalMes,
       real_penaliz_otros:          sTotalOtros,
-      real_pensiones:              realPensiones,
-      real_pension_mes:            realPensiones,
-      real_pension_otros:          0,
-      real_sueldos:                sumSueldos,
-      real_estac_mes:              realEstacParking   || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
-      real_estac_otros:            0,
-      real_maquinita_mes:          realVendingParking || realIngByTipo.MAQUINITA?.mes         || 0,
-      real_maquinita_otros:        0,
-      real_agua_ing_mes:           realIngByTipo.AGUA?.mes              || 0,
-      real_agua_ing_otros:         realIngByTipo.AGUA?.otros            || 0,
+      // Si la fuente live devuelve 0, preserva el valor guardado en el form
+      // (puede ser un ingreso ingresado manualmente). Si devuelve >0, lo pisa.
+      real_pensiones:              realPensiones      || f.real_pensiones      || 0,
+      real_pension_mes:            realPensiones      || f.real_pension_mes    || 0,
+      real_pension_otros:          f.real_pension_otros || 0,
+      real_sueldos:                sumSueldos         || f.real_sueldos        || 0,
+      real_estac_mes:              realEstacParking   || realIngByTipo.ESTACIONAMIENTO?.mes   || f.real_estac_mes   || 0,
+      real_estac_otros:            f.real_estac_otros || 0,
+      real_maquinita_mes:          realVendingParking || realIngByTipo.MAQUINITA?.mes         || f.real_maquinita_mes || 0,
+      real_maquinita_otros:        f.real_maquinita_otros || 0,
+      real_agua_ing_mes:           realIngByTipo.AGUA?.mes   || f.real_agua_ing_mes   || 0,
+      real_agua_ing_otros:         realIngByTipo.AGUA?.otros || f.real_agua_ing_otros || 0,
     }))
     setProyRentas(sumRentas)
     setRealRentas({ factura: rFactura, total: rFactura + rSinFact, rentas_mes: rmFact + rmSin, otros_periodos: opFact + opSin })
