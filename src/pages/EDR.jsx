@@ -250,7 +250,7 @@ function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0, 
     <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
       padding:'4px 12px', borderTop:'1px solid #F3F4F6', background:'white',
       cursor: clicable ? 'pointer' : 'default' }}
-      onClick={clicable ? () => onDetalle(detalle) : undefined}>
+      onClick={clicable ? () => onDetalle({ concepto: detalle }) : undefined}>
       <div style={{ fontSize:'12px', color:'#374151', paddingLeft: indent * 14 + 'px',
         display:'flex', alignItems:'center', gap:6 }}>
         {label}
