@@ -339,19 +339,23 @@ export default function EDR() {
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
     // Base caja: todo cobrado en el mes calendario, todos los tipos
     const { data } = await supabase.from('ingresos')
-      .select('importe, factura, mes, anio, tipo')
+      .select('importe, factura, origen, mes, anio, tipo')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const esMes = r => r.mes === m && r.anio === a
-      const sum   = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      const esMes      = r => r.mes === m && r.anio === a
+      const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
+      const sum        = rows => rows.reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
 
-      // RENTA
+      // RENTA: clasifica por origen='EFECTIVO' (igual que cargarDatosAutomaticos)
       const rentas      = data.filter(r => r.tipo === 'RENTA')
       const rentasMes   = rentas.filter(esMes)
       const rentasOtros = rentas.filter(r => !esMes(r))
-      const factura     = rentasMes.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0)
+      // factura = rentas con transferencia/SPEI (no efectivo); rsf = efectivo
+      const factura     = sum(rentasMes.filter(r => !isEfectivo(r)))
+      const rsfMes      = sum(rentasMes.filter(r =>  isEfectivo(r)))
       setRealRentas({
         factura,
+        rsfMes,
         total:          sum(rentas),
         rentas_mes:     sum(rentasMes),
         otros_periodos: sum(rentasOtros),
@@ -444,9 +448,9 @@ export default function EDR() {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
-      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura           || 0,
-      real_rentas_factura_otros: f.real_rentas_factura_otros || (realRentas.otros_periodos   || 0),
-      real_rsf_mes:              f.real_rsf_mes              || ((realRentas.rentas_mes || 0) - (realRentas.factura || 0)) || 0,
+      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura  || 0,
+      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos || 0,
+      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes   || 0,
       real_rsf_otros:            f.real_rsf_otros            || 0,
       // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
       real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
@@ -486,11 +490,13 @@ export default function EDR() {
     const fechaIniR = `${anio}-${String(mes).padStart(2,'0')}-01`
     const fechaFinR = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
     const { data: ingresosRenta } = await supabase
-      .from('ingresos').select('importe, factura, mes, anio')
+      .from('ingresos').select('importe, factura, origen, mes, anio')
       .eq('tipo', 'RENTA')
       .gte('fecha', fechaIniR).lte('fecha', fechaFinR)
-    const rFactura = ingresosRenta?.filter(r => r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
-    const rSinFact = ingresosRenta?.filter(r => !r.factura).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+    // Efectivo = origen 'EFECTIVO' (igual que ResumenSemanal); el resto son transferencias
+    const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
+    const rFactura = ingresosRenta?.filter(r => !isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
+    const rSinFact = ingresosRenta?.filter(r =>  isEfectivo(r)).reduce((s, r) => s + (parseFloat(r.importe)||0), 0) || 0
 
     // 3. Pensiones y estacionamiento: sistema de tickets. Vending: esta base.
     let poyPensiones = 0, realPensiones = 0, realEstacParking = 0, realVendingParking = 0
@@ -545,17 +551,16 @@ export default function EDR() {
     const sumSueldos = nominas?.reduce((s, n) => s + (parseFloat(n.total_neto)||0), 0) || 0
     resumen.sueldos = sumSueldos
 
-    // Splits cash-basis desde ingresos (sugerencias para captura)
+    // Splits mes/otros: efectivo = origen 'EFECTIVO', el resto = transferencia/factura
     const esMesCurrent = r => r.mes === mes && r.anio === anio
-    const rmFact  = ingresosRenta?.filter(r => r.factura  && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opFact  = ingresosRenta?.filter(r => r.factura  && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const rmSin   = ingresosRenta?.filter(r => !r.factura && esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
-    const opSin   = ingresosRenta?.filter(r => !r.factura && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const rmFact  = ingresosRenta?.filter(r => !isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const opFact  = ingresosRenta?.filter(r => !isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const rmSin   = ingresosRenta?.filter(r =>  isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
+    const opSin   = ingresosRenta?.filter(r =>  isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
-    // Actualiza proyectado de rentas (OCUPADO) y columnas real_*
+    // Actualiza solo columnas real_* — proy_* son input manual del admin, nunca se pisan
     setForm(f => ({
       ...f,
-      proy_rentas_contratos:       sumRentas,
       real_rentas_factura:         rFactura,
       real_rentas_sin_factura:     rSinFact,
       real_rentas_factura_mes:     rmFact,
@@ -1028,8 +1033,11 @@ export default function EDR() {
             // y las de efectivo suman Total Rentas; la penalización va aparte.
             const eTotalRentas  = eRentaFact + eRentaSin
             const eRentasBrutas = eTotalRentas + ePenaliz
-            const eRmRentas   = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)   + (parseFloat(fForm.real_penaliz_mes)||0)
-            const eOpRentas   = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0) + (parseFloat(fForm.real_penaliz_otros)||0)
+            // Total Rentas (mes/otros) = solo factura + rsf; penaliz va en Ingresos Netos
+            const eRmTotalRentas = (parseFloat(fForm.real_rentas_factura_mes)||0)  + (parseFloat(fForm.real_rsf_mes)||0)
+            const eOpTotalRentas = (parseFloat(fForm.real_rentas_factura_otros)||0) + (parseFloat(fForm.real_rsf_otros)||0)
+            const eRmIngNeto     = eRmTotalRentas + (parseFloat(fForm.real_penaliz_mes)||0)   - eIvaMes
+            const eOpIngNeto     = eOpTotalRentas + (parseFloat(fForm.real_penaliz_otros)||0) - eIvaOtros
             const eIngNeto    = eRentasBrutas + eIva
             const eEstac      = (parseFloat(fForm.real_estac_mes)||0)    + (parseFloat(fForm.real_estac_otros)||0)
             const ePension    = (parseFloat(fForm.real_pension_mes)||0)  + (parseFloat(fForm.real_pension_otros)||0)
@@ -1086,13 +1094,14 @@ export default function EDR() {
                   fieldP="proy_locales_vacantes"
                   form={fForm} setField={sf} indent={2} />
 
-                {/* Subtotal + desglose real (igual orden que Tablero) */}
-                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
-                  mes={eRmRentas} otros={eOpRentas} />
-                <EditRow label="Rentas sin Factura" detalle="rentas_sin_factura" onDetalle={setDetalle}
+                {/* Rentas sin Factura ANTES del subtotal — mismo orden que Tablero */}
+                <EditRow label="Rentas en Efectivo (sin Factura)" detalle="rentas_sin_factura" onDetalle={setDetalle}
                   fieldP="proy_rsf"
                   fieldMes="real_rsf_mes" fieldOtros="real_rsf_otros"
-                  form={fForm} setField={sf} indent={1} />
+                  form={fForm} setField={sf} />
+
+                <SubTot label="Total Rentas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
+                  mes={eRmTotalRentas} otros={eOpTotalRentas} />
                 <EditRow label="Penalizaciones" detalle="sanciones" onDetalle={setDetalle}
                   fieldP="proy_penaliz"
                   fieldMes="real_penaliz_mes" fieldOtros="real_penaliz_otros"
@@ -1102,7 +1111,8 @@ export default function EDR() {
                   fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
                   form={fForm} setField={sf} indent={1} negLabel />
 
-                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle} />
+                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle}
+                  mes={eRmIngNeto} otros={eOpIngNeto} />
 
                 <EditRow label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
                   fieldP="proy_estacionamiento"
@@ -1122,8 +1132,8 @@ export default function EDR() {
                   form={fForm} setField={sf} />
 
                 <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight composicion={compTotalIng} onDetalle={setDetalle}
-                  mes={eRmEstac + eRmPension + eRmMaq + eRmAgua + eRmRentas}
-                  otros={eOpEstac + eOpPension + eOpMaq + eOpAgua + eOpRentas} />
+                  mes={eRmIngNeto + eRmEstac + eRmPension + eRmMaq + eRmAgua}
+                  otros={eOpIngNeto + eOpEstac + eOpPension + eOpMaq + eOpAgua} />
 
                 <SecHdr label="Gastos Variables" />
                 <EditRow label="Sueldos" detalle="sueldos" onDetalle={setDetalle}          fieldP="proy_sueldos"          fieldR="real_sueldos"          form={fForm} setField={sf} hintP={`RH: ${fmt(proySueldos)}`} />
