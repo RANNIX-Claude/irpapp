@@ -10,6 +10,22 @@ const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agos
 const fmt   = n => '$' + (parseFloat(n)||0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const pct   = (real, proy) => (!proy || proy === 0) ? null : Math.round((real / proy) * 100)
 
+// PostgREST del parking no tiene aggregate functions habilitado → paginar
+async function sumTicketsMes(client, fechaIni, fechaFin) {
+  let total = 0, offset = 0
+  while (true) {
+    const { data, error } = await client
+      .from('tickets').select('importe')
+      .gte('fecha_op', fechaIni).lte('fecha_op', fechaFin)
+      .eq('estatus', 'cobrado').range(offset, offset + 999)
+    if (error || !data || data.length === 0) break
+    total += data.reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+    if (data.length < 1000) break
+    offset += 1000
+  }
+  return total
+}
+
 /* ── Badge % ──────────────────────────────────────────────────────────────── */
 function PctBadge({ value }) {
   if (value === null || value === undefined) return <span style={{ color:'#D1D5DB', fontSize:'11px' }}>—</span>
@@ -450,11 +466,7 @@ export default function EDR() {
 
     let estac_mes = 0, pension_mes = 0
     if (supabaseParking) {
-      const { data: ticketsMes, error: errBoletos } = await supabaseParking
-        .from('tickets').select('importe.sum()')
-        .gte('fecha_op', fechaIni).lte('fecha_op', fechaFin).eq('estatus', 'cobrado')
-      if (errBoletos) console.warn('[EDR] estacionamiento:', errBoletos.message)
-      estac_mes = parseFloat(ticketsMes?.[0]?.sum ?? 0)
+      estac_mes = await sumTicketsMes(supabaseParking, fechaIni, fechaFin)
 
       const { data: pagosPension, error: errPension } = await supabaseParking
         .from('pagos_pension').select('monto_pagado')
@@ -597,10 +609,7 @@ export default function EDR() {
       try {
         const fechaIniE = `${anio}-${String(mes).padStart(2,'0')}-01`
         const fechaFinE = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
-        const { data: ticketsMes } = await supabaseParking
-          .from('tickets').select('importe.sum()')
-          .gte('fecha_op', fechaIniE).lte('fecha_op', fechaFinE).eq('estatus', 'cobrado')
-        realEstacParking = parseFloat(ticketsMes?.[0]?.sum ?? 0)
+        realEstacParking = await sumTicketsMes(supabaseParking, fechaIniE, fechaFinE)
       } catch (_) {}
 
     }
