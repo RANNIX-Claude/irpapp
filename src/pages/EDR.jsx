@@ -1106,7 +1106,8 @@ export default function EDR() {
                   fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
                   form={fForm} setField={sf} indent={1} negLabel />
 
-                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle} />
+                <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle}
+                  mes={eRmIngNeto} otros={eOpIngNeto} />
 
                 <EditRow label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
                   fieldP="proy_estacionamiento"
