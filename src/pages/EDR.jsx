@@ -554,10 +554,9 @@ export default function EDR() {
     const rmSin   = ingresosRenta?.filter(r =>  isEfectivo(r) &&  esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
     const opSin   = ingresosRenta?.filter(r =>  isEfectivo(r) && !esMesCurrent(r)).reduce((s,r)=>s+(parseFloat(r.importe)||0),0) || 0
 
-    // Actualiza proyectado de rentas (OCUPADO) y columnas real_*
+    // Actualiza solo columnas real_* — proy_* son input manual del admin, nunca se pisan
     setForm(f => ({
       ...f,
-      proy_rentas_contratos:       sumRentas,
       real_rentas_factura:         rFactura,
       real_rentas_sin_factura:     rSinFact,
       real_rentas_factura_mes:     rmFact,
