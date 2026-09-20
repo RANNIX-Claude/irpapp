@@ -450,19 +450,15 @@ export default function EDR() {
 
     let estac_mes = 0, pension_mes = 0
     if (supabaseParking) {
-      const sumField = rows => (rows ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
-
-      // El cliente devuelve { data, error } sin lanzar: hay que revisar `error`
-      // o un 404 pasa por dato vacío y el renglón queda en cero sin aviso.
-      const { data: boletosMes, error: errBoletos } = await supabaseParking
-        .from('pagos_boletos').select('monto_pagado, importe, total')
-        .eq('periodo_mes', m).eq('periodo_año', a)
+      const { data: ticketsMes, error: errBoletos } = await supabaseParking
+        .from('tickets').select('importe.sum()')
+        .gte('fecha_op', fechaIni).lte('fecha_op', fechaFin).eq('estatus', 'cobrado')
       if (errBoletos) console.warn('[EDR] estacionamiento:', errBoletos.message)
-      estac_mes = sumField(boletosMes)
+      estac_mes = parseFloat(ticketsMes?.[0]?.sum ?? 0)
 
       const { data: pagosPension, error: errPension } = await supabaseParking
         .from('pagos_pension').select('monto_pagado')
-        .eq('periodo_mes', m).eq('periodo_año', a).eq('estado', 'pagado')
+        .eq('periodo_mes', m).eq('periodo_año', a).eq('estado', 'validado')
       if (errPension) console.warn('[EDR] pensiones:', errPension.message)
       pension_mes = (pagosPension ?? []).reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0)
     }
@@ -591,18 +587,20 @@ export default function EDR() {
         .from('pensiones').select('monto_mensual').eq('activa', true)
       poyPensiones = pensionesActivas?.reduce((s, p) => s + (parseFloat(p.monto_mensual)||0), 0) || 0
 
-      // Real pensiones: pagos_pension cobrados en el mes
+      // Real pensiones: pagos_pension validados en el mes
       const { data: pagosPension } = await supabaseParking
         .from('pagos_pension').select('monto_pagado')
-        .eq('periodo_mes', mes).eq('periodo_año', anio).eq('estado', 'pagado')
+        .eq('periodo_mes', mes).eq('periodo_año', anio).eq('estado', 'validado')
       realPensiones = pagosPension?.reduce((s, p) => s + (parseFloat(p.monto_pagado)||0), 0) || 0
 
-      // Real estacionamiento: pagos_boletos del mes (Sistema de Tickets)
+      // Real estacionamiento: tickets cobrados en el mes (Sistema de Tickets)
       try {
-        const { data: boletosMes } = await supabaseParking
-          .from('pagos_boletos').select('monto_pagado, importe, total')
-          .eq('periodo_mes', mes).eq('periodo_año', anio)
-        realEstacParking = (boletosMes ?? []).reduce((s, r) => s + (parseFloat(r.monto_pagado ?? r.importe ?? r.total ?? 0)||0), 0)
+        const fechaIniE = `${anio}-${String(mes).padStart(2,'0')}-01`
+        const fechaFinE = `${anio}-${String(mes).padStart(2,'0')}-${new Date(anio, mes, 0).getDate()}`
+        const { data: ticketsMes } = await supabaseParking
+          .from('tickets').select('importe.sum()')
+          .gte('fecha_op', fechaIniE).lte('fecha_op', fechaFinE).eq('estatus', 'cobrado')
+        realEstacParking = parseFloat(ticketsMes?.[0]?.sum ?? 0)
       } catch (_) {}
 
     }
