@@ -402,9 +402,14 @@ export default function EDR() {
             origen:       ing.origen,
           }))
         }
-        // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso
+        // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso.
+        // RENTA quedó FUERA de este respaldo a propósito: un depósito sin
+        // distribución no prueba qué cargo cubre, y el rubro de rentas debe
+        // contener solo renta comprobada contra su cargo. El detalle del
+        // renglón avisa cuánto quedó fuera por esto, para que se aplique en
+        // Cobranza y entre por la vía normal.
         const c = ing.clasificacion
-        if (!c || !['RENTA','SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
+        if (!c || !['SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
         return [{ importe: parseFloat(ing.importe)||0, concepto:c, periodo_mes:ing.mes, periodo_anio:ing.anio, origen:ing.origen }]
       })
       const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
@@ -580,9 +585,14 @@ export default function EDR() {
           origen:       ing.origen,
         }))
       }
-      // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso
+      // Sin distribución: usa clasificacion (auto) + mes/anio del ingreso.
+      // RENTA quedó FUERA de este respaldo a propósito: un depósito sin
+      // distribución no prueba qué cargo cubre, y el rubro de rentas debe
+      // contener solo renta comprobada contra su cargo. El detalle del
+      // renglón avisa cuánto quedó fuera por esto, para que se aplique en
+      // Cobranza y entre por la vía normal.
       const c = ing.clasificacion
-      if (!c || !['RENTA','SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
+      if (!c || !['SANCION','AGUA','MANTENIMIENTO'].includes(c)) return []
       return [{ importe: parseFloat(ing.importe)||0, concepto:c, periodo_mes:ing.mes, periodo_anio:ing.anio, origen:ing.origen }]
     })
 

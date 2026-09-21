@@ -338,6 +338,7 @@ async function aplicadoDelMesPorConcepto(mes, anio, conceptos, { efectivo } = {}
     return efectivo ? esEfectivo : !esEfectivo
   }
 
+  const sinDistribuir = []
   const filas = (base.data ?? []).flatMap(ing => {
     if (!pasaOrigen(ing.origen)) return []
     const datos = extra.get(ing.id) ?? {}
@@ -361,19 +362,28 @@ async function aplicadoDelMesPorConcepto(mes, anio, conceptos, { efectivo } = {}
         .filter(r => r.importe > 0)
     }
 
-    // Sin distribución: mismo respaldo que loadRealRentas.
-    if (!conceptos.includes(ing.clasificacion)) return []
-    return [{
-      ...datos,
-      id: ing.id, fecha: ing.fecha, origen: ing.origen,
-      nota: ing.nota ? `${ing.nota} · sin distribución` : 'sin distribución',
-      mes: ing.mes, anio: ing.anio,
-      importe: parseFloat(ing.importe) || 0,
-    }]
+    // Un depósito sin distribución no tiene con qué probar a qué concepto
+    // corresponde: su `clasificacion` es una etiqueta, no un cargo cubierto.
+    // No suma en este rubro —aquí solo entra renta comprobada— pero tampoco
+    // se calla: se acumula para avisarlo, porque es dinero que existe y está
+    // esperando que alguien lo aplique a su cargo.
+    if (conceptos.includes(ing.clasificacion)) {
+      sinDistribuir.push({ id: ing.id, importe: parseFloat(ing.importe) || 0 })
+    }
+    return []
   })
 
   filas.sort((x, y) => String(y.fecha).localeCompare(String(x.fecha)))
-  return { filas, campoTotal: 'importe' }
+
+  let aviso = null
+  if (sinDistribuir.length > 0) {
+    const monto = sinDistribuir.reduce((t, r) => t + r.importe, 0)
+    aviso = `Quedaron fuera ${sinDistribuir.length} depósito${sinDistribuir.length !== 1 ? 's' : ''} ` +
+            `por ${fmt(monto)} que están clasificados como ${conceptos.join('/')} pero no tienen ` +
+            `distribución: no se sabe qué cargo cubren, así que no suman aquí. ` +
+            `Aplícalos a su cargo en Cobranza para que entren.`
+  }
+  return { filas, campoTotal: 'importe', aviso }
 }
 
 export const CONCEPTOS_CON_DETALLE = Object.keys(FUENTES)
@@ -446,6 +456,7 @@ function Composicion({ comp, onBajar }) {
 export default function DetalleEDR({ concepto, composicion, mes, anio, valorTablero, onClose }) {
   const [filas, setFilas] = useState(null)
   const [campoTotal, setCampoTotal] = useState('importe')
+  const [aviso, setAviso] = useState(null)
   const [error, setError] = useState(null)
   // Bajar de un total a uno de sus sumandos sin cerrar y volver a abrir.
   const [bajada, setBajada] = useState(null)
@@ -460,11 +471,11 @@ export default function DetalleEDR({ concepto, composicion, mes, anio, valorTabl
   useEffect(() => {
     if (!fuente) return
     let cancelado = false
-    setFilas(null); setError(null)
+    setFilas(null); setError(null); setAviso(null)
     fuente.cargar(mes, anio)
-      .then(({ filas, campoTotal }) => {
+      .then(({ filas, campoTotal, aviso }) => {
         if (cancelado) return
-        setFilas(filas); setCampoTotal(campoTotal)
+        setFilas(filas); setCampoTotal(campoTotal); setAviso(aviso ?? null)
       })
       .catch(e => { if (!cancelado) setError(e.message) })
     return () => { cancelado = true }
@@ -539,6 +550,12 @@ export default function DetalleEDR({ concepto, composicion, mes, anio, valorTabl
         {fuente.nota && (
           <div style={{ padding: '10px 22px', background: '#FFF8E7', borderBottom: '1px solid #FDE9BC', fontSize: 12, color: '#92400E' }}>
             {fuente.nota}
+          </div>
+        )}
+
+        {aviso && (
+          <div style={{ padding: '10px 22px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', fontSize: 12, color: '#991B1B', fontWeight: 600 }}>
+            ⚠ {aviso}
           </div>
         )}
 
