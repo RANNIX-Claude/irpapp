@@ -26,7 +26,7 @@ const FUENTES = {
       ['origen', 'Origen'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMes(m, a, ['RENTA']),
+    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA']),
   },
   // La renta se parte en dos por el número de factura, que es exactamente como
   // el EDR arma los renglones: lo facturado se lee, y lo no facturado se
@@ -34,7 +34,7 @@ const FUENTES = {
   rentas_factura: {
     titulo: 'Rentas con factura',
     tabla: 'prp_ingresos',
-    nota: 'Cobros clasificados como RENTA cuyo origen es transferencia (= con factura). La regla fiscal: transferencia/depósito → factura emitida; efectivo → sin factura.',
+    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados por transferencia. La regla fiscal: transferencia/depósito → factura emitida; efectivo → sin factura.',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
@@ -43,12 +43,12 @@ const FUENTES = {
       ['origen', 'Origen', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: false }),
+    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: false }),
   },
   rentas_sin_factura: {
     titulo: 'Rentas sin factura',
     tabla: 'prp_ingresos',
-    nota: 'Cobros clasificados como RENTA cuyo origen es EFECTIVO (= sin factura). La regla fiscal: solo el pago en efectivo corresponde a un ingreso sin factura.',
+    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados en EFECTIVO (= sin factura). La regla fiscal: solo el pago en efectivo corresponde a un ingreso sin factura.',
     columnas: [
       ['fecha', 'Fecha pago', fmtD],
       ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
@@ -57,7 +57,7 @@ const FUENTES = {
       ['origen', 'Origen', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: true }),
+    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: true }),
   },
   rentas_cf: {
     titulo: 'Rentas con Factura — detalle',
@@ -70,7 +70,8 @@ const FUENTES = {
       ['origen', 'Origen', v => v || '—'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: false }),
+    nota: 'Solo los pesos aplicados a cargos de RENTA. Un depósito que además cubrió sanción, agua u otro concepto entra aquí únicamente por su parte de renta.',
+    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: false }),
   },
   rentas_sf: {
     titulo: 'Rentas sin Factura — detalle',
@@ -83,7 +84,8 @@ const FUENTES = {
       ['origen', 'Origen'],
       ['importe', 'Importe', fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['RENTA'], { efectivo: true }),
+    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados en efectivo.',
+    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: true }),
   },
   estacionamiento: {
     titulo: 'Estacionamiento',
@@ -286,6 +288,91 @@ async function cobrosDelMesPorClasif(mes, anio, clasificaciones, { efectivo } = 
   let filas = data ?? []
   if (efectivo === true)  filas = filas.filter(r => (r.origen||'').toUpperCase() === 'EFECTIVO')
   if (efectivo === false) filas = filas.filter(r => (r.origen||'').toUpperCase() !== 'EFECTIVO')
+  return { filas, campoTotal: 'importe' }
+}
+
+/**
+ * Detalle por CONCEPTO REALMENTE COBRADO, no por clasificación del depósito.
+ *
+ * `cobrosDelMesPorClasif` filtra `ingresos.clasificacion` y suma el importe
+ * COMPLETO del depósito. Eso mezclaba conceptos en los dos sentidos:
+ *
+ *   · de más — un depósito clasificado RENTA que además cubrió una sanción o
+ *     el agua entraba entero al renglón de rentas, arrastrando pesos que no
+ *     son renta;
+ *   · de menos — un depósito repartido entre dos conceptos queda clasificado
+ *     MIXTO (ver fn_clasificacion_desde_aplicaciones), y MIXTO no está en la
+ *     lista, así que su parte de renta desaparecía del detalle.
+ *
+ * Aquí se explota cada ingreso en sus `aplicaciones_pago` y se toma solo lo
+ * aplicado a cargos del concepto pedido: un renglón por aplicación, con el
+ * período del CARGO cubierto (no el del depósito). Es exactamente el criterio
+ * que ya usa `loadRealRentas` en EDR.jsx para armar el renglón, así que el
+ * detalle y el número al que se le hace clic por fin dicen lo mismo.
+ *
+ * Los ingresos sin ninguna aplicación no tienen de dónde deducir el concepto:
+ * para esos se conserva el mismo respaldo que usa loadRealRentas — la
+ * `clasificacion` del depósito y su importe completo — y se marcan como tales.
+ */
+async function aplicadoDelMesPorConcepto(mes, anio, conceptos, { efectivo } = {}) {
+  const ini = `${anio}-${String(mes).padStart(2, '0')}-01`
+  const fin = `${anio}-${String(mes).padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`
+
+  // Dos consultas sobre el mismo rango: la tabla trae la distribución del pago
+  // (con el concepto del cargo), la vista trae local e inquilino para mostrar.
+  const [base, vista] = await Promise.all([
+    supabase.from('ingresos')
+      .select('id, fecha, mes, anio, clasificacion, importe, origen, nota, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
+      .gte('fecha', ini).lte('fecha', fin),
+    supabase.from('prp_ingresos')
+      .select('id, folio, factura, arrendatario_nombre, locales_display')
+      .gte('fecha', ini).lte('fecha', fin),
+  ])
+  if (base.error)  throw base.error
+  if (vista.error) throw vista.error
+
+  const extra = new Map((vista.data ?? []).map(v => [v.id, v]))
+  const pasaOrigen = o => {
+    if (efectivo === undefined) return true
+    const esEfectivo = (o || '').toUpperCase() === 'EFECTIVO'
+    return efectivo ? esEfectivo : !esEfectivo
+  }
+
+  const filas = (base.data ?? []).flatMap(ing => {
+    if (!pasaOrigen(ing.origen)) return []
+    const datos = extra.get(ing.id) ?? {}
+    const apps = ing.aplicaciones_pago ?? []
+
+    if (apps.length > 0) {
+      return apps
+        .filter(ap => conceptos.includes(ap.cargo?.concepto))
+        .map(ap => ({
+          ...datos,
+          id: ing.id,
+          fecha: ing.fecha,
+          origen: ing.origen,
+          nota: ing.nota,
+          // El período que se cubrió, que puede no ser el del depósito:
+          // un pago de julio puede estar saldando la renta de junio.
+          mes:  ap.cargo?.periodo_mes  ?? ing.mes,
+          anio: ap.cargo?.periodo_anio ?? ing.anio,
+          importe: parseFloat(ap.importe_aplicado) || 0,
+        }))
+        .filter(r => r.importe > 0)
+    }
+
+    // Sin distribución: mismo respaldo que loadRealRentas.
+    if (!conceptos.includes(ing.clasificacion)) return []
+    return [{
+      ...datos,
+      id: ing.id, fecha: ing.fecha, origen: ing.origen,
+      nota: ing.nota ? `${ing.nota} · sin distribución` : 'sin distribución',
+      mes: ing.mes, anio: ing.anio,
+      importe: parseFloat(ing.importe) || 0,
+    }]
+  })
+
+  filas.sort((x, y) => String(y.fecha).localeCompare(String(x.fecha)))
   return { filas, campoTotal: 'importe' }
 }
 
