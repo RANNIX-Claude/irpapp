@@ -873,8 +873,14 @@ export default function Cobranza() {
     .filter(c => c.estado === 'PAGADO' && new Date(c.fecha_vencimiento) >= inicioMes && new Date(c.fecha_vencimiento) <= finMes)
     .reduce((a, c) => a + (parseFloat(c.total_aplicado) || 0), 0)
 
+  // Por Cobrar = todo el saldo que la cartera todavía debe, vencido incluido.
+  // Antes filtraba `fecha_vencimiento >= hoy`, así que un cargo ya vencido no
+  // sumaba aquí: solo contaba en Cartera Vencida. Con un único cargo vencido
+  // en la cartera, ningún indicador mostraba el monto real por cobrar.
+  // Cartera Vencida sigue siendo el SUBCONJUNTO ya vencido de este mismo
+  // total — se traslapan a propósito, no se suman entre sí.
   const porCobrar = lista
-    .filter(c => c.estado === 'PENDIENTE' && new Date(c.fecha_vencimiento) >= hoy)
+    .filter(c => c.estado !== 'PAGADO' && c.estado !== 'CANCELADO')
     .reduce((a, c) => a + (parseFloat(c.saldo) || 0), 0)
 
   const ingresosLibres = ingresosRaw.filter(i => !i.tiene_aplicacion).length
@@ -953,9 +959,9 @@ export default function Cobranza() {
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} icon={AlertTriangle} color="var(--color-danger)" />
+        <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
         <KPICard title={`Pagado ${MES_NOMBRES[mesFiltro]}`} value={`$${(pagadoMes / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-success)" />
-        <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} icon={Clock} color="var(--color-warning)" />
+        <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
         <KPICard title="Ingresos sin Aplicar" value={ingresosLibres} icon={DollarSign} color="var(--color-secondary)" />
       </div>
 
