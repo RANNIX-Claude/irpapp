@@ -3,13 +3,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
   Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, ChevronUp, ChevronsUpDown, CalendarPlus,
-  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon
+  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon, Banknote, ArrowLeftRight
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import NuevoCargoModal from '../components/ui/NuevoCargoModal'
 import { IngresoModal } from './Ingresos'
+import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 
@@ -680,10 +681,20 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
         {c.generado_auto && <span style={{ marginLeft: '4px', fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>AUTO</span>}
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</span>
-          <Paperclip size={12} title={c.tiene_comprobante ? 'Tiene comprobante adjunto' : 'Sin comprobante'}
+          <Paperclip size={11} title={c.tiene_comprobante ? 'Comprobante de pago adjunto' : 'Sin comprobante'}
             style={{ color: c.tiene_comprobante ? '#057642' : '#D1D5DB', flexShrink: 0 }} />
+          <FileText size={11} title={c.tiene_factura ? 'Factura CFDI registrada' : 'Sin factura CFDI'}
+            style={{ color: c.tiene_factura ? '#0A66C2' : '#D1D5DB', flexShrink: 0 }} />
+          {c.tiene_pago_transferencia && (
+            <ArrowLeftRight size={11} title="Pagado por transferencia / depósito"
+              style={{ color: '#7C3AED', flexShrink: 0 }} />
+          )}
+          {c.tiene_pago_efectivo && (
+            <Banknote size={11} title="Pagado en efectivo"
+              style={{ color: '#D97706', flexShrink: 0 }} />
+          )}
         </div>
         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
       </td>
@@ -810,7 +821,7 @@ export default function Cobranza() {
     if (!verCargo) { setAplicsCargo([]); return }
     setLoadingAplics(true)
     supabase.from('aplicaciones_pago')
-      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url)')
+      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url, factura, estatus_validacion)')
       .eq('cargo_id', verCargo.id)
       .order('fecha_aplicacion', { ascending: true })
       .then(({ data }) => { setAplicsCargo(data || []); setLoadingAplics(false) })
@@ -1240,27 +1251,74 @@ export default function Cobranza() {
                 ))}
               </div>
 
-              {/* Pagos aplicados */}
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Pagos aplicados ({aplicsCargo.length})
+              {/* Pagos aplicados con documentos */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>
+                  Pagos aplicados ({aplicsCargo.length})
+                </div>
               </div>
               {loadingAplics
                 ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Cargando…</div>
                 : aplicsCargo.length === 0
                 ? <div style={{ textAlign: 'center', padding: '16px', color: '#9CA3AF', fontSize: '13px', background: '#F9FAFB', borderRadius: 8 }}>Sin pagos aplicados a este cargo</div>
-                : aplicsCargo.map(ap => (
-                  <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#F0FDF4', borderRadius: '8px', marginBottom: '6px', border: '1px solid #D1FAE5' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(ap.importe_aplicado)}</div>
-                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                        {ap.ingreso?.fecha} · {ap.ingreso?.forma_pago || ''}
-                        {ap.ingreso?.referencia_banco ? ` · ${ap.ingreso.referencia_banco}` : ''}
+                : aplicsCargo.map((ap, idx) => {
+                  const ing = ap.ingreso || {}
+                  const esTransferencia = !['EFECTIVO','efectivo'].includes(ing.forma_pago || '')
+                  const tieneComprobante = !!ing.comprobante_url
+                  const tieneFactura = !!ing.factura
+                  return (
+                    <div key={ap.id} style={{ background: '#F0FDF4', border: '1px solid #D1FAE5', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
+                      {/* Fila superior: monto + meta del pago */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-success)' }}>{fmt(ap.importe_aplicado)}</div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginTop: 2 }}>
+                            {ing.fecha}
+                            {ing.referencia_banco ? ` · Ref: ${ing.referencia_banco}` : ''}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+                            background: esTransferencia ? '#DBEAFE' : '#FEF3C7',
+                            color: esTransferencia ? '#1D4ED8' : '#92400E' }}>
+                            {esTransferencia ? '⇄ Transferencia' : '💵 Efectivo'}
+                          </span>
+                          {ing.estatus_validacion === 'VALIDADO' && (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#D1FAE5', color: '#065F46' }}>✓ Validado</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Documentos */}
+                      <div style={{ borderTop: '1px solid #D1FAE5', padding: '8px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {tieneComprobante
+                          ? <EnlacePrivado bucket="facturas-cfdi" valor={ing.comprobante_url}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                                color: '#0A66C2', background: '#EFF6FF', padding: '4px 10px', borderRadius: 20,
+                                border: '1px solid #BFDBFE', cursor: 'pointer', textDecoration: 'none' }}>
+                              <Paperclip size={11} /> Comprobante de pago
+                            </EnlacePrivado>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+                              color: '#9CA3AF', background: '#F9FAFB', padding: '4px 10px', borderRadius: 20,
+                              border: '1px dashed #E5E7EB' }}>
+                              <Paperclip size={11} /> Sin comprobante
+                            </span>
+                        }
+                        {tieneFactura
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                              color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                              border: '1px solid #86EFAC' }}>
+                              <FileText size={11} /> CFDI: {ing.factura}
+                            </span>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+                              color: '#9CA3AF', background: '#F9FAFB', padding: '4px 10px', borderRadius: 20,
+                              border: '1px dashed #E5E7EB' }}>
+                              <FileText size={11} /> Sin factura CFDI
+                            </span>
+                        }
                       </div>
                     </div>
-                    <Paperclip size={13} title={ap.ingreso?.comprobante_url ? 'Tiene comprobante' : 'Sin comprobante'}
-                      style={{ color: ap.ingreso?.comprobante_url ? '#057642' : '#D1D5DB' }} />
-                  </div>
-                ))
+                  )
+                })
               }
             </div>
           </div>
