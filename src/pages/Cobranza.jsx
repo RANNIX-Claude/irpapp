@@ -3,14 +3,16 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
   Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, ChevronUp, ChevronsUpDown, CalendarPlus,
-  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon
+  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon, Banknote, ArrowLeftRight
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import NuevoCargoModal from '../components/ui/NuevoCargoModal'
+import { IngresoModal } from './Ingresos'
+import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 
 const MES_NOMBRES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
@@ -529,10 +531,24 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
     importe:           String(parseFloat(cargo.importe) || ''),
     fecha_vencimiento: cargo.fecha_vencimiento || '',
     estado:            cargo.estado || 'PENDIENTE',
+    factura:           cargo.factura || '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
+  // Archivos CFDI del cargo
+  const [facturaPdfFile, setFacturaPdfFile] = useState(null)
+  const [facturaXmlFile, setFacturaXmlFile] = useState(null)
+  const [facturaPdfUrl, setFacturaPdfUrl] = useState(null)
+  const [quitarPdf, setQuitarPdf] = useState(false)
+  const [quitarXml, setQuitarXml] = useState(false)
+  const facturaPdfRef = useRef()
+  const facturaXmlRef = useRef()
+
+  useEffect(() => {
+    if (!cargo.factura_url) return
+    urlFirmada('facturas-cfdi', cargo.factura_url).then(u => { if (u) setFacturaPdfUrl(u) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardar = async () => {
     if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a cero'); return }
@@ -546,9 +562,52 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
       importe:           parseFloat(form.importe),
       fecha_vencimiento: form.fecha_vencimiento,
       estado:            form.estado,
+      factura:           form.factura.trim() || null,
+      ...(quitarPdf && !facturaPdfFile ? { factura_url: null } : {}),
+      ...(quitarXml && !facturaXmlFile ? { factura_xml_url: null } : {}),
     }).eq('id', cargo.id)
+    if (error) { setSaving(false); setErr(error.message); return }
+
+    // Subir PDF de factura
+    if (facturaPdfFile) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaPdfFile)
+        })
+        const ext = facturaPdfFile.name.split('.').pop() || 'pdf'
+        const resp = await llamarFuncion('subir-comprobante', {
+          bucket: 'facturas-cfdi', path: `facturas/cargo-${cargo.id}/factura.${ext}`,
+          file_base64: b64, mime_type: facturaPdfFile.type || 'application/pdf',
+          cargo_id: cargo.id, campo: 'factura_url',
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          setErr('Error al subir PDF: ' + (j.error || resp.status)); setSaving(false); return
+        }
+      } catch (e) { setErr('Error al subir PDF: ' + e.message); setSaving(false); return }
+    }
+
+    // Subir XML / ZIP de factura
+    if (facturaXmlFile) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaXmlFile)
+        })
+        const ext = facturaXmlFile.name.split('.').pop() || 'xml'
+        const mime = facturaXmlFile.type || (ext === 'zip' ? 'application/zip' : 'application/xml')
+        const resp = await llamarFuncion('subir-comprobante', {
+          bucket: 'facturas-cfdi', path: `facturas/cargo-${cargo.id}/cfdi.${ext}`,
+          file_base64: b64, mime_type: mime,
+          cargo_id: cargo.id, campo: 'factura_xml_url',
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          setErr('Error al subir XML/ZIP: ' + (j.error || resp.status)); setSaving(false); return
+        }
+      } catch (e) { setErr('Error al subir XML/ZIP: ' + e.message); setSaving(false); return }
+    }
+
     setSaving(false)
-    if (error) { setErr(error.message); return }
     onSaved()
   }
 
@@ -647,6 +706,72 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
               </div>
             )}
           </div>
+
+          {/* ── Sección CFDI ──────────────────────────────────────── */}
+          <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 14, display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={13} style={{ color: '#0A66C2' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Factura CFDI</span>
+            </div>
+
+            <div>
+              <label style={lbl2}>No. Factura / Folio</label>
+              <input value={form.factura} onChange={e => set('factura', e.target.value)}
+                placeholder="Ej. A-2195" style={inp2} />
+            </div>
+
+            {/* PDF de factura */}
+            <div>
+              <label style={lbl2}>PDF de factura</label>
+              {!quitarPdf && (facturaPdfFile || cargo.factura_url) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', background: '#EFF6FF', borderRadius: 7, border: '1px solid #BFDBFE' }}>
+                  <FileText size={14} style={{ color: '#0A66C2', flexShrink: 0 }} />
+                  {facturaPdfFile
+                    ? <span style={{ fontSize: 12, color: '#1D4ED8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facturaPdfFile.name}</span>
+                    : facturaPdfUrl
+                    ? <a href={facturaPdfUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1D4ED8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}>factura.pdf</a>
+                    : <span style={{ fontSize: 12, color: '#1D4ED8', flex: 1 }}>factura.pdf</span>
+                  }
+                  <button type="button" onClick={() => { setQuitarPdf(true); setFacturaPdfFile(null); if (facturaPdfRef.current) facturaPdfRef.current.value = '' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}><X size={13} /></button>
+                </div>
+              ) : (
+                <div>
+                  <input ref={facturaPdfRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaPdfFile(f); setQuitarPdf(false) } }} />
+                  <button type="button" onClick={() => facturaPdfRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1.5px dashed #D1D5DB', borderRadius: 7, background: 'white', cursor: 'pointer', fontSize: 12, color: '#6B7280' }}>
+                    <Upload size={13} /> Adjuntar PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* XML / ZIP de factura */}
+            <div>
+              <label style={lbl2}>XML / ZIP del CFDI</label>
+              {!quitarXml && (facturaXmlFile || cargo.factura_xml_url) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', background: '#F5F3FF', borderRadius: 7, border: '1px solid #DDD6FE' }}>
+                  <FileText size={14} style={{ color: '#7C3AED', flexShrink: 0 }} />
+                  {facturaXmlFile
+                    ? <span style={{ fontSize: 12, color: '#6D28D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facturaXmlFile.name}</span>
+                    : <span style={{ fontSize: 12, color: '#6D28D9', flex: 1 }}>cfdi.xml / .zip</span>
+                  }
+                  <button type="button" onClick={() => { setQuitarXml(true); setFacturaXmlFile(null); if (facturaXmlRef.current) facturaXmlRef.current.value = '' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}><X size={13} /></button>
+                </div>
+              ) : (
+                <div>
+                  <input ref={facturaXmlRef} type="file" accept=".xml,.zip,application/xml,text/xml,application/zip" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaXmlFile(f); setQuitarXml(false) } }} />
+                  <button type="button" onClick={() => facturaXmlRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1.5px dashed #D1D5DB', borderRadius: 7, background: 'white', cursor: 'pointer', fontSize: 12, color: '#6B7280' }}>
+                    <Upload size={13} /> Adjuntar XML / ZIP
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: 10 }}>
@@ -679,10 +804,20 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
         {c.generado_auto && <span style={{ marginLeft: '4px', fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>AUTO</span>}
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</span>
-          <Paperclip size={12} title={c.tiene_comprobante ? 'Tiene comprobante adjunto' : 'Sin comprobante'}
+          <Paperclip size={11} title={c.tiene_comprobante ? 'Comprobante de pago adjunto' : 'Sin comprobante'}
             style={{ color: c.tiene_comprobante ? '#057642' : '#D1D5DB', flexShrink: 0 }} />
+          <FileText size={11} title={c.tiene_factura ? 'Factura CFDI registrada' : 'Sin factura CFDI'}
+            style={{ color: c.tiene_factura ? '#0A66C2' : '#D1D5DB', flexShrink: 0 }} />
+          {c.tiene_pago_transferencia && (
+            <ArrowLeftRight size={11} title="Pagado por transferencia / depósito"
+              style={{ color: '#7C3AED', flexShrink: 0 }} />
+          )}
+          {c.tiene_pago_efectivo && (
+            <Banknote size={11} title="Pagado en efectivo"
+              style={{ color: '#D97706', flexShrink: 0 }} />
+          )}
         </div>
         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
       </td>
@@ -694,6 +829,37 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
           {c.locales_display || c.locales_referencia || '—'}
         </span>
+      </td>
+      {/* F/R — número de factura/recibo + indicador de archivo adjunto */}
+      <td style={{ padding: '8px 12px' }}>
+        {c.numero_factura
+          ? <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0A66C2', background: '#EFF6FF', padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap' }}>
+                {c.numero_factura}
+              </span>
+              {c.tiene_factura && (
+                <FileText size={11} title="Archivo de factura adjunto" style={{ color: '#057642', flexShrink: 0 }} />
+              )}
+            </div>
+          : c.tiene_factura
+          ? <FileText size={13} title="Archivo de factura adjunto (sin número)" style={{ color: '#0A66C2' }} />
+          : <span style={{ fontSize: '11px', color: '#D1D5DB' }}>—</span>
+        }
+      </td>
+      {/* FP — Forma de Pago: T=Transferencia, E=Efectivo */}
+      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+        {(c.tiene_pago_transferencia || c.tiene_pago_efectivo)
+          ? <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px',
+              color: (c.tiene_pago_transferencia && c.tiene_pago_efectivo) ? '#7C3AED'
+                   : c.tiene_pago_transferencia ? '#0A66C2' : '#057642',
+              background: (c.tiene_pago_transferencia && c.tiene_pago_efectivo) ? '#F5F3FF'
+                         : c.tiene_pago_transferencia ? '#EFF6FF' : '#DCFCE7',
+              padding: '2px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+              {c.tiene_pago_transferencia && c.tiene_pago_efectivo ? 'T+E'
+                : c.tiene_pago_transferencia ? 'T' : 'E'}
+            </span>
+          : <span style={{ fontSize: '11px', color: '#D1D5DB' }}>—</span>
+        }
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
         <div style={{ fontWeight: 700 }}>{fmt(c.importe)}</div>
@@ -734,13 +900,16 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
 }
 
 // ── Fila de ingreso en tabla Ingresos ────────────────────────────────────────
-function IngresoRow({ ing, onAplicar }) {
+function IngresoRow({ ing, onAplicar, onEditar }) {
   const sinAplicar = !ing.tiene_aplicacion
 
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6' }}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <td style={{ padding: '12px 16px' }}>
+        <ConceptoBadge tipo={ing.clasificacion || ing.tipo || 'OTRO'} />
+      </td>
       <td style={{ padding: '12px 16px' }}>
         <div style={{ fontSize: '12px', color: '#374151' }}>{ing.fecha}</div>
       </td>
@@ -766,6 +935,12 @@ function IngresoRow({ ing, onAplicar }) {
           : <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', background: '#D1FAE5', padding: '3px 10px', borderRadius: '20px' }}>Aplicado</span>
         }
       </td>
+      <td style={{ padding: '12px 10px' }}>
+        <button onClick={() => onEditar(ing)} title="Editar ingreso"
+          style={{ padding: '5px 7px', background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <Pencil size={13} />
+        </button>
+      </td>
     </tr>
   )
 }
@@ -783,6 +958,7 @@ export default function Cobranza() {
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalCargo, setModalCargo] = useState(false)
   const [modalAplicar, setModalAplicar] = useState(null) // ingreso seleccionado
+  const [editarIngreso, setEditarIngreso] = useState(null)
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
@@ -799,7 +975,7 @@ export default function Cobranza() {
     if (!verCargo) { setAplicsCargo([]); return }
     setLoadingAplics(true)
     supabase.from('aplicaciones_pago')
-      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url)')
+      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url, factura, factura_url, factura_xml_url, estatus_validacion)')
       .eq('cargo_id', verCargo.id)
       .order('fecha_aplicacion', { ascending: true })
       .then(({ data }) => { setAplicsCargo(data || []); setLoadingAplics(false) })
@@ -841,7 +1017,7 @@ export default function Cobranza() {
       setLoadingIng(true)
       const { data: ings } = await supabase
         .from('ingresos')
-        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, id_contrato, contrato_id, created_at')
+        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, id_contrato, contrato_id, created_at, clasificacion, tipo')
         .order('fecha', { ascending: false })
         .limit(200)
 
@@ -913,6 +1089,8 @@ export default function Cobranza() {
     { label: 'Descripción',  field: 'descripcion',        align: 'left',  num: false },
     { label: 'Arrendatario', field: 'arrendatario_nombre',align: 'left',  num: false },
     { label: 'Local',        field: 'locales_display',    align: 'left',  num: false },
+    { label: 'F/R',          field: 'numero_factura',     align: 'left',  num: false },
+    { label: 'FP',           field: null,                 align: 'center',num: false },
     { label: 'Cargo',        field: 'importe',            align: 'right', num: true  },
     { label: 'Aplicado',     field: 'total_aplicado',     align: 'right', num: true  },
     { label: 'Vencimiento',  field: 'fecha_vencimiento',  align: 'left',  num: false },
@@ -957,24 +1135,46 @@ export default function Cobranza() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Tabs + filtros de estado — bloque principal de navegación */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        {/* Tabs Cartera/Ingresos */}
+        <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', flexShrink: 0 }}>
+          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: tab === t.key ? 'white' : 'transparent',
+              color: tab === t.key ? 'var(--color-primary)' : '#6B7280',
+              boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            }}>{t.label}</button>
+          ))}
+        </div>
+        {/* Filtros de estado (solo en tab Cartera) */}
+        {tab === 'cartera' && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {[
+              { key: 'Todos',    label: 'Todos' },
+              { key: 'PENDIENTE',label: 'Pendientes' },
+              { key: 'VENCIDA',  label: 'Vencidas' },
+              { key: 'PARCIAL',  label: 'Parciales' },
+              { key: 'PAGADO',   label: 'Pagados' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setFiltroEstado(key)} style={{
+                padding: '7px 13px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                borderColor: filtroEstado === key ? 'var(--color-primary)' : '#E5E7EB',
+                background: filtroEstado === key ? 'var(--color-primary)' : 'white',
+                color: filtroEstado === key ? 'white' : 'var(--color-text-light)',
+              }}>{label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* KPIs — debajo de la navegación para que los filtros sean lo primero */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
         <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
         <KPICard title={`Pagado ${MES_NOMBRES[mesFiltro]}`} value={`$${(pagadoMes / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-success)" />
         <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
         <KPICard title="Ingresos sin Aplicar" value={ingresosLibres} icon={DollarSign} color="var(--color-secondary)" />
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', marginBottom: '16px', width: 'fit-content' }}>
-        {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
-            background: tab === t.key ? 'white' : 'transparent',
-            color: tab === t.key ? 'var(--color-primary)' : '#6B7280',
-            boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-          }}>{t.label}</button>
-        ))}
       </div>
 
       {/* ── Tab Cartera ── */}
@@ -1018,23 +1218,6 @@ export default function Cobranza() {
                 </option>
               ))}
             </select>
-
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[
-                { key: 'Todos', label: 'Todos' },
-                { key: 'PENDIENTE', label: 'Pendientes' },
-                { key: 'VENCIDA', label: 'Vencidas' },
-                { key: 'PARCIAL', label: 'Parciales' },
-                { key: 'PAGADO', label: 'Pagados' },
-              ].map(({ key, label }) => (
-                <button key={key} onClick={() => setFiltroEstado(key)} style={{
-                  padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-                  borderColor: filtroEstado === key ? 'var(--color-primary)' : '#E5E7EB',
-                  background: filtroEstado === key ? 'var(--color-primary)' : 'white',
-                  color: filtroEstado === key ? 'white' : 'var(--color-text-light)',
-                }}>{label}</button>
-              ))}
-            </div>
           </div>
 
           {/* Qué se está viendo. Con filtros puestos, el total de lo filtrado
@@ -1118,13 +1301,13 @@ export default function Cobranza() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F9FAFB' }}>
-                      {['Fecha','Arrendatario','Monto','Nota','Acción'].map(h => (
+                      {['Concepto','Fecha','Arrendatario','Monto','Nota','Acción',''].map(h => (
                         <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {ingresosRaw.map(i => <IngresoRow key={i.id} ing={i} onAplicar={setModalAplicar} />)}
+                    {ingresosRaw.map(i => <IngresoRow key={i.id} ing={i} onAplicar={setModalAplicar} onEditar={setEditarIngreso} />)}
                   </tbody>
                 </table>
               </div>
@@ -1142,6 +1325,14 @@ export default function Cobranza() {
 
       {modalCargo && (
         <NuevoCargoModal onClose={() => setModalCargo(false)} onSaved={onSaved} />
+      )}
+
+      {editarIngreso && (
+        <IngresoModal
+          ingreso={editarIngreso}
+          onClose={() => setEditarIngreso(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); setEditarIngreso(null) }}
+        />
       )}
 
       {/* Modal detalle de cargo */}
@@ -1221,27 +1412,123 @@ export default function Cobranza() {
                 ))}
               </div>
 
-              {/* Pagos aplicados */}
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Pagos aplicados ({aplicsCargo.length})
+              {/* Factura CFDI del cargo */}
+              {(verCargo.numero_factura || verCargo.factura_url || verCargo.factura_xml_url) && (
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 14px', marginBottom: 18 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <FileText size={11} /> Factura CFDI del cargo
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {verCargo.numero_factura && (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#1D4ED8', background: 'white', padding: '4px 10px', borderRadius: 20, border: '1px solid #BFDBFE' }}>
+                        {verCargo.numero_factura}
+                      </span>
+                    )}
+                    {verCargo.factura_url && (
+                      <EnlacePrivado bucket="facturas-cfdi" valor={verCargo.factura_url}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                          color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #86EFAC', cursor: 'pointer', textDecoration: 'none' }}>
+                        <FileText size={11} /> Factura PDF
+                      </EnlacePrivado>
+                    )}
+                    {verCargo.factura_xml_url && (
+                      <EnlacePrivado bucket="facturas-cfdi" valor={verCargo.factura_xml_url}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                          color: '#7C3AED', background: '#F5F3FF', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #DDD6FE', cursor: 'pointer', textDecoration: 'none' }}>
+                        <FileText size={11} /> XML / ZIP
+                      </EnlacePrivado>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Pagos aplicados con documentos */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>
+                  Pagos aplicados ({aplicsCargo.length})
+                </div>
               </div>
               {loadingAplics
                 ? <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF', fontSize: '13px' }}>Cargando…</div>
                 : aplicsCargo.length === 0
                 ? <div style={{ textAlign: 'center', padding: '16px', color: '#9CA3AF', fontSize: '13px', background: '#F9FAFB', borderRadius: 8 }}>Sin pagos aplicados a este cargo</div>
-                : aplicsCargo.map(ap => (
-                  <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#F0FDF4', borderRadius: '8px', marginBottom: '6px', border: '1px solid #D1FAE5' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>{fmt(ap.importe_aplicado)}</div>
-                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                        {ap.ingreso?.fecha} · {ap.ingreso?.forma_pago || ''}
-                        {ap.ingreso?.referencia_banco ? ` · ${ap.ingreso.referencia_banco}` : ''}
+                : aplicsCargo.map((ap, idx) => {
+                  const ing = ap.ingreso || {}
+                  const esTransferencia = !['EFECTIVO','efectivo'].includes(ing.forma_pago || '')
+                  const tieneComprobante = !!ing.comprobante_url
+                  const tieneFacturaPdf = !!ing.factura_url
+                  const tieneFacturaXml = !!ing.factura_xml_url
+                  const tieneNumFactura = !!ing.factura
+                  return (
+                    <div key={ap.id} style={{ background: '#F0FDF4', border: '1px solid #D1FAE5', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
+                      {/* Fila superior: monto + meta del pago */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-success)' }}>{fmt(ap.importe_aplicado)}</div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginTop: 2 }}>
+                            {ing.fecha}
+                            {ing.referencia_banco ? ` · Ref: ${ing.referencia_banco}` : ''}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+                            background: esTransferencia ? '#DBEAFE' : '#FEF3C7',
+                            color: esTransferencia ? '#1D4ED8' : '#92400E' }}>
+                            {esTransferencia ? '⇄ Transferencia' : '💵 Efectivo'}
+                          </span>
+                          {ing.estatus_validacion === 'VALIDADO' && (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#D1FAE5', color: '#065F46' }}>✓ Validado</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Documentos */}
+                      <div style={{ borderTop: '1px solid #D1FAE5', padding: '8px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {tieneComprobante
+                          ? <EnlacePrivado bucket="facturas-cfdi" valor={ing.comprobante_url}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                                color: '#0A66C2', background: '#EFF6FF', padding: '4px 10px', borderRadius: 20,
+                                border: '1px solid #BFDBFE', cursor: 'pointer', textDecoration: 'none' }}>
+                              <Paperclip size={11} /> Comprobante de pago
+                            </EnlacePrivado>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+                              color: '#9CA3AF', background: '#F9FAFB', padding: '4px 10px', borderRadius: 20,
+                              border: '1px dashed #E5E7EB' }}>
+                              <Paperclip size={11} /> Sin comprobante
+                            </span>
+                        }
+                        {tieneFacturaPdf
+                          ? <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_url}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                                color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                                border: '1px solid #86EFAC', cursor: 'pointer', textDecoration: 'none' }}>
+                              <FileText size={11} /> Factura PDF{tieneNumFactura ? ` · ${ing.factura}` : ''}
+                            </EnlacePrivado>
+                          : tieneNumFactura
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                              color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                              border: '1px solid #86EFAC' }}>
+                              <FileText size={11} /> CFDI: {ing.factura}
+                            </span>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+                              color: '#9CA3AF', background: '#F9FAFB', padding: '4px 10px', borderRadius: 20,
+                              border: '1px dashed #E5E7EB' }}>
+                              <FileText size={11} /> Sin factura
+                            </span>
+                        }
+                        {tieneFacturaXml && (
+                          <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_xml_url}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                              color: '#7C3AED', background: '#F5F3FF', padding: '4px 10px', borderRadius: 20,
+                              border: '1px solid #DDD6FE', cursor: 'pointer', textDecoration: 'none' }}>
+                            <FileText size={11} /> XML / ZIP
+                          </EnlacePrivado>
+                        )}
                       </div>
                     </div>
-                    <Paperclip size={13} title={ap.ingreso?.comprobante_url ? 'Tiene comprobante' : 'Sin comprobante'}
-                      style={{ color: ap.ingreso?.comprobante_url ? '#057642' : '#D1D5DB' }} />
-                  </div>
-                ))
+                  )
+                })
               }
             </div>
           </div>

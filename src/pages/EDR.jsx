@@ -258,25 +258,34 @@ function InfoRowE({ label, proy = 0, indent = 0 }) {
     </div>
   )
 }
-/* Fila de lectura automática (sin inputs) — muestra proy, total, mes, otros calculados */
-function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0, detalle, onDetalle }) {
-  const ratio = pct(total, proy)
+/* Fila de lectura automática — muestra proy (opcionalmente editable), total/mes/otros de solo lectura */
+function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0,
+                    detalle, onDetalle, negLabel = false,
+                    fieldP, values, setField }) {
+  const displayProy = fieldP && values ? (parseFloat(values[fieldP]) || 0) : proy
+  const ratio = pct(total, displayProy || proy)
   const clicable = !!detalle && !!onDetalle
   return (
     <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
-      padding:'4px 12px', borderTop:'1px solid #F3F4F6', background:'white',
-      cursor: clicable ? 'pointer' : 'default' }}
-      onClick={clicable ? () => onDetalle({ concepto: detalle }) : undefined}>
-      <div style={{ fontSize:'12px', color:'#374151', paddingLeft: indent * 14 + 'px',
-        display:'flex', alignItems:'center', gap:6 }}>
+      padding:'4px 12px', borderTop:'1px solid #F3F4F6', background:'white', alignItems:'center' }}>
+      <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center', gap:6,
+        cursor: clicable ? 'pointer' : 'default' }}
+        onClick={clicable ? () => onDetalle({ concepto: detalle }) : undefined}>
         {label}
         {clicable && <span style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE',
           background:'#EFF6FF', borderRadius:4, padding:'0 4px', fontWeight:700 }}>DETALLE</span>}
       </div>
-      <div style={{ textAlign:'right', fontSize:'12px', color:'#6B7280', padding:'0 6px' }}>
-        {proy !== 0 ? fmt(proy) : <span style={{color:'#D1D5DB'}}>—</span>}
+      <div style={{ padding:'2px 4px' }}>
+        {fieldP && setField
+          ? <CellInput field={fieldP} values={values} onChange={setField} />
+          : <div style={{ textAlign:'right', fontSize:'12px', color:'#6B7280', padding:'4px 6px' }}>
+              {displayProy !== 0 ? fmt(displayProy) : <span style={{color:'#D1D5DB'}}>—</span>}
+            </div>
+        }
       </div>
-      <div style={{ textAlign:'right', fontSize:'12px', color:'#374151', padding:'0 6px', fontWeight:500 }}>
+      <div style={{ textAlign:'right', fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+        padding:'0 6px', fontWeight:500 }}>
         {total !== 0 ? fmt(total) : <span style={{color:'#D1D5DB'}}>—</span>}
       </div>
       <div style={{ textAlign:'right', fontSize:'11px', color:'#4B5563', padding:'0 6px' }}>
@@ -285,7 +294,7 @@ function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0, 
       <div style={{ textAlign:'right', fontSize:'11px', color:'#4B5563', padding:'0 6px' }}>
         {otros !== 0 ? fmt(otros) : <span style={{color:'#D1D5DB'}}>—</span>}
       </div>
-      <div style={{ textAlign:'center' }}>{proy !== 0 && <PctBadge value={ratio} />}</div>
+      <div style={{ textAlign:'center' }}>{(displayProy || proy) !== 0 && <PctBadge value={ratio} />}</div>
     </div>
   )
 }
@@ -364,6 +373,7 @@ export default function EDR() {
 
   const [registro,      setRegistro]      = useState(null)
   const [form,          setForm]          = useState({})
+  const [dirty,         setDirty]         = useState(false)  // form modificado sin guardar
   const [loading,       setLoading]       = useState(false)
   const [saving,        setSaving]        = useState(false)
   const [cargando,      setCargando]      = useState(false)
@@ -501,6 +511,7 @@ export default function EDR() {
       .eq('mes', m).eq('anio', a).maybeSingle()
     setRegistro(data || null)
     setForm(data || {})
+    setDirty(false)
     setLoading(false)
   }, [])
 
@@ -512,38 +523,57 @@ export default function EDR() {
     loadParkingData(mes, anio)
   }, [mes, anio, loadRegistro, loadRealRentas, loadProySueldos, loadParkingData])
 
-  // Auto-sincroniza campos _mes/_otros desde ingresos si no hay foto guardada
-  // (campo === 0 o null → usa valor de ingresos; si ya tiene valor → respeta la foto)
+  // Auto-sincroniza campos _mes/_otros desde ingresos.
+  // Rentas, sanciones, estacionamiento, pensiones y maquinita/vending se
+  // muestran de solo lectura (CalcRowE/fuente operativa): nadie las captura a
+  // mano en esta pantalla — la renta se captura en Ingresos, el estacionamiento
+  // y pensiones en el sistema de tickets, vending en /vending. Aquí siempre se
+  // sobreescriben con el cálculo en vivo, no hay nada que "proteger". Guardar
+  // solo deja constancia histórica del valor en ese momento, no lo congela para
+  // las próximas visitas.
+  // Agua sí se captura a mano en esta pantalla (EditRow): ahí se respeta lo que
+  // ya tenga la foto (campo === 0 o null → usa valor de ingresos; si ya tiene
+  // valor → respeta lo capturado a mano).
   // Prioridad: fuente operativa (vending propio, estac/pension del sistema de tickets) > main ingresos > 0
   useEffect(() => {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
-      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura              || 0,
-      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos       || 0,
-      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes               || 0,
-      real_rsf_otros:            f.real_rsf_otros            || 0,
+      real_rentas_factura_mes:   realRentas.factura                || 0,
+      real_rentas_factura_otros: realRentas.otros_periodos         || 0,
+      real_rsf_mes:              realRentas.rsfMes                 || 0,
+      real_rsf_otros:            0,
       // Sanciones: cf=con factura (transferencia), sf=sin factura (efectivo)
-      real_penaliz_cf_mes:       f.real_penaliz_cf_mes       || realIngByTipo.SANCION?.cf_mes   || 0,
-      real_penaliz_sf_mes:       f.real_penaliz_sf_mes       || realIngByTipo.SANCION?.sf_mes   || 0,
-      real_penaliz_cf_otros:     f.real_penaliz_cf_otros     || realIngByTipo.SANCION?.cf_otros || 0,
-      real_penaliz_sf_otros:     f.real_penaliz_sf_otros     || realIngByTipo.SANCION?.sf_otros || 0,
+      real_penaliz_cf_mes:       realIngByTipo.SANCION?.cf_mes     || 0,
+      real_penaliz_sf_mes:       realIngByTipo.SANCION?.sf_mes     || 0,
+      real_penaliz_cf_otros:     realIngByTipo.SANCION?.cf_otros   || 0,
+      real_penaliz_sf_otros:     realIngByTipo.SANCION?.sf_otros   || 0,
       // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
-      real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
-      real_estac_otros:          f.real_estac_otros          || realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
+      real_estac_mes:            realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:          realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
       // Pensiones: supabaseParking pagos_pension > main ingresos
-      real_pension_mes:          f.real_pension_mes          || realParking.pension_mes      || realIngByTipo.PENSION?.mes            || 0,
-      real_pension_otros:        f.real_pension_otros        || realParking.pension_otros    || realIngByTipo.PENSION?.otros          || 0,
+      real_pension_mes:          realParking.pension_mes      || realIngByTipo.PENSION?.mes           || 0,
+      real_pension_otros:        realParking.pension_otros    || realIngByTipo.PENSION?.otros         || 0,
       // Maquinita/Vending: vending_semanas de esta base > main ingresos
-      real_maquinita_mes:        f.real_maquinita_mes        || realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes          || 0,
-      real_maquinita_otros:      f.real_maquinita_otros      || realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros        || 0,
-      // Agua: tabla de ingresos main supabase (tipo='AGUA')
+      real_maquinita_mes:        realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes         || 0,
+      real_maquinita_otros:      realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros       || 0,
+      // Agua: tabla de ingresos main supabase (tipo='AGUA') — sí es capturable a mano
       real_agua_ing_mes:         f.real_agua_ing_mes         || realIngByTipo.AGUA?.mes               || 0,
       real_agua_ing_otros:       f.real_agua_ing_otros       || realIngByTipo.AGUA?.otros             || 0,
     }))
   }, [realRentas, realIngByTipo, realParking])
 
-  const irMes = (delta) => {
+  const irMes = async (delta) => {
+    // Auto-guardar cambios manuales antes de cambiar de mes
+    if (dirty && registro) {
+      setSaving(true)
+      const payload = { ...form }
+      delete payload.id; delete payload.created_at; delete payload.updated_at
+      Object.keys(payload).forEach(k => { if (k.startsWith('calc_')) delete payload[k] })
+      await supabase.from('er_mensual').update(payload).eq('id', registro.id)
+      setSaving(false)
+      toast.success(`${MESES[mes]} guardado`)
+    }
     let m = mes + delta, a = anio
     if (m < 1)  { m = 12; a-- }
     if (m > 12) { m = 1;  a++ }
@@ -714,7 +744,7 @@ export default function EDR() {
       .insert({ anio, mes, status: 'borrador' })
       .select().single()
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
-    setRegistro(data); setForm(data); setSaving(false)
+    setRegistro(data); setForm(data); setDirty(false); setSaving(false)
     setTab('elaboracion')
     toast.success('Registro creado')
   }
@@ -733,40 +763,49 @@ export default function EDR() {
     toast.success('Guardado')
   }
 
-  const setField = (field, val) =>
+  const setField = (field, val) => {
     setForm(f => ({ ...f, [field]: val === '' ? null : parseFloat(val) || 0 }))
+    setDirty(true)
+  }
 
   /* ── Cálculos tablero ─────────────────────────────────────────────────────── */
-  // er_mensual ahora tiene columnas GENERATED calc_* que PostgreSQL mantiene
-  // automáticamente. El Tablero lee esos valores; los fallbacks aritméticos
-  // solo se activan para registros creados antes de la migración.
-  const r = registro || {}
+  // El Tablero lee de `form` (no de `registro`) para mostrar datos calculados
+  // en tiempo real aunque no haya snapshot guardado. Cuando existe registro,
+  // form = registro + auto-sync de campos _mes/_otros → resultado idéntico.
+  // Los calc_* GENERATED los devuelve registro; para form sin snapshot se usan
+  // los fallbacks aritméticos definidos en cada variable.
+  const r = form || {}
 
-  // Proyectado — info rows usan campos raw; subtotales leen calc_proy_*
+  // Proyectado — usa los mismos campos que captura En Elaboración para que ambas vistas coincidan
   const pRentas       = parseFloat(r.proy_rentas_contratos) || proyRentas
+  const pRentasSF     = parseFloat(r.proy_rsf)              || 0
+  const pSanciones    = parseFloat(r.proy_penaliz)          || 0
+  // Info rows auxiliares (referencia, solo Tablero)
   const pRestaurant   = parseFloat(r.proy_restaurant) || 0
   const pVacantes     = -(Math.abs(parseFloat(r.proy_locales_vacantes) || 0))
-  const pDisponibles  = parseFloat(r.calc_proy_disponibles)   || (pRentas - pRestaurant)
-  const pRentasBrutas = parseFloat(r.calc_proy_rentas_brutas) || (pDisponibles + pVacantes)
+  const pDisponibles  = (pRentas - pRestaurant)
+  const pRentasBrutas = pDisponibles + pVacantes  // solo para las filas info rojas
+  // Proyectado del tablero = suma de los 4 campos editables de En Elaboración
+  const pTotalRentasLimpio = pRentas + pRentasSF           // rentas sin sanciones
   const pEstac     = parseFloat(r.proy_estacionamiento) || 0
   const pPensiones = parseFloat(r.proy_pensiones) || 0
   const pMaquinita = parseFloat(r.proy_maquinita) || 0
   const pAguaIng   = parseFloat(r.proy_agua_ingresos) || 0
-  const pIngNeto   = pRentasBrutas  // IVA no proyectado
-  const pTotalIng  = parseFloat(r.calc_proy_total_ing)    || (pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng)
+  const pIngNeto   = pRentas + pRentasSF + pSanciones  // IVA no proyectado
+  const pTotalIng  = pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng
   const pSueldos   = parseFloat(r.proy_sueldos) || proySueldos
   const pFondo     = parseFloat(r.proy_fondo_revolvente) || 0
   const pLuz       = parseFloat(r.proy_luz) || 0
   const pAguaG     = parseFloat(r.proy_agua_gastos) || 0
   const pOtros     = parseFloat(r.proy_otros_gastos) || 0
-  const pTotalG    = parseFloat(r.calc_proy_total_gastos) || (pSueldos + pFondo + pLuz + pAguaG + pOtros)
+  const pTotalG    = pSueldos + pFondo + pLuz + pAguaG + pOtros
   const pPredial   = parseFloat(r.predial) || 0
   const pTransp    = parseFloat(r.transporte_residuos) || 0
   const pLicencia  = parseFloat(r.licencia_estacionamiento) || 0
   const pAnuncio   = parseFloat(r.anuncio_publicitario) || 0
-  const pTotalImp  = parseFloat(r.calc_proy_total_imp)  || (pPredial + pTransp + pLicencia + pAnuncio)
-  const pUtilBruta = parseFloat(r.calc_proy_util_bruta) || (pTotalIng - pTotalG)
-  const pUtilNeta  = parseFloat(r.calc_proy_util_neta)  || (pUtilBruta - pTotalImp)
+  const pTotalImp  = pPredial + pTransp + pLicencia + pAnuncio
+  const pUtilBruta = pTotalIng - pTotalG
+  const pUtilNeta  = pUtilBruta - pTotalImp
 
   // Real — campos _mes/_otros directamente de er_mensual (sin fallback a queries vivas)
   const rmRentaFact = parseFloat(r.real_rentas_factura_mes)   || 0
@@ -835,6 +874,20 @@ export default function EDR() {
     total: rTotalRentas,
     etiquetaTotal: 'Total Rentas',
     nota: 'Las rentas sin factura no se leen de ninguna tabla: son los cobros de renta del mes a los que no se les capturó número de factura.',
+  }
+
+  // Composición específica para En Elaboración: incluye las 4 fuentes de ingreso por renta
+  const compTotalRentasObt = {
+    titulo: 'Total Rentas Obtenidas',
+    formula: 'Rentas con Factura + Rentas sin Factura + Sanciones con Factura + Sanciones sin Factura',
+    partes: [
+      parte('Rentas con Factura (transferencia/depósito)', rRentaFact, 'rentas_factura'),
+      parte('Rentas sin Factura (efectivo)', rRentaSin, 'rentas_sin_factura'),
+      parte('Sanciones con Factura + sin Factura', rPenaliz, 'sanciones'),
+    ],
+    total: rTotalRentas + rPenaliz,
+    etiquetaTotal: 'Total Rentas Obtenidas',
+    nota: 'Total = Rentas con factura + Rentas sin factura + Sanciones con factura + Sanciones sin factura. Las sanciones se suman al total de rentas obtenidas antes de deducir IVA.',
   }
 
   const compIngNeto = {
@@ -926,10 +979,10 @@ export default function EDR() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @media print {
-          body * { visibility: hidden; }
-          #edr-print, #edr-print * { visibility: visible; }
-          #edr-print { position: absolute; left: 0; top: 0; width: 100%; }
+          header, aside { display: none !important; }
+          main { margin-left: 0 !important; margin-top: 0 !important; min-height: auto !important; }
           .no-print { display: none !important; }
+          #edr-print { overflow: visible !important; border: none !important; border-radius: 0 !important; }
           @page { size: A4 landscape; margin: 15mm; }
         }
       `}</style>
@@ -1006,23 +1059,24 @@ export default function EDR() {
 
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:'80px' }}><LoadingSpinner /></div>
-        ) : !registro && tab === 'tablero' ? (
-          <div style={{ textAlign:'center', padding:'60px 20px', background:'white', borderRadius:'12px', border:'1.5px dashed #D1D5DB' }}>
-            <TrendingUp size={40} color="#D1D5DB" style={{ marginBottom:'12px' }} />
-            <div style={{ fontSize:'15px', fontWeight:600, color:'#6B7280', marginBottom:'6px' }}>
-              Sin registro para {MESES[mes]} {anio}
-            </div>
-            <button onClick={handleNuevo} disabled={saving}
-              style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'10px 22px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}>
-              <Plus size={15} /> Crear registro {MESES[mes]} {anio}
-            </button>
-          </div>
-
         ) : tab === 'tablero' ? (
           /* ══════════════════════════════════════════════════════════════════
              TAB: TABLERO
              ══════════════════════════════════════════════════════════════════ */
           <div id="edr-print" style={{ background:'white', borderRadius:'12px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
+
+            {/* Banner cuando no hay snapshot guardado */}
+            {!registro && (
+              <div className="no-print" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 18px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', gap:12 }}>
+                <span style={{ fontSize:'12px', color:'#92400E' }}>
+                  Datos calculados en tiempo real · sin snapshot guardado para {MESES[mes]} {anio}
+                </span>
+                <button onClick={handleNuevo} disabled={saving}
+                  style={{ padding:'5px 14px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  + Crear snapshot
+                </button>
+              </div>
+            )}
 
             {/* Encabezado de columnas */}
             <div style={{ display:'grid', gridTemplateColumns: COLS, gap:0 }}>
@@ -1047,17 +1101,17 @@ export default function EDR() {
               <InfoRow label="** Locales (L10, L22, Financiera L24,25,26)" proy={Math.abs(pVacantes)} indent={2} />
             )}
 
-            <PLRow label="Rentas brutas" detalle="rentas_factura" onDetalle={setDetalle}
-              proy={pRentasBrutas} total={rRentaFact}
+            <PLRow label="Rentas con Factura" detalle="rentas_factura" onDetalle={setDetalle}
+              proy={pRentas} total={rRentaFact}
               rentasMes={rmRentaFact} otrosPer={opRentaFact} />
             <PLRow label="Rentas sin Factura" indent={1} detalle="rentas_sin_factura" onDetalle={setDetalle}
-              total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
+              proy={pRentasSF} total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
             <SubRow label="Total Rentas"
-              proy={pRentasBrutas} total={rTotalRentas}
+              proy={pTotalRentasLimpio} total={rTotalRentas}
               rentasMes={rmTotalRentas} otrosPer={opTotalRentas}
               composicion={compTotalRentas} onDetalle={setDetalle} />
             <PLRow label="Penalizaciones" indent={1} detalle="sanciones" onDetalle={setDetalle}
-              total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
+              proy={pSanciones} total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
               proy={parseFloat(r.proy_iva)||0} total={rIva}
               rentasMes={-rmIva}
@@ -1159,6 +1213,11 @@ export default function EDR() {
             const eSanSFOtros   = parseFloat(fForm.real_penaliz_sf_otros) || 0
             const eSancion      = eSanCFMes + eSanCFOtros + eSanSFMes + eSanSFOtros
             const ePenaliz      = eSancion  // alias para compat
+            // Proyectado Total Rentas Obtenidas = suma de los 4 campos proyectados de las filas
+            const eProyRentasCF  = parseFloat(fForm.proy_rentas_contratos) || proyRentas
+            const eProyRentasSF  = parseFloat(fForm.proy_rsf)       || 0
+            const eProySanCF     = parseFloat(fForm.proy_penaliz)    || 0
+            const eProyTotalRent = eProyRentasCF + eProyRentasSF + eProySanCF
             // Total Rentas Obtenidas (mes y otros)
             const eRmTotalRentas = eRentaCFMes   + eRentaSFMes   + eSanCFMes   + eSanSFMes
             const eOpTotalRentas = eRentaCFOtros + eRentaSFOtros + eSanCFOtros + eSanSFOtros
@@ -1225,49 +1284,47 @@ export default function EDR() {
                   fieldP="proy_locales_vacantes"
                   form={fForm} setField={sf} indent={2} />
 
-                {/* Rentas y sanciones: lectura automática desde aplicaciones_pago */}
+                {/* Rentas y sanciones: lectura automática — solo el Proyectado es editable */}
                 <CalcRowE label="Rentas con Factura"
-                  proy={parseFloat(fForm.proy_rentas_contratos) || proyRentas}
+                  fieldP="proy_rentas_contratos" values={fForm} setField={sf}
                   total={eRentaFact} mes={eRentaCFMes} otros={eRentaCFOtros}
                   detalle="rentas_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Rentas sin Factura"
-                  proy={parseFloat(fForm.proy_rsf) || 0}
+                  fieldP="proy_rsf" values={fForm} setField={sf}
                   total={eRentaSin} mes={eRentaSFMes} otros={eRentaSFOtros}
                   detalle="rentas_sf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones con Factura"
-                  proy={parseFloat(fForm.proy_penaliz) || 0}
+                  fieldP="proy_penaliz" values={fForm} setField={sf}
                   total={eSanCFMes + eSanCFOtros} mes={eSanCFMes} otros={eSanCFOtros}
                   detalle="sanciones_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones sin Factura"
                   total={eSanSFMes + eSanSFOtros} mes={eSanSFMes} otros={eSanSFOtros}
                   detalle="sanciones_sf" onDetalle={setDetalle} />
 
-                <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
+                <SubTot label="Total Rentas Obtenidas" proy={eProyTotalRent} real={eTotalRentas} composicion={compTotalRentasObt} onDetalle={setDetalle}
                   mes={eRmTotalRentas} otros={eOpTotalRentas} />
-                <EditRow label="IVA retenido"
-                  fieldP="proy_iva"
-                  fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
-                  form={fForm} setField={sf} indent={1} negLabel />
+                {/* IVA: calculado del sistema, sin cajas de captura */}
+                <CalcRowE label="IVA retenido"
+                  proy={parseFloat(fForm.proy_iva)||0}
+                  total={eIva} mes={eIvaMes !== 0 ? -eIvaMes : 0} otros={eIvaOtros !== 0 ? -eIvaOtros : 0}
+                  indent={1} negLabel />
 
                 <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle}
                   mes={eRmIngNeto} otros={eOpIngNeto} />
 
-                <EditRow label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
-                  fieldP="proy_estacionamiento"
-                  fieldMes="real_estac_mes" fieldOtros="real_estac_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Pensiones" detalle="pensiones" onDetalle={setDetalle}
-                  fieldP="proy_pensiones"
-                  fieldMes="real_pension_mes" fieldOtros="real_pension_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Maquinita/Vending" detalle="vending" onDetalle={setDetalle}
-                  fieldP="proy_maquinita"
-                  fieldMes="real_maquinita_mes" fieldOtros="real_maquinita_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Agua (cobro)" detalle="agua_ingreso" onDetalle={setDetalle}
-                  fieldP="proy_agua_ingresos"
-                  fieldMes="real_agua_ing_mes" fieldOtros="real_agua_ing_otros"
-                  form={fForm} setField={sf} />
+                {/* Estac/Pensiones/Vending/Agua: real viene del sistema — solo proyectado editable */}
+                <CalcRowE label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
+                  fieldP="proy_estacionamiento" values={fForm} setField={sf}
+                  total={eEstac} mes={eRmEstac} otros={eOpEstac} />
+                <CalcRowE label="Pensiones" detalle="pensiones" onDetalle={setDetalle}
+                  fieldP="proy_pensiones" values={fForm} setField={sf}
+                  total={ePension} mes={eRmPension} otros={eOpPension} />
+                <CalcRowE label="Maquinita/Vending" detalle="vending" onDetalle={setDetalle}
+                  fieldP="proy_maquinita" values={fForm} setField={sf}
+                  total={eMaquinita} mes={eRmMaq} otros={eOpMaq} />
+                <CalcRowE label="Agua (cobro)" detalle="agua_ingreso" onDetalle={setDetalle}
+                  fieldP="proy_agua_ingresos" values={fForm} setField={sf}
+                  total={eAguaIng} mes={eRmAgua} otros={eOpAgua} />
 
                 <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight composicion={compTotalIng} onDetalle={setDetalle}
                   mes={eRmIngNeto + eRmEstac + eRmPension + eRmMaq + eRmAgua}

@@ -28,11 +28,13 @@ const BUCKETS = {
 const MIMES = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/gif',
   'application/pdf', 'application/xml', 'text/xml',
+  'application/zip', 'application/x-zip-compressed', 'application/octet-stream',
 ]
 
 const MAX_BYTES = 15 * 1024 * 1024   // 15 MB
-// ingresos.id es bigint (975, 1019...), no uuid — validar como entero positivo.
-const ID_INGRESO = /^\d+$/
+// ingresos.id es bigint; cargos_programados.id es UUID
+const ID_BIGINT = /^\d+$/
+const ID_UUID   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Solo el propio sitio y el entorno de desarrollo. Antes era '*', que dejaba a
 // cualquier página del mundo llamar a la función desde el navegador.
@@ -110,7 +112,14 @@ exports.handler = async (event) => {
     try { body = JSON.parse(event.body) }
     catch { return responder(400, { error: 'JSON inválido' }) }
 
-    const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id } = body
+    const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id, cargo_id, campo } = body
+    // campo y tabla determinan qué columna/tabla actualizar tras la subida
+    const CAMPOS_INGRESO = ['comprobante_url', 'factura_url', 'factura_xml_url']
+    const CAMPOS_CARGO   = ['factura_url', 'factura_xml_url']
+    const usarCargo = !!cargo_id && !ingreso_id
+    const columna = usarCargo
+      ? (CAMPOS_CARGO.includes(campo) ? campo : 'factura_url')
+      : (CAMPOS_INGRESO.includes(campo) ? campo : 'comprobante_url')
     const targetBucket = bucket || 'facturas-cfdi'
 
     if (!BUCKETS[targetBucket])           return responder(400, { error: 'Bucket no permitido' })
@@ -153,7 +162,7 @@ exports.handler = async (event) => {
     // Los buckets son privados: se guarda la ruta completa y el frontend la firma
     // con urlFirmada(), que acepta este formato.
     if (ingreso_id) {
-      if (!ID_INGRESO.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
+      if (!ID_BIGINT.test(String(ingreso_id))) return responder(400, { error: 'ingreso_id inválido' })
       await fetch(`${SUPABASE_URL}/rest/v1/ingresos?id=eq.${ingreso_id}`, {
         method: 'PATCH',
         headers: {
@@ -162,7 +171,20 @@ exports.handler = async (event) => {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ comprobante_url: publicUrl }),
+        body: JSON.stringify({ [columna]: publicUrl }),
+      })
+    } else if (cargo_id) {
+      const cid = String(cargo_id)
+      if (!ID_BIGINT.test(cid) && !ID_UUID.test(cid)) return responder(400, { error: 'cargo_id inválido' })
+      await fetch(`${SUPABASE_URL}/rest/v1/cargos_programados?id=eq.${cargo_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'apikey': SERVICE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ [columna]: publicUrl }),
       })
     }
 

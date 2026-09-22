@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
-import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle } from 'lucide-react'
+import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
@@ -283,10 +283,15 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   const [contratoOpen, setContratoOpen] = useState(false)
   const [compFile, setCompFile] = useState(null)
   const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
-  // El comprobante ya guardado se borra hasta que se le da "Guardar cambios",
-  // igual que el resto del formulario — quitarlo aquí solo limpia la vista previa.
   const [quitarComprobanteExistente, setQuitarComprobanteExistente] = useState(false)
   const fileRef = useRef()
+  const [facturaPdfFile, setFacturaPdfFile] = useState(null)
+  const [facturaXmlFile, setFacturaXmlFile] = useState(null)
+  const [facturaPdfPreview, setFacturaPdfPreview] = useState(ingreso?.factura_url || null)
+  const [quitarFacturaPdf, setQuitarFacturaPdf] = useState(false)
+  const [quitarFacturaXml, setQuitarFacturaXml] = useState(false)
+  const facturaPdfRef = useRef()
+  const facturaXmlRef = useRef()
   // Aplicaciones que este ingreso ya tenía guardadas. Se necesitan para saber
   // cuáles hay que BORRAR al guardar: si solo se hace upsert, las que el usuario
   // quitó de la distribución se quedan vivas y el pago acaba aplicado por más
@@ -312,6 +317,11 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   useEffect(() => {
     if (!ingreso?.comprobante_url) return
     urlFirmada('facturas-cfdi', ingreso.comprobante_url).then(u => { if (u) setCompPreview(u) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!ingreso?.factura_url) return
+    urlFirmada('facturas-cfdi', ingreso.factura_url).then(u => { if (u) setFacturaPdfPreview(u) })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -490,9 +500,9 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       validado_en:        validadoEn,
       clasificacion:        clasificacion,
       clasificacion_manual: manual,
-      // Se quita explícitamente solo si el usuario lo pidió y no adjuntó uno nuevo
-      // (adjuntar reemplaza vía subir-comprobante, más abajo).
       ...(quitarComprobanteExistente && !compFile ? { comprobante_url: null } : {}),
+      ...(quitarFacturaPdf && !facturaPdfFile ? { factura_url: null } : {}),
+      ...(quitarFacturaXml && !facturaXmlFile ? { factura_xml_url: null } : {}),
     }
     // Para ediciones: borrar TODAS las aplicaciones previas antes de tocar el
     // importe del ingreso. El trigger trg_ingreso_no_menor_que_aplicaciones
@@ -538,6 +548,43 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
         }
       } catch (e) {
         toast.error('Error al subir comprobante: ' + e.message)
+      }
+    }
+
+    // Upload factura PDF
+    if (facturaPdfFile && ingresoId) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaPdfFile)
+        })
+        const ext = facturaPdfFile.name.split('.').pop() || 'pdf'
+        const filePath = `facturas/${ingresoId}/factura.${ext}`
+        const resp = await llamarFuncion('subir-comprobante', { bucket: 'facturas-cfdi', path: filePath, file_base64: b64, mime_type: facturaPdfFile.type || 'application/pdf', ingreso_id: ingresoId, campo: 'factura_url' })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          toast.error('Error al subir factura PDF: ' + (j.error || resp.status))
+        }
+      } catch (e) {
+        toast.error('Error al subir factura PDF: ' + e.message)
+      }
+    }
+
+    // Upload factura XML / ZIP
+    if (facturaXmlFile && ingresoId) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaXmlFile)
+        })
+        const ext = facturaXmlFile.name.split('.').pop() || 'xml'
+        const filePath = `facturas/${ingresoId}/cfdi.${ext}`
+        const mime = facturaXmlFile.type || (ext === 'zip' ? 'application/zip' : 'application/xml')
+        const resp = await llamarFuncion('subir-comprobante', { bucket: 'facturas-cfdi', path: filePath, file_base64: b64, mime_type: mime, ingreso_id: ingresoId, campo: 'factura_xml_url' })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          toast.error('Error al subir XML/ZIP: ' + (j.error || resp.status))
+        }
+      } catch (e) {
+        toast.error('Error al subir XML/ZIP: ' + e.message)
       }
     }
 
@@ -757,6 +804,68 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>No. Factura</label>
               <div style={{ marginTop:'4px' }}>{inp('factura','text','2195')}</div>
+            </div>
+
+            {/* Archivos CFDI — PDF + XML/ZIP */}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', display:'block', marginBottom:'6px' }}>
+                Archivos del CFDI
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                {/* PDF */}
+                <div>
+                  <div style={{ fontSize:'10px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'4px' }}>PDF (visualizar)</div>
+                  <input type="file" ref={facturaPdfRef} accept=".pdf,application/pdf" style={{ display:'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaPdfFile(f); setFacturaPdfPreview(URL.createObjectURL(f)); setQuitarFacturaPdf(false) }; e.target.value = '' }} />
+                  {facturaPdfFile ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#F0FDF4', borderRadius:'7px', border:'1.5px solid #BBF7D0' }}>
+                      <FileText size={13} style={{ color:'#15803D', flexShrink:0 }} />
+                      <span style={{ fontSize:'11px', fontWeight:700, color:'#15803D', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{facturaPdfFile.name}</span>
+                      <button type="button" onClick={() => { setFacturaPdfFile(null); setFacturaPdfPreview(null) }}
+                        style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
+                    </div>
+                  ) : ingreso?.factura_url && !quitarFacturaPdf ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#EFF6FF', borderRadius:'7px', border:'1.5px solid #BFDBFE' }}>
+                      <FileText size={13} style={{ color:'#0A66C2', flexShrink:0 }} />
+                      <span style={{ fontSize:'11px', fontWeight:700, color:'#0A66C2', flex:1 }}>Factura adjunta</span>
+                      <button type="button" onClick={() => { setQuitarFacturaPdf(true); setFacturaPdfPreview(null) }}
+                        style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => facturaPdfRef.current?.click()}
+                      style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                      <Upload size={13} /> Adjuntar PDF
+                    </button>
+                  )}
+                </div>
+
+                {/* XML / ZIP */}
+                <div>
+                  <div style={{ fontSize:'10px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'4px' }}>XML / ZIP</div>
+                  <input type="file" ref={facturaXmlRef} accept=".xml,.zip,application/xml,text/xml,application/zip" style={{ display:'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaXmlFile(f); setQuitarFacturaXml(false) }; e.target.value = '' }} />
+                  {facturaXmlFile ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#F0FDF4', borderRadius:'7px', border:'1.5px solid #BBF7D0' }}>
+                      <FileText size={13} style={{ color:'#15803D', flexShrink:0 }} />
+                      <span style={{ fontSize:'11px', fontWeight:700, color:'#15803D', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{facturaXmlFile.name}</span>
+                      <button type="button" onClick={() => setFacturaXmlFile(null)}
+                        style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
+                    </div>
+                  ) : ingreso?.factura_xml_url && !quitarFacturaXml ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#EFF6FF', borderRadius:'7px', border:'1.5px solid #BFDBFE' }}>
+                      <FileText size={13} style={{ color:'#0A66C2', flexShrink:0 }} />
+                      <span style={{ fontSize:'11px', fontWeight:700, color:'#0A66C2', flex:1 }}>XML/ZIP adjunto</span>
+                      <button type="button" onClick={() => setQuitarFacturaXml(true)}
+                        style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => facturaXmlRef.current?.click()}
+                      style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                      <Upload size={13} /> Adjuntar XML/ZIP
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Origen */}
