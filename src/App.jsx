@@ -15,6 +15,7 @@ import Cobranza from './pages/Cobranza.jsx'
 import Arrendatarios from './pages/Arrendatarios.jsx'
 import Mantenimiento from './pages/Mantenimiento.jsx'
 import Proyectos from './pages/Proyectos.jsx'
+import Eventos from './pages/Eventos.jsx'
 import Proveedores from './pages/Proveedores.jsx'
 import Productos from './pages/Productos.jsx'
 import RH from './pages/RH.jsx'
@@ -197,6 +198,7 @@ function AppLayout() {
           <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<Mantenimiento />} />
           <Route path="/proyectos" element={<Proyectos />} />
+          <Route path="/eventos"   element={<Eventos />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/productos" element={<Productos />} />
           <Route path="/rh" element={<RH />} />
