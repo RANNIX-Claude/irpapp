@@ -512,32 +512,41 @@ export default function EDR() {
     loadParkingData(mes, anio)
   }, [mes, anio, loadRegistro, loadRealRentas, loadProySueldos, loadParkingData])
 
-  // Auto-sincroniza campos _mes/_otros desde ingresos si no hay foto guardada
-  // (campo === 0 o null → usa valor de ingresos; si ya tiene valor → respeta la foto)
+  // Auto-sincroniza campos _mes/_otros desde ingresos.
+  // Rentas, sanciones, estacionamiento, pensiones y maquinita/vending se
+  // muestran de solo lectura (CalcRowE/fuente operativa): nadie las captura a
+  // mano en esta pantalla — la renta se captura en Ingresos, el estacionamiento
+  // y pensiones en el sistema de tickets, vending en /vending. Aquí siempre se
+  // sobreescriben con el cálculo en vivo, no hay nada que "proteger". Guardar
+  // solo deja constancia histórica del valor en ese momento, no lo congela para
+  // las próximas visitas.
+  // Agua sí se captura a mano en esta pantalla (EditRow): ahí se respeta lo que
+  // ya tenga la foto (campo === 0 o null → usa valor de ingresos; si ya tiene
+  // valor → respeta lo capturado a mano).
   // Prioridad: fuente operativa (vending propio, estac/pension del sistema de tickets) > main ingresos > 0
   useEffect(() => {
     if (!realRentas.rentas_mes && !realIngByTipo.ESTACIONAMIENTO && !realParking.estac_mes && !realParking.pension_mes) return
     setForm(f => ({
       ...f,
-      real_rentas_factura_mes:   f.real_rentas_factura_mes   || realRentas.factura              || 0,
-      real_rentas_factura_otros: f.real_rentas_factura_otros || realRentas.otros_periodos       || 0,
-      real_rsf_mes:              f.real_rsf_mes              || realRentas.rsfMes               || 0,
-      real_rsf_otros:            f.real_rsf_otros            || 0,
+      real_rentas_factura_mes:   realRentas.factura                || 0,
+      real_rentas_factura_otros: realRentas.otros_periodos         || 0,
+      real_rsf_mes:              realRentas.rsfMes                 || 0,
+      real_rsf_otros:            0,
       // Sanciones: cf=con factura (transferencia), sf=sin factura (efectivo)
-      real_penaliz_cf_mes:       f.real_penaliz_cf_mes       || realIngByTipo.SANCION?.cf_mes   || 0,
-      real_penaliz_sf_mes:       f.real_penaliz_sf_mes       || realIngByTipo.SANCION?.sf_mes   || 0,
-      real_penaliz_cf_otros:     f.real_penaliz_cf_otros     || realIngByTipo.SANCION?.cf_otros || 0,
-      real_penaliz_sf_otros:     f.real_penaliz_sf_otros     || realIngByTipo.SANCION?.sf_otros || 0,
+      real_penaliz_cf_mes:       realIngByTipo.SANCION?.cf_mes     || 0,
+      real_penaliz_sf_mes:       realIngByTipo.SANCION?.sf_mes     || 0,
+      real_penaliz_cf_otros:     realIngByTipo.SANCION?.cf_otros   || 0,
+      real_penaliz_sf_otros:     realIngByTipo.SANCION?.sf_otros   || 0,
       // Estacionamiento: Sistema de Tickets (supabaseParking pagos_boletos) > main ingresos
-      real_estac_mes:            f.real_estac_mes            || realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
-      real_estac_otros:          f.real_estac_otros          || realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
+      real_estac_mes:            realParking.estac_mes        || realIngByTipo.ESTACIONAMIENTO?.mes   || 0,
+      real_estac_otros:          realParking.estac_otros      || realIngByTipo.ESTACIONAMIENTO?.otros || 0,
       // Pensiones: supabaseParking pagos_pension > main ingresos
-      real_pension_mes:          f.real_pension_mes          || realParking.pension_mes      || realIngByTipo.PENSION?.mes            || 0,
-      real_pension_otros:        f.real_pension_otros        || realParking.pension_otros    || realIngByTipo.PENSION?.otros          || 0,
+      real_pension_mes:          realParking.pension_mes      || realIngByTipo.PENSION?.mes           || 0,
+      real_pension_otros:        realParking.pension_otros    || realIngByTipo.PENSION?.otros         || 0,
       // Maquinita/Vending: vending_semanas de esta base > main ingresos
-      real_maquinita_mes:        f.real_maquinita_mes        || realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes          || 0,
-      real_maquinita_otros:      f.real_maquinita_otros      || realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros        || 0,
-      // Agua: tabla de ingresos main supabase (tipo='AGUA')
+      real_maquinita_mes:        realParking.vending_mes      || realIngByTipo.MAQUINITA?.mes         || 0,
+      real_maquinita_otros:      realParking.vending_otros    || realIngByTipo.MAQUINITA?.otros       || 0,
+      // Agua: tabla de ingresos main supabase (tipo='AGUA') — sí es capturable a mano
       real_agua_ing_mes:         f.real_agua_ing_mes         || realIngByTipo.AGUA?.mes               || 0,
       real_agua_ing_otros:       f.real_agua_ing_otros       || realIngByTipo.AGUA?.otros             || 0,
     }))
