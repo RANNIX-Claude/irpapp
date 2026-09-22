@@ -4,6 +4,7 @@ import {
   HardHat, Plus, ArrowLeft, Save, Trash2, Upload, FileText, X,
   Receipt, Camera, ChevronDown, ChevronUp, CheckCircle, Clock,
   AlertTriangle, Ban, Paperclip, Image, FilePlus, Download,
+  LayoutGrid, List,
 } from 'lucide-react'
 import { supabase, urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -101,6 +102,45 @@ function FileCell({ bucket, path, onUploaded, accept = '*', label: lbl }) {
 /* ════════════════════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
    ════════════════════════════════════════════════════════════════════════════ */
+/* ── Tarjeta Mosaico ─────────────────────────────────────────────────────── */
+function MosaicCard({ p, onClick }) {
+  const [fotoUrl, setFotoUrl] = useState(null)
+  useEffect(() => {
+    if (p.foto_portada_url) firmarUrl('proyectos-avances', p.foto_portada_url).then(setFotoUrl)
+    else setFotoUrl(null)
+  }, [p.foto_portada_url])
+
+  return (
+    <div onClick={onClick}
+      style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'12px',
+        overflow:'hidden', cursor:'pointer', transition:'box-shadow .15s', display:'flex', flexDirection:'column' }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+      {/* Imagen de portada */}
+      <div style={{ width:'100%', height:160, background:'#F3F4F6',
+        display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+        {fotoUrl
+          ? <img src={fotoUrl} alt={p.nombre} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : <HardHat size={36} color="#D1D5DB" />
+        }
+      </div>
+      {/* Info */}
+      <div style={{ padding:'14px 16px', flex:1, display:'flex', flexDirection:'column', gap:6 }}>
+        <div style={{ fontWeight:700, fontSize:'13px', color:'#111827', lineHeight:1.3 }}>{p.nombre}</div>
+        <div style={{ fontSize:'11px', color:'#6B7280' }}>
+          {p.proveedor_nombre || '—'}
+        </div>
+        <div style={{ marginTop:'auto', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:'12px', fontWeight:700, color:'#374151' }}>
+            {p.presupuesto_total ? fmt(p.presupuesto_total) : <span style={{color:'#D1D5DB'}}>Sin presupuesto</span>}
+          </div>
+          <EstadoBadge estado={p.estado} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Proyectos() {
   useModuleAudit('Proyectos')
 
@@ -110,6 +150,7 @@ export default function Proyectos() {
   const [tab,         setTab]         = useState('resumen')
   const [loading,     setLoading]     = useState(true)
   const [showForm,    setShowForm]    = useState(false)  // modal nuevo proyecto
+  const [viewMode,    setViewMode]    = useState('mosaic') // 'mosaic' | 'list'
 
   /* ── Cargar datos ─────────────────────────────────────────────────────────── */
   const loadProyectos = useCallback(async () => {
@@ -166,12 +207,29 @@ export default function Proyectos() {
             Obras, instalaciones y mejoras de la plaza
           </p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
-            background:'var(--color-primary)', color:'white', border:'none',
-            borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-          <Plus size={14} /> Nuevo Proyecto
-        </button>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          {/* Toggle mosaico / lista */}
+          <div style={{ display:'flex', border:'1.5px solid #E5E7EB', borderRadius:'8px', overflow:'hidden' }}>
+            {[
+              { id:'mosaic', Icon: LayoutGrid, title:'Mosaico' },
+              { id:'list',   Icon: List,        title:'Lista'   },
+            ].map(({ id, Icon, title }) => (
+              <button key={id} onClick={() => setViewMode(id)} title={title}
+                style={{ padding:'7px 10px', border:'none', cursor:'pointer',
+                  background: viewMode === id ? 'var(--color-primary)' : 'white',
+                  color: viewMode === id ? 'white' : '#6B7280',
+                  display:'flex', alignItems:'center' }}>
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowForm(true)}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
+              background:'var(--color-primary)', color:'white', border:'none',
+              borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+            <Plus size={14} /> Nuevo Proyecto
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -190,13 +248,19 @@ export default function Proyectos() {
         ))}
       </div>
 
-      {/* Lista */}
+      {/* Proyectos */}
       {loading ? (
         <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>Cargando…</div>
       ) : proyectos.length === 0 ? (
         <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
           <HardHat size={40} style={{ marginBottom:12, opacity:.3 }} />
           <div style={{ fontSize:'14px' }}>Sin proyectos registrados</div>
+        </div>
+      ) : viewMode === 'mosaic' ? (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:14 }}>
+          {proyectos.map(p => (
+            <MosaicCard key={p.id} p={p} onClick={() => { setSelected(p); setTab('resumen') }} />
+          ))}
         </div>
       ) : (
         <div style={{ display:'grid', gap:10 }}>
@@ -383,10 +447,25 @@ function ProyectoDetalle({ proyecto, proveedores, onBack, onReload }) {
 
 /* ── TAB RESUMEN ─────────────────────────────────────────────────────────── */
 function TabResumen({ proyecto: p, proveedores, onReload }) {
-  const [editing, setEditing] = useState(false)
-  const [form,    setForm]    = useState({ ...p })
-  const [saving,  setSaving]  = useState(false)
+  const [editing,   setEditing]   = useState(false)
+  const [form,      setForm]      = useState({ ...p })
+  const [saving,    setSaving]    = useState(false)
+  const [fotoUrl,   setFotoUrl]   = useState(null)
+  const fotoRef = useRef()
   const f = (k, v) => setForm(x => ({ ...x, [k]: v }))
+
+  useEffect(() => {
+    if (p.foto_portada_url) firmarUrl('proyectos-avances', p.foto_portada_url).then(setFotoUrl)
+    else setFotoUrl(null)
+  }, [p.foto_portada_url])
+
+  const handleFoto = async (file) => {
+    const path = await uploadFile('proyectos-avances', `portadas`, file)
+    if (!path) return
+    await supabase.from('proyectos').update({ foto_portada_url: path }).eq('id', p.id)
+    toast.success('Foto de portada actualizada')
+    onReload()
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -436,6 +515,30 @@ function TabResumen({ proyecto: p, proveedores, onReload }) {
 
       {!editing ? (
         <>
+          {/* Foto de portada */}
+          <div style={{ marginBottom:16, display:'flex', gap:14, alignItems:'flex-end' }}>
+            <div style={{ width:120, height:90, borderRadius:8, overflow:'hidden',
+              border:'1.5px solid #E5E7EB', background:'#F9FAFB',
+              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              {fotoUrl
+                ? <img src={fotoUrl} alt="Portada" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : <HardHat size={28} color="#D1D5DB" />
+              }
+            </div>
+            <div>
+              <div style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:4 }}>
+                Foto de portada (mosaico)
+              </div>
+              <button onClick={() => fotoRef.current.click()}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                  border:'1.5px solid #E5E7EB', borderRadius:'6px', fontSize:'11px',
+                  fontWeight:600, color:'#374151', background:'white', cursor:'pointer' }}>
+                <Camera size={12} /> {fotoUrl ? 'Cambiar foto' : 'Subir foto'}
+              </button>
+              <input ref={fotoRef} type="file" accept="image/*" style={{ display:'none' }}
+                onChange={e => e.target.files[0] && handleFoto(e.target.files[0])} />
+            </div>
+          </div>
           <ROW lbl="Nombre"      val={p.nombre} />
           <ROW lbl="Descripción" val={p.descripcion} />
           <ROW lbl="Estado"      val={<EstadoBadge estado={p.estado} />} />
