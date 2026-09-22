@@ -5,7 +5,7 @@ import {
   BarChart3, Settings,
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays,
+  ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -13,10 +13,11 @@ const NAV_SECTIONS = [
   {
     label: null,
     items: [
-      { label: 'Feed Ejecutivo', path: '/feed',         icon: Rss },
-      { label: 'Foto del Día',  path: '/foto-del-dia', icon: Sun },
-      { label: 'Eventos',       path: '/eventos',      icon: CalendarDays },
-      { label: 'Dashboard',     path: '/edr',          icon: LayoutDashboard },
+      { label: 'Feed Ejecutivo',      path: '/feed',         icon: Rss },
+      { label: 'Foto del Día',       path: '/foto-del-dia', icon: Sun },
+      { label: 'Eventos',            path: '/eventos',      icon: CalendarDays },
+      { label: 'Informe Propietario',path: '/informe',      icon: FileBarChart2 },
+      { label: 'Dashboard',          path: '/edr',          icon: LayoutDashboard },
     ]
   },
   {
