@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, ChevronLeft, ChevronRight, Play } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseParking } from '../lib/supabase'
 
 // ── Utilidades de fechas ──────────────────────────────────────────────────────
 const DIAS_ES  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -34,11 +34,34 @@ function generarTablaSemanas() {
   let cur = ORIGEN_INI
   while (cur <= sabHoyLocal) {
     const fin = addDays(cur, 6)
-    semanas.push({ ini: cur, fin, label: labelCorto(cur, fin) })
+    const iniEstac = addDays(cur, -1)  // Viernes anterior al Sábado (igual que ResumenSemanal)
+    semanas.push({ ini: cur, fin, iniEstac, label: labelCorto(cur, fin) })
     cur = addDays(cur, 7)
   }
   semanas.reverse()
   return semanas.slice(0, 20)
+}
+
+// ── Pensiones del sistema de estacionamiento (parking externo) ─────────────────
+async function cargarPensionesParking(ini, fin) {
+  if (!supabaseParking) return { cobradas: 0, total: 0, montoCobrado: 0, montoEsperado: 0 }
+  const d = new Date((fin || ini) + 'T12:00:00')
+  const mes  = d.getMonth() + 1
+  const anio = d.getFullYear()
+  const { data } = await supabaseParking
+    .from('pagos_pension')
+    .select('monto_pagado, monto_tarifa, fecha_pago, periodo_mes, estado')
+    .eq('periodo_mes', mes)
+    .eq('periodo_año', anio)
+  const todas = data ?? []
+  const cobradas = todas.filter(p => (p.estado === 'pagado' || p.estado === 'validado') &&
+    p.fecha_pago && p.fecha_pago.slice(0, 10) >= ini && p.fecha_pago.slice(0, 10) <= fin)
+  return {
+    cobradas:      cobradas.length,
+    total:         todas.length,
+    montoCobrado:  cobradas.reduce((s, p) => s + (parseFloat(p.monto_pagado) || parseFloat(p.monto_tarifa) || 0), 0),
+    montoEsperado: todas.reduce((s, p) => s + (parseFloat(p.monto_tarifa) || 0), 0),
+  }
 }
 
 const sum = (arr, key = 'importe') => (arr || []).reduce((s, r) => s + (parseFloat(r[key]) || 0), 0)
@@ -321,31 +344,73 @@ function Separador({ emoji, titulo, count }) {
   )
 }
 
+// ── Tarjeta: operativo semanal (datos del Resumen) ───────────────────────────
+function TarjetaOperativo({ op }) {
+  const { totalTickets, vendingVenta, totalGastosOp, rentasEf, aguaEf, totalEfectivo, pensiones } = op
+  const lineas = [
+    { emoji: '🅿️', label: 'Tickets Estacionamiento', valor: fmt$(totalTickets),    color: '#60a5fa' },
+    { emoji: '🏠', label: pensiones.total > 0
+        ? `Pensiones ${pensiones.cobradas}/${pensiones.total} cobradas`
+        : 'Pensiones de Estacionamiento',
+      valor: fmt$(pensiones.montoCobrado), color: '#a78bfa' },
+    { emoji: '🎰', label: 'Vending Machine',          valor: fmt$(vendingVenta),    color: '#34d399' },
+    { emoji: '🏪', label: 'Rentas en Efectivo',        valor: fmt$(rentasEf),        color: '#fbbf24' },
+  ].filter(l => parseFloat(l.valor.replace(/[$,]/g, '')) > 0 || l.label.includes('Pensiones'))
+
+  return (
+    <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.14)', marginBottom: 14 }}>
+      {/* Cabecera: total efectivo */}
+      <div style={{ background: 'linear-gradient(135deg, #064E3B, #059669)', padding: '20px 20px 16px' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+          💵 &nbsp; Efectivo a Entregar esta Semana
+        </div>
+        <div style={{ fontSize: 40, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalEfectivo)}</div>
+        {totalGastosOp > 0 && (
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', marginTop: 6 }}>
+            Fondo revolvente: {fmt$(totalGastosOp)} en gastos
+          </div>
+        )}
+      </div>
+      {/* Desglose */}
+      <div style={{ background: 'white', padding: '14px 18px 16px' }}>
+        {lineas.map((l, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < lineas.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+            <div style={{ fontSize: 13, color: '#374151' }}>{l.emoji} {l.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: l.color }}>{l.valor}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function InformePropietario() {
   const semanas    = generarTablaSemanas()
   const [semIdx, setSemIdx] = useState(0)   // 0 = semana actual
   const sem = semanas[semIdx]
 
-  const [kpis,    setKpis]    = useState(null)
-  const [avances, setAvances] = useState([])
-  const [eventos, setEventos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [actualizado, setAct] = useState(null)
+  const [kpis,      setKpis]      = useState(null)
+  const [operativo, setOperativo] = useState(null)
+  const [avances,   setAvances]   = useState([])
+  const [eventos,   setEventos]   = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [actualizado, setAct]     = useState(null)
 
   const cargar = useCallback(async () => {
     if (!sem) return
     setLoading(true)
-    const { ini, fin } = sem
+    const { ini, fin, iniEstac } = sem
     // Primer día del mes al que pertenece el fin de la semana
     const pmes = fin.slice(0, 7) + '-01'
 
-    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos] = await Promise.all([
+    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos,
+           ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', fin),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
-      supabase.from('prp_asistencia').select('estado').eq('fecha', fin),  // último día del corte
+      supabase.from('prp_asistencia').select('estado').eq('fecha', fin),
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
       // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
@@ -361,6 +426,17 @@ export default function InformePropietario() {
         .gte('fecha_evento', ini).lte('fecha_evento', fin + 'T23:59:59')
         .order('fecha_evento', { ascending: false }),
       supabase.from('evento_fotos').select('evento_id, foto_url, orden').order('orden'),
+      // ── Datos del Resumen Semanal ──────────────────────────────────────────
+      // Estacionamiento: Vie anterior → Vie del corte (igual que ResumenSemanal)
+      supabase.from('estacionamiento_diario').select('cantidad').gte('fecha', iniEstac).lte('fecha', fin),
+      // Vending: el registro de la semana que inicia en este Sábado
+      supabase.from('vending_semanas').select('venta_pesos, residual_pesos').eq('fecha_inicio', ini).limit(1),
+      // Gastos del fondo revolvente en la semana
+      supabase.from('gastos_operativos').select('ticket_total').gte('fecha', ini).lte('fecha', fin),
+      // Ingresos en efectivo (rentas, agua, etc.)
+      supabase.from('ingresos').select('importe, tipo').eq('origen', 'EFECTIVO').gte('fecha', ini).lte('fecha', fin),
+      // Pensiones del sistema de estacionamiento externo
+      cargarPensionesParking(ini, fin),
     ])
 
     // KPIs
@@ -381,6 +457,15 @@ export default function InformePropietario() {
     })
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
+
+    // ── Operativo semanal (datos del Resumen) ──────────────────────────────────
+    const totalTickets   = (ticketsEstac.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
+    const vendingVenta   = parseFloat((vendingRows.data || [])[0]?.venta_pesos || 0)
+    const totalGastosOp  = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.ticket_total) || 0), 0)
+    const rentasEf       = (ingresosEf.data || []).filter(r => r.tipo === 'RENTA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+    const aguaEf         = (ingresosEf.data || []).filter(r => r.tipo === 'AGUA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+    const totalEfectivo  = totalTickets + pensiones.montoCobrado + vendingVenta + rentasEf + aguaEf
+    setOperativo({ totalTickets, vendingVenta, totalGastosOp, rentasEf, aguaEf, totalEfectivo, pensiones })
 
     // Avances con fotos (join cliente)
     const fotosMap = {}
@@ -487,6 +572,9 @@ export default function InformePropietario() {
               </>
             )}
 
+            {/* ── SECCIÓN 1b: OPERATIVO SEMANAL ───────────────── */}
+            {operativo && <TarjetaOperativo op={operativo} />}
+
             {/* ── SECCIÓN 2: AVANCES DE PROYECTOS ─────────────── */}
             {avances.length > 0 && (
               <>
@@ -494,25 +582,12 @@ export default function InformePropietario() {
                 {avances.map(a => <TarjetaAvance key={a.id} avance={a} />)}
               </>
             )}
-            {avances.length === 0 && !loading && (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: 13 }}>
-                <Separador emoji="🏗️" titulo="Avances de Proyectos" count={0} />
-                Sin avances registrados esta semana
-              </div>
-            )}
-
             {/* ── SECCIÓN 3: EVENTOS ──────────────────────────── */}
             {eventos.length > 0 && (
               <>
                 <Separador emoji="📸" titulo="Eventos de la Semana" count={eventos.length} />
                 {eventos.map(e => <TarjetaEvento key={e.id} evento={e} />)}
               </>
-            )}
-            {eventos.length === 0 && !loading && (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: 13 }}>
-                <Separador emoji="📸" titulo="Eventos de la Semana" count={0} />
-                Sin eventos registrados esta semana
-              </div>
             )}
           </>
         )}
