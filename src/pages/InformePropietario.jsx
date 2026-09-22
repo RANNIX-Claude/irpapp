@@ -344,7 +344,7 @@ export default function InformePropietario() {
       supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', fin),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('estado').eq('fecha', fin),  // último día del corte
-      supabase.from('prp_contratos').select('id,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
+      supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
       // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
         .select('id, proyecto_id, porcentaje, descripcion_corta, descripcion_larga, fecha_registro')
