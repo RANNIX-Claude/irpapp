@@ -776,31 +776,36 @@ export default function EDR() {
   // los fallbacks aritméticos definidos en cada variable.
   const r = form || {}
 
-  // Proyectado — info rows usan campos raw; subtotales leen calc_proy_*
+  // Proyectado — usa los mismos campos que captura En Elaboración para que ambas vistas coincidan
   const pRentas       = parseFloat(r.proy_rentas_contratos) || proyRentas
+  const pRentasSF     = parseFloat(r.proy_rsf)              || 0
+  const pSanciones    = parseFloat(r.proy_penaliz)          || 0
+  // Info rows auxiliares (referencia, solo Tablero)
   const pRestaurant   = parseFloat(r.proy_restaurant) || 0
   const pVacantes     = -(Math.abs(parseFloat(r.proy_locales_vacantes) || 0))
-  const pDisponibles  = parseFloat(r.calc_proy_disponibles)   || (pRentas - pRestaurant)
-  const pRentasBrutas = parseFloat(r.calc_proy_rentas_brutas) || (pDisponibles + pVacantes)
+  const pDisponibles  = (pRentas - pRestaurant)
+  const pRentasBrutas = pDisponibles + pVacantes  // solo para las filas info rojas
+  // Proyectado del tablero = suma de los 4 campos editables de En Elaboración
+  const pTotalRentasLimpio = pRentas + pRentasSF           // rentas sin sanciones
   const pEstac     = parseFloat(r.proy_estacionamiento) || 0
   const pPensiones = parseFloat(r.proy_pensiones) || 0
   const pMaquinita = parseFloat(r.proy_maquinita) || 0
   const pAguaIng   = parseFloat(r.proy_agua_ingresos) || 0
-  const pIngNeto   = pRentasBrutas  // IVA no proyectado
-  const pTotalIng  = parseFloat(r.calc_proy_total_ing)    || (pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng)
+  const pIngNeto   = pRentas + pRentasSF + pSanciones  // IVA no proyectado
+  const pTotalIng  = pIngNeto + pEstac + pPensiones + pMaquinita + pAguaIng
   const pSueldos   = parseFloat(r.proy_sueldos) || proySueldos
   const pFondo     = parseFloat(r.proy_fondo_revolvente) || 0
   const pLuz       = parseFloat(r.proy_luz) || 0
   const pAguaG     = parseFloat(r.proy_agua_gastos) || 0
   const pOtros     = parseFloat(r.proy_otros_gastos) || 0
-  const pTotalG    = parseFloat(r.calc_proy_total_gastos) || (pSueldos + pFondo + pLuz + pAguaG + pOtros)
+  const pTotalG    = pSueldos + pFondo + pLuz + pAguaG + pOtros
   const pPredial   = parseFloat(r.predial) || 0
   const pTransp    = parseFloat(r.transporte_residuos) || 0
   const pLicencia  = parseFloat(r.licencia_estacionamiento) || 0
   const pAnuncio   = parseFloat(r.anuncio_publicitario) || 0
-  const pTotalImp  = parseFloat(r.calc_proy_total_imp)  || (pPredial + pTransp + pLicencia + pAnuncio)
-  const pUtilBruta = parseFloat(r.calc_proy_util_bruta) || (pTotalIng - pTotalG)
-  const pUtilNeta  = parseFloat(r.calc_proy_util_neta)  || (pUtilBruta - pTotalImp)
+  const pTotalImp  = pPredial + pTransp + pLicencia + pAnuncio
+  const pUtilBruta = pTotalIng - pTotalG
+  const pUtilNeta  = pUtilBruta - pTotalImp
 
   // Real — campos _mes/_otros directamente de er_mensual (sin fallback a queries vivas)
   const rmRentaFact = parseFloat(r.real_rentas_factura_mes)   || 0
@@ -1096,17 +1101,17 @@ export default function EDR() {
               <InfoRow label="** Locales (L10, L22, Financiera L24,25,26)" proy={Math.abs(pVacantes)} indent={2} />
             )}
 
-            <PLRow label="Rentas brutas" detalle="rentas_factura" onDetalle={setDetalle}
-              proy={pRentasBrutas} total={rRentaFact}
+            <PLRow label="Rentas con Factura" detalle="rentas_factura" onDetalle={setDetalle}
+              proy={pRentas} total={rRentaFact}
               rentasMes={rmRentaFact} otrosPer={opRentaFact} />
             <PLRow label="Rentas sin Factura" indent={1} detalle="rentas_sin_factura" onDetalle={setDetalle}
-              total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
+              proy={pRentasSF} total={rRentaSin} rentasMes={rmRentaSin} otrosPer={opRentaSin} />
             <SubRow label="Total Rentas"
-              proy={pRentasBrutas} total={rTotalRentas}
+              proy={pTotalRentasLimpio} total={rTotalRentas}
               rentasMes={rmTotalRentas} otrosPer={opTotalRentas}
               composicion={compTotalRentas} onDetalle={setDetalle} />
             <PLRow label="Penalizaciones" indent={1} detalle="sanciones" onDetalle={setDetalle}
-              total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
+              proy={pSanciones} total={rPenaliz} rentasMes={rmPenaliz} otrosPer={opPenaliz} />
             <PLRow label="Iva" indent={1} isNeg
               proy={parseFloat(r.proy_iva)||0} total={rIva}
               rentasMes={-rmIva}
