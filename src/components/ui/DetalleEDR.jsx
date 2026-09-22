@@ -32,60 +32,60 @@ const FUENTES = {
   // el EDR arma los renglones: lo facturado se lee, y lo no facturado se
   // obtiene por diferencia. Aquí se ve renglón por renglón cuál cayó en cuál.
   rentas_factura: {
-    titulo: 'Rentas con factura',
-    tabla: 'prp_ingresos',
-    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados por transferencia. La regla fiscal: transferencia/depósito → factura emitida; efectivo → sin factura.',
+    titulo: 'Rentas con Factura',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Solo cobros cuyo cargo tiene concepto=RENTA y origen es transferencia (regla fiscal: transferencia → factura emitida). Mismo filtro que el cálculo del EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: false }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'RENTA', efectivo: false }),
   },
   rentas_sin_factura: {
-    titulo: 'Rentas sin factura',
-    tabla: 'prp_ingresos',
-    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados en EFECTIVO (= sin factura). La regla fiscal: solo el pago en efectivo corresponde a un ingreso sin factura.',
+    titulo: 'Rentas sin Factura',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Solo cobros cuyo cargo tiene concepto=RENTA y origen es EFECTIVO (sin factura). Mismo filtro que el cálculo del EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: true }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'RENTA', efectivo: true }),
   },
   rentas_cf: {
     titulo: 'Rentas con Factura — detalle',
-    tabla: 'prp_ingresos',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Mismo filtro que el EDR: cargo.concepto=RENTA y origen≠EFECTIVO. La columna "Período" indica si el cobro es del mes actual o de un período anterior.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    nota: 'Solo los pesos aplicados a cargos de RENTA. Un depósito que además cubrió sanción, agua u otro concepto entra aquí únicamente por su parte de renta.',
-    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: false }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'RENTA', efectivo: false }),
   },
   rentas_sf: {
     titulo: 'Rentas sin Factura — detalle',
-    tabla: 'prp_ingresos',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Mismo filtro que el EDR: cargo.concepto=RENTA y origen=EFECTIVO.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    nota: 'Solo los pesos aplicados a cargos de RENTA, cobrados en efectivo.',
-    cargar: async (m, a) => aplicadoDelMesPorConcepto(m, a, ['RENTA'], { efectivo: true }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'RENTA', efectivo: true }),
   },
   estacionamiento: {
     titulo: 'Estacionamiento',
@@ -113,56 +113,59 @@ const FUENTES = {
   },
   sanciones: {
     titulo: 'Sanciones cobradas',
-    tabla: 'prp_ingresos',
-    nota: 'Todos los cobros clasificados como SANCION en el período (con y sin factura).',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Todos los cobros cuyo cargo tiene concepto=SANCION (con y sin factura). Mismo filtro que el EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION']),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'SANCION' }),
   },
   sanciones_cf: {
     titulo: 'Sanciones con Factura — detalle',
-    tabla: 'prp_ingresos',
-    nota: 'Sanciones pagadas por transferencia (= con factura emitida, IVA acreditable).',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Cargo concepto=SANCION y origen≠EFECTIVO (factura emitida, IVA acreditable). Mismo filtro que el EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION'], { efectivo: false }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'SANCION', efectivo: false }),
   },
   sanciones_sf: {
     titulo: 'Sanciones sin Factura — detalle',
-    tabla: 'prp_ingresos',
-    nota: 'Sanciones pagadas en efectivo (= sin factura, no generan IVA acreditable).',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Cargo concepto=SANCION y origen=EFECTIVO (sin factura). Mismo filtro que el EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['periodo', 'Período', r => `${String(r.mes).padStart(2, '0')}/${r.anio}`],
-      ['locales_display', 'Local', v => v || '—'],
-      ['arrendatario_nombre', 'Inquilino', v => v || '—'],
-      ['origen', 'Origen'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMesPorClasif(m, a, ['SANCION'], { efectivo: true }),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'SANCION', efectivo: true }),
   },
   agua_ingreso: {
     titulo: 'Agua cobrada',
-    tabla: 'ingresos',
+    tabla: 'ingresos → aplicaciones_pago → cargos_programados',
+    nota: 'Cobros cuyo cargo tiene concepto=AGUA. Mismo filtro que el EDR.',
     columnas: [
-      ['fecha', 'Fecha pago', fmtD],
-      ['folio', 'Contrato'],
-      ['nota', 'Nota', v => v || '—'],
-      ['importe', 'Importe', fmt, 'num'],
+      ['fecha',              'Fecha pago',  fmtD],
+      ['periodo',            'Período',     r => `${String(r.periodo_mes).padStart(2,'0')}/${r.periodo_anio}`],
+      ['locales_display',    'Local',       v => v || '—'],
+      ['arrendatario_nombre','Inquilino',   v => v || '—'],
+      ['origen',             'Origen',      v => v || '—'],
+      ['importe',            'Importe',     fmt, 'num'],
     ],
-    cargar: async (m, a) => cobrosDelMes(m, a, ['AGUA']),
+    cargar: async (m, a) => cobrosViaCargoDesgloso(m, a, { concepto: 'AGUA' }),
   },
   otros_ingresos: {
     titulo: 'Estacionamiento y pensiones',
@@ -275,20 +278,71 @@ async function cobrosDelMes(mes, anio, tipos) {
   return { filas: data ?? [], campoTotal: 'importe' }
 }
 
-// Filtra por clasificacion (campo auto-calculado) y opcionalmente por origen
-async function cobrosDelMesPorClasif(mes, anio, clasificaciones, { efectivo } = {}) {
+/**
+ * Misma lógica que cargarDatosAutomaticos en EDR.jsx:
+ * - ingresos → aplicaciones_pago → cargos_programados (obtiene concepto real del cargo)
+ * - Expande por cargo (un ingreso puede cubrir varios cargos de distintos conceptos)
+ * - Enriquece con arrendatario/local desde prp_contratos
+ *
+ * Esto garantiza que el detalle muestre exactamente los mismos registros
+ * que se usan en el cálculo de la métrica.
+ */
+async function cobrosViaCargoDesgloso(mes, anio, { concepto, efectivo } = {}) {
   const ini = `${anio}-${String(mes).padStart(2, '0')}-01`
   const fin = `${anio}-${String(mes).padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`
-  const { data, error } = await supabase.from('prp_ingresos')
-    .select('id, fecha, mes, anio, clasificacion, importe, factura, origen, nota, folio, arrendatario_nombre, locales_display')
+
+  const { data, error } = await supabase
+    .from('ingresos')
+    .select(`id, fecha, origen, importe, contrato_id,
+             aplicaciones_pago(importe_aplicado,
+               cargo:cargos_programados(concepto, periodo_mes, periodo_anio))`)
     .gte('fecha', ini).lte('fecha', fin)
-    .in('clasificacion', clasificaciones)
-    .order('fecha', { ascending: false })
   if (error) throw error
-  let filas = data ?? []
-  if (efectivo === true)  filas = filas.filter(r => (r.origen||'').toUpperCase() === 'EFECTIVO')
-  if (efectivo === false) filas = filas.filter(r => (r.origen||'').toUpperCase() !== 'EFECTIVO')
-  return { filas, campoTotal: 'importe' }
+
+  // Expande igual que loadRealRentas: un ingreso → una fila por cargo cubierto
+  const isEfectivo = r => (r.origen || '').toUpperCase() === 'EFECTIVO'
+  let filas = (data ?? []).flatMap(ing => {
+    const apps = ing.aplicaciones_pago ?? []
+    if (!apps.length) return []
+    return apps.map(ap => ({
+      _ing_id: ing.id,
+      _contrato_id: ing.contrato_id,
+      fecha: ing.fecha,
+      origen: ing.origen,
+      importe: parseFloat(ap.importe_aplicado) || 0,
+      concepto_cargo: ap.cargo?.concepto,
+      periodo_mes: ap.cargo?.periodo_mes,
+      periodo_anio: ap.cargo?.periodo_anio,
+    }))
+  })
+
+  if (concepto) filas = filas.filter(r => r.concepto_cargo === concepto)
+  if (efectivo === true)  filas = filas.filter(r =>  isEfectivo(r))
+  if (efectivo === false) filas = filas.filter(r => !isEfectivo(r))
+
+  // Enriquecer con datos de display del contrato
+  const cids = [...new Set(filas.map(r => r._contrato_id).filter(Boolean))]
+  const contratoMap = {}
+  if (cids.length) {
+    const { data: ctrs } = await supabase
+      .from('prp_contratos').select('id, arrendatario_nombre, locales_display').in('id', cids)
+    for (const c of ctrs ?? []) contratoMap[c.id] = c
+  }
+
+  const result = filas
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+    .map((r, i) => ({
+      id: `${r._ing_id}_${i}`,
+      fecha: r.fecha,
+      periodo_mes: r.periodo_mes,
+      periodo_anio: r.periodo_anio,
+      locales_display: contratoMap[r._contrato_id]?.locales_display || '—',
+      arrendatario_nombre: contratoMap[r._contrato_id]?.arrendatario_nombre || '—',
+      origen: r.origen,
+      importe: r.importe,
+    }))
+
+  return { filas: result, campoTotal: 'importe' }
 }
 
 /**

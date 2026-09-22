@@ -9,6 +9,7 @@ import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import NuevoCargoModal from '../components/ui/NuevoCargoModal'
+import { IngresoModal } from './Ingresos'
 import { usePRP } from '../hooks/usePRP'
 import { supabase } from '../lib/supabase'
 
@@ -734,13 +735,16 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
 }
 
 // ── Fila de ingreso en tabla Ingresos ────────────────────────────────────────
-function IngresoRow({ ing, onAplicar }) {
+function IngresoRow({ ing, onAplicar, onEditar }) {
   const sinAplicar = !ing.tiene_aplicacion
 
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6' }}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <td style={{ padding: '12px 16px' }}>
+        <ConceptoBadge tipo={ing.clasificacion || ing.tipo || 'OTRO'} />
+      </td>
       <td style={{ padding: '12px 16px' }}>
         <div style={{ fontSize: '12px', color: '#374151' }}>{ing.fecha}</div>
       </td>
@@ -766,6 +770,12 @@ function IngresoRow({ ing, onAplicar }) {
           : <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', background: '#D1FAE5', padding: '3px 10px', borderRadius: '20px' }}>Aplicado</span>
         }
       </td>
+      <td style={{ padding: '12px 10px' }}>
+        <button onClick={() => onEditar(ing)} title="Editar ingreso"
+          style={{ padding: '5px 7px', background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+          <Pencil size={13} />
+        </button>
+      </td>
     </tr>
   )
 }
@@ -783,6 +793,7 @@ export default function Cobranza() {
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalCargo, setModalCargo] = useState(false)
   const [modalAplicar, setModalAplicar] = useState(null) // ingreso seleccionado
+  const [editarIngreso, setEditarIngreso] = useState(null)
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
@@ -841,7 +852,7 @@ export default function Cobranza() {
       setLoadingIng(true)
       const { data: ings } = await supabase
         .from('ingresos')
-        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, id_contrato, contrato_id, created_at')
+        .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, nota, propietario, id_contrato, contrato_id, created_at, clasificacion, tipo')
         .order('fecha', { ascending: false })
         .limit(200)
 
@@ -1118,13 +1129,13 @@ export default function Cobranza() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F9FAFB' }}>
-                      {['Fecha','Arrendatario','Monto','Nota','Acción'].map(h => (
+                      {['Concepto','Fecha','Arrendatario','Monto','Nota','Acción',''].map(h => (
                         <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontWeight: 600, fontSize: '11px', color: 'var(--color-text-light)', borderBottom: '1px solid #E5E7EB', textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {ingresosRaw.map(i => <IngresoRow key={i.id} ing={i} onAplicar={setModalAplicar} />)}
+                    {ingresosRaw.map(i => <IngresoRow key={i.id} ing={i} onAplicar={setModalAplicar} onEditar={setEditarIngreso} />)}
                   </tbody>
                 </table>
               </div>
@@ -1142,6 +1153,14 @@ export default function Cobranza() {
 
       {modalCargo && (
         <NuevoCargoModal onClose={() => setModalCargo(false)} onSaved={onSaved} />
+      )}
+
+      {editarIngreso && (
+        <IngresoModal
+          ingreso={editarIngreso}
+          onClose={() => setEditarIngreso(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); setEditarIngreso(null) }}
+        />
       )}
 
       {/* Modal detalle de cargo */}

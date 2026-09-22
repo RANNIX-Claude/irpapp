@@ -364,6 +364,7 @@ export default function EDR() {
 
   const [registro,      setRegistro]      = useState(null)
   const [form,          setForm]          = useState({})
+  const [dirty,         setDirty]         = useState(false)  // form modificado sin guardar
   const [loading,       setLoading]       = useState(false)
   const [saving,        setSaving]        = useState(false)
   const [cargando,      setCargando]      = useState(false)
@@ -501,6 +502,7 @@ export default function EDR() {
       .eq('mes', m).eq('anio', a).maybeSingle()
     setRegistro(data || null)
     setForm(data || {})
+    setDirty(false)
     setLoading(false)
   }, [])
 
@@ -552,7 +554,17 @@ export default function EDR() {
     }))
   }, [realRentas, realIngByTipo, realParking])
 
-  const irMes = (delta) => {
+  const irMes = async (delta) => {
+    // Auto-guardar cambios manuales antes de cambiar de mes
+    if (dirty && registro) {
+      setSaving(true)
+      const payload = { ...form }
+      delete payload.id; delete payload.created_at; delete payload.updated_at
+      Object.keys(payload).forEach(k => { if (k.startsWith('calc_')) delete payload[k] })
+      await supabase.from('er_mensual').update(payload).eq('id', registro.id)
+      setSaving(false)
+      toast.success(`${MESES[mes]} guardado`)
+    }
     let m = mes + delta, a = anio
     if (m < 1)  { m = 12; a-- }
     if (m > 12) { m = 1;  a++ }
@@ -723,7 +735,7 @@ export default function EDR() {
       .insert({ anio, mes, status: 'borrador' })
       .select().single()
     if (error) { toast.error('Error: ' + error.message); setSaving(false); return }
-    setRegistro(data); setForm(data); setSaving(false)
+    setRegistro(data); setForm(data); setDirty(false); setSaving(false)
     setTab('elaboracion')
     toast.success('Registro creado')
   }
@@ -742,14 +754,18 @@ export default function EDR() {
     toast.success('Guardado')
   }
 
-  const setField = (field, val) =>
+  const setField = (field, val) => {
     setForm(f => ({ ...f, [field]: val === '' ? null : parseFloat(val) || 0 }))
+    setDirty(true)
+  }
 
   /* ── Cálculos tablero ─────────────────────────────────────────────────────── */
-  // er_mensual ahora tiene columnas GENERATED calc_* que PostgreSQL mantiene
-  // automáticamente. El Tablero lee esos valores; los fallbacks aritméticos
-  // solo se activan para registros creados antes de la migración.
-  const r = registro || {}
+  // El Tablero lee de `form` (no de `registro`) para mostrar datos calculados
+  // en tiempo real aunque no haya snapshot guardado. Cuando existe registro,
+  // form = registro + auto-sync de campos _mes/_otros → resultado idéntico.
+  // Los calc_* GENERATED los devuelve registro; para form sin snapshot se usan
+  // los fallbacks aritméticos definidos en cada variable.
+  const r = form || {}
 
   // Proyectado — info rows usan campos raw; subtotales leen calc_proy_*
   const pRentas       = parseFloat(r.proy_rentas_contratos) || proyRentas
@@ -935,10 +951,10 @@ export default function EDR() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @media print {
-          body * { visibility: hidden; }
-          #edr-print, #edr-print * { visibility: visible; }
-          #edr-print { position: absolute; left: 0; top: 0; width: 100%; }
+          header, aside { display: none !important; }
+          main { margin-left: 0 !important; margin-top: 0 !important; min-height: auto !important; }
           .no-print { display: none !important; }
+          #edr-print { overflow: visible !important; border: none !important; border-radius: 0 !important; }
           @page { size: A4 landscape; margin: 15mm; }
         }
       `}</style>
@@ -1015,23 +1031,24 @@ export default function EDR() {
 
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:'80px' }}><LoadingSpinner /></div>
-        ) : !registro && tab === 'tablero' ? (
-          <div style={{ textAlign:'center', padding:'60px 20px', background:'white', borderRadius:'12px', border:'1.5px dashed #D1D5DB' }}>
-            <TrendingUp size={40} color="#D1D5DB" style={{ marginBottom:'12px' }} />
-            <div style={{ fontSize:'15px', fontWeight:600, color:'#6B7280', marginBottom:'6px' }}>
-              Sin registro para {MESES[mes]} {anio}
-            </div>
-            <button onClick={handleNuevo} disabled={saving}
-              style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'10px 22px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontWeight:600, cursor:'pointer' }}>
-              <Plus size={15} /> Crear registro {MESES[mes]} {anio}
-            </button>
-          </div>
-
         ) : tab === 'tablero' ? (
           /* ══════════════════════════════════════════════════════════════════
              TAB: TABLERO
              ══════════════════════════════════════════════════════════════════ */
           <div id="edr-print" style={{ background:'white', borderRadius:'12px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
+
+            {/* Banner cuando no hay snapshot guardado */}
+            {!registro && (
+              <div className="no-print" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 18px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', gap:12 }}>
+                <span style={{ fontSize:'12px', color:'#92400E' }}>
+                  Datos calculados en tiempo real · sin snapshot guardado para {MESES[mes]} {anio}
+                </span>
+                <button onClick={handleNuevo} disabled={saving}
+                  style={{ padding:'5px 14px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  + Crear snapshot
+                </button>
+              </div>
+            )}
 
             {/* Encabezado de columnas */}
             <div style={{ display:'grid', gridTemplateColumns: COLS, gap:0 }}>
