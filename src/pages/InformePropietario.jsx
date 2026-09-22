@@ -42,6 +42,21 @@ function generarTablaSemanas() {
   return semanas.slice(0, 20)
 }
 
+// ── Tickets del sistema de estacionamiento (fetch igual que ResumenSemanal) ───
+async function cargarTicketsParking(iniParking, finParking) {
+  const PARKING_URL = import.meta.env.VITE_PARKING_URL
+  const PARKING_KEY = import.meta.env.VITE_PARKING_ANON_KEY
+  if (!PARKING_URL || !PARKING_KEY) return 0
+  try {
+    const rows = await fetch(
+      `${PARKING_URL}/rest/v1/tickets?select=importe&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=eq.cobrado&limit=2000`,
+      { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
+    ).then(r => r.json())
+    if (!Array.isArray(rows)) return 0
+    return rows.reduce((s, t) => s + (parseFloat(t.importe) || 0), 0)
+  } catch { return 0 }
+}
+
 // ── Pensiones del sistema de estacionamiento (parking externo) ─────────────────
 async function cargarPensionesParking(ini, fin) {
   if (!supabaseParking) return { cobradas: 0, total: 0, montoCobrado: 0, montoEsperado: 0 }
@@ -427,12 +442,13 @@ export default function InformePropietario() {
         .order('fecha_evento', { ascending: false }),
       supabase.from('evento_fotos').select('evento_id, foto_url, orden').order('orden'),
       // ── Datos del Resumen Semanal ──────────────────────────────────────────
-      // Estacionamiento: Vie anterior → Vie del corte (igual que ResumenSemanal)
-      supabase.from('estacionamiento_diario').select('cantidad').gte('fecha', iniEstac).lte('fecha', fin),
+      // Tickets de estacionamiento: fetch directo igual que ResumenSemanal
+      // Ciclo parking: Vie anterior → Jue (un día menos que el ciclo IRP)
+      cargarTicketsParking(iniEstac, addDays(fin, -1)),
       // Vending: el registro de la semana que inicia en este Sábado
-      supabase.from('vending_semanas').select('venta_pesos, residual_pesos').eq('fecha_inicio', ini).limit(1),
-      // Gastos del fondo revolvente en la semana
-      supabase.from('gastos_operativos').select('ticket_total').gte('fecha', ini).lte('fecha', fin),
+      supabase.from('vending_semanas').select('venta_pesos').eq('fecha_inicio', ini).limit(1),
+      // Gastos del fondo revolvente — columna cantidad (igual que ResumenSemanal línea 810)
+      supabase.from('gastos_operativos').select('cantidad').gte('fecha', ini).lte('fecha', fin),
       // Ingresos en efectivo (rentas, agua, etc.)
       supabase.from('ingresos').select('importe, tipo').eq('origen', 'EFECTIVO').gte('fecha', ini).lte('fecha', fin),
       // Pensiones del sistema de estacionamiento externo
@@ -458,10 +474,10 @@ export default function InformePropietario() {
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
 
-    // ── Operativo semanal (datos del Resumen) ──────────────────────────────────
-    const totalTickets   = (ticketsEstac.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
+    // ── Operativo semanal (misma lógica que ResumenSemanal) ────────────────────
+    const totalTickets   = ticketsEstac           // ya es el total numérico de cargarTicketsParking
     const vendingVenta   = parseFloat((vendingRows.data || [])[0]?.venta_pesos || 0)
-    const totalGastosOp  = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.ticket_total) || 0), 0)
+    const totalGastosOp  = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
     const rentasEf       = (ingresosEf.data || []).filter(r => r.tipo === 'RENTA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
     const aguaEf         = (ingresosEf.data || []).filter(r => r.tipo === 'AGUA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
     const totalEfectivo  = totalTickets + pensiones.montoCobrado + vendingVenta + rentasEf + aguaEf
