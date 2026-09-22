@@ -12,7 +12,7 @@ import NuevoCargoModal from '../components/ui/NuevoCargoModal'
 import { IngresoModal } from './Ingresos'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import { usePRP } from '../hooks/usePRP'
-import { supabase } from '../lib/supabase'
+import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 
 const MES_NOMBRES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
@@ -531,10 +531,24 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
     importe:           String(parseFloat(cargo.importe) || ''),
     fecha_vencimiento: cargo.fecha_vencimiento || '',
     estado:            cargo.estado || 'PENDIENTE',
+    factura:           cargo.factura || '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
+  // Archivos CFDI del cargo
+  const [facturaPdfFile, setFacturaPdfFile] = useState(null)
+  const [facturaXmlFile, setFacturaXmlFile] = useState(null)
+  const [facturaPdfUrl, setFacturaPdfUrl] = useState(null)
+  const [quitarPdf, setQuitarPdf] = useState(false)
+  const [quitarXml, setQuitarXml] = useState(false)
+  const facturaPdfRef = useRef()
+  const facturaXmlRef = useRef()
+
+  useEffect(() => {
+    if (!cargo.factura_url) return
+    urlFirmada('facturas-cfdi', cargo.factura_url).then(u => { if (u) setFacturaPdfUrl(u) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardar = async () => {
     if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a cero'); return }
@@ -548,9 +562,52 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
       importe:           parseFloat(form.importe),
       fecha_vencimiento: form.fecha_vencimiento,
       estado:            form.estado,
+      factura:           form.factura.trim() || null,
+      ...(quitarPdf && !facturaPdfFile ? { factura_url: null } : {}),
+      ...(quitarXml && !facturaXmlFile ? { factura_xml_url: null } : {}),
     }).eq('id', cargo.id)
+    if (error) { setSaving(false); setErr(error.message); return }
+
+    // Subir PDF de factura
+    if (facturaPdfFile) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaPdfFile)
+        })
+        const ext = facturaPdfFile.name.split('.').pop() || 'pdf'
+        const resp = await llamarFuncion('subir-comprobante', {
+          bucket: 'facturas-cfdi', path: `facturas/cargo-${cargo.id}/factura.${ext}`,
+          file_base64: b64, mime_type: facturaPdfFile.type || 'application/pdf',
+          cargo_id: cargo.id, campo: 'factura_url',
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          setErr('Error al subir PDF: ' + (j.error || resp.status)); setSaving(false); return
+        }
+      } catch (e) { setErr('Error al subir PDF: ' + e.message); setSaving(false); return }
+    }
+
+    // Subir XML / ZIP de factura
+    if (facturaXmlFile) {
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(facturaXmlFile)
+        })
+        const ext = facturaXmlFile.name.split('.').pop() || 'xml'
+        const mime = facturaXmlFile.type || (ext === 'zip' ? 'application/zip' : 'application/xml')
+        const resp = await llamarFuncion('subir-comprobante', {
+          bucket: 'facturas-cfdi', path: `facturas/cargo-${cargo.id}/cfdi.${ext}`,
+          file_base64: b64, mime_type: mime,
+          cargo_id: cargo.id, campo: 'factura_xml_url',
+        })
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          setErr('Error al subir XML/ZIP: ' + (j.error || resp.status)); setSaving(false); return
+        }
+      } catch (e) { setErr('Error al subir XML/ZIP: ' + e.message); setSaving(false); return }
+    }
+
     setSaving(false)
-    if (error) { setErr(error.message); return }
     onSaved()
   }
 
@@ -648,6 +705,72 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
                 ⚠ Saldo pendiente de {fmt(cargo.saldo)} — considera registrar el pago antes de marcar como pagado.
               </div>
             )}
+          </div>
+
+          {/* ── Sección CFDI ──────────────────────────────────────── */}
+          <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 14, display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={13} style={{ color: '#0A66C2' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Factura CFDI</span>
+            </div>
+
+            <div>
+              <label style={lbl2}>No. Factura / Folio</label>
+              <input value={form.factura} onChange={e => set('factura', e.target.value)}
+                placeholder="Ej. A-2195" style={inp2} />
+            </div>
+
+            {/* PDF de factura */}
+            <div>
+              <label style={lbl2}>PDF de factura</label>
+              {!quitarPdf && (facturaPdfFile || cargo.factura_url) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', background: '#EFF6FF', borderRadius: 7, border: '1px solid #BFDBFE' }}>
+                  <FileText size={14} style={{ color: '#0A66C2', flexShrink: 0 }} />
+                  {facturaPdfFile
+                    ? <span style={{ fontSize: 12, color: '#1D4ED8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facturaPdfFile.name}</span>
+                    : facturaPdfUrl
+                    ? <a href={facturaPdfUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1D4ED8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}>factura.pdf</a>
+                    : <span style={{ fontSize: 12, color: '#1D4ED8', flex: 1 }}>factura.pdf</span>
+                  }
+                  <button type="button" onClick={() => { setQuitarPdf(true); setFacturaPdfFile(null); if (facturaPdfRef.current) facturaPdfRef.current.value = '' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}><X size={13} /></button>
+                </div>
+              ) : (
+                <div>
+                  <input ref={facturaPdfRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaPdfFile(f); setQuitarPdf(false) } }} />
+                  <button type="button" onClick={() => facturaPdfRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1.5px dashed #D1D5DB', borderRadius: 7, background: 'white', cursor: 'pointer', fontSize: 12, color: '#6B7280' }}>
+                    <Upload size={13} /> Adjuntar PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* XML / ZIP de factura */}
+            <div>
+              <label style={lbl2}>XML / ZIP del CFDI</label>
+              {!quitarXml && (facturaXmlFile || cargo.factura_xml_url) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', background: '#F5F3FF', borderRadius: 7, border: '1px solid #DDD6FE' }}>
+                  <FileText size={14} style={{ color: '#7C3AED', flexShrink: 0 }} />
+                  {facturaXmlFile
+                    ? <span style={{ fontSize: 12, color: '#6D28D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{facturaXmlFile.name}</span>
+                    : <span style={{ fontSize: 12, color: '#6D28D9', flex: 1 }}>cfdi.xml / .zip</span>
+                  }
+                  <button type="button" onClick={() => { setQuitarXml(true); setFacturaXmlFile(null); if (facturaXmlRef.current) facturaXmlRef.current.value = '' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}><X size={13} /></button>
+                </div>
+              ) : (
+                <div>
+                  <input ref={facturaXmlRef} type="file" accept=".xml,.zip,application/xml,text/xml,application/zip" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaXmlFile(f); setQuitarXml(false) } }} />
+                  <button type="button" onClick={() => facturaXmlRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1.5px dashed #D1D5DB', borderRadius: 7, background: 'white', cursor: 'pointer', fontSize: 12, color: '#6B7280' }}>
+                    <Upload size={13} /> Adjuntar XML / ZIP
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1288,6 +1411,38 @@ export default function Cobranza() {
                   </div>
                 ))}
               </div>
+
+              {/* Factura CFDI del cargo */}
+              {(verCargo.numero_factura || verCargo.factura_url || verCargo.factura_xml_url) && (
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 14px', marginBottom: 18 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <FileText size={11} /> Factura CFDI del cargo
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {verCargo.numero_factura && (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#1D4ED8', background: 'white', padding: '4px 10px', borderRadius: 20, border: '1px solid #BFDBFE' }}>
+                        {verCargo.numero_factura}
+                      </span>
+                    )}
+                    {verCargo.factura_url && (
+                      <EnlacePrivado bucket="facturas-cfdi" valor={verCargo.factura_url}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                          color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #86EFAC', cursor: 'pointer', textDecoration: 'none' }}>
+                        <FileText size={11} /> Factura PDF
+                      </EnlacePrivado>
+                    )}
+                    {verCargo.factura_xml_url && (
+                      <EnlacePrivado bucket="facturas-cfdi" valor={verCargo.factura_xml_url}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                          color: '#7C3AED', background: '#F5F3FF', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #DDD6FE', cursor: 'pointer', textDecoration: 'none' }}>
+                        <FileText size={11} /> XML / ZIP
+                      </EnlacePrivado>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Pagos aplicados con documentos */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
