@@ -1,33 +1,62 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, TrendingUp, DollarSign, Building2, Users, Play } from 'lucide-react'
+import { RefreshCw, ChevronLeft, ChevronRight, Play } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-// ── Utilidades ────────────────────────────────────────────────────────────────
-const isoHoy    = () => new Date().toISOString().split('T')[0]
-const lunesDe   = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.toISOString().split('T')[0] }
-const primerMes = iso => iso.slice(0, 7) + '-01'
-const sum       = (arr, key = 'importe') => (arr || []).reduce((s, r) => s + (parseFloat(r[key]) || 0), 0)
-const fmt$      = n => '$' + Math.abs(parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
-const pct       = (a, b) => b > 0 ? Math.round(a / b * 100) : 0
+// ── Utilidades de fechas ──────────────────────────────────────────────────────
+const DIAS_ES  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const MESES_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function addDays(iso, n) {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function labelCorto(ini, fin) {
+  const i = new Date(ini + 'T12:00:00')
+  const f = new Date(fin + 'T12:00:00')
+  const dI = `${DIAS_ES[i.getDay()].slice(0, 3)} ${i.getDate()}/${MESES_ES[i.getMonth()]}`
+  const dF = `${DIAS_ES[f.getDay()].slice(0, 3)} ${f.getDate()}/${MESES_ES[f.getMonth()]}/${f.getFullYear()}`
+  return `${dI} — ${dF}`
+}
+
+function generarTablaSemanas() {
+  const ORIGEN_INI = '2026-06-27'
+  const hoy = new Date()
+  const dow = hoy.getDay()
+  const diasHastaSab = dow === 6 ? 0 : dow + 1
+  const sabHoy = new Date(hoy)
+  sabHoy.setDate(sabHoy.getDate() - diasHastaSab)
+  const sabHoyLocal = `${sabHoy.getFullYear()}-${String(sabHoy.getMonth() + 1).padStart(2, '0')}-${String(sabHoy.getDate()).padStart(2, '0')}`
+
+  const semanas = []
+  let cur = ORIGEN_INI
+  while (cur <= sabHoyLocal) {
+    const fin = addDays(cur, 6)
+    semanas.push({ ini: cur, fin, label: labelCorto(cur, fin) })
+    cur = addDays(cur, 7)
+  }
+  semanas.reverse()
+  return semanas.slice(0, 20)
+}
+
+const sum = (arr, key = 'importe') => (arr || []).reduce((s, r) => s + (parseFloat(r[key]) || 0), 0)
+const fmt$ = n => '$' + Math.abs(parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
+const pct  = (a, b) => b > 0 ? Math.round(a / b * 100) : 0
 
 const timeAgo = iso => {
   const diff = (Date.now() - new Date(iso)) / 1000
-  if (diff < 60)      return 'hace un momento'
-  if (diff < 3600)    return `hace ${Math.floor(diff / 60)} min`
-  if (diff < 86400)   return `hace ${Math.floor(diff / 3600)} h`
+  if (diff < 3600)      return `hace ${Math.floor(diff / 60)} min`
+  if (diff < 86400)     return `hace ${Math.floor(diff / 3600)} h`
   if (diff < 86400 * 7) return `hace ${Math.floor(diff / 86400)} días`
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-const fmtFecha = iso => new Date(iso).toLocaleDateString('es-MX', {
-  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-})
-
+// ── URL firmada ───────────────────────────────────────────────────────────────
 async function firmar(bucket, path) {
   if (!path) return null
   let p = path
-  // Acepta URL completa — extrae la ruta relativa
   if (p.startsWith('http')) {
     const m = p.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+?)(?:\?|$)/)
     if (m) p = decodeURIComponent(m[1])
@@ -46,42 +75,79 @@ function videoEmbedUrl(url) {
   return null
 }
 
+// ── Selector de semana ────────────────────────────────────────────────────────
+function SelectorSemana({ semanas, idx, onChange }) {
+  const [open, setOpen] = useState(false)
+  const sem = semanas[idx]
+  const puedeAtras    = idx < semanas.length - 1
+  const puedeAdelante = idx > 0
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+      <button onClick={() => puedeAtras && onChange(idx + 1)} disabled={!puedeAtras}
+        style={{ background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 8, padding: '7px 9px', cursor: puedeAtras ? 'pointer' : 'not-allowed', color: puedeAtras ? 'white' : 'rgba(255,255,255,.3)', display: 'flex', alignItems: 'center' }}>
+        <ChevronLeft size={16} />
+      </button>
+
+      <button onClick={() => setOpen(!open)}
+        style={{ background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', color: 'white', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {sem?.label}
+        {idx === 0 && (
+          <span style={{ fontSize: 9, background: '#E8A020', color: 'white', borderRadius: 4, padding: '1px 5px', fontWeight: 800, letterSpacing: '.05em' }}>HOY</span>
+        )}
+      </button>
+
+      <button onClick={() => puedeAdelante && onChange(idx - 1)} disabled={!puedeAdelante}
+        style={{ background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 8, padding: '7px 9px', cursor: puedeAdelante ? 'pointer' : 'not-allowed', color: puedeAdelante ? 'white' : 'rgba(255,255,255,.3)', display: 'flex', alignItems: 'center' }}>
+        <ChevronRight size={16} />
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setOpen(false)} />
+          <div style={{ position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'white', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.2)', minWidth: 240, overflow: 'hidden' }}>
+            {semanas.map((s, i) => (
+              <button key={s.ini} onClick={() => { onChange(i); setOpen(false) }}
+                style={{ width: '100%', padding: '10px 16px', background: i === idx ? '#F1EFF8' : 'white', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: i === idx ? 800 : 400, color: i === idx ? '#5A4080' : '#374151', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                {s.label}
+                {i === 0 && <span style={{ fontSize: 9, background: '#E8A020', color: 'white', borderRadius: 4, padding: '1px 5px', fontWeight: 800 }}>HOY</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Grilla adaptativa de fotos ────────────────────────────────────────────────
-function GrillaFotos({ urls, ratio = '3/2' }) {
+function GrillaFotos({ urls }) {
   const n = urls.length
   if (n === 0) return null
-
-  const imgStyle = (extra = {}) => ({
-    width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...extra,
-  })
+  const img = (src, extra = {}) => <img key={src} src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...extra }} />
 
   if (n === 1) return (
-    <div style={{ width: '100%', aspectRatio: ratio, overflow: 'hidden' }}>
-      <img src={urls[0]} alt="" style={{ ...imgStyle(), height: '100%' }} />
+    <div style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden' }}>
+      <img src={urls[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     </div>
   )
-
   if (n === 2) return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, aspectRatio: ratio, overflow: 'hidden' }}>
-      {urls.map((u, i) => <img key={i} src={u} alt="" style={{ ...imgStyle(), aspectRatio: '1/1' }} />)}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, height: 200, overflow: 'hidden' }}>
+      {urls.map(u => img(u))}
     </div>
   )
-
-  // 3 fotos: grande izquierda + 2 pequeñas derecha
   if (n === 3) return (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2, height: 260, overflow: 'hidden' }}>
-      <img src={urls[0]} alt="" style={{ gridRow: '1/3', ...imgStyle() }} />
-      <img src={urls[1]} alt="" style={imgStyle()} />
-      <img src={urls[2]} alt="" style={imgStyle()} />
+    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2, height: 240, overflow: 'hidden' }}>
+      <img src={urls[0]} alt="" style={{ gridRow: '1/3', width: '100%', height: '100%', objectFit: 'cover' }} />
+      <img src={urls[1]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <img src={urls[2]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     </div>
   )
-
-  // 4+ fotos: 2×2 con overlay en cuarta celda
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2, height: 260, overflow: 'hidden' }}>
-      {urls.slice(0, 3).map((u, i) => <img key={i} src={u} alt="" style={imgStyle()} />)}
+      {urls.slice(0, 3).map(u => img(u))}
       <div style={{ position: 'relative' }}>
-        <img src={urls[3]} alt="" style={imgStyle()} />
+        <img src={urls[3]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         {n > 4 && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 22, fontWeight: 900 }}>
             +{n - 4}
@@ -92,15 +158,15 @@ function GrillaFotos({ urls, ratio = '3/2' }) {
   )
 }
 
-// ── Tarjeta: resumen del día ──────────────────────────────────────────────────
-function TarjetaResumen({ tiles }) {
+// ── Tarjeta: resumen de la semana ─────────────────────────────────────────────
+function TarjetaResumen({ tiles, semLabel }) {
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(61,26,107,.28)', marginBottom: 14 }}>
       <div style={{ background: 'linear-gradient(140deg, #3D1A6B 0%, #7B5EA7 60%, #9B7EC8 100%)', padding: '22px 20px 20px' }}>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 3 }}>
-          {fmtFecha(isoHoy())}
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,.6)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 3 }}>
+          Semana {semLabel}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 900, color: 'white', marginBottom: 18 }}>
+        <div style={{ fontSize: 24, fontWeight: 900, color: 'white', marginBottom: 18 }}>
           ☀️ Resumen de la Plaza
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
@@ -153,21 +219,19 @@ function TarjetaAvance({ avance }) {
 
   useEffect(() => {
     const fotos = avance.fotos || []
-    if (!fotos.length) return
+    if (!fotos.length) { setUrls([]); return }
     Promise.all(fotos.map(f => firmar('proyectos-avances', f.foto_url))).then(us => setUrls(us.filter(Boolean)))
   }, [avance.id])
 
-  const pct = avance.porcentaje || 0
-  const colorBarra = pct >= 80 ? '#0D9457' : pct >= 50 ? '#7B5EA7' : '#F5A623'
+  const p = avance.porcentaje || 0
+  const colorBarra = p >= 80 ? '#0D9457' : p >= 50 ? '#7B5EA7' : '#F5A623'
 
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.12)', marginBottom: 14, background: 'white' }}>
-      {urls.length > 0 && <GrillaFotos urls={urls} />}
-      {urls.length === 0 && (
+      {urls.length > 0 ? <GrillaFotos urls={urls} /> : (
         <div style={{ padding: '28px 0', textAlign: 'center', background: '#F1EFF8', fontSize: 48 }}>🏗️</div>
       )}
       <div style={{ padding: '14px 18px 16px' }}>
-        {/* Proyecto + badge % */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, color: '#9B7EC8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>
@@ -176,16 +240,13 @@ function TarjetaAvance({ avance }) {
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1E293B' }}>{avance.descripcion_corta || 'Avance de obra'}</div>
           </div>
           <div style={{ flexShrink: 0, background: '#F1EFF8', borderRadius: 12, padding: '6px 12px', textAlign: 'center', minWidth: 54 }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: colorBarra }}>{pct}%</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: colorBarra }}>{p}%</div>
             <div style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 600 }}>AVANCE</div>
           </div>
         </div>
-
-        {/* Barra de progreso */}
         <div style={{ height: 5, background: '#E5E7EB', borderRadius: 3, marginBottom: 10 }}>
-          <div style={{ height: '100%', borderRadius: 3, background: colorBarra, width: `${pct}%`, transition: 'width .6s' }} />
+          <div style={{ height: '100%', borderRadius: 3, background: colorBarra, width: `${p}%`, transition: 'width .6s' }} />
         </div>
-
         {avance.descripcion_larga && (
           <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, marginBottom: 8 }}>{avance.descripcion_larga}</div>
         )}
@@ -202,7 +263,7 @@ function TarjetaEvento({ evento }) {
 
   useEffect(() => {
     const fotos = evento.fotos || []
-    if (!fotos.length) return
+    if (!fotos.length) { setUrls([]); return }
     Promise.all(fotos.map(f => firmar('eventos-fotos', f.foto_url))).then(us => setUrls(us.filter(Boolean)))
   }, [evento.id])
 
@@ -210,18 +271,13 @@ function TarjetaEvento({ evento }) {
 
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 6px 24px rgba(0,0,0,.12)', marginBottom: 14, background: 'white' }}>
-      {/* Video embed */}
       {embed && (
         <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
           <iframe src={embed} title={evento.titulo} frameBorder="0" allowFullScreen
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
         </div>
       )}
-
-      {/* Fotos (solo si no hay video embed) */}
       {!embed && urls.length > 0 && <GrillaFotos urls={urls} />}
-
-      {/* Placeholder si solo hay enlace externo (no YouTube/Vimeo) */}
       {!tieneMedia && evento.video_url && (
         <div style={{ padding: '20px', background: '#1E293B', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -233,11 +289,9 @@ function TarjetaEvento({ evento }) {
           </a>
         </div>
       )}
-
       {!tieneMedia && !evento.video_url && (
         <div style={{ padding: '28px 0', textAlign: 'center', background: '#F1EFF8', fontSize: 48 }}>📅</div>
       )}
-
       <div style={{ padding: '14px 18px 16px' }}>
         <div style={{ fontSize: 10, fontWeight: 800, color: '#9B7EC8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
           {new Date(evento.fecha_evento).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -254,11 +308,12 @@ function TarjetaEvento({ evento }) {
 }
 
 // ── Separador de sección ──────────────────────────────────────────────────────
-function Separador({ emoji, titulo }) {
+function Separador({ emoji, titulo, count }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 14px' }}>
       <div style={{ fontSize: 18 }}>{emoji}</div>
       <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.1em', color: '#7B5EA7' }}>{titulo}</div>
+      {count > 0 && <span style={{ fontSize: 11, fontWeight: 700, background: '#EDE9FF', color: '#7B5EA7', borderRadius: 20, padding: '1px 8px' }}>{count}</span>}
       <div style={{ flex: 1, height: 1, background: '#E0D8EE' }} />
     </div>
   )
@@ -266,49 +321,55 @@ function Separador({ emoji, titulo }) {
 
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function InformePropietario() {
-  const [kpis, setKpis]       = useState(null)
+  const semanas    = generarTablaSemanas()
+  const [semIdx, setSemIdx] = useState(0)   // 0 = semana actual
+  const sem = semanas[semIdx]
+
+  const [kpis,    setKpis]    = useState(null)
   const [avances, setAvances] = useState([])
   const [eventos, setEventos] = useState([])
   const [loading, setLoading] = useState(true)
   const [actualizado, setAct] = useState(null)
 
   const cargar = useCallback(async () => {
+    if (!sem) return
     setLoading(true)
-    const hoy  = isoHoy()
-    const lun  = lunesDe(hoy)
-    const pmes = primerMes(hoy)
+    const { ini, fin } = sem
+    // Primer día del mes al que pertenece el fin de la semana
+    const pmes = fin.slice(0, 7) + '-01'
 
     const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, evRows, evFotos] = await Promise.all([
-      supabase.from('prp_ingresos').select('importe').gte('fecha', lun).lte('fecha', hoy),
-      supabase.from('prp_gastos').select('importe').gte('fecha', lun).lte('fecha', hoy),
-      supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', hoy),
+      supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
+      supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
+      supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', fin),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
-      supabase.from('prp_asistencia').select('estado').eq('fecha', hoy),
+      supabase.from('prp_asistencia').select('estado').eq('fecha', fin),  // último día del corte
       supabase.from('prp_contratos').select('id,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
-      // Avances: los 8 más recientes con nombre de proyecto
+      // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
         .select('id, proyecto_id, porcentaje, descripcion_corta, descripcion_larga, fecha_registro, proyectos(nombre)')
-        .order('fecha_registro', { ascending: false })
-        .limit(8),
-      // Fotos de esos avances
+        .gte('fecha_registro', ini).lte('fecha_registro', fin + 'T23:59:59')
+        .order('fecha_registro', { ascending: false }),
       supabase.from('proyecto_avance_fotos').select('avance_id, foto_url, orden').order('orden'),
-      // Eventos: los 10 más recientes
-      supabase.from('eventos').select('id, titulo, descripcion, fecha_evento, video_url').order('fecha_evento', { ascending: false }).limit(10),
-      // Fotos de eventos
+      // Eventos de la semana
+      supabase.from('eventos')
+        .select('id, titulo, descripcion, fecha_evento, video_url')
+        .gte('fecha_evento', ini).lte('fecha_evento', fin + 'T23:59:59')
+        .order('fecha_evento', { ascending: false }),
       supabase.from('evento_fotos').select('evento_id, foto_url, orden').order('orden'),
     ])
 
     // KPIs
     const cobradoMes   = sum((cob.data || []).filter(c => ['PAGADO', 'CONCILIADO', 'COBRADO'].includes(c.estatus)))
     const pendienteMes = sum((cob.data || []).filter(c => !['PAGADO', 'CONCILIADO', 'COBRADO'].includes(c.estatus)))
+    const activos      = (contr.data || []).length
     const totalEmps    = (emps.data || []).length
     const presentes    = (asist.data || []).filter(a => ['PRESENTE', 'RETARDO'].includes(a.estado)).length
-    const activos      = (contr.data || []).length
     const ingSem       = sum(ingS.data)
     const gasSem       = sum(gasS.data)
     const netoSem      = ingSem - gasSem
     const pctCob       = pct(cobradoMes, cobradoMes + pendienteMes)
-    const hoyD         = new Date(hoy)
+    const hoyD         = new Date()
     const porVencer    = (contr.data || []).filter(c => {
       if (!c.fecha_fin) return false
       const diff = (new Date(c.fecha_fin) - hoyD) / 86400000
@@ -317,57 +378,62 @@ export default function InformePropietario() {
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
 
-    // Avances: combinar con fotos
+    // Avances con fotos
     const fotosMap = {}
     for (const f of (avFotos.data || [])) {
       if (!fotosMap[f.avance_id]) fotosMap[f.avance_id] = []
       fotosMap[f.avance_id].push(f)
     }
-    const avancesCompletos = (avRows.data || []).map(a => ({
+    setAvances((avRows.data || []).map(a => ({
       ...a,
       proyecto_nombre: a.proyectos?.nombre || null,
       fotos: (fotosMap[a.id] || []).sort((x, y) => x.orden - y.orden),
-    }))
-    setAvances(avancesCompletos)
+    })))
 
-    // Eventos: combinar con fotos
+    // Eventos con fotos
     const evFotosMap = {}
     for (const f of (evFotos.data || [])) {
       if (!evFotosMap[f.evento_id]) evFotosMap[f.evento_id] = []
       evFotosMap[f.evento_id].push(f)
     }
-    const eventosCompletos = (evRows.data || []).map(e => ({
+    setEventos((evRows.data || []).map(e => ({
       ...e,
       fotos: (evFotosMap[e.id] || []).sort((x, y) => x.orden - y.orden),
-    }))
-    setEventos(eventosCompletos)
+    })))
 
     setAct(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
     setLoading(false)
-  }, [])
+  }, [sem?.ini])
 
   useEffect(() => { cargar() }, [cargar])
 
   const tiles = kpis ? [
-    { label: 'Cobrado este mes', value: `${fmt$(kpis.cobradoMes)} (${kpis.pctCob}%)`, color: '#60a5fa' },
-    { label: 'Locales activos',  value: `${kpis.activos}`,                              color: '#c084fc' },
-    { label: 'Ingresos semana',  value: fmt$(kpis.ingSem),                               color: '#4ade80' },
-    { label: 'Personal hoy',     value: `${kpis.presentes}/${kpis.totalEmps}`,           color: '#fbbf24' },
+    { label: 'Cobrado este mes',  value: `${fmt$(kpis.cobradoMes)} (${kpis.pctCob}%)`, color: '#60a5fa' },
+    { label: 'Locales activos',   value: `${kpis.activos}`,                             color: '#c084fc' },
+    { label: 'Ingresos semana',   value: fmt$(kpis.ingSem),                              color: '#4ade80' },
+    { label: 'Neto operativo',    value: fmt$(kpis.netoSem),                             color: kpis.netoSem >= 0 ? '#4ade80' : '#f87171' },
   ] : []
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0ECF7' }}>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #3D1A6B, #7B5EA7)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 2px 12px rgba(61,26,107,.3)' }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'white', lineHeight: 1 }}>Informe al Propietario</div>
-          {actualizado && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>Actualizado {actualizado}</div>}
+      <div style={{ background: 'linear-gradient(135deg, #3D1A6B, #7B5EA7)', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 2px 12px rgba(61,26,107,.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1 }}>Informe al Propietario</div>
+            {actualizado && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginTop: 1 }}>Act. {actualizado}</div>}
+          </div>
+          <button onClick={cargar} disabled={loading}
+            style={{ background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 8, padding: '7px 12px', cursor: loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, color: 'white', fontSize: 12, fontWeight: 700 }}>
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            {loading ? 'Cargando…' : 'Actualizar'}
+          </button>
         </div>
-        <button onClick={cargar} disabled={loading}
-          style={{ background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'white', fontSize: 13, fontWeight: 700 }}>
-          <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          {loading ? 'Cargando…' : 'Actualizar'}
-        </button>
+
+        {/* Selector de semana */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <SelectorSemana semanas={semanas} idx={semIdx} onChange={i => { setSemIdx(i); }} />
+        </div>
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
@@ -381,9 +447,7 @@ export default function InformePropietario() {
         ) : (
           <>
             {/* ── SECCIÓN 1: MÉTRICAS ─────────────────────────── */}
-            <Separador emoji="📊" titulo="Métricas del Negocio" />
-
-            {kpis && <TarjetaResumen tiles={tiles} />}
+            {kpis && <TarjetaResumen tiles={tiles} semLabel={sem?.label} />}
 
             {kpis && (
               <>
@@ -414,38 +478,34 @@ export default function InformePropietario() {
                   colores={['#0d3d3d', '#0e6b6b']}
                   path="/contratos"
                 />
-
-                <TarjetaKPI
-                  emoji="👥" label="Personal Presente Hoy"
-                  valor={`${kpis.presentes}/${kpis.totalEmps}`}
-                  sub="empleados en la plaza"
-                  detalle={null}
-                  colores={['#2d1a5e', '#5a4080']}
-                  path="/rh"
-                />
               </>
             )}
 
             {/* ── SECCIÓN 2: AVANCES DE PROYECTOS ─────────────── */}
             {avances.length > 0 && (
               <>
-                <Separador emoji="🏗️" titulo="Avances de Proyectos" />
+                <Separador emoji="🏗️" titulo="Avances de Proyectos" count={avances.length} />
                 {avances.map(a => <TarjetaAvance key={a.id} avance={a} />)}
               </>
+            )}
+            {avances.length === 0 && !loading && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: 13 }}>
+                <Separador emoji="🏗️" titulo="Avances de Proyectos" count={0} />
+                Sin avances registrados esta semana
+              </div>
             )}
 
             {/* ── SECCIÓN 3: EVENTOS ──────────────────────────── */}
             {eventos.length > 0 && (
               <>
-                <Separador emoji="📸" titulo="Eventos Recientes" />
+                <Separador emoji="📸" titulo="Eventos de la Semana" count={eventos.length} />
                 {eventos.map(e => <TarjetaEvento key={e.id} evento={e} />)}
               </>
             )}
-
-            {!kpis && avances.length === 0 && eventos.length === 0 && (
-              <div style={{ textAlign: 'center', padding: 80 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-                <div style={{ fontSize: 15, color: '#7B5EA7' }}>Sin datos para mostrar</div>
+            {eventos.length === 0 && !loading && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: 13 }}>
+                <Separador emoji="📸" titulo="Eventos de la Semana" count={0} />
+                Sin eventos registrados esta semana
               </div>
             )}
           </>
