@@ -223,7 +223,7 @@ function TarjetaAvance({ avance }) {
     Promise.all(fotos.map(f => firmar('proyectos-avances', f.foto_url))).then(us => setUrls(us.filter(Boolean)))
   }, [avance.id])
 
-  const p = avance.porcentaje || 0
+  const p = avance.porcentaje_avance || 0
   const colorBarra = p >= 80 ? '#0D9457' : p >= 50 ? '#7B5EA7' : '#F5A623'
 
   return (
@@ -250,7 +250,9 @@ function TarjetaAvance({ avance }) {
         {avance.descripcion_larga && (
           <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, marginBottom: 8 }}>{avance.descripcion_larga}</div>
         )}
-        <div style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(avance.fecha_registro)}</div>
+        <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+          {avance.fecha ? new Date(avance.fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+        </div>
       </div>
     </div>
   )
@@ -347,10 +349,10 @@ export default function InformePropietario() {
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
       // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
-        .select('id, proyecto_id, porcentaje, descripcion_corta, descripcion_larga, fecha_registro')
-        .gte('fecha_registro', ini).lte('fecha_registro', fin)
-        .order('fecha_registro', { ascending: false }),
-      supabase.from('proyecto_avance_fotos').select('avance_id, foto_url, orden').order('orden'),
+        .select('id, proyecto_id, porcentaje_avance, descripcion_corta, descripcion_larga, fecha')
+        .gte('fecha', ini).lte('fecha', fin)
+        .order('fecha', { ascending: false }),
+      supabase.from('proyecto_avance_fotos').select('avance_id, foto_url').order('created_at'),
       // Nombres de proyectos (join cliente para evitar FK cache issues)
       supabase.from('proyectos').select('id, nombre'),
       // Eventos de la semana
@@ -391,7 +393,7 @@ export default function InformePropietario() {
     setAvances((avRows.data || []).map(a => ({
       ...a,
       proyecto_nombre: proyNombres[a.proyecto_id] || null,
-      fotos: (fotosMap[a.id] || []).sort((x, y) => x.orden - y.orden),
+      fotos: fotosMap[a.id] || [],
     })))
 
     // Eventos con fotos
