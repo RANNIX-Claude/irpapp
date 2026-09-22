@@ -28,6 +28,7 @@ const BUCKETS = {
 const MIMES = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/gif',
   'application/pdf', 'application/xml', 'text/xml',
+  'application/zip', 'application/x-zip-compressed', 'application/octet-stream',
 ]
 
 const MAX_BYTES = 15 * 1024 * 1024   // 15 MB
@@ -110,7 +111,10 @@ exports.handler = async (event) => {
     try { body = JSON.parse(event.body) }
     catch { return responder(400, { error: 'JSON inválido' }) }
 
-    const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id } = body
+    const { bucket, path: rutaCruda, file_base64, mime_type, ingreso_id, campo } = body
+    // campo indica qué columna de ingresos actualizar; por defecto comprobante_url
+    const CAMPOS_VALIDOS = ['comprobante_url', 'factura_url', 'factura_xml_url']
+    const columna = CAMPOS_VALIDOS.includes(campo) ? campo : 'comprobante_url'
     const targetBucket = bucket || 'facturas-cfdi'
 
     if (!BUCKETS[targetBucket])           return responder(400, { error: 'Bucket no permitido' })
@@ -162,7 +166,7 @@ exports.handler = async (event) => {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ comprobante_url: publicUrl }),
+        body: JSON.stringify({ [columna]: publicUrl }),
       })
     }
 

@@ -821,7 +821,7 @@ export default function Cobranza() {
     if (!verCargo) { setAplicsCargo([]); return }
     setLoadingAplics(true)
     supabase.from('aplicaciones_pago')
-      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url, factura, estatus_validacion)')
+      .select('id, importe_aplicado, fecha_aplicacion, nota, ingreso:ingreso_id(id, fecha, forma_pago, referencia_banco, comprobante_url, factura, factura_url, factura_xml_url, estatus_validacion)')
       .eq('cargo_id', verCargo.id)
       .order('fecha_aplicacion', { ascending: true })
       .then(({ data }) => { setAplicsCargo(data || []); setLoadingAplics(false) })
@@ -1265,7 +1265,9 @@ export default function Cobranza() {
                   const ing = ap.ingreso || {}
                   const esTransferencia = !['EFECTIVO','efectivo'].includes(ing.forma_pago || '')
                   const tieneComprobante = !!ing.comprobante_url
-                  const tieneFactura = !!ing.factura
+                  const tieneFacturaPdf = !!ing.factura_url
+                  const tieneFacturaXml = !!ing.factura_xml_url
+                  const tieneNumFactura = !!ing.factura
                   return (
                     <div key={ap.id} style={{ background: '#F0FDF4', border: '1px solid #D1FAE5', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
                       {/* Fila superior: monto + meta del pago */}
@@ -1303,7 +1305,14 @@ export default function Cobranza() {
                               <Paperclip size={11} /> Sin comprobante
                             </span>
                         }
-                        {tieneFactura
+                        {tieneFacturaPdf
+                          ? <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_url}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                                color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                                border: '1px solid #86EFAC', cursor: 'pointer', textDecoration: 'none' }}>
+                              <FileText size={11} /> Factura PDF{tieneNumFactura ? ` · ${ing.factura}` : ''}
+                            </EnlacePrivado>
+                          : tieneNumFactura
                           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
                               color: '#057642', background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
                               border: '1px solid #86EFAC' }}>
@@ -1312,9 +1321,17 @@ export default function Cobranza() {
                           : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
                               color: '#9CA3AF', background: '#F9FAFB', padding: '4px 10px', borderRadius: 20,
                               border: '1px dashed #E5E7EB' }}>
-                              <FileText size={11} /> Sin factura CFDI
+                              <FileText size={11} /> Sin factura
                             </span>
                         }
+                        {tieneFacturaXml && (
+                          <EnlacePrivado bucket="facturas-cfdi" valor={ing.factura_xml_url}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700,
+                              color: '#7C3AED', background: '#F5F3FF', padding: '4px 10px', borderRadius: 20,
+                              border: '1px solid #DDD6FE', cursor: 'pointer', textDecoration: 'none' }}>
+                            <FileText size={11} /> XML / ZIP
+                          </EnlacePrivado>
+                        )}
                       </div>
                     </div>
                   )
