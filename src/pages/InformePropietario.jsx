@@ -338,7 +338,7 @@ export default function InformePropietario() {
     // Primer día del mes al que pertenece el fin de la semana
     const pmes = fin.slice(0, 7) + '-01'
 
-    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, evRows, evFotos] = await Promise.all([
+    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', fin),
@@ -347,10 +347,12 @@ export default function InformePropietario() {
       supabase.from('prp_contratos').select('id,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
       // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
-        .select('id, proyecto_id, porcentaje, descripcion_corta, descripcion_larga, fecha_registro, proyectos(nombre)')
-        .gte('fecha_registro', ini).lte('fecha_registro', fin + 'T23:59:59')
+        .select('id, proyecto_id, porcentaje, descripcion_corta, descripcion_larga, fecha_registro')
+        .gte('fecha_registro', ini).lte('fecha_registro', fin)
         .order('fecha_registro', { ascending: false }),
       supabase.from('proyecto_avance_fotos').select('avance_id, foto_url, orden').order('orden'),
+      // Nombres de proyectos (join cliente para evitar FK cache issues)
+      supabase.from('proyectos').select('id, nombre'),
       // Eventos de la semana
       supabase.from('eventos')
         .select('id, titulo, descripcion, fecha_evento, video_url')
@@ -378,15 +380,17 @@ export default function InformePropietario() {
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
 
-    // Avances con fotos
+    // Avances con fotos (join cliente)
     const fotosMap = {}
     for (const f of (avFotos.data || [])) {
       if (!fotosMap[f.avance_id]) fotosMap[f.avance_id] = []
       fotosMap[f.avance_id].push(f)
     }
+    const proyNombres = {}
+    for (const p of (proyRows.data || [])) proyNombres[p.id] = p.nombre
     setAvances((avRows.data || []).map(a => ({
       ...a,
-      proyecto_nombre: a.proyectos?.nombre || null,
+      proyecto_nombre: proyNombres[a.proyecto_id] || null,
       fotos: (fotosMap[a.id] || []).sort((x, y) => x.orden - y.orden),
     })))
 
