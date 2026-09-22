@@ -416,17 +416,23 @@ export default function InformePropietario() {
     if (!sem) return
     setLoading(true)
     const { ini, fin, iniEstac } = sem
-    // Primer día del mes al que pertenece el fin de la semana
-    const pmes = fin.slice(0, 7) + '-01'
+    // Mes y año del viernes de cierre (para filtrar prp_cobros por anio/mes)
+    const dFin = new Date(fin + 'T12:00:00')
+    const mesNum  = dFin.getMonth() + 1
+    const anioNum = dFin.getFullYear()
 
     const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos,
            ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones] = await Promise.all([
+      // prp_ingresos y prp_gastos: columna fecha existe (tabla base ingresos/gastos_operativos)
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
-      supabase.from('prp_cobros').select('importe,estatus').gte('fecha', pmes).lte('fecha', fin),
+      // prp_cobros NO tiene columna 'fecha' — usar anio + mes que sí expone la vista
+      supabase.from('prp_cobros').select('importe,estatus').eq('anio', anioNum).eq('mes', mesNum),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('estado').eq('fecha', fin),
-      supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin').eq('estatus', 'ACTIVO'),
+      // prp_contratos: cargar activos/vigentes y contar en JS (doble filtro para cubrir ambos valores)
+      supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin')
+        .in('estatus', ['ACTIVO', 'VIGENTE']),
       // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
         .select('id, proyecto_id, porcentaje_avance, descripcion_corta, descripcion_larga, fecha')
