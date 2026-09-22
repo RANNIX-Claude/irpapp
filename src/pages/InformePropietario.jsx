@@ -359,42 +359,63 @@ function Separador({ emoji, titulo, count }) {
   )
 }
 
-// ── Tarjeta: operativo semanal (datos del Resumen) ───────────────────────────
+// ── Tarjeta: operativo semanal — ingresos y egresos ──────────────────────────
 function TarjetaOperativo({ op }) {
-  const { totalTickets, vendingVenta, totalGastosOp, rentasEf, aguaEf, totalEfectivo, pensiones } = op
-  const lineas = [
-    { emoji: '🅿️', label: 'Tickets Estacionamiento', valor: fmt$(totalTickets),    color: '#60a5fa' },
+  const { totalTickets, vendingVenta, gastosRevol, rentasEf, aguaEf, pensiones,
+          nomina, mantenimiento, totalIngresos, totalEgresos } = op
+
+  const ingresos = [
+    { emoji: '🅿️', label: 'Estacionamiento', valor: totalTickets },
     { emoji: '🏠', label: pensiones.total > 0
-        ? `Pensiones ${pensiones.cobradas}/${pensiones.total} cobradas`
-        : 'Pensiones de Estacionamiento',
-      valor: fmt$(pensiones.montoCobrado), color: '#a78bfa' },
-    { emoji: '🎰', label: 'Vending Machine',          valor: fmt$(vendingVenta),    color: '#34d399' },
-    { emoji: '🏪', label: 'Rentas en Efectivo',        valor: fmt$(rentasEf),        color: '#fbbf24' },
-  ].filter(l => parseFloat(l.valor.replace(/[$,]/g, '')) > 0 || l.label.includes('Pensiones'))
+        ? `Pensiones (${pensiones.cobradas}/${pensiones.total})`
+        : 'Pensiones', valor: pensiones.montoCobrado },
+    { emoji: '🏪', label: 'Rentas efectivo',  valor: rentasEf },
+    { emoji: '🚰', label: 'Agua efectivo',     valor: aguaEf },
+    { emoji: '🎰', label: 'Vending',           valor: vendingVenta },
+  ].filter(l => l.valor > 0 || l.label.includes('Pensiones'))
+
+  const egresos = [
+    { emoji: '👷', label: 'Nómina',            valor: nomina },
+    { emoji: '🔧', label: 'Mantenimiento OT',  valor: mantenimiento },
+    { emoji: '💼', label: 'Fondo revolvente',  valor: gastosRevol },
+  ].filter(l => l.valor > 0)
+
+  const Fila = ({ emoji, label, valor, colorValor }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F3F4F6' }}>
+      <div style={{ fontSize: 13, color: '#374151' }}>{emoji} {label}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: colorValor || '#111827' }}>{fmt$(valor)}</div>
+    </div>
+  )
 
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.14)', marginBottom: 14 }}>
-      {/* Cabecera: total efectivo */}
-      <div style={{ background: 'linear-gradient(135deg, #064E3B, #059669)', padding: '20px 20px 16px' }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-          💵 &nbsp; Efectivo a Entregar esta Semana
+      {/* INGRESOS */}
+      <div style={{ background: 'linear-gradient(135deg, #064E3B, #059669)', padding: '18px 20px 14px' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+          💰 &nbsp; Ingresos de la Semana
         </div>
-        <div style={{ fontSize: 40, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalEfectivo)}</div>
-        {totalGastosOp > 0 && (
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', marginTop: 6 }}>
-            Fondo revolvente: {fmt$(totalGastosOp)} en gastos
-          </div>
-        )}
+        <div style={{ fontSize: 38, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalIngresos)}</div>
       </div>
-      {/* Desglose */}
-      <div style={{ background: 'white', padding: '14px 18px 16px' }}>
-        {lineas.map((l, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < lineas.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
-            <div style={{ fontSize: 13, color: '#374151' }}>{l.emoji} {l.label}</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: l.color }}>{l.valor}</div>
-          </div>
-        ))}
+      <div style={{ background: 'white', padding: '10px 18px 4px' }}>
+        {ingresos.map((l, i) => <Fila key={i} {...l} colorValor="#059669" />)}
       </div>
+
+      {/* EGRESOS */}
+      <div style={{ background: 'linear-gradient(135deg, #7F1D1D, #DC2626)', padding: '14px 20px 10px' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+          📤 &nbsp; Egresos de la Semana
+        </div>
+        <div style={{ fontSize: 32, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalEgresos)}</div>
+      </div>
+      {egresos.length > 0 ? (
+        <div style={{ background: 'white', padding: '10px 18px 14px' }}>
+          {egresos.map((l, i) => <Fila key={i} {...l} colorValor="#DC2626" />)}
+        </div>
+      ) : (
+        <div style={{ background: 'white', padding: '12px 18px 14px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
+          Sin egresos registrados esta semana
+        </div>
+      )}
     </div>
   )
 }
@@ -422,43 +443,38 @@ export default function InformePropietario() {
     const anioNum = dFin.getFullYear()
 
     const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos,
-           ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones] = await Promise.all([
-      // prp_ingresos y prp_gastos: columna fecha existe (tabla base ingresos/gastos_operativos)
+           ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones, nominaRows, mantRows] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
-      // prp_cobros NO tiene columna 'fecha' — usar anio + mes que sí expone la vista
+      // prp_cobros NO tiene columna 'fecha' — usar anio + mes
       supabase.from('prp_cobros').select('importe,estatus').eq('anio', anioNum).eq('mes', mesNum),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('estado').eq('fecha', fin),
-      // prp_contratos: cargar activos/vigentes y contar en JS (doble filtro para cubrir ambos valores)
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin')
         .in('estatus', ['ACTIVO', 'VIGENTE']),
-      // Avances de proyectos registrados en la semana
       supabase.from('proyecto_avances')
         .select('id, proyecto_id, porcentaje_avance, descripcion_corta, descripcion_larga, fecha')
         .gte('fecha', ini).lte('fecha', fin)
         .order('fecha', { ascending: false }),
       supabase.from('proyecto_avance_fotos').select('avance_id, foto_url').order('created_at'),
-      // Nombres de proyectos (join cliente para evitar FK cache issues)
       supabase.from('proyectos').select('id, nombre'),
-      // Eventos de la semana
       supabase.from('eventos')
         .select('id, titulo, descripcion, fecha_evento, video_url')
         .gte('fecha_evento', ini).lte('fecha_evento', fin + 'T23:59:59')
         .order('fecha_evento', { ascending: false }),
       supabase.from('evento_fotos').select('evento_id, foto_url, orden').order('orden'),
-      // ── Datos del Resumen Semanal ──────────────────────────────────────────
-      // Tickets de estacionamiento: fetch directo igual que ResumenSemanal
-      // Ciclo parking: Vie anterior → Jue (un día menos que el ciclo IRP)
+      // ── Operativo ─────────────────────────────────────────────────────────
       cargarTicketsParking(iniEstac, addDays(fin, -1)),
-      // Vending: el registro de la semana que inicia en este Sábado
       supabase.from('vending_semanas').select('venta_pesos').eq('fecha_inicio', ini).limit(1),
-      // Gastos del fondo revolvente — columna cantidad (igual que ResumenSemanal línea 810)
       supabase.from('gastos_operativos').select('cantidad').gte('fecha', ini).lte('fecha', fin),
-      // Ingresos en efectivo (rentas, agua, etc.)
       supabase.from('ingresos').select('importe, tipo').eq('origen', 'EFECTIVO').gte('fecha', ini).lte('fecha', fin),
-      // Pensiones del sistema de estacionamiento externo
       cargarPensionesParking(ini, fin),
+      // Nómina: renglones del período cuya fecha_pago cae en la semana
+      supabase.from('prp_prenomina').select('neto_pagar').gte('fecha_pago', ini).lte('fecha_pago', fin),
+      // Mantenimiento: órdenes cerradas en la semana con costo real capturado
+      supabase.from('ordenes_trabajo').select('costo_real')
+        .gte('fecha_cierre_real', ini).lte('fecha_cierre_real', fin)
+        .not('costo_real', 'is', null),
     ])
 
     // KPIs
@@ -480,14 +496,18 @@ export default function InformePropietario() {
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
 
-    // ── Operativo semanal (misma lógica que ResumenSemanal) ────────────────────
-    const totalTickets   = ticketsEstac           // ya es el total numérico de cargarTicketsParking
+    // ── Operativo semanal ─────────────────────────────────────────────────────
+    const totalTickets   = ticketsEstac
     const vendingVenta   = parseFloat((vendingRows.data || [])[0]?.venta_pesos || 0)
-    const totalGastosOp  = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
+    const gastosRevol    = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
     const rentasEf       = (ingresosEf.data || []).filter(r => r.tipo === 'RENTA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
     const aguaEf         = (ingresosEf.data || []).filter(r => r.tipo === 'AGUA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
-    const totalEfectivo  = totalTickets + pensiones.montoCobrado + vendingVenta + rentasEf + aguaEf
-    setOperativo({ totalTickets, vendingVenta, totalGastosOp, rentasEf, aguaEf, totalEfectivo, pensiones })
+    const nomina         = (nominaRows.data || []).reduce((s, r) => s + (parseFloat(r.neto_pagar) || 0), 0)
+    const mantenimiento  = (mantRows.data || []).reduce((s, r) => s + (parseFloat(r.costo_real) || 0), 0)
+    const totalIngresos  = totalTickets + pensiones.montoCobrado + vendingVenta + rentasEf + aguaEf
+    const totalEgresos   = nomina + mantenimiento + gastosRevol
+    setOperativo({ totalTickets, vendingVenta, gastosRevol, rentasEf, aguaEf, pensiones,
+                   nomina, mantenimiento, totalIngresos, totalEgresos })
 
     // Avances con fotos (join cliente)
     const fotosMap = {}
