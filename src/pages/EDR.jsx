@@ -1208,6 +1208,11 @@ export default function EDR() {
             const eSanSFOtros   = parseFloat(fForm.real_penaliz_sf_otros) || 0
             const eSancion      = eSanCFMes + eSanCFOtros + eSanSFMes + eSanSFOtros
             const ePenaliz      = eSancion  // alias para compat
+            // Proyectado Total Rentas Obtenidas = suma de los 4 campos proyectados de las filas
+            const eProyRentasCF  = parseFloat(fForm.proy_rentas_contratos) || proyRentas
+            const eProyRentasSF  = parseFloat(fForm.proy_rsf)       || 0
+            const eProySanCF     = parseFloat(fForm.proy_penaliz)    || 0
+            const eProyTotalRent = eProyRentasCF + eProyRentasSF + eProySanCF
             // Total Rentas Obtenidas (mes y otros)
             const eRmTotalRentas = eRentaCFMes   + eRentaSFMes   + eSanCFMes   + eSanSFMes
             const eOpTotalRentas = eRentaCFOtros + eRentaSFOtros + eSanCFOtros + eSanSFOtros
@@ -1291,7 +1296,7 @@ export default function EDR() {
                   total={eSanSFMes + eSanSFOtros} mes={eSanSFMes} otros={eSanSFOtros}
                   detalle="sanciones_sf" onDetalle={setDetalle} />
 
-                <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentasObt} onDetalle={setDetalle}
+                <SubTot label="Total Rentas Obtenidas" proy={eProyTotalRent} real={eTotalRentas} composicion={compTotalRentasObt} onDetalle={setDetalle}
                   mes={eRmTotalRentas} otros={eOpTotalRentas} />
                 {/* IVA: calculado del sistema, sin cajas de captura */}
                 <CalcRowE label="IVA retenido"
