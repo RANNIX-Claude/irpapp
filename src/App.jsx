@@ -15,6 +15,7 @@ import Cobranza from './pages/Cobranza.jsx'
 import Arrendatarios from './pages/Arrendatarios.jsx'
 import Mantenimiento from './pages/Mantenimiento.jsx'
 import Proyectos from './pages/Proyectos.jsx'
+import Eventos from './pages/Eventos.jsx'
 import Proveedores from './pages/Proveedores.jsx'
 import Productos from './pages/Productos.jsx'
 import RH from './pages/RH.jsx'
@@ -39,6 +40,7 @@ import MapaLocales from './pages/MapaLocales.jsx'
 import Ingresos from './pages/Ingresos.jsx'
 import FotoDelDia from './pages/FotoDelDia.jsx'
 import FeedEjecutivo from './pages/FeedEjecutivo.jsx'
+import InformePropietario from './pages/InformePropietario.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import './styles/theme.css'
@@ -188,6 +190,7 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/feed" element={<FeedEjecutivo />} />
+          <Route path="/informe" element={<InformePropietario />} />
           <Route path="/foto-del-dia" element={<FotoDelDia />} />
           <Route path="/inmuebles" element={<Inmuebles />} />
           <Route path="/contratos" element={<Contratos />} />
@@ -197,6 +200,7 @@ function AppLayout() {
           <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<Mantenimiento />} />
           <Route path="/proyectos" element={<Proyectos />} />
+          <Route path="/eventos"   element={<Eventos />} />
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/productos" element={<Productos />} />
           <Route path="/rh" element={<RH />} />
