@@ -258,25 +258,34 @@ function InfoRowE({ label, proy = 0, indent = 0 }) {
     </div>
   )
 }
-/* Fila de lectura automática (sin inputs) — muestra proy, total, mes, otros calculados */
-function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0, detalle, onDetalle }) {
-  const ratio = pct(total, proy)
+/* Fila de lectura automática — muestra proy (opcionalmente editable), total/mes/otros de solo lectura */
+function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0,
+                    detalle, onDetalle, negLabel = false,
+                    fieldP, values, setField }) {
+  const displayProy = fieldP && values ? (parseFloat(values[fieldP]) || 0) : proy
+  const ratio = pct(total, displayProy || proy)
   const clicable = !!detalle && !!onDetalle
   return (
     <div style={{ display:'grid', gridTemplateColumns: COLS_E, gap:0,
-      padding:'4px 12px', borderTop:'1px solid #F3F4F6', background:'white',
-      cursor: clicable ? 'pointer' : 'default' }}
-      onClick={clicable ? () => onDetalle({ concepto: detalle }) : undefined}>
-      <div style={{ fontSize:'12px', color:'#374151', paddingLeft: indent * 14 + 'px',
-        display:'flex', alignItems:'center', gap:6 }}>
+      padding:'4px 12px', borderTop:'1px solid #F3F4F6', background:'white', alignItems:'center' }}>
+      <div style={{ fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+        paddingLeft: indent * 14 + 'px', display:'flex', alignItems:'center', gap:6,
+        cursor: clicable ? 'pointer' : 'default' }}
+        onClick={clicable ? () => onDetalle({ concepto: detalle }) : undefined}>
         {label}
         {clicable && <span style={{ fontSize:9, color:'#0A66C2', border:'1px solid #BFDBFE',
           background:'#EFF6FF', borderRadius:4, padding:'0 4px', fontWeight:700 }}>DETALLE</span>}
       </div>
-      <div style={{ textAlign:'right', fontSize:'12px', color:'#6B7280', padding:'0 6px' }}>
-        {proy !== 0 ? fmt(proy) : <span style={{color:'#D1D5DB'}}>—</span>}
+      <div style={{ padding:'2px 4px' }}>
+        {fieldP && setField
+          ? <CellInput field={fieldP} values={values} onChange={setField} />
+          : <div style={{ textAlign:'right', fontSize:'12px', color:'#6B7280', padding:'4px 6px' }}>
+              {displayProy !== 0 ? fmt(displayProy) : <span style={{color:'#D1D5DB'}}>—</span>}
+            </div>
+        }
       </div>
-      <div style={{ textAlign:'right', fontSize:'12px', color:'#374151', padding:'0 6px', fontWeight:500 }}>
+      <div style={{ textAlign:'right', fontSize:'12px', color: negLabel ? '#B91C1C' : '#374151',
+        padding:'0 6px', fontWeight:500 }}>
         {total !== 0 ? fmt(total) : <span style={{color:'#D1D5DB'}}>—</span>}
       </div>
       <div style={{ textAlign:'right', fontSize:'11px', color:'#4B5563', padding:'0 6px' }}>
@@ -285,7 +294,7 @@ function CalcRowE({ label, proy = 0, total = 0, mes = 0, otros = 0, indent = 0, 
       <div style={{ textAlign:'right', fontSize:'11px', color:'#4B5563', padding:'0 6px' }}>
         {otros !== 0 ? fmt(otros) : <span style={{color:'#D1D5DB'}}>—</span>}
       </div>
-      <div style={{ textAlign:'center' }}>{proy !== 0 && <PctBadge value={ratio} />}</div>
+      <div style={{ textAlign:'center' }}>{(displayProy || proy) !== 0 && <PctBadge value={ratio} />}</div>
     </div>
   )
 }
@@ -862,6 +871,20 @@ export default function EDR() {
     nota: 'Las rentas sin factura no se leen de ninguna tabla: son los cobros de renta del mes a los que no se les capturó número de factura.',
   }
 
+  // Composición específica para En Elaboración: incluye las 4 fuentes de ingreso por renta
+  const compTotalRentasObt = {
+    titulo: 'Total Rentas Obtenidas',
+    formula: 'Rentas con Factura + Rentas sin Factura + Sanciones con Factura + Sanciones sin Factura',
+    partes: [
+      parte('Rentas con Factura (transferencia/depósito)', rRentaFact, 'rentas_factura'),
+      parte('Rentas sin Factura (efectivo)', rRentaSin, 'rentas_sin_factura'),
+      parte('Sanciones con Factura + sin Factura', rPenaliz, 'sanciones'),
+    ],
+    total: rTotalRentas + rPenaliz,
+    etiquetaTotal: 'Total Rentas Obtenidas',
+    nota: 'Total = Rentas con factura + Rentas sin factura + Sanciones con factura + Sanciones sin factura. Las sanciones se suman al total de rentas obtenidas antes de deducir IVA.',
+  }
+
   const compIngNeto = {
     titulo: 'Ingresos Netos Renta',
     formula: 'Total Rentas + Penalizaciones − IVA retenido',
@@ -1251,49 +1274,47 @@ export default function EDR() {
                   fieldP="proy_locales_vacantes"
                   form={fForm} setField={sf} indent={2} />
 
-                {/* Rentas y sanciones: lectura automática desde aplicaciones_pago */}
+                {/* Rentas y sanciones: lectura automática — solo el Proyectado es editable */}
                 <CalcRowE label="Rentas con Factura"
-                  proy={parseFloat(fForm.proy_rentas_contratos) || proyRentas}
+                  fieldP="proy_rentas_contratos" values={fForm} setField={sf}
                   total={eRentaFact} mes={eRentaCFMes} otros={eRentaCFOtros}
                   detalle="rentas_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Rentas sin Factura"
-                  proy={parseFloat(fForm.proy_rsf) || 0}
+                  fieldP="proy_rsf" values={fForm} setField={sf}
                   total={eRentaSin} mes={eRentaSFMes} otros={eRentaSFOtros}
                   detalle="rentas_sf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones con Factura"
-                  proy={parseFloat(fForm.proy_penaliz) || 0}
+                  fieldP="proy_penaliz" values={fForm} setField={sf}
                   total={eSanCFMes + eSanCFOtros} mes={eSanCFMes} otros={eSanCFOtros}
                   detalle="sanciones_cf" onDetalle={setDetalle} />
                 <CalcRowE label="Sanciones sin Factura"
                   total={eSanSFMes + eSanSFOtros} mes={eSanSFMes} otros={eSanSFOtros}
                   detalle="sanciones_sf" onDetalle={setDetalle} />
 
-                <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentas} onDetalle={setDetalle}
+                <SubTot label="Total Rentas Obtenidas" proy={pRentasBrutas} real={eTotalRentas} composicion={compTotalRentasObt} onDetalle={setDetalle}
                   mes={eRmTotalRentas} otros={eOpTotalRentas} />
-                <EditRow label="IVA retenido"
-                  fieldP="proy_iva"
-                  fieldMes="real_iva_mes" fieldOtros="real_iva_otros"
-                  form={fForm} setField={sf} indent={1} negLabel />
+                {/* IVA: calculado del sistema, sin cajas de captura */}
+                <CalcRowE label="IVA retenido"
+                  proy={parseFloat(fForm.proy_iva)||0}
+                  total={eIva} mes={eIvaMes !== 0 ? -eIvaMes : 0} otros={eIvaOtros !== 0 ? -eIvaOtros : 0}
+                  indent={1} negLabel />
 
                 <SubTot label="Ingresos Netos Renta" proy={pIngNeto} real={eIngNeto} highlight composicion={compIngNeto} onDetalle={setDetalle}
                   mes={eRmIngNeto} otros={eOpIngNeto} />
 
-                <EditRow label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
-                  fieldP="proy_estacionamiento"
-                  fieldMes="real_estac_mes" fieldOtros="real_estac_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Pensiones" detalle="pensiones" onDetalle={setDetalle}
-                  fieldP="proy_pensiones"
-                  fieldMes="real_pension_mes" fieldOtros="real_pension_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Maquinita/Vending" detalle="vending" onDetalle={setDetalle}
-                  fieldP="proy_maquinita"
-                  fieldMes="real_maquinita_mes" fieldOtros="real_maquinita_otros"
-                  form={fForm} setField={sf} />
-                <EditRow label="Agua (cobro)" detalle="agua_ingreso" onDetalle={setDetalle}
-                  fieldP="proy_agua_ingresos"
-                  fieldMes="real_agua_ing_mes" fieldOtros="real_agua_ing_otros"
-                  form={fForm} setField={sf} />
+                {/* Estac/Pensiones/Vending/Agua: real viene del sistema — solo proyectado editable */}
+                <CalcRowE label="Estacionamiento" detalle="estacionamiento" onDetalle={setDetalle}
+                  fieldP="proy_estacionamiento" values={fForm} setField={sf}
+                  total={eEstac} mes={eRmEstac} otros={eOpEstac} />
+                <CalcRowE label="Pensiones" detalle="pensiones" onDetalle={setDetalle}
+                  fieldP="proy_pensiones" values={fForm} setField={sf}
+                  total={ePension} mes={eRmPension} otros={eOpPension} />
+                <CalcRowE label="Maquinita/Vending" detalle="vending" onDetalle={setDetalle}
+                  fieldP="proy_maquinita" values={fForm} setField={sf}
+                  total={eMaquinita} mes={eRmMaq} otros={eOpMaq} />
+                <CalcRowE label="Agua (cobro)" detalle="agua_ingreso" onDetalle={setDetalle}
+                  fieldP="proy_agua_ingresos" values={fForm} setField={sf}
+                  total={eAguaIng} mes={eRmAgua} otros={eOpAgua} />
 
                 <SubTot label="Total Ingresos" proy={pTotalIng} real={eTotalIng} highlight composicion={compTotalIng} onDetalle={setDetalle}
                   mes={eRmIngNeto + eRmEstac + eRmPension + eRmMaq + eRmAgua}
