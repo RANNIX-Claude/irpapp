@@ -32,8 +32,9 @@ const MIMES = [
 ]
 
 const MAX_BYTES = 15 * 1024 * 1024   // 15 MB
-// ingresos.id y cargos_programados.id son bigint — validar como entero positivo.
+// ingresos.id es bigint; cargos_programados.id es UUID
 const ID_BIGINT = /^\d+$/
+const ID_UUID   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Solo el propio sitio y el entorno de desarrollo. Antes era '*', que dejaba a
 // cualquier página del mundo llamar a la función desde el navegador.
@@ -173,7 +174,8 @@ exports.handler = async (event) => {
         body: JSON.stringify({ [columna]: publicUrl }),
       })
     } else if (cargo_id) {
-      if (!ID_BIGINT.test(String(cargo_id))) return responder(400, { error: 'cargo_id inválido' })
+      const cid = String(cargo_id)
+      if (!ID_BIGINT.test(cid) && !ID_UUID.test(cid)) return responder(400, { error: 'cargo_id inválido' })
       await fetch(`${SUPABASE_URL}/rest/v1/cargos_programados?id=eq.${cargo_id}`, {
         method: 'PATCH',
         headers: {
