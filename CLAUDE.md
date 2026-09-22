@@ -7,8 +7,6 @@
 
 **IRP** (Inmobiliaria / Renta de Plazas) es una plataforma SaaS multi-tenant para la administración integral de inmuebles comerciales en México (plazas comerciales, edificios de oficinas, consultorios médicos, bodegas industriales).
 
-**Nota**: Petra es un proyecto separado que surgió como fork de IRP — no es lo mismo que este proyecto.
-
 Desarrollado por **Roberto Aguilar Cota / RANNIX Consulting**.
 
 ---
@@ -61,10 +59,10 @@ DEv/
 
 ### GRUPO A — `.env.local` (VITE_ prefix, seguras para frontend)
 ```
-VITE_SUPABASE_URL=<url_supabase_petra>
+VITE_SUPABASE_URL=<url_supabase_irp>
 VITE_SUPABASE_ANON_KEY=<anon_key>
-VITE_APP_TITLE=Petra
-VITE_APP_URL=<url_netlify_petra>
+VITE_APP_TITLE=IRP — Inmueble Resource Planning
+VITE_APP_URL=<url_netlify_irp>
 VITE_PARKING_URL=<url del proyecto Supabase del sistema de tickets>
 VITE_PARKING_ANON_KEY=<anon_key del sistema de tickets>
 ```
@@ -96,7 +94,7 @@ GOOGLE_CLIENT_SECRET=<google_oauth_client_secret>
 
 ## Base de Datos — Supabase
 
-**Proyecto principal**: (pendiente — crear proyecto Supabase para Petra)
+**Proyecto principal**: Supabase IRP (producción)
 
 **Proyecto secundario**: sistema de tickets de estacionamiento — cliente `supabaseParking` en `src/lib/supabase.js` (lectura, sin sesión persistida). Alimenta EDR con Estacionamiento / Pensiones / Vending.
 
@@ -221,7 +219,7 @@ Tras cambiar políticas de Storage se recarga el esquema con `notify pgrst` (ver
 
 ---
 
-## Módulos Petra — 30 rutas en producción
+## Módulos IRP — rutas en producción
 
 Registradas en `src/App.jsx`.
 
@@ -341,7 +339,7 @@ V_YYMMDD_HH_MM
 Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 
 - **Generado en**: `vite.config.js` → función `getBuildId()` → variable global `__APP_VERSION__`
-- **Mostrado en**: Header superior de la app (parte superior de la pantalla, badge dorado junto al logo Petra)
+- **Mostrado en**: Header superior de la app (parte superior de la pantalla, badge dorado junto al logo IRP)
 - **Regla**: cada despliegue produce una versión única por timestamp del build — no se edita manualmente
 - **Historial**: el timestamp del commit git sirve como referencia complementaria
 
@@ -408,7 +406,7 @@ producción a propósito) están configuradas directamente en Netlify.
    captura. Aplica `supabase/qa-bootstrap/storage-buckets-qa.sql` (crea los 12 buckets que usa el código, con
    `public`/privado correcto y sus políticas de `authenticated`) contra el ambiente que se le indique.
    Hallazgo del 2026-09-18: QA llevaba días con solo 2 de los 13 buckets de producción — nadie lo notó hasta
-   que un upload real falló con `Bucket not found`. Sirve de plantilla para un proyecto nuevo (ej. Petra):
+   que un upload real falló con `Bucket not found`. Sirve de plantilla para un proyecto nuevo:
    copiar el `.sql`, apuntar el runner a esa base, correr.
 7. `node scripts/verificar-post-migracion.mjs qa` — **paso de aceptación, no opcional**: corre las 76
    pruebas de RLS/permisos/storage contra el ambiente recién armado. El ambiente no se considera listo hasta
