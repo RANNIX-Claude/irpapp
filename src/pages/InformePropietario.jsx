@@ -446,8 +446,8 @@ export default function InformePropietario() {
            ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones, nominaRows, mantRows] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
-      // prp_cobros NO tiene columna 'fecha' — usar anio + mes
-      supabase.from('prp_cobros').select('importe,estatus').eq('anio', anioNum).eq('mes', mesNum),
+      // prp_cobros: columnas reales son monto_total y monto_pagado (no 'importe')
+      supabase.from('prp_cobros').select('monto_total,monto_pagado,estatus').eq('anio', anioNum).eq('mes', mesNum),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('estado').eq('fecha', fin),
       supabase.from('prp_contratos').select('id,estatus,renta_mensual,fecha_fin')
@@ -477,9 +477,12 @@ export default function InformePropietario() {
         .not('costo_real', 'is', null),
     ])
 
-    // KPIs
-    const cobradoMes   = sum((cob.data || []).filter(c => ['PAGADO', 'CONCILIADO', 'COBRADO'].includes(c.estatus)))
-    const pendienteMes = sum((cob.data || []).filter(c => !['PAGADO', 'CONCILIADO', 'COBRADO'].includes(c.estatus)))
+    // KPIs — prp_cobros usa monto_pagado (cobrado) y monto_total (cargo original)
+    const PAGADOS      = ['PAGADO', 'CONCILIADO', 'COBRADO']
+    const cobPag       = (cob.data || []).filter(c => PAGADOS.includes(c.estatus))
+    const cobPend      = (cob.data || []).filter(c => !PAGADOS.includes(c.estatus))
+    const cobradoMes   = cobPag.reduce((s, c) => s + (parseFloat(c.monto_pagado) || 0), 0)
+    const pendienteMes = cobPend.reduce((s, c) => s + (parseFloat(c.monto_total)  || 0), 0)
     const activos      = (contr.data || []).length
     const totalEmps    = (emps.data || []).length
     const presentes    = (asist.data || []).filter(a => ['PRESENTE', 'RETARDO'].includes(a.estado)).length
