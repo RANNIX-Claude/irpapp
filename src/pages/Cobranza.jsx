@@ -707,6 +707,37 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
           {c.locales_display || c.locales_referencia || '—'}
         </span>
       </td>
+      {/* F/R — número de factura/recibo + indicador de archivo adjunto */}
+      <td style={{ padding: '8px 12px' }}>
+        {c.numero_factura
+          ? <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0A66C2', background: '#EFF6FF', padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap' }}>
+                {c.numero_factura}
+              </span>
+              {c.tiene_factura && (
+                <FileText size={11} title="Archivo de factura adjunto" style={{ color: '#057642', flexShrink: 0 }} />
+              )}
+            </div>
+          : c.tiene_factura
+          ? <FileText size={13} title="Archivo de factura adjunto (sin número)" style={{ color: '#0A66C2' }} />
+          : <span style={{ fontSize: '11px', color: '#D1D5DB' }}>—</span>
+        }
+      </td>
+      {/* FP — Forma de Pago: T=Transferencia, E=Efectivo */}
+      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+        {(c.tiene_pago_transferencia || c.tiene_pago_efectivo)
+          ? <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px',
+              color: (c.tiene_pago_transferencia && c.tiene_pago_efectivo) ? '#7C3AED'
+                   : c.tiene_pago_transferencia ? '#0A66C2' : '#057642',
+              background: (c.tiene_pago_transferencia && c.tiene_pago_efectivo) ? '#F5F3FF'
+                         : c.tiene_pago_transferencia ? '#EFF6FF' : '#DCFCE7',
+              padding: '2px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+              {c.tiene_pago_transferencia && c.tiene_pago_efectivo ? 'T+E'
+                : c.tiene_pago_transferencia ? 'T' : 'E'}
+            </span>
+          : <span style={{ fontSize: '11px', color: '#D1D5DB' }}>—</span>
+        }
+      </td>
       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
         <div style={{ fontWeight: 700 }}>{fmt(c.importe)}</div>
       </td>
@@ -935,6 +966,8 @@ export default function Cobranza() {
     { label: 'Descripción',  field: 'descripcion',        align: 'left',  num: false },
     { label: 'Arrendatario', field: 'arrendatario_nombre',align: 'left',  num: false },
     { label: 'Local',        field: 'locales_display',    align: 'left',  num: false },
+    { label: 'F/R',          field: 'numero_factura',     align: 'left',  num: false },
+    { label: 'FP',           field: null,                 align: 'center',num: false },
     { label: 'Cargo',        field: 'importe',            align: 'right', num: true  },
     { label: 'Aplicado',     field: 'total_aplicado',     align: 'right', num: true  },
     { label: 'Vencimiento',  field: 'fecha_vencimiento',  align: 'left',  num: false },
@@ -979,24 +1012,46 @@ export default function Cobranza() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Tabs + filtros de estado — bloque principal de navegación */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        {/* Tabs Cartera/Ingresos */}
+        <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', flexShrink: 0 }}>
+          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: tab === t.key ? 'white' : 'transparent',
+              color: tab === t.key ? 'var(--color-primary)' : '#6B7280',
+              boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            }}>{t.label}</button>
+          ))}
+        </div>
+        {/* Filtros de estado (solo en tab Cartera) */}
+        {tab === 'cartera' && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {[
+              { key: 'Todos',    label: 'Todos' },
+              { key: 'PENDIENTE',label: 'Pendientes' },
+              { key: 'VENCIDA',  label: 'Vencidas' },
+              { key: 'PARCIAL',  label: 'Parciales' },
+              { key: 'PAGADO',   label: 'Pagados' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setFiltroEstado(key)} style={{
+                padding: '7px 13px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                borderColor: filtroEstado === key ? 'var(--color-primary)' : '#E5E7EB',
+                background: filtroEstado === key ? 'var(--color-primary)' : 'white',
+                color: filtroEstado === key ? 'white' : 'var(--color-text-light)',
+              }}>{label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* KPIs — debajo de la navegación para que los filtros sean lo primero */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
         <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
         <KPICard title={`Pagado ${MES_NOMBRES[mesFiltro]}`} value={`$${(pagadoMes / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-success)" />
         <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
         <KPICard title="Ingresos sin Aplicar" value={ingresosLibres} icon={DollarSign} color="var(--color-secondary)" />
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', marginBottom: '16px', width: 'fit-content' }}>
-        {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
-            background: tab === t.key ? 'white' : 'transparent',
-            color: tab === t.key ? 'var(--color-primary)' : '#6B7280',
-            boxShadow: tab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-          }}>{t.label}</button>
-        ))}
       </div>
 
       {/* ── Tab Cartera ── */}
@@ -1040,23 +1095,6 @@ export default function Cobranza() {
                 </option>
               ))}
             </select>
-
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[
-                { key: 'Todos', label: 'Todos' },
-                { key: 'PENDIENTE', label: 'Pendientes' },
-                { key: 'VENCIDA', label: 'Vencidas' },
-                { key: 'PARCIAL', label: 'Parciales' },
-                { key: 'PAGADO', label: 'Pagados' },
-              ].map(({ key, label }) => (
-                <button key={key} onClick={() => setFiltroEstado(key)} style={{
-                  padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
-                  borderColor: filtroEstado === key ? 'var(--color-primary)' : '#E5E7EB',
-                  background: filtroEstado === key ? 'var(--color-primary)' : 'white',
-                  color: filtroEstado === key ? 'white' : 'var(--color-text-light)',
-                }}>{label}</button>
-              ))}
-            </div>
           </div>
 
           {/* Qué se está viendo. Con filtros puestos, el total de lo filtrado
