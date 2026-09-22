@@ -283,6 +283,9 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   const [contratoOpen, setContratoOpen] = useState(false)
   const [compFile, setCompFile] = useState(null)
   const [compPreview, setCompPreview] = useState(ingreso?.comprobante_url || null)
+  // El comprobante ya guardado se borra hasta que se le da "Guardar cambios",
+  // igual que el resto del formulario — quitarlo aquí solo limpia la vista previa.
+  const [quitarComprobanteExistente, setQuitarComprobanteExistente] = useState(false)
   const fileRef = useRef()
   // Aplicaciones que este ingreso ya tenía guardadas. Se necesitan para saber
   // cuáles hay que BORRAR al guardar: si solo se hace upsert, las que el usuario
@@ -487,6 +490,9 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       validado_en:        validadoEn,
       clasificacion:        clasificacion,
       clasificacion_manual: manual,
+      // Se quita explícitamente solo si el usuario lo pidió y no adjuntó uno nuevo
+      // (adjuntar reemplaza vía subir-comprobante, más abajo).
+      ...(quitarComprobanteExistente && !compFile ? { comprobante_url: null } : {}),
     }
     // Para ediciones: borrar TODAS las aplicaciones previas antes de tocar el
     // importe del ingreso. El trigger trg_ingreso_no_menor_que_aplicaciones
@@ -643,8 +649,16 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
           )}
 
           {compPreview && (
-            <div style={{ marginBottom:'12px' }}>
+            <div style={{ position:'relative', marginBottom:'12px' }}>
               <img src={compPreview} alt="comprobante" style={{ width:'100%', maxHeight:'140px', objectFit:'contain', borderRadius:'8px', border:'1px solid #E5E7EB', background:'#F9FAFB' }} />
+              <button type="button" title="Quitar comprobante"
+                onClick={() => {
+                  if (!compFile) setQuitarComprobanteExistente(true)
+                  setCompFile(null); setCompPreview(null); setOcrMsg(null); setOcrData(null)
+                }}
+                style={{ position:'absolute', top:'6px', right:'6px', width:'22px', height:'22px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'50%', border:'none', background:'rgba(17,24,39,0.65)', color:'white', cursor:'pointer' }}>
+                <X size={13} />
+              </button>
             </div>
           )}
 
