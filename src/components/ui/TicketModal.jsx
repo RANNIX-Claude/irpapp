@@ -306,7 +306,11 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
           provId = existing.id
         } else {
           const { data: nuevo, error: errProv } = await supabase
-            .from('cat_proveedores').insert({ nombre: provNombre, activo: true }).select('id').single()
+            .from('cat_proveedores').insert({
+              nombre: provNombre, activo: true,
+              // clave es obligatoria y única: se deriva del nombre con un sufijo corto
+              clave: provNombre.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 16) + '_' + Date.now().toString(36).slice(-4).toUpperCase(),
+            }).select('id').single()
           if (!errProv && nuevo) {
             provId = nuevo.id
             setProveedores(prev => [...prev, { id: nuevo.id, nombre: provNombre, categoria: null }].sort((a,b) => a.nombre.localeCompare(b.nombre)))

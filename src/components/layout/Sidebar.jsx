@@ -6,6 +6,7 @@ import {
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
+  Package, BookOpen,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -46,7 +47,13 @@ const NAV_SECTIONS = [
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
+    ]
+  },
+  {
+    label: 'COMPRAS',
+    items: [
       { label: 'Proveedores', path: '/proveedores', icon: Truck },
+      { label: 'Productos',   path: '/productos',   icon: Package },
     ]
   },
   {
@@ -89,6 +96,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Cálculos del Sistema', path: '/calculos', icon: Calculator },
       { label: 'Validación', path: '/validacion', icon: ClipboardCheck },
+      { label: 'Catálogos', path: '/catalogos', icon: BookOpen },
       { label: 'Consulta a Base de Datos', path: '/utilidades', icon: Database },
     ]
   },

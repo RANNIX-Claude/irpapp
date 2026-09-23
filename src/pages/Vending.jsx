@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
   Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import DatalistProveedores from '../components/compras/DatalistProveedores'
 import toast from 'react-hot-toast'
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -370,7 +371,8 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
           {form.tipo === 'COMPRA' && (
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'.05em' }}>Proveedor</label>
-              <input type="text" value={form.proveedor} onChange={set('proveedor')} placeholder="Nombre del proveedor" style={{ ...inputS, marginTop:'4px' }} />
+              <input type="text" list="dl-proveedores" value={form.proveedor} onChange={set('proveedor')} placeholder="Nombre del proveedor" style={{ ...inputS, marginTop:'4px' }} />
+              <DatalistProveedores />
             </div>
           )}
 
@@ -546,7 +548,8 @@ function ModalProducto({ producto, onClose, onSaved }) {
           )}
           <div>
             <label style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Proveedor</label>
-            <input type="text" value={form.proveedor} onChange={set('proveedor')} style={{ ...inputS, marginTop:'4px' }} />
+            <input type="text" list="dl-proveedores" value={form.proveedor} onChange={set('proveedor')} style={{ ...inputS, marginTop:'4px' }} />
+            <DatalistProveedores />
           </div>
           <div>
             <label style={{ fontSize:'11px', fontWeight:700, color:'#6B7280', textTransform:'uppercase' }}>Descripción / nota</label>
@@ -685,11 +688,11 @@ export default function Vending() {
       // 4. Sumar gastos_operativos grupo "Vending / Reabasto" en el rango de la semana
       const { data: gastRows } = await supabase
         .from('gastos_operativos')
-        .select('monto')
+        .select('cantidad')
         .eq('grupo_gasto', 'Vending / Reabasto')
         .gte('fecha', semana.ini)
         .lte('fecha', semana.fin)
-      setGastosVending((gastRows || []).reduce((s, r) => s + (parseFloat(r.monto) || 0), 0))
+      setGastosVending((gastRows || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0))
     } else {
       setDetalle([]); setMovs([])
       setGastosVending(0)

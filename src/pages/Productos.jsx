@@ -1,22 +1,39 @@
-import { useModuleAudit } from '../hooks/useAudit'
-import { useState, useEffect, useCallback } from 'react'
-import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify } from 'lucide-react'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify, Tags, Merge, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
+import { ComprasDeProducto } from '../components/compras/CruceCompras'
+import { pesos, pesos2, fecha, traerVista } from '../lib/compras'
 import toast from 'react-hot-toast'
 
 // Unidades de compra habituales en los tickets de proveedor.
 const UNIDADES = ['PZA', 'KG', 'GR', 'LT', 'ML', 'MT', 'CAJA', 'PAQUETE', 'BOLSA', 'SERVICIO']
 
-// cat_productos tiene CHECK sobre categoria: solo acepta estos tres valores.
-// Por eso es un select y no texto libre — cualquier otra cosa hace fallar el alta.
-const CATEGORIAS = ['VENDING', 'OPERACION', 'MANTENIMIENTO']
+const SIN = '__SIN__'   // filtro "sin clasificar"
 
 const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }
 
+function Badge({ c }) {
+  if (!c) return <span style={{ padding: '2px 9px', borderRadius: 99, fontSize: 10.5, fontWeight: 700, background: '#FEF3C7', color: '#92400E', border: '1px dashed #F59E0B' }}>Sin clasificar</span>
+  return <span style={{ padding: '2px 9px', borderRadius: 99, fontSize: 10.5, fontWeight: 700, background: c.color + '1F', color: c.color, border: `1px solid ${c.color}55` }}>{c.nombre}</span>
+}
+
+// Select compacto para clasificar sin abrir el modal.
+function SelectClasif({ valor, clasifs, onChange, style }) {
+  return (
+    <select value={valor || ''} onClick={e => e.stopPropagation()} onChange={e => onChange(e.target.value || null)}
+      style={{ padding: '4px 6px', border: '1.5px solid #E5E7EB', borderRadius: 6, fontSize: 11.5, background: 'white', cursor: 'pointer', ...style }}>
+      <option value="">— Sin clasificar —</option>
+      {clasifs.filter(c => c.activo || c.clave === valor).map(c => <option key={c.clave} value={c.clave}>{c.nombre}</option>)}
+    </select>
+  )
+}
+
 // ─── Alta / edición ──────────────────────────────────────────────────────────
-function ProductoModal({ producto, onClose, onSaved }) {
+function ProductoModal({ producto, clasifs, onClose, onSaved }) {
   const esNuevo = producto === 'nuevo'
   const [form, setForm] = useState(esNuevo
     ? { clave: '', nombre: '', categoria: '', unidad: 'PZA', activo: true }
@@ -31,12 +48,11 @@ function ProductoModal({ producto, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.nombre.trim()) return toast.error('El nombre es obligatorio')
     if (!form.clave.trim()) return toast.error('La clave es obligatoria')
-    if (!form.categoria) return toast.error('Elige una categoría')
     setSaving(true)
     const payload = {
       clave: form.clave.trim().toUpperCase(),
       nombre: form.nombre.trim(),
-      categoria: form.categoria,
+      categoria: form.categoria || null,
       unidad: form.unidad || null,
       activo: form.activo,
     }
@@ -96,11 +112,8 @@ function ProductoModal({ producto, onClose, onSaved }) {
           </div>
 
           <div>
-            <label style={lbl}>Categoría *</label>
-            <select value={form.categoria} onChange={e => set('categoria', e.target.value)} style={{ ...inp, background: 'white' }}>
-              <option value="">— Seleccionar —</option>
-              {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <label style={lbl}>Clasificación</label>
+            <SelectClasif valor={form.categoria} clasifs={clasifs} onChange={v => set('categoria', v || '')} style={{ ...inp, fontSize: 13 }} />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
@@ -120,31 +133,172 @@ function ProductoModal({ producto, onClose, onSaved }) {
   )
 }
 
-// ─── Tarjeta ─────────────────────────────────────────────────────────────────
-function TarjetaProducto({ p, onImagen, onEditar }) {
+// ─── Catálogo de clasificaciones ─────────────────────────────────────────────
+function ClasificacionesModal({ clasifs, conteo, onClose, onSaved }) {
+  const [nueva, setNueva] = useState({ nombre: '', color: '#0A66C2' })
+  const [edit, setEdit] = useState({})
+
+  const claveDe = (n) => n.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30)
+
+  const agregar = async () => {
+    if (!nueva.nombre.trim()) return
+    const { error } = await supabase.from('cat_clasificacion_producto').insert({
+      clave: claveDe(nueva.nombre), nombre: nueva.nombre.trim(), color: nueva.color,
+      orden: (Math.max(0, ...clasifs.map(c => c.orden || 0)) + 10),
+    })
+    if (error) return toast.error(error.code === '23505' ? 'Ya existe esa clasificación' : error.message)
+    setNueva({ nombre: '', color: '#0A66C2' }); onSaved()
+  }
+
+  const guardar = async (c) => {
+    const cambios = edit[c.clave]; if (!cambios) return
+    const { error } = await supabase.from('cat_clasificacion_producto').update(cambios).eq('clave', c.clave)
+    if (error) return toast.error(error.message)
+    setEdit(e => { const n = { ...e }; delete n[c.clave]; return n }); onSaved()
+  }
+
+  const val = (c, k) => edit[c.clave]?.[k] ?? c[k]
+  const set = (c, k, v) => setEdit(e => ({ ...e, [c.clave]: { ...e[c.clave], [k]: v } }))
+
   return (
-    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)', opacity: p.activo ? 1 : .55 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 520, maxWidth: '96vw', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0A66C2' }}>Clasificaciones de producto</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+        <div style={{ padding: '14px 22px' }}>
+          {clasifs.map(c => (
+            <div key={c.clave} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid #F3F4F6', opacity: val(c, 'activo') ? 1 : .5 }}>
+              <input type="color" value={val(c, 'color')} onChange={e => set(c, 'color', e.target.value)} style={{ width: 30, height: 28, border: 'none', padding: 0, cursor: 'pointer' }} />
+              <input value={val(c, 'nombre')} onChange={e => set(c, 'nombre', e.target.value)} style={{ ...inp, padding: '6px 10px', flex: 1 }} />
+              <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace', width: 90 }}>{c.clave}</span>
+              <span style={{ fontSize: 11, color: '#6B7280', width: 34, textAlign: 'right' }}>{conteo[c.clave] || 0}</span>
+              <label title="Activa" style={{ display: 'flex' }}><input type="checkbox" checked={!!val(c, 'activo')} onChange={e => set(c, 'activo', e.target.checked)} /></label>
+              <button onClick={() => guardar(c)} disabled={!edit[c.clave]} style={{ padding: '5px 10px', border: 'none', borderRadius: 6, background: edit[c.clave] ? '#0A66C2' : '#F3F4F6', color: edit[c.clave] ? 'white' : '#9CA3AF', fontSize: 11, fontWeight: 700, cursor: edit[c.clave] ? 'pointer' : 'default' }}>Guardar</button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <input type="color" value={nueva.color} onChange={e => setNueva(n => ({ ...n, color: e.target.value }))} style={{ width: 30, height: 34, border: 'none', padding: 0 }} />
+            <input value={nueva.nombre} onChange={e => setNueva(n => ({ ...n, nombre: e.target.value }))} onKeyDown={e => e.key === 'Enter' && agregar()} placeholder="Nueva clasificación…" style={{ ...inp, flex: 1 }} />
+            <button onClick={agregar} style={{ padding: '0 16px', border: 'none', borderRadius: 8, background: '#057642', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Ficha de producto ───────────────────────────────────────────────────────
+function FichaProducto({ p, clasifs, lista, onClose, onEditar, onClasificar, onImagen, onFusionado }) {
+  const [fusion, setFusion] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [destino, setDestino] = useState(null)
+  const [trabajando, setTrabajando] = useState(false)
+  if (!p) return null
+  const c = clasifs.find(x => x.clave === p.categoria)
+
+  const candidatos = lista.filter(x => x.id !== p.id && x.activo && (!busca || x.nombre.toLowerCase().includes(busca.toLowerCase()))).slice(0, 30)
+
+  const fusionar = async () => {
+    if (!destino) return
+    setTrabajando(true)
+    const { data, error } = await supabase.rpc('fusionar_productos', { p_origen: p.id, p_destino: destino.id })
+    setTrabajando(false)
+    if (error) return toast.error(error.message)
+    logAudit({ modulo: 'PRODUCTOS', accion: 'EDITAR', entidad: 'producto', entidad_id: destino.id, descripcion: `"${p.nombre}" fusionado en "${destino.nombre}" (${data} líneas de ticket)` })
+    toast.success(`Fusionado en "${destino.nombre}"`)
+    onFusionado()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 14, width: 640, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: 16, padding: '20px 22px', borderBottom: '1px solid #F3F4F6', alignItems: 'flex-start' }}>
+          <LogoEditable prefijo="productos" tabla="cat_productos" columna="imagen_url"
+            registroId={p.id} url={p.imagen_url} nombre={p.nombre} size={84} redondo={false} onSubido={url => onImagen(p.id, url)} />
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#111827' }}>{p.nombre}</h2>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+              <Badge c={c} />
+              <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</span>
+              <span style={{ fontSize: 11, color: '#6B7280' }}>{p.unidad}</span>
+              {p.origen === 'TICKET' && <span style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4 }}>ALTA DESDE TICKET</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <SelectClasif valor={p.categoria} clasifs={clasifs} onChange={v => onClasificar(p, v)} />
+              <button onClick={() => { onClose(); onEditar(p) }} style={{ padding: '5px 12px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Editar</button>
+              <button onClick={() => setFusion(f => !f)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', background: '#FFF7ED', color: '#C2410C', border: '1.5px solid #FED7AA', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}><Merge size={13} /> Fusionar con otro</button>
+            </div>
+            {p.alias?.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280' }}>
+                También llega como: {p.alias.map(a => <span key={a} style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '1px 6px', borderRadius: 4, marginRight: 4 }}>{a}</span>)}
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={18} /></button>
+        </div>
+
+        {fusion && (
+          <div style={{ margin: '14px 22px 0', padding: 14, background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 10 }}>
+            <div style={{ fontSize: 12, color: '#9A3412', marginBottom: 8 }}>
+              Las compras de <b>{p.nombre}</b> pasan al producto elegido, y este nombre queda como alias para los próximos tickets.
+            </div>
+            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar el producto que se queda…" style={{ ...inp, background: 'white' }} />
+            <div style={{ maxHeight: 160, overflow: 'auto', marginTop: 6, background: 'white', borderRadius: 8 }}>
+              {candidatos.map(x => (
+                <div key={x.id} onClick={() => setDestino(x)} style={{ padding: '7px 10px', fontSize: 12.5, cursor: 'pointer', background: destino?.id === x.id ? '#FFEDD5' : 'white', borderBottom: '1px solid #FFF7ED', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: destino?.id === x.id ? 700 : 500 }}>{x.nombre}</span>
+                  <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace' }}>{x.clave}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={fusionar} disabled={!destino || trabajando} style={{ marginTop: 10, width: '100%', padding: 9, border: 'none', borderRadius: 8, background: '#C2410C', color: 'white', fontWeight: 700, fontSize: 13, cursor: destino ? 'pointer' : 'default', opacity: !destino || trabajando ? .5 : 1 }}>
+              {trabajando ? 'Fusionando…' : destino ? `Fusionar en "${destino.nombre}"` : 'Elige el producto que se queda'}
+            </button>
+          </div>
+        )}
+
+        <div style={{ padding: '0 22px 20px' }}>
+          <ComprasDeProducto productoId={p.id} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Tarjeta ─────────────────────────────────────────────────────────────────
+function TarjetaProducto({ p, c, r, clasifs, onImagen, onVer, onClasificar }) {
+  return (
+    <div style={{ background: 'white', border: `1px solid ${p.categoria ? '#E5E7EB' : '#FCD34D'}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)', opacity: p.activo ? 1 : .55 }}>
       {/* La imagen manda en la tarjeta: es lo que permite reconocer el producto */}
-      <div style={{ height: 130, background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #F1F5F9', position: 'relative' }}>
+      <div style={{ height: 120, background: c ? c.color + '10' : '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #F1F5F9', position: 'relative' }}>
         <LogoEditable
           prefijo="productos" tabla="cat_productos" columna="imagen_url"
           registroId={p.id} url={p.imagen_url} nombre={p.nombre}
-          size={104} redondo={false} onSubido={url => onImagen(p.id, url)}
+          size={96} redondo={false} onSubido={url => onImagen(p.id, url)}
         />
         {p.unidad && (
           <span style={{ position: 'absolute', top: 8, right: 8, background: '#0A66C2', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 5 }}>{p.unidad}</span>
         )}
       </div>
 
-      <div style={{ padding: '12px 14px', flex: 1, textAlign: 'center' }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', lineHeight: 1.3 }}>{p.nombre}</div>
-        {p.categoria && <div style={{ fontSize: 11, color: '#0A66C2', fontWeight: 600, marginTop: 3 }}>{p.categoria}</div>}
-        {p.clave && <div style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace', marginTop: 3 }}>{p.clave}</div>}
+      <div onClick={() => onVer(p)} style={{ padding: '10px 12px', flex: 1, textAlign: 'center', cursor: 'pointer' }}>
+        <div style={{ fontWeight: 700, fontSize: 12.5, color: '#111827', lineHeight: 1.3 }}>{p.nombre}</div>
+        <div style={{ marginTop: 5 }}><Badge c={c} /></div>
+        {r ? (
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>
+            <b style={{ color: '#111827' }}>{pesos(r.total)}</b> · {r.compras} compra{r.compras === 1 ? '' : 's'}
+            <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>Últ. {pesos2(r.ultimo_precio)} · {r.proveedores} prov.</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 10.5, color: '#D1D5DB', marginTop: 6 }}>Sin compras</div>
+        )}
       </div>
 
-      <button onClick={() => onEditar(p)} style={{ padding: '9px', background: 'none', border: 'none', borderTop: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A66C2' }}>
-        Editar
-      </button>
+      <div style={{ padding: '6px 8px', borderTop: '1px solid #F3F4F6' }}>
+        <SelectClasif valor={p.categoria} clasifs={clasifs} onChange={v => onClasificar(p, v)} style={{ width: '100%' }} />
+      </div>
     </div>
   )
 }
@@ -153,51 +307,103 @@ function TarjetaProducto({ p, onImagen, onEditar }) {
 export default function Productos() {
   useModuleAudit('PRODUCTOS')
   const [lista, setLista] = useState([])
+  const [clasifs, setClasifs] = useState([])
+  const [resumen, setResumen] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filtroCat, setFiltroCat] = useState('Todas')
   const [soloActivos, setSoloActivos] = useState(true)
+  const [orden, setOrden] = useState('nombre')
   const [vistaGrid, setVistaGrid] = useState(true)
   const [modal, setModal] = useState(null)
+  const [ficha, setFicha] = useState(null)
+  const [verClasifs, setVerClasifs] = useState(false)
+
+  const cargarClasifs = useCallback(async () => {
+    const { data } = await supabase.from('cat_clasificacion_producto').select('*').order('orden')
+    setClasifs(data || [])
+  }, [])
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('cat_productos').select('*').order('nombre')
-    if (error) toast.error('No se pudieron cargar los productos: ' + error.message)
-    setLista(data || [])
+    try {
+      const [prods, res] = await Promise.all([
+        traerVista('cat_productos', q => q.order('nombre')),
+        traerVista('prp_productos_resumen'),
+      ])
+      setLista(prods)
+      setResumen(Object.fromEntries(res.map(r => [r.producto_id, r])))
+    } catch (e) { toast.error('No se pudieron cargar los productos: ' + e.message) }
     setLoading(false)
   }, [])
 
-  useEffect(() => { cargar() }, [cargar])
+  useEffect(() => { cargar(); cargarClasifs() }, [cargar, cargarClasifs])
+
+  const clasifPorClave = useMemo(() => Object.fromEntries(clasifs.map(c => [c.clave, c])), [clasifs])
 
   const aplicarImagen = (id, url) =>
     setLista(prev => prev.map(p => p.id === id ? { ...p, imagen_url: url } : p))
 
-  const categorias = [...new Set(lista.map(p => p.categoria).filter(Boolean))].sort()
+  const clasificar = async (p, clave) => {
+    const { error } = await supabase.from('cat_productos').update({ categoria: clave }).eq('id', p.id)
+    if (error) return toast.error(error.message)
+    setLista(prev => prev.map(x => x.id === p.id ? { ...x, categoria: clave } : x))
+    setFicha(f => f && f.id === p.id ? { ...f, categoria: clave } : f)
+  }
 
-  const filtrados = lista.filter(p => {
+  const activos = lista.filter(p => !soloActivos || p.activo)
+  const conteo = activos.reduce((m, p) => ({ ...m, [p.categoria || SIN]: (m[p.categoria || SIN] || 0) + 1 }), {})
+
+  const filtrados = activos.filter(p => {
     const q = search.toLowerCase()
     const matchQ = !q || p.nombre.toLowerCase().includes(q) || (p.clave || '').toLowerCase().includes(q)
-    const matchC = filtroCat === 'Todas' || p.categoria === filtroCat
-    const matchA = !soloActivos || p.activo
-    return matchQ && matchC && matchA
-  })
+    const matchC = filtroCat === 'Todas' || (filtroCat === SIN ? !p.categoria : p.categoria === filtroCat)
+    return matchQ && matchC
+  }).sort((a, b) => orden === 'nombre' ? a.nombre.localeCompare(b.nombre)
+    : (Number(resumen[b.id]?.total) || 0) - (Number(resumen[a.id]?.total) || 0))
 
   const conImagen = lista.filter(p => p.imagen_url).length
 
+  const exportar = () => {
+    const datos = filtrados.map(p => {
+      const r = resumen[p.id]
+      return {
+        Clave: p.clave, Producto: p.nombre, Clasificación: clasifPorClave[p.categoria]?.nombre || 'Sin clasificar',
+        Unidad: p.unidad, Origen: p.origen, Activo: p.activo ? 'Sí' : 'No',
+        Compras: r?.compras || 0, Cantidad: Number(r?.cantidad) || 0, 'Total comprado': Number(r?.total) || 0,
+        'Último precio': Number(r?.ultimo_precio) || null, Proveedores: r?.proveedores || 0, 'Última compra': r?.ultima_fecha || null,
+      }
+    })
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(datos), 'Productos')
+    XLSX.writeFile(wb, 'catalogo_productos.xlsx')
+  }
+
+  const chip = (id, label, color, n) => (
+    <button key={id} onClick={() => setFiltroCat(id)} style={{ padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${color}`, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filtroCat === id ? color : 'white', color: filtroCat === id ? 'white' : color }}>
+      {label} <span style={{ opacity: .75 }}>{n ?? 0}</span>
+    </button>
+  )
+
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Package size={22} color="#0A66C2" />
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0A66C2' }}>Productos</h1>
             <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>
-              Catálogo de compras · {lista.length} productos · {conImagen} con imagen
+              Catálogo de compras · {lista.length} productos · {conImagen} con imagen · se alimenta de los tickets
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => setVerClasifs(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'white', color: '#374151', border: '1.5px solid #E5E7EB', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+            <Tags size={14} /> Clasificaciones
+          </button>
+          <button onClick={exportar} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'white', color: '#057642', border: '1.5px solid #057642', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+            <Download size={14} /> Excel
+          </button>
           <div style={{ display: 'flex', border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
             <button onClick={() => setVistaGrid(false)} title="Vista lista"
               style={{ padding: '7px 11px', background: !vistaGrid ? '#0A66C2' : 'white', color: !vistaGrid ? 'white' : '#6B7280', border: 'none', cursor: 'pointer', display: 'flex' }}>
@@ -214,15 +420,21 @@ export default function Productos() {
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Clasificación */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        {chip('Todas', 'Todas', '#374151', activos.length)}
+        {chip(SIN, 'Sin clasificar', '#D97706', conteo[SIN])}
+        {clasifs.filter(c => c.activo).map(c => chip(c.clave, c.nombre, c.color, conteo[c.clave]))}
+      </div>
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nombre o clave…" style={{ ...inp, paddingLeft: 32 }} />
         </div>
-        <select value={filtroCat} onChange={e => setFiltroCat(e.target.value)} style={{ ...inp, width: 'auto', background: 'white' }}>
-          <option value="Todas">Todas las categorías</option>
-          {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+        <select value={orden} onChange={e => setOrden(e.target.value)} style={{ ...inp, width: 'auto', background: 'white' }}>
+          <option value="nombre">Orden: nombre</option>
+          <option value="total">Orden: más comprado</option>
         </select>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>
           <input type="checkbox" checked={soloActivos} onChange={e => setSoloActivos(e.target.checked)} />
@@ -239,53 +451,68 @@ export default function Productos() {
             <div>{lista.length === 0 ? 'Agrega el primer producto con el botón de arriba' : 'Sin resultados para esta búsqueda'}</div>
           </div>
         ) : vistaGrid ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, padding: 16, background: '#F8FAFC' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 14, padding: 16, background: '#F8FAFC' }}>
             {filtrados.map(p => (
-              <TarjetaProducto key={p.id} p={p} onImagen={aplicarImagen} onEditar={setModal} />
+              <TarjetaProducto key={p.id} p={p} c={clasifPorClave[p.categoria]} r={resumen[p.id]} clasifs={clasifs}
+                onImagen={aplicarImagen} onVer={setFicha} onClasificar={clasificar} />
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
-                {['', 'Producto', 'Clave', 'Categoría', 'Unidad', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map(p => (
-                <tr key={p.id} style={{ borderBottom: '1px solid #F3F4F6', opacity: p.activo ? 1 : .5 }}>
-                  <td style={{ padding: '8px 14px', width: 56 }}>
-                    <LogoEditable
-                      prefijo="productos" tabla="cat_productos" columna="imagen_url"
-                      registroId={p.id} url={p.imagen_url} nombre={p.nombre}
-                      size={40} redondo={false} onSubido={url => aplicarImagen(p.id, url)}
-                    />
-                  </td>
-                  <td style={{ padding: '12px 14px', fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{p.nombre}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: '#6B7280', fontFamily: 'monospace' }}>{p.clave || '—'}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 13, color: '#374151' }}>{p.categoria || '—'}</td>
-                  <td style={{ padding: '12px 14px', fontSize: 12, color: '#6B7280' }}>{p.unidad || '—'}</td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                      <Pencil size={13} />
-                    </button>
-                  </td>
+          <div style={{ overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+                  {['', 'Producto', 'Clasificación', 'Unidad', 'Compras', 'Total', 'Últ. precio', 'Última', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 12px', textAlign: ['Compras', 'Total', 'Últ. precio'].includes(h) ? 'right' : 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtrados.map(p => {
+                  const r = resumen[p.id]
+                  return (
+                    <tr key={p.id} style={{ borderBottom: '1px solid #F3F4F6', opacity: p.activo ? 1 : .5 }}>
+                      <td style={{ padding: '6px 12px', width: 50 }}>
+                        <LogoEditable
+                          prefijo="productos" tabla="cat_productos" columna="imagen_url"
+                          registroId={p.id} url={p.imagen_url} nombre={p.nombre}
+                          size={38} redondo={false} onSubido={url => aplicarImagen(p.id, url)}
+                        />
+                      </td>
+                      <td onClick={() => setFicha(p)} style={{ padding: '10px 12px', cursor: 'pointer' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#0A66C2' }}>{p.nombre}</div>
+                        <div style={{ fontSize: 10.5, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</div>
+                      </td>
+                      <td style={{ padding: '10px 12px' }}><SelectClasif valor={p.categoria} clasifs={clasifs} onChange={v => clasificar(p, v)} /></td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280' }}>{p.unidad || '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12.5, textAlign: 'right' }}>{r?.compras || '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700 }}>{r ? pesos(r.total) : '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12.5, textAlign: 'right' }}>{r ? pesos2(r.ultimo_precio) : '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>{r ? fecha(r.ultima_fecha) : '—'}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                          <Pencil size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {modal && (
-        <ProductoModal
-          producto={modal}
-          onClose={() => setModal(null)}
-          onSaved={cargar}
-        />
+        <ProductoModal producto={modal} clasifs={clasifs} onClose={() => setModal(null)} onSaved={cargar} />
       )}
+      {verClasifs && (
+        <ClasificacionesModal clasifs={clasifs} conteo={conteo} onClose={() => setVerClasifs(false)} onSaved={cargarClasifs} />
+      )}
+      <FichaProducto p={ficha} clasifs={clasifs} lista={lista}
+        onClose={() => setFicha(null)} onEditar={setModal} onClasificar={clasificar}
+        onImagen={(id, url) => { aplicarImagen(id, url); setFicha(f => f && { ...f, imagen_url: url }) }}
+        onFusionado={() => { setFicha(null); cargar() }} />
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback } from 'react'
-import { Truck, Plus, Search, X, Pencil, Check, ChevronDown , LayoutGrid, AlignJustify} from 'lucide-react'
+import { Truck, Plus, Search, X, Pencil, ChevronDown, LayoutGrid, AlignJustify, BarChart3 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
+import AnalisisCompras from '../components/compras/AnalisisCompras'
+import { ComprasDeProveedor } from '../components/compras/CruceCompras'
 
 // La base tiene CHECK sobre categoria: una cadena vacía la rechaza. Se manda
 // null y de paso no se guardan cadenas vacías en el resto de los campos.
@@ -15,6 +17,7 @@ const CATEGORIAS = [
   { id: 'VENDING',       label: 'Vending',        color: '#EC4899' },
   { id: 'OPERACION',     label: 'Operación',      color: '#057642' },
   { id: 'MANTENIMIENTO', label: 'Mantenimiento',   color: '#E8A020' },
+  { id: 'PROYECTOS',     label: 'Proyectos',       color: '#7C3AED' },
   { id: 'MIXTO',         label: 'Mixto',           color: '#0A66C2' },
 ]
 const catInfo = (id) => CATEGORIAS.find(c => c.id === id) || { label: id || '—', color: '#6B7280' }
@@ -24,7 +27,7 @@ function Badge({ cat }) {
   return <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: color + '22', color, border: `1px solid ${color}44` }}>{label}</span>
 }
 
-const EMPTY = { clave: '', nombre: '', rfc: '', categoria: '', telefono: '', email: '', contacto: '', notas: '' }
+const EMPTY = { clave: '', nombre: '', razon_social: '', rfc: '', categoria: '', telefono: '', email: '', contacto: '', notas: '' }
 
 function ModalProveedor({ proveedor, onClose, onSaved }) {
   const [form, setForm] = useState(proveedor ? { ...proveedor } : { ...EMPTY })
@@ -72,6 +75,10 @@ function ModalProveedor({ proveedor, onClose, onSaved }) {
               <label style={lbl}>Nombre *</label>
               <input value={form.nombre} onChange={e => set('nombre', e.target.value)} style={inp} placeholder="Nombre del proveedor" required />
             </div>
+          </div>
+          <div>
+            <label style={lbl}>Razón social</label>
+            <input value={form.razon_social || ''} onChange={e => set('razon_social', e.target.value)} style={inp} placeholder="Como aparece en el ticket o la factura" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
@@ -197,13 +204,21 @@ function FichaProveedor({ p, onClose, onLogo, onEditar }) {
             {dato('Teléfono', p.telefono)}
             {dato('Email', p.email)}
             {dato('Categoría', info.label || p.categoria)}
+            {dato('Razón social', p.razon_social)}
           </div>
+          {p.alias?.length > 0 && (
+            <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280' }}>
+              También capturado como: {p.alias.map(a => <span key={a} style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '1px 6px', borderRadius: 4, marginRight: 4 }}>{a}</span>)}
+            </div>
+          )}
 
           {p.notas && (
             <div style={{ marginTop: 18, padding: '12px 14px', background: '#F9FAFB', borderRadius: 8, fontSize: 13, color: '#6B7280' }}>
               📝 {p.notas}
             </div>
           )}
+
+          <ComprasDeProveedor proveedorId={p.id} />
         </div>
       </div>
     </div>
@@ -220,6 +235,7 @@ export default function Proveedores() {
   const [expanded, setExpanded] = useState(null)
   const [vistaGrid, setVistaGrid] = useState(true)
   const [ficha, setFicha] = useState(null)
+  const [tab, setTab] = useState('catalogo')
 
   // Al subir un logo se refleja en la lista sin recargar.
   const aplicarLogo = (id, url) => {
@@ -255,14 +271,14 @@ export default function Proveedores() {
   ]
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: 1150, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Truck size={22} color="#0A66C2" />
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0A66C2' }}>Proveedores</h1>
-            <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Catálogo compartido: Gastos, Mantenimiento, Vending</p>
+            <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Catálogo único: Operación, Vending y Proyectos</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -282,6 +298,20 @@ export default function Proveedores() {
         </div>
       </div>
 
+      {/* Pestañas */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #E5E7EB', marginBottom: 18 }}>
+        {[['catalogo', 'Catálogo', Truck], ['analisis', 'Análisis de compras', BarChart3]].map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: tab === id ? '#0A66C2' : '#6B7280', borderBottom: `2.5px solid ${tab === id ? '#0A66C2' : 'transparent'}`, marginBottom: -2 }}>
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'analisis' && (
+        <AnalisisCompras proveedores={lista} onVerProveedor={p => p && setFicha(p)} onCatalogoCambio={cargar} />
+      )}
+
+      {tab === 'catalogo' && <>
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         {kpis.map(k => (
@@ -374,6 +404,7 @@ export default function Proveedores() {
           </table>
         )}
       </div>
+      </>}
 
       {modal && (
         <ModalProveedor

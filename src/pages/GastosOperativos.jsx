@@ -575,27 +575,19 @@ function ModalCargaGrupo({ onClose, onSaved }) {
       try {
         const monto = parseFloat(t.form.ticket_total) || 0
 
-        // Upsert proveedor si hay RFC
+        // Proveedor: por RFC contra el catálogo único. Si no está, el trigger
+        // de gastos_operativos lo liga por nombre o alias al guardar.
         let proveedor_id = null
         if (t.form.proveedor_rfc) {
-          const { data: prvExistente } = await supabase.from('proveedores')
-            .select('id').eq('rfc', t.form.proveedor_rfc).maybeSingle()
-          if (prvExistente) {
-            proveedor_id = prvExistente.id
-          } else {
-            const { data: prvNuevo } = await supabase.from('proveedores').insert({
-              nombre:    t.form.proveedor_nombre || null,
-              rfc:       t.form.proveedor_rfc    || null,
-              razon_social: t.form.proveedor_razon_social || null,
-              sucursal:  t.form.proveedor_sucursal || null,
-            }).select('id').maybeSingle()
-            proveedor_id = prvNuevo?.id || null
-          }
+          const { data: prv } = await supabase.from('cat_proveedores')
+            .select('id').eq('rfc', t.form.proveedor_rfc.toUpperCase()).limit(1)
+          proveedor_id = prv?.[0]?.id || null
         }
 
         const payload = {
           fecha:        t.form.fecha,
           proveedor:    t.form.proveedor_nombre || null,
+          proveedor_id,
           grupo_gasto:  t.form.grupo_gasto,
           descripcion:  t.form.descripcion || null,
           cantidad:     monto,

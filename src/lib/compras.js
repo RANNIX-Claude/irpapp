@@ -1,0 +1,38 @@
+import { supabase } from './supabase'
+
+export const AMBITOS = [
+  { id: 'OPERACION', label: 'Operación', color: '#057642' },
+  { id: 'VENDING',   label: 'Vending',   color: '#EC4899' },
+  { id: 'PROYECTOS', label: 'Proyectos', color: '#E8A020' },
+]
+
+export const pesos = (n) =>
+  '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+export const pesos2 = (n) =>
+  '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+export const fecha = (f) => f ? new Date(f + (String(f).length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+// Misma normalización que proveedor_norm() en la base.
+export const normNombre = (s) => (s || '')
+  .toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^A-Z0-9]/g, '')
+
+/**
+ * PostgREST corta en 1000 filas por respuesta: pide en bloques hasta vaciar.
+ * `armar` recibe un query builder nuevo en cada vuelta.
+ */
+export async function traerTodo(armar, bloque = 1000) {
+  const filas = []
+  for (let desde = 0; ; desde += bloque) {
+    const { data, error } = await armar().range(desde, desde + bloque - 1)
+    if (error) throw error
+    filas.push(...(data || []))
+    if (!data || data.length < bloque) break
+  }
+  return filas
+}
+
+export const traerVista = (vista, filtrar = q => q, cols = '*') =>
+  traerTodo(() => filtrar(supabase.from(vista).select(cols)))
