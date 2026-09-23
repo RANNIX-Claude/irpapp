@@ -52,6 +52,7 @@ const NAV_SECTIONS = [
   {
     label: 'COMPRAS',
     items: [
+      { label: 'Tickets',     path: '/gastos-operativos', icon: Receipt },
       { label: 'Proveedores', path: '/proveedores', icon: Truck },
       { label: 'Productos',   path: '/productos',   icon: Package },
     ]

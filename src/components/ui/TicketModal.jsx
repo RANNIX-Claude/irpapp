@@ -3,6 +3,7 @@ import { Receipt, Plus, X, Camera, AlertTriangle, Check, FileText, Sparkles, Ext
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ImagenPrivada, EnlacePrivado } from './ArchivoPrivado'
+import { claveProveedor } from '../../lib/compras'
 
 const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
@@ -308,8 +309,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
           const { data: nuevo, error: errProv } = await supabase
             .from('cat_proveedores').insert({
               nombre: provNombre, activo: true,
-              // clave es obligatoria y única: se deriva del nombre con un sufijo corto
-              clave: provNombre.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 16) + '_' + Date.now().toString(36).slice(-4).toUpperCase(),
+              clave: claveProveedor(provNombre),
             }).select('id').single()
           if (!errProv && nuevo) {
             provId = nuevo.id

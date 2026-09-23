@@ -4,6 +4,7 @@ import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, Al
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import TicketModal from '../components/ui/TicketModal'
+import { asegurarProveedor } from '../lib/compras'
 import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
 // ─── Helper: extrae nombre legible de proveedor (string, objeto, o JSON serializado) ──
@@ -594,8 +595,14 @@ function ModalCargaGrupo({ onClose, onSaved }) {
           ticket_total: monto,
           ...calcDatosGasto(t.form.fecha),
         }
-        const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
+        const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id, proveedor_id').single()
         if (error) throw error
+        // Todo ticket queda en el expediente de su proveedor: si ni el RFC ni el
+        // trigger (nombre/alias) lo encontraron, se da de alta con los datos del OCR.
+        if (!ins.proveedor_id && (t.form.proveedor_nombre || t.form.proveedor_razon_social)) {
+          const nuevoId = await asegurarProveedor({ nombre: t.form.proveedor_nombre, rfc: t.form.proveedor_rfc, razon_social: t.form.proveedor_razon_social })
+          if (nuevoId) await supabase.from('gastos_operativos').update({ proveedor_id: nuevoId }).eq('id', ins.id)
+        }
         logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'CREAR', entidad: 'gasto', entidad_id: ins.id, descripcion: { proveedor: t.form.proveedor_nombre || null, grupo: t.form.grupo_gasto, importe: t.form.cantidad, via: 'OCR' } })
 
         // Líneas OCR
@@ -744,12 +751,13 @@ export default function GastosOperativos() {
   const [expanded, setExpanded]   = useState(null)
   const [detalle, setDetalle]     = useState({})
   const [semSel, setSemSel]       = useState(SEMANAS_SAB_VIE[0])
+  const [conteo, setConteo]       = useState({})
 
   const cargar = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('gastos_operativos')
-      .select('*, cat_proveedores(nombre, categoria)')
+      .select('*, cat_proveedores(nombre, categoria), gasto_detalle(count)')
       .gte('fecha', semSel.ini)
       .lte('fecha', semSel.fin)
       .order('fecha', { ascending: true })
@@ -757,6 +765,16 @@ export default function GastosOperativos() {
       .limit(500)
     setGastos(data || [])
     setLoading(false)
+    // Tickets registrados: mes, año e histórico (solo conteo, sin traer filas)
+    const hoy = new Date()
+    const mesIni = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`
+    const cuenta = (f) => f(supabase.from('prp_gastos').select('id', { count: 'exact', head: true })).then(r => r.count ?? 0)
+    const [mes, anio, total] = await Promise.all([
+      cuenta(q => q.gte('fecha', mesIni)),
+      cuenta(q => q.gte('fecha', `${hoy.getFullYear()}-01-01`)),
+      cuenta(q => q),
+    ])
+    setConteo({ mes, anio, total })
   }, [semSel])
 
   useEffect(() => { cargar() }, [cargar])
@@ -813,6 +831,32 @@ export default function GastosOperativos() {
           </button>
         </div>
       </div>
+
+      {/* Tickets registrados */}
+      {(() => {
+        const n = gastos.length
+        const conProd = gastos.filter(g => g.gasto_detalle?.[0]?.count > 0).length
+        const conFoto = gastos.filter(g => g.ticket_url).length
+        const ligados = gastos.filter(g => g.proveedor_id).length
+        const tiles = [
+          { label: 'Tickets esta semana', val: n, sub: `${conProd} con productos · ${conFoto} con foto`, color: '#E8A020' },
+          { label: 'Este mes', val: conteo.mes, color: '#0A66C2' },
+          { label: `Año ${new Date().getFullYear()}`, val: conteo.anio, color: '#1A3C5E' },
+          { label: 'Histórico', val: conteo.total, color: '#6B7280' },
+          { label: 'Con proveedor del catálogo', val: n ? Math.round(ligados / n * 100) + '%' : '—', sub: `${ligados} de ${n} esta semana`, color: '#057642' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 16 }}>
+            {tiles.map(k => (
+              <div key={k.label} style={{ background: 'white', border: '1px solid #E5E7EB', borderLeft: `4px solid ${k.color}`, borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ fontSize: 10.5, color: '#6B7280', fontWeight: 700, textTransform: 'uppercase' }}>{k.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: k.color, lineHeight: 1.2 }}>{k.val ?? '…'}</div>
+                {k.sub && <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>{k.sub}</div>}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
