@@ -4,6 +4,40 @@ import { usePRP } from '../hooks/usePRP'
 import { Search, Download, RefreshCw, Filter } from 'lucide-react'
 
 // ── Catálogo de colores por acción ─────────────────────────────────────────────
+// Intenta parsear descripcion como JSON; si falla devuelve null
+function tryParseJson(str) {
+  if (!str || typeof str !== 'string') return null
+  const t = str.trim()
+  if (t[0] !== '{' && t[0] !== '[') return null
+  try { return JSON.parse(t) } catch (_) { return null }
+}
+
+// Renderiza el detalle: JSON → chips clave:valor; texto plano → as-is
+function DetalleCell({ descripcion, entidad, entidad_id }) {
+  const obj = tryParseJson(descripcion)
+  return (
+    <div>
+      {obj ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {Object.entries(obj).map(([k, v]) => (
+            <span key={k} style={{ display: 'inline-flex', gap: '3px', background: '#F3F4F6', borderRadius: '5px', padding: '2px 7px', fontSize: '11px', fontFamily: 'monospace' }}>
+              <span style={{ color: '#6B7280' }}>{k}:</span>
+              <span style={{ color: '#111827', fontWeight: 600 }}>{String(v)}</span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span style={{ color: '#4B5563', fontSize: '13px' }}>{descripcion || <span style={{ color: '#D1D5DB' }}>—</span>}</span>
+      )}
+      {entidad && (
+        <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '3px' }}>
+          {entidad}{entidad_id ? ` · ${String(entidad_id).slice(-8)}` : ''}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ACCION_STYLE = {
   // Navegación
   VISITA:               { bg: '#EFF6FF', color: '#1D4ED8', label: 'Vista de pantalla' },
@@ -107,6 +141,7 @@ export default function Bitacora() {
   const [refresh, setRefresh] = useState(0)
   const [busqueda, setBusqueda] = useState('')
   const [modulo, setModulo] = useState('Todos')
+  const [accionFiltro, setAccionFiltro] = useState('Todas')
   const [desde, setDesde] = useState(() => {
     const d = new Date(); d.setDate(1)
     return d.toISOString().slice(0, 10)
@@ -125,6 +160,7 @@ export default function Bitacora() {
       const fecha = r.created_at?.slice(0, 10) || ''
       if (fecha < desde || fecha > hasta) return false
       if (modulo !== 'Todos' && r.modulo?.toLowerCase() !== modulo.toLowerCase()) return false
+      if (accionFiltro !== 'Todas' && r.accion !== accionFiltro) return false
       if (busqueda) {
         const q = busqueda.toLowerCase()
         return (
@@ -137,7 +173,7 @@ export default function Bitacora() {
       }
       return true
     })
-  }, [rows, desde, hasta, modulo, busqueda])
+  }, [rows, desde, hasta, modulo, accionFiltro, busqueda])
 
   const exportCSV = () => {
     const header = ['Fecha y hora', 'Módulo', 'Acción', 'Descripción', 'Entidad', 'Usuario', 'IP']
@@ -196,6 +232,34 @@ export default function Bitacora() {
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: '13px', width: '100%' }}
             />
           </div>
+          <select value={accionFiltro} onChange={e => setAccionFiltro(e.target.value)} style={s.inp}>
+            <option value="Todas">Todas las acciones</option>
+            <optgroup label="CRUD">
+              <option value="CREAR">Registro creado</option>
+              <option value="EDITAR">Registro editado</option>
+              <option value="ELIMINAR">Registro eliminado</option>
+            </optgroup>
+            <optgroup label="Finanzas">
+              <option value="PAGO_REGISTRADO">Pago registrado</option>
+              <option value="AUTO_CONCILIADO">Auto-conciliado</option>
+              <option value="COBROS_DESMARCADOS">Cobros desmarcados</option>
+            </optgroup>
+            <optgroup label="Contratos / RH">
+              <option value="CONTRATO_CREADO">Contrato creado</option>
+              <option value="CONTRATO_EN_EJECUCION">Contrato en ejecución</option>
+              <option value="EMPLEADO_CREADO">Empleado creado</option>
+              <option value="ASISTENCIA_IMPORTADA">Asistencia importada</option>
+              <option value="CREAR_PERIODO">Período nómina creado</option>
+              <option value="AUTORIZAR_PERIODO">Período autorizado</option>
+            </optgroup>
+            <optgroup label="Sistema">
+              <option value="VISITA">Vista de pantalla</option>
+              <option value="LOGIN">Inicio de sesión</option>
+              <option value="LOGOUT">Cierre de sesión</option>
+              <option value="REPORTE">Reporte generado</option>
+              <option value="SUBIR_DOCUMENTO">Documento subido</option>
+            </optgroup>
+          </select>
           <select value={modulo} onChange={e => setModulo(e.target.value)} style={s.inp}>
             {MODULOS_GRUPOS.map(g =>
               g.group
@@ -267,13 +331,8 @@ export default function Bitacora() {
                           {st.label}
                         </span>
                       </td>
-                      <td style={{ ...s.td, maxWidth: '340px', color: '#4B5563', lineHeight: '1.4' }}>
-                        {r.descripcion || <span style={{ color: 'var(--color-text-light)' }}>—</span>}
-                        {r.entidad && (
-                          <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginTop: '2px' }}>
-                            {r.entidad}{r.entidad_id ? ` · ${String(r.entidad_id).slice(-8)}` : ''}
-                          </div>
-                        )}
+                      <td style={{ ...s.td, maxWidth: '380px', lineHeight: '1.5' }}>
+                        <DetalleCell descripcion={r.descripcion} entidad={r.entidad} entidad_id={r.entidad_id} />
                       </td>
                       <td style={{ ...s.td, fontSize: '11px', color: 'var(--color-text-light)', fontFamily: 'monospace' }}>
                         {r.ip || '—'}

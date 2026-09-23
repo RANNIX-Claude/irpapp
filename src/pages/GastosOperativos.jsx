@@ -604,7 +604,7 @@ function ModalCargaGrupo({ onClose, onSaved }) {
         }
         const { data: ins, error } = await supabase.from('gastos_operativos').insert(payload).select('id').single()
         if (error) throw error
-        logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'CREAR', entidad: 'gasto', entidad_id: ins.id, descripcion: `Gasto OCR: ${t.form.proveedor_nombre || 'sin proveedor'} — ${t.form.grupo_gasto}` })
+        logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'CREAR', entidad: 'gasto', entidad_id: ins.id, descripcion: { proveedor: t.form.proveedor_nombre || null, grupo: t.form.grupo_gasto, importe: t.form.cantidad, via: 'OCR' } })
 
         // Líneas OCR
         const lineas = (t.ocr?.lineas || []).filter(l => l.descripcion && l.precio_unit).map(l => ({
@@ -784,7 +784,7 @@ export default function GastosOperativos() {
   const eliminar = async (g) => {
     if (!window.confirm(`¿Eliminar gasto ${g.descripcion || fmt(g.cantidad)}?`)) return
     await supabase.from('gastos_operativos').delete().eq('id', g.id)
-    logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: `Gasto eliminado: ${g.descripcion || g.proveedor || ''}` })
+    logAudit({ modulo: 'GASTOS_OPERATIVOS', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: { descripcion: g.descripcion || null, proveedor: g.proveedor || null, importe: g.cantidad, grupo: g.grupo_gasto } })
     cargar()
     toast.success('Gasto eliminado')
   }
