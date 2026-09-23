@@ -30,7 +30,7 @@ Crea el repo en GitHub y los proyectos Supabase (prod y QA) y Netlify (prod y QA
 
 ```
 Estás trabajando en un FORK del sistema IRP (RANNIX Consulting) para crear un ERP pequeño para una empresa de
-MUDANZAS. Nombre provisional: "MRP — Mudanzas Resource Planning".
+MUDANZAS. Producto: "Mudanzas Express" (un solo cliente, single-tenant).
 
 La especificación completa está en docs/ESPECIFICACION_TECNICA.md. Léela entera antes de hacer nada; es la fuente de
 verdad. El CLAUDE.md actual todavía describe IRP: úsalo para las convenciones, no para el dominio.
@@ -65,7 +65,10 @@ Reglas no negociables (heredadas de IRP):
 9. Al terminar cada fase: npm run build sin errores, verifica en el navegador (preview) con captura, corre las
    pruebas RLS si tocaste la base, y dame un resumen corto: qué hiciste, qué verificaste, qué quedó pendiente.
 10. Si algo de la especificación choca con lo que encuentras en el código, dímelo y propón; no lo resuelvas a ciegas.
-    Las preguntas abiertas del §11 de la especificación: usa el default propuesto y márcalo como supuesto.
+    Las decisiones del cliente están en §11 y sus ajustes en §12; mandan sobre las secciones anteriores. Lo que
+    sigue en "Pendientes que siguen abiertos" (logo, color, aseguradora, PAC, subcontratación, montos por
+    servicio): déjalo configurable en cat_parametros o como placeholder, y márcalo como supuesto.
+11. Single-tenant: NO agregues empresa_id.
 
 Confirma que leíste la especificación resumiéndola en 10 líneas y espera a que te dé la primera fase.
 ```
@@ -125,15 +128,22 @@ Aceptación: drill-down cliente → sus ventas; pruebas RLS en verde; el expedie
 ## F3 — Levantamiento y Cotización
 
 ```
-FASE F3. Según §5.2 y reglas §9.1.
+FASE F3. Según §5.2, §9.1 y sobre todo §12.1: el cliente cotiza a PRECIO CERRADO.
 1. Tablas cat_articulos_mudanza (siembra ~80 artículos típicos de casa y oficina con m³ y kg realistas),
-   cat_tarifas, levantamientos, levantamiento_partidas, cotizaciones, cotizacion_conceptos + vistas + RLS.
-2. Motor de cálculo determinista en src/lib/cotizador.js (m³ → tipo de unidad sugerida y tamaño de cuadrilla, horas
-   estimadas, km, pisos sin elevador, empaque, seguro % sobre valor declarado, IVA y retenciones). Documenta la
-   fórmula en /calculos con un ejemplo numérico. Pruebas unitarias simples del cotizador.
-3. Pantallas: captura de levantamiento (buscador de artículos, cantidades, fotos), cotización con desglose editable,
-   versiones (editar una ENVIADA crea una versión nueva), PDF con generar-documentos y la marca, envío por liga.
-Aceptación: el mismo inventario da el mismo precio en UI y en /calculos; el PDF se ve profesional.
+   cat_tarifas (COSTOS, no precios), levantamientos, levantamiento_partidas, cotizaciones (con costo_estimado,
+   precio_sugerido, precio_cerrado, margen_estimado_pct, moneda, tipo_cambio, orden_compra, seguro_prima),
+   cotizacion_conceptos (desglose interno de costo) + vistas + RLS.
+2. Motor determinista en src/lib/cotizador.js: inventario → m³/kg → unidad sugerida y tamaño de cuadrilla → horas,
+   km, casetas, viáticos, material, pago por servicio de la cuadrilla (cat_pago_servicio) → COSTO ESTIMADO →
+   precio sugerido con el margen objetivo del tipo de servicio (cat_parametros). Se cubren los 5 tipos: local,
+   foránea, internacional (moneda y tipo de cambio), corporativa y almacenaje. Documenta la fórmula en /calculos
+   con un ejemplo numérico. Pruebas unitarias simples.
+3. Pantallas: captura de levantamiento (buscador de artículos, cantidades, fotos); cotización donde el vendedor
+   escribe el PRECIO CERRADO y ve en vivo el margen estimado (semáforo contra el margen mínimo). Abajo del mínimo
+   exige aprobación de un admin. Versiones (editar una ENVIADA crea una versión nueva). PDF con la marca que muestra
+   un solo precio más el seguro opcional; nunca el desglose de costo. Envío por liga.
+Aceptación: el mismo inventario da el mismo costo en UI y en /calculos; una cotización con margen bajo no se puede
+enviar sin aprobación; el PDF no filtra costos internos.
 ```
 
 ---
@@ -155,7 +165,10 @@ Aceptación: flujo completo de punta a punta en QA con un usuario anónimo; anon
 ## F5 — Flota
 
 ```
-FASE F5. Según §5.4. Tablas vehiculos, vehiculo_combustible; vehiculo_id en ordenes_trabajo. /flota (tarjetas con
+FASE F5. Según §5.4 y §12.5. Son 10 unidades propias; deja vehiculos.propio para fleteros subcontratados.
+Tablas vehiculos (incluye YA los campos de Carta Porte: config_vehicular, permiso_sct_tipo, permiso_sct_numero,
+aseguradora_rc, poliza_rc, peso_bruto_vehicular) + vehiculo_remolques, vehiculo_combustible; vehiculo_id en
+ordenes_trabajo. /flota (tarjetas con
 semáforo de vencimientos) y /flota/:id sobre ExpedienteLayout (tabs: Resumen, Documentos, Pólizas y verificación,
 Mantenimiento, Combustible y rendimiento, Órdenes, Gastos, Historial). extraer-documento reconoce la tarjeta de
 circulación y la póliza. La carga de combustible crea un Gasto ligado a vehiculo_id. Vista
@@ -175,7 +188,10 @@ FASE F6. Según §6. El expediente debe quedar TAN completo como el de IRP y ade
 3. CAMPOS_EXPEDIENTE según el rol_operativo; Próximas fechas con los vencimientos de licencia, aptitud y antidoping;
    KPIs de Resumen del §6. extraer-documento reconoce la licencia federal.
 4. Vista prp_empleado_vencimientos + alerta en el Dashboard.
-Aceptación: no se pierde nada de los 10 tabs originales; completitud correcta para chofer y para ayudante.
+5. Pago mixto (§12.2): rh_empleados.esquema_pago (SUELDO / POR_SERVICIO / MIXTO) y la tabla cat_pago_servicio
+   (tipo_servicio × rol_operativo → monto). En el tab Servicios, lo ganado por orden y el acumulado del periodo.
+Aceptación: no se pierde nada de los 10 tabs originales; completitud correcta para chofer y para ayudante; un
+empleado POR_SERVICIO muestra su esquema en el encabezado.
 ```
 
 ---
@@ -216,17 +232,27 @@ expediente de la orden.
 ## F9 — Finanzas / ERP
 
 ```
-FASE F9. Según §3.5 y §9.6–9.10.
-1. Nómina → Gastos: el cierre de nómina genera los gastos del grupo Nómina; la mano de obra se prorratea por
-   orden según orden_asignaciones.horas × costo hora (salario_diario / horas de jornada).
-2. Vistas prp_rentabilidad_orden, _cliente, _tipo_servicio, _vehiculo; EDR mensual con costo directo vs.
-   gasto de operación y prorrateo de indirectos; flujo de caja semanal (adapta ResumenSemanal).
-3. Cuentas por pagar: fecha_vencimiento y pagado en gastos a crédito, con su tablero.
-4. Facturación: CFDI 4.0 al liquidar; deja la integración con el PAC detrás de una Netlify Function con interfaz
-   clara. Carta Porte para foráneas como pendiente documentado (no inventes el complemento).
-5. Dashboard con los KPIs del §9.
-Aceptación: para un mes de prueba, la suma de la rentabilidad de las órdenes + los indirectos = la utilidad del EDR.
-Muéstrame la conciliación.
+FASE F9. Según §3.5, §9.6–9.10 y §12.2, §12.4–12.6.
+1. Nómina: percepción "Servicios realizados" = suma de orden_asignaciones.pago_servicio de las órdenes cerradas
+   en el periodo (se congela al cerrar la orden). POR_SERVICIO sin sueldo base o con el mínimo (parámetro);
+   MIXTO lo suma al sueldo. El cierre de nómina genera los gastos del grupo Nómina.
+2. Mano de obra por orden = pago_servicio + horas × costo hora del personal con sueldo.
+3. Vistas prp_rentabilidad_orden, _cliente, _tipo_servicio, _vehiculo; reporte "margen estimado vs. real" por
+   orden y por vendedor; EDR mensual (costo directo vs. gasto de operación, prorrateo de indirectos, todo en MXN al
+   tipo de cambio de la operación); flujo de caja semanal (adapta ResumenSemanal).
+4. CxC corporativa: antigüedad 0-30/31-60/61-90/+90; bloqueo al programar si rebasa el límite o tiene saldo vencido,
+   salvo autorización de un admin registrada en la bitácora. CxP: fecha_vencimiento y pagado en gastos a crédito.
+5. Seguro y siniestros: la prima es gasto de la orden; deducible y rechazos, también.
+6. Facturación: netlify/functions/timbrar-cfdi.js con interfaz única y adaptador por PAC (el PAC está pendiente:
+   por ahora genera el XML sin timbrar para revisión). CFDI 4.0 con Complemento Carta Porte para servicios con
+   traslado por carretera federal, armado con los datos de vehiculos, rh_licencias, cliente_direcciones y
+   orden_inventario. Las claves SAT de producto y config vehicular salen de cat_parametros/catálogos: no las
+   inventes; deja la lista de las que necesitas confirmar con el contador. orden_compra en la factura si el
+   cliente la exige.
+7. Dashboard con los KPIs del §9.
+Aceptación: para un mes de prueba, la suma de la rentabilidad de las órdenes + los indirectos = la utilidad del EDR
+(muéstrame la conciliación); la nómina de un empleado POR_SERVICIO cuadra con sus órdenes cerradas; se genera el XML
+de una mudanza foránea con Carta Porte.
 ```
 
 ---
@@ -241,4 +267,18 @@ las vistas prp_ordenes, prp_rentabilidad_*, prp_agenda, prp_flota_vencimientos. 
 netlify/functions/_lib/modelo.js. Usa la skill claude-api para elegir el modelo vigente y la forma correcta de
 mandar imágenes.
 Aceptación: con 3 fotos de una sala, sugiere partidas razonables y el volumen total en m³.
+```
+
+---
+
+## F11 — Almacenaje
+
+```
+FASE F11. El cliente sí da almacenaje. /almacen: espacios de bodega (cat_espacios_almacen: código, m³, estatus),
+contratos de almacenaje ligados a cliente y, si aplica, a la orden de origen; inventario guardado con etiqueta y
+foto (reusa orden_inventario o una tabla almacen_inventario); cargo mensual recurrente reutilizando
+cargos_programados y la lógica de cobranza mensual heredada de IRP; salida parcial o total que genera una orden
+de entrega. Ventas con tipo_venta = ALMACENAJE. KPI de ocupación de la bodega en el Dashboard.
+Aceptación: un contrato de almacenaje genera su cargo el día 1 y aparece en la CxC; la ocupación cuadra con los
+espacios asignados.
 ```

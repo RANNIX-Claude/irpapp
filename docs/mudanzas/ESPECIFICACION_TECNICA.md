@@ -1,5 +1,5 @@
-# Especificación técnica — Plataforma de Mudanzas (nombre provisional: **MRP — Mudanzas Resource Planning**)
-## RANNIX Consulting | v0.1 | 2026-09-23
+# Especificación técnica — Plataforma de Mudanzas (**Mudanzas Express**)
+## RANNIX Consulting | v0.2 | 2026-09-23 — incluye decisiones del cliente (§11–12)
 
 > Producto hermano de IRP. Se construye como **fork** del repositorio IRP: hereda estilo, layout,
 > componentes, seguridad (RLS por rol, storage firmado), RH/Nómina completo, gastos, ingresos, compras,
@@ -116,7 +116,7 @@ Del lado de la base, sus tablas y vistas se eliminan en **una migración propia*
 | Vista móvil de cuadrilla | `/campo/orden/:id` | Para el supervisor en sitio: checklist, fotos, etiquetas, firma del cliente |
 | Flota | `/flota`, `/flota/:id` | Expediente del vehículo: documentos, pólizas, verificación, combustible, mantenimiento |
 | Siniestros / Reclamaciones | `/siniestros` | Daños, reclamaciones y pagos del seguro |
-| Almacenaje (opcional, F11) | `/almacen` | Bodega por días o meses (este servicio sí reutiliza la lógica de cargos recurrentes de IRP) |
+| Almacenaje (F11) | `/almacen` | Bodega por días o meses (este servicio sí reutiliza la lógica de cargos recurrentes de IRP) |
 
 ---
 
@@ -380,20 +380,96 @@ cliente, cartera vencida, vencimientos próximos (licencias, pólizas, verificac
 | **F8 Campo (móvil)** | `/campo/orden/:id`: estatus, fotos, etiquetas, firma | Usable a 375 px con una mano; funciona con red débil |
 | **F9 Finanzas / ERP** | Ventas y Gastos como libros (§3.5), CxC, CxP, rentabilidad, EDR, flujo, CFDI | `prp_rentabilidad_orden` cuadra contra gastos e ingresos; el EDR del mes cuadra con la suma de ventas y gastos |
 | **F10 IA** | `inventario-ia`, agentes con dominio de mudanzas | El inventario sugerido es editable antes de guardar |
-| **F11 Almacenaje (opcional)** | Bodega con cargos recurrentes | Reusa `cargos_programados` |
+| **F11 Almacenaje** | Bodega con cargos recurrentes | Reusa `cargos_programados` |
 
 ---
 
-## 11. Preguntas abiertas para el cliente
-1. Nombre comercial, logo y color de marca.
-2. ¿Mudanzas locales, foráneas, internacionales, corporativas? ¿Almacenaje?
-3. ¿Cómo cotizan hoy: por m³, por unidad y horas, o por precio cerrado? Tabla de tarifas actual.
-4. Tamaño de la flota y tipos de unidad; ¿subcontratan unidades o personal (fleteros)?
-5. ¿Cómo pagan a la cuadrilla: sueldo fijo, por servicio, o un esquema mixto con viáticos?
-6. ¿Venden seguro de la carga? ¿Con qué aseguradora? ¿Cómo manejan las reclamaciones hoy?
-7. ¿Emiten Carta Porte? ¿Qué PAC usan para facturar?
-8. ¿El supervisor en campo tiene celular con datos? ¿Hace falta modo sin conexión?
-9. ¿Clientes corporativos con crédito y órdenes de compra?
-10. ¿Es un solo cliente (a la medida, como IWOL) o se venderá como SaaS a varias mudanceras (multi-tenant)?
-    **Esta respuesta cambia el modelo de datos**: si es SaaS, desde F0 se agrega `empresa_id` a todas las tablas y a
-    `es_staff()`.
+## 11. Decisiones del cliente (2026-09-23) y su impacto
+
+| # | Pregunta | Respuesta | Impacto en el diseño |
+|---|---|---|---|
+| 1 | Nombre, logo, color | **Mudanzas Express**. Logo y color pendientes | `VITE_APP_TITLE=Mudanzas Express`. Se arranca con la paleta propuesta en §2.2; al tener el color se cambia una sola línea en `theme.css` |
+| 2 | Tipos de servicio | **Todos**: locales, foráneas, internacionales, corporativas y almacenaje | Almacenaje deja de ser opcional (F11 entra al alcance). Internacional: ver §12.3 |
+| 3 | Cómo cotizan | **Precio cerrado** | El cotizador ya no calcula el precio: calcula el **costo estimado** y un **precio sugerido**. El vendedor captura el precio cerrado y el sistema muestra el margen estimado (ver §12.1) |
+| 4 | Flota | **10 unidades**. No dijeron si subcontratan | Agenda simple (10 carriles). Se deja preparado `vehiculos.propio bool` para fleteros subcontratados |
+| 5 | Pago a cuadrilla | **Mixto**: unos cobran por servicio y otros tienen sueldo | Esquema de pago por empleado y percepción "Servicios realizados" en nómina (ver §12.2) |
+| 6 | Seguro | **Se vende a través de una aseguradora** (nombre pendiente) | Seguro como concepto de la cotización. Siniestros con folio de reclamación ante la aseguradora (ver §12.4) |
+| 7 | Carta Porte | **Sí emiten**. PAC pendiente | Carta Porte entra al alcance en F9 y exige datos adicionales en flota, choferes y órdenes desde F5 (ver §12.5) |
+| 8 | Celular en campo | **Sí, con datos**. Sin respuesta sobre modo sin conexión | No se hace modo *offline* completo; solo una cola de reintento para fotos y cambios de estatus cuando la señal falla |
+| 9 | Corporativos | **Sí**, con crédito y órdenes de compra | `orden_compra` obligatoria en cotización y factura cuando el cliente la exige. CxC por antigüedad (ver §12.6) |
+| 10 | SaaS o un cliente | **Un solo cliente por ahora** | **Single-tenant: no se agrega `empresa_id`.** Si después se vende a otras mudanceras, se hace un proyecto Supabase por cliente (como IRP↔Mudanzas), no multi-tenant |
+
+### Pendientes que siguen abiertos
+- Logo y color de marca.
+- Nombre de la aseguradora y cómo se calcula la prima (porcentaje sobre el valor declarado o tabla).
+- PAC con el que timbran hoy (necesario para CFDI y Carta Porte).
+- ¿Subcontratan unidades o fleteros?
+- En los servicios internacionales: ¿trabajan con agente aduanal propio o del cliente? ¿Cobran en USD?
+- Montos del pago por servicio: ¿fijo por rol, porcentaje de la venta o tabla por tipo de servicio?
+
+---
+
+## 12. Ajustes al diseño por las decisiones del cliente
+
+### 12.1 Cotización a precio cerrado
+- `cotizaciones`: `+ costo_estimado`, `+ precio_sugerido`, `+ precio_cerrado`, `+ margen_estimado_pct`,
+  `+ moneda text default 'MXN'`, `+ tipo_cambio numeric`, `+ orden_compra text`.
+- `cotizacion_conceptos` pasa a ser el **desglose interno de costo** (cuadrilla, combustible, casetas, viáticos,
+  material, seguro) y **no se imprime** en el PDF. El cliente ve un solo precio, con el seguro aparte si lo contrata.
+- `cat_tarifas` guarda **costos**, no precios. `precio_sugerido = costo_estimado / (1 − margen_objetivo)`, con el
+  margen objetivo por tipo de servicio en `cat_parametros`.
+- Regla: si `margen_estimado_pct` queda abajo del margen mínimo, la cotización requiere aprobación de un admin antes
+  de enviarse.
+- Al cerrar la orden se compara el **margen estimado con el real** (`prp_rentabilidad_orden`). Es el reporte más
+  valioso para que aprendan a cotizar mejor.
+
+### 12.2 Pago mixto a la cuadrilla
+- `rh_empleados`: `+ esquema_pago text check in ('SUELDO','POR_SERVICIO','MIXTO')`.
+- `cat_pago_servicio (tipo_servicio, rol_operativo, monto)`: tabla de pagos por servicio. Se usa como default y es
+  editable en cada asignación.
+- `orden_asignaciones.pago_servicio numeric`: se llena con la tabla al asignar y se congela al cerrar la orden.
+- Nómina: nueva percepción **"Servicios realizados"** = suma de `pago_servicio` de las órdenes cerradas en el periodo.
+  Para `POR_SERVICIO` el salario base es 0 o el mínimo, según decida el contador. Para `MIXTO` se suma al sueldo.
+- Los viáticos no son percepción: salen del fondo revolvente y se comprueban como gasto de la orden.
+- En el expediente: el tab Nómina muestra el desglose por orden, y el tab Servicios muestra lo ganado por servicio.
+- Rentabilidad: costo de mano de obra de la orden = `pago_servicio` (por servicio) + horas × costo hora (sueldo).
+
+### 12.3 Internacional
+- Moneda y tipo de cambio en cotización, venta y gasto. El EDR se reporta en MXN al tipo de cambio de la operación.
+- Orden de servicio: `+ requiere_aduana bool`, `+ agente_aduanal`, `+ pedimento`, `+ pais_destino`. Los documentos
+  del menaje van a `ordenes-evidencias`. **No** se modela el trámite aduanal; solo se registra y se adjunta.
+
+### 12.4 Seguro y siniestros
+- `cat_parametros`: aseguradora, número de póliza maestra y porcentaje de prima sobre el valor declarado.
+- La cotización lleva `seguro_prima` como concepto visible al cliente. El costo de la prima para la empresa es un
+  gasto de la orden (grupo Costo directo).
+- `siniestros`: `+ folio_aseguradora`, `+ deducible`, `+ fecha_reporte`. El flujo es: se abre desde el inventario de
+  destino, se reporta a la aseguradora, llega el dictamen y se registra el pago. Lo que la aseguradora no cubre
+  (deducible o rechazo) es gasto de la orden.
+
+### 12.5 Carta Porte (entra al alcance)
+El complemento pide datos que hay que capturar **desde que se crean** flota, choferes y órdenes, no al facturar:
+- `vehiculos`: `+ config_vehicular` (clave SAT), `+ permiso_sct_tipo`, `+ permiso_sct_numero`, `+ aseguradora_rc`,
+  `+ poliza_rc`, `+ peso_bruto_vehicular`. Para remolques, tabla `vehiculo_remolques`.
+- Choferes: RFC, número de licencia y domicilio ya existen en `rh_empleados` y `rh_licencias`.
+- Orden: origen y destino con CP (ya en `cliente_direcciones`), distancia recorrida, fecha y hora de salida y
+  llegada, mercancías con su clave de producto SAT, peso y cantidad (desde `orden_inventario` agrupado).
+- `cat_parametros`: clave de producto SAT para menaje de casa y para mobiliario de oficina, a **confirmar con el
+  contador**. No se inventan claves en el código.
+- El timbrado va detrás de la Netlify Function `timbrar-cfdi`, con una interfaz única y un adaptador por PAC.
+  Mientras no se defina el PAC, esa function genera el XML sin timbrar para revisión.
+
+### 12.6 Corporativos
+- `clientes`: `credito_dias` y `limite_credito` (ya en §5.1), `+ requiere_orden_compra bool`, `+ portal_proveedores`
+  (dónde suben la factura).
+- Regla: no se programa una orden de un cliente que rebasó su límite de crédito o tiene saldo vencido, salvo
+  autorización de un admin, que queda en la bitácora.
+- Cobranza: antigüedad de saldos 0-30 / 31-60 / 61-90 / +90 por cliente, con drill-down hasta la factura.
+
+### 12.7 Fases actualizadas
+- **F3** usa el esquema de precio cerrado del §12.1.
+- **F5** captura desde el inicio los datos de Carta Porte de las unidades (§12.5).
+- **F6** incluye `esquema_pago` y la tabla `cat_pago_servicio` (§12.2).
+- **F9** incluye la percepción "Servicios realizados" en nómina, `timbrar-cfdi` con Carta Porte y el reporte
+  "margen estimado vs. real".
+- **F11 Almacenaje** deja de ser opcional.
