@@ -5,7 +5,7 @@ import {
   BarChart3, Settings,
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
-  ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2,
+  ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -46,6 +46,7 @@ const NAV_SECTIONS = [
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
+      { label: 'Proveedores', path: '/proveedores', icon: Truck },
     ]
   },
   {
