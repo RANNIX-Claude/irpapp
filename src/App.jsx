@@ -34,6 +34,8 @@ import ResumenSemanal from './pages/ResumenSemanal.jsx'
 import Bitacora from './pages/Bitacora.jsx'
 import Utilidades from './pages/Utilidades.jsx'
 import Catalogos from './pages/Catalogos.jsx'
+import ExpedienteProveedor from './pages/ExpedienteProveedor.jsx'
+import ExpedienteProducto from './pages/ExpedienteProducto.jsx'
 import Validacion from './pages/Validacion.jsx'
 import Calculos from './pages/Calculos.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
@@ -232,7 +234,9 @@ function AppLayout() {
           <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/eventos"   element={<Eventos />} />
           <Route path="/proveedores" element={<Proveedores />} />
+          <Route path="/proveedores/:id" element={<ExpedienteProveedor />} />
           <Route path="/productos" element={<Productos />} />
+          <Route path="/productos/:id" element={<ExpedienteProducto />} />
           <Route path="/rh" element={<RH />} />
           <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
           <Route path="/estacionamiento" element={<Estacionamiento />} />

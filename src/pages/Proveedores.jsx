@@ -4,7 +4,7 @@ import { Truck, Plus, Search, X, Pencil, ChevronDown, LayoutGrid, AlignJustify, 
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
 import AnalisisCompras from '../components/compras/AnalisisCompras'
-import Expediente from '../components/compras/Expediente'
+import { useNavigate } from 'react-router-dom'
 
 // La base tiene CHECK sobre categoria: una cadena vacía la rechaza. Se manda
 // null y de paso no se guardan cadenas vacías en el resto de los campos.
@@ -13,7 +13,7 @@ const limpiar = (form) => Object.fromEntries(
     .map(([k, v]) => [k, typeof v === 'string' && v.trim() === '' ? null : v])
 )
 
-const CATEGORIAS = [
+export const CATEGORIAS = [
   { id: 'VENDING',       label: 'Vending',        color: '#EC4899' },
   { id: 'OPERACION',     label: 'Operación',      color: '#057642' },
   { id: 'MANTENIMIENTO', label: 'Mantenimiento',   color: '#E8A020' },
@@ -29,7 +29,7 @@ function Badge({ cat }) {
 
 const EMPTY = { clave: '', nombre: '', razon_social: '', rfc: '', categoria: '', telefono: '', email: '', contacto: '', notas: '' }
 
-function ModalProveedor({ proveedor, onClose, onSaved }) {
+export function ModalProveedor({ proveedor, onClose, onSaved }) {
   const [form, setForm] = useState(proveedor ? { ...proveedor } : { ...EMPTY })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -168,6 +168,7 @@ export default function Proveedores() {
   const [vistaGrid, setVistaGrid] = useState(true)
   const [ficha, setFicha] = useState(null)
   const [tab, setTab] = useState('catalogo')
+  const navigate = useNavigate()
 
   // Al subir un logo se refleja en la lista sin recargar.
   const aplicarLogo = (id, url) => {
@@ -240,7 +241,7 @@ export default function Proveedores() {
       </div>
 
       {tab === 'analisis' && (
-        <AnalisisCompras proveedores={lista} onVerProveedor={p => p && setFicha(p)} onCatalogoCambio={cargar} />
+        <AnalisisCompras proveedores={lista} onVerProveedor={p => p && navigate(`/proveedores/${p.id}`)} onCatalogoCambio={cargar} />
       )}
 
       {tab === 'catalogo' && <>
@@ -281,7 +282,7 @@ export default function Proveedores() {
             {filtrados.map(p => (
               <TarjetaProveedor key={p.id} p={p}
                 onLogo={aplicarLogo}
-                onVer={setFicha}
+                onVer={p => navigate(`/proveedores/${p.id}`)}
                 onEditar={setModal}
               />
             ))}
@@ -343,13 +344,6 @@ export default function Proveedores() {
           proveedor={modal === 'nuevo' ? null : modal}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); cargar() }}
-        />
-      )}
-      {ficha && (
-        <Expediente
-          inicio={{ tipo: 'proveedor', id: ficha.id, nombre: ficha.nombre }}
-          onClose={() => setFicha(null)}
-          acciones={{ onEditarProveedor: p => { setFicha(null); setModal(p) }, onCambio: cargar }}
         />
       )}
     </div>

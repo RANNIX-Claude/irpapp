@@ -58,3 +58,20 @@ export async function traerTodo(armar, bloque = 1000) {
 
 export const traerVista = (vista, filtrar = q => q, cols = '*') =>
   traerTodo(() => filtrar(supabase.from(vista).select(cols)))
+
+// Agrupa líneas de ticket (prp_compras_productos) por producto o por proveedor.
+export function agrupar(rows, llave, nombre) {
+  const m = new Map()
+  for (const r of rows) {
+    const k = r[llave] || 'sin:' + r[nombre]
+    const a = m.get(k) || { k, id: r[llave], nombre: r[nombre] || '—', imagen: r.imagen_url, unidad: r.unidad, clasificacion: r.clasificacion, tickets: new Set(), cantidad: 0, total: 0, ultima: null, ultimoPrecio: null, min: Infinity, max: -Infinity }
+    a.tickets.add(r.gasto_id)
+    a.cantidad += Number(r.cantidad) || 0
+    a.total += Number(r.subtotal) || 0
+    const pu = Number(r.precio_unit) || 0
+    a.min = Math.min(a.min, pu); a.max = Math.max(a.max, pu)
+    if (!a.ultima || r.fecha > a.ultima) { a.ultima = r.fecha; a.ultimoPrecio = pu }
+    m.set(k, a)
+  }
+  return [...m.values()].sort((x, y) => y.total - x.total)
+}

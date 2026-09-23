@@ -4,7 +4,7 @@ import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify, Tags, Downl
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
-import Expediente from '../components/compras/Expediente'
+import { useNavigate } from 'react-router-dom'
 import { pesos, pesos2, fecha, traerVista } from '../lib/compras'
 import toast from 'react-hot-toast'
 
@@ -33,7 +33,7 @@ function SelectClasif({ valor, clasifs, onChange, style }) {
 }
 
 // ─── Alta / edición ──────────────────────────────────────────────────────────
-function ProductoModal({ producto, clasifs, onClose, onSaved }) {
+export function ProductoModal({ producto, clasifs, onClose, onSaved }) {
   const esNuevo = producto === 'nuevo'
   const [form, setForm] = useState(esNuevo
     ? { clave: '', nombre: '', categoria: '', unidad: 'PZA', activo: true }
@@ -240,6 +240,7 @@ export default function Productos() {
   const [modal, setModal] = useState(null)
   const [ficha, setFicha] = useState(null)
   const [verClasifs, setVerClasifs] = useState(false)
+  const navigate = useNavigate()
 
   const cargarClasifs = useCallback(async () => {
     const { data } = await supabase.from('cat_clasificacion_producto').select('*').order('orden')
@@ -376,7 +377,7 @@ export default function Productos() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 14, padding: 16, background: '#F8FAFC' }}>
             {filtrados.map(p => (
               <TarjetaProducto key={p.id} p={p} c={clasifPorClave[p.categoria]} r={resumen[p.id]} clasifs={clasifs}
-                onImagen={aplicarImagen} onVer={setFicha} onClasificar={clasificar} />
+                onImagen={aplicarImagen} onVer={p => navigate(`/productos/${p.id}`)} onClasificar={clasificar} />
             ))}
           </div>
         ) : (
@@ -401,7 +402,7 @@ export default function Productos() {
                           size={38} redondo={false} onSubido={url => aplicarImagen(p.id, url)}
                         />
                       </td>
-                      <td onClick={() => setFicha(p)} style={{ padding: '10px 12px', cursor: 'pointer' }}>
+                      <td onClick={() => navigate(`/productos/${p.id}`)} style={{ padding: '10px 12px', cursor: 'pointer' }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: '#0A66C2' }}>{p.nombre}</div>
                         <div style={{ fontSize: 10.5, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</div>
                       </td>
@@ -430,13 +431,6 @@ export default function Productos() {
       )}
       {verClasifs && (
         <ClasificacionesModal clasifs={clasifs} conteo={conteo} onClose={() => setVerClasifs(false)} onSaved={cargarClasifs} />
-      )}
-      {ficha && (
-        <Expediente
-          inicio={{ tipo: 'producto', id: ficha.id, nombre: ficha.nombre }}
-          onClose={() => setFicha(null)}
-          acciones={{ onEditarProducto: setModal, onCambio: cargar }}
-        />
       )}
     </div>
   )
