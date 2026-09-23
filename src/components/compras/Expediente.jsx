@@ -126,8 +126,9 @@ function NodoProveedor({ id, carpeta, setCarpeta, ir, clasifs, acciones }) {
 
   const cargar = useCallback(() => {
     supabase.from('cat_proveedores').select('*').eq('id', id).single().then(({ data }) => setP(data))
-    traerVista('prp_gastos', q => q.eq('proveedor_id', id).order('fecha', { ascending: false }),
-      'id,fecha,grupo_gasto,descripcion,monto,ticket_total,num_lineas,ticket_url,tiene_factura').then(setTickets).catch(() => setTickets([]))
+    // select * (no columnas fijas): ticket_url/tiene_factura solo existen tras 20260923300000
+    traerVista('prp_gastos', q => q.eq('proveedor_id', id).order('fecha', { ascending: false }))
+      .then(setTickets).catch(e => { toast.error('No se pudieron cargar los tickets: ' + e.message); setTickets([]) })
     traerVista('prp_compras_productos', q => q.eq('proveedor_id', id)).then(r => setProds(agrupar(r, 'producto_id', 'producto'))).catch(() => {})
     traerVista('prp_compras', q => q.eq('proveedor_id', id).eq('origen', 'PROYECTO').order('fecha', { ascending: false })).then(setProy).catch(() => {})
     traerVista('prp_compras_resumen', q => q.eq('proveedor_id', id)).then(setRes).catch(() => {})
