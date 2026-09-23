@@ -4,7 +4,7 @@ import { Truck, Plus, Search, X, Pencil, ChevronDown, LayoutGrid, AlignJustify, 
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
 import AnalisisCompras from '../components/compras/AnalisisCompras'
-import { ComprasDeProveedor } from '../components/compras/CruceCompras'
+import Expediente from '../components/compras/Expediente'
 
 // La base tiene CHECK sobre categoria: una cadena vacía la rechaza. Se manda
 // null y de paso no se guardan cadenas vacías en el resto de los campos.
@@ -150,76 +150,8 @@ function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
       </div>
 
       <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
-        <button onClick={() => onVer(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', borderRight: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A66C2' }}>Ficha</button>
+        <button onClick={() => onVer(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', borderRight: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A66C2' }}>Expediente</button>
         <button onClick={() => onEditar(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Editar</button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Ficha del proveedor ─────────────────────────────────────────────────────
-function FichaProveedor({ p, onClose, onLogo, onEditar }) {
-  if (!p) return null
-  const info = catInfo(p.categoria)
-  const dato = (l, v, mono) => (
-    <div>
-      <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>{l}</div>
-      <div style={{ fontSize: 13, color: v ? '#111827' : '#9CA3AF', fontWeight: 500, fontFamily: mono ? 'monospace' : undefined }}>{v || '—'}</div>
-    </div>
-  )
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 14, width: 560, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ position: 'relative', height: 96, background: `linear-gradient(135deg, ${info.color || '#0A66C2'} 0%, #1A3C5E 130%)` }}>
-          <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 12, background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: 'white' }}>✕</button>
-          <div style={{ position: 'absolute', left: 24, bottom: -32 }}>
-            <LogoEditable
-              prefijo="proveedores" tabla="cat_proveedores" columna="logo_url"
-              registroId={p.id} url={p.logo_url} nombre={p.nombre} size={72} redondo={false}
-              onSubido={url => onLogo(p.id, url)}
-            />
-          </div>
-        </div>
-
-        <div style={{ padding: '42px 24px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: '#111827' }}>{p.nombre}</h2>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-                <Badge cat={p.categoria} />
-                <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</span>
-                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: p.activo ? '#D1FAE5' : '#FEE2E2', color: p.activo ? '#057642' : '#B24020' }}>
-                  {p.activo ? 'ACTIVO' : 'INACTIVO'}
-                </span>
-              </div>
-            </div>
-            <button onClick={() => { onClose(); onEditar(p) }} style={{ padding: '7px 14px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-              Editar
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginTop: 20, paddingTop: 18, borderTop: '1px solid #F3F4F6' }}>
-            {dato('RFC', p.rfc, true)}
-            {dato('Contacto', p.contacto)}
-            {dato('Teléfono', p.telefono)}
-            {dato('Email', p.email)}
-            {dato('Categoría', info.label || p.categoria)}
-            {dato('Razón social', p.razon_social)}
-          </div>
-          {p.alias?.length > 0 && (
-            <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280' }}>
-              También capturado como: {p.alias.map(a => <span key={a} style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '1px 6px', borderRadius: 4, marginRight: 4 }}>{a}</span>)}
-            </div>
-          )}
-
-          {p.notas && (
-            <div style={{ marginTop: 18, padding: '12px 14px', background: '#F9FAFB', borderRadius: 8, fontSize: 13, color: '#6B7280' }}>
-              📝 {p.notas}
-            </div>
-          )}
-
-          <ComprasDeProveedor proveedorId={p.id} />
-        </div>
       </div>
     </div>
   )
@@ -413,7 +345,13 @@ export default function Proveedores() {
           onSaved={() => { setModal(null); cargar() }}
         />
       )}
-      <FichaProveedor p={ficha} onClose={() => setFicha(null)} onLogo={aplicarLogo} onEditar={setModal} />
+      {ficha && (
+        <Expediente
+          inicio={{ tipo: 'proveedor', id: ficha.id, nombre: ficha.nombre }}
+          onClose={() => setFicha(null)}
+          acciones={{ onEditarProveedor: p => { setFicha(null); setModal(p) }, onCambio: cargar }}
+        />
+      )}
     </div>
   )
 }

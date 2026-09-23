@@ -1,10 +1,10 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify, Tags, Merge, Download } from 'lucide-react'
+import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify, Tags, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import LogoEditable from '../components/ui/LogoEditable'
-import { ComprasDeProducto } from '../components/compras/CruceCompras'
+import Expediente from '../components/compras/Expediente'
 import { pesos, pesos2, fecha, traerVista } from '../lib/compras'
 import toast from 'react-hot-toast'
 
@@ -183,84 +183,6 @@ function ClasificacionesModal({ clasifs, conteo, onClose, onSaved }) {
             <input value={nueva.nombre} onChange={e => setNueva(n => ({ ...n, nombre: e.target.value }))} onKeyDown={e => e.key === 'Enter' && agregar()} placeholder="Nueva clasificación…" style={{ ...inp, flex: 1 }} />
             <button onClick={agregar} style={{ padding: '0 16px', border: 'none', borderRadius: 8, background: '#057642', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Agregar</button>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Ficha de producto ───────────────────────────────────────────────────────
-function FichaProducto({ p, clasifs, lista, onClose, onEditar, onClasificar, onImagen, onFusionado }) {
-  const [fusion, setFusion] = useState(false)
-  const [busca, setBusca] = useState('')
-  const [destino, setDestino] = useState(null)
-  const [trabajando, setTrabajando] = useState(false)
-  if (!p) return null
-  const c = clasifs.find(x => x.clave === p.categoria)
-
-  const candidatos = lista.filter(x => x.id !== p.id && x.activo && (!busca || x.nombre.toLowerCase().includes(busca.toLowerCase()))).slice(0, 30)
-
-  const fusionar = async () => {
-    if (!destino) return
-    setTrabajando(true)
-    const { data, error } = await supabase.rpc('fusionar_productos', { p_origen: p.id, p_destino: destino.id })
-    setTrabajando(false)
-    if (error) return toast.error(error.message)
-    logAudit({ modulo: 'PRODUCTOS', accion: 'EDITAR', entidad: 'producto', entidad_id: destino.id, descripcion: `"${p.nombre}" fusionado en "${destino.nombre}" (${data} líneas de ticket)` })
-    toast.success(`Fusionado en "${destino.nombre}"`)
-    onFusionado()
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 14, width: 640, maxWidth: '96vw', maxHeight: '92vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', gap: 16, padding: '20px 22px', borderBottom: '1px solid #F3F4F6', alignItems: 'flex-start' }}>
-          <LogoEditable prefijo="productos" tabla="cat_productos" columna="imagen_url"
-            registroId={p.id} url={p.imagen_url} nombre={p.nombre} size={84} redondo={false} onSubido={url => onImagen(p.id, url)} />
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#111827' }}>{p.nombre}</h2>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
-              <Badge c={c} />
-              <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{p.clave}</span>
-              <span style={{ fontSize: 11, color: '#6B7280' }}>{p.unidad}</span>
-              {p.origen === 'TICKET' && <span style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4 }}>ALTA DESDE TICKET</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <SelectClasif valor={p.categoria} clasifs={clasifs} onChange={v => onClasificar(p, v)} />
-              <button onClick={() => { onClose(); onEditar(p) }} style={{ padding: '5px 12px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Editar</button>
-              <button onClick={() => setFusion(f => !f)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', background: '#FFF7ED', color: '#C2410C', border: '1.5px solid #FED7AA', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}><Merge size={13} /> Fusionar con otro</button>
-            </div>
-            {p.alias?.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280' }}>
-                También llega como: {p.alias.map(a => <span key={a} style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '1px 6px', borderRadius: 4, marginRight: 4 }}>{a}</span>)}
-              </div>
-            )}
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF' }}><X size={18} /></button>
-        </div>
-
-        {fusion && (
-          <div style={{ margin: '14px 22px 0', padding: 14, background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 10 }}>
-            <div style={{ fontSize: 12, color: '#9A3412', marginBottom: 8 }}>
-              Las compras de <b>{p.nombre}</b> pasan al producto elegido, y este nombre queda como alias para los próximos tickets.
-            </div>
-            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar el producto que se queda…" style={{ ...inp, background: 'white' }} />
-            <div style={{ maxHeight: 160, overflow: 'auto', marginTop: 6, background: 'white', borderRadius: 8 }}>
-              {candidatos.map(x => (
-                <div key={x.id} onClick={() => setDestino(x)} style={{ padding: '7px 10px', fontSize: 12.5, cursor: 'pointer', background: destino?.id === x.id ? '#FFEDD5' : 'white', borderBottom: '1px solid #FFF7ED', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: destino?.id === x.id ? 700 : 500 }}>{x.nombre}</span>
-                  <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace' }}>{x.clave}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={fusionar} disabled={!destino || trabajando} style={{ marginTop: 10, width: '100%', padding: 9, border: 'none', borderRadius: 8, background: '#C2410C', color: 'white', fontWeight: 700, fontSize: 13, cursor: destino ? 'pointer' : 'default', opacity: !destino || trabajando ? .5 : 1 }}>
-              {trabajando ? 'Fusionando…' : destino ? `Fusionar en "${destino.nombre}"` : 'Elige el producto que se queda'}
-            </button>
-          </div>
-        )}
-
-        <div style={{ padding: '0 22px 20px' }}>
-          <ComprasDeProducto productoId={p.id} />
         </div>
       </div>
     </div>
@@ -509,10 +431,13 @@ export default function Productos() {
       {verClasifs && (
         <ClasificacionesModal clasifs={clasifs} conteo={conteo} onClose={() => setVerClasifs(false)} onSaved={cargarClasifs} />
       )}
-      <FichaProducto p={ficha} clasifs={clasifs} lista={lista}
-        onClose={() => setFicha(null)} onEditar={setModal} onClasificar={clasificar}
-        onImagen={(id, url) => { aplicarImagen(id, url); setFicha(f => f && { ...f, imagen_url: url }) }}
-        onFusionado={() => { setFicha(null); cargar() }} />
+      {ficha && (
+        <Expediente
+          inicio={{ tipo: 'producto', id: ficha.id, nombre: ficha.nombre }}
+          onClose={() => setFicha(null)}
+          acciones={{ onEditarProducto: setModal, onCambio: cargar }}
+        />
+      )}
     </div>
   )
 }
