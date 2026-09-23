@@ -1,0 +1,18 @@
+{
+  "name": "IRP — IWOL Resource Planning",
+  "short_name": "IRP",
+  "description": "Administración integral de la plaza IWOL",
+  "start_url": "/informe",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#3D1A6B",
+  "theme_color": "#3D1A6B",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

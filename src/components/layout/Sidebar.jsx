@@ -108,6 +108,14 @@ const RUTAS_OCULTAS_ADMIN = ['/estacionamiento']
 // porque filtrar por ruta duplicaba "Contratos" — comparte path con
 // "Expedientes" (sección ARRENDATARIO) y ambos pasaban el filtro.
 const MENUS_POR_ROL = {
+  propietario: [
+    { label: 'Informe Propietario',  path: '/informe',         icon: FileBarChart2  },
+    { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
+    { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
+    { label: 'Contratos',            path: '/contratos',       icon: FileText       },
+    { label: 'RH / Nómina',         path: '/rh',              icon: UserCheck      },
+    { label: 'Reportes',             path: '/reportes',        icon: BarChart3      },
+  ],
   corporativo: [
     { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
     { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
