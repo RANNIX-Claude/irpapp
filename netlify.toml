@@ -18,6 +18,8 @@
   VITE_AMBIENTE   = "PRODUCCION"
   VITE_APP_TITLE  = "IRP — Inmueble Resource Planning"
   VITE_APP_URL    = "https://irpapp.netlify.app"
+  VITE_PARKING_URL      = "https://syryisrelcjgdulxmgro.supabase.co"
+  VITE_PARKING_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5cnlpc3JlbGNqZ2R1bHhtZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwOTk0MTIsImV4cCI6MjA5OTY3NTQxMn0.64KdWTQcJSLLIEQXsyGhBVJosmEEXXQr_TyA-7Xlk54"
   # VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY se configuran en Netlify UI → Site settings
   # ANTHROPIC_API_KEY y SUPABASE_SERVICE_ROLE_KEY NUNCA aquí — solo en Netlify UI
 
