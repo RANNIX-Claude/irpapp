@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, ChevronLeft, ChevronRight, Play } from 'lucide-react'
-import { supabase, supabaseParking } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 // ── Utilidades de fechas ──────────────────────────────────────────────────────
 const DIAS_ES  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -42,42 +42,7 @@ function generarTablaSemanas() {
   return semanas.slice(0, 20)
 }
 
-// ── Tickets del sistema de estacionamiento (fetch igual que ResumenSemanal) ───
-async function cargarTicketsParking(iniParking, finParking) {
-  const PARKING_URL = import.meta.env.VITE_PARKING_URL
-  const PARKING_KEY = import.meta.env.VITE_PARKING_ANON_KEY
-  if (!PARKING_URL || !PARKING_KEY) return 0
-  try {
-    const rows = await fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=importe&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=eq.cobrado&limit=2000`,
-      { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
-    ).then(r => r.json())
-    if (!Array.isArray(rows)) return 0
-    return rows.reduce((s, t) => s + (parseFloat(t.importe) || 0), 0)
-  } catch { return 0 }
-}
 
-// ── Pensiones del sistema de estacionamiento (parking externo) ─────────────────
-async function cargarPensionesParking(ini, fin) {
-  if (!supabaseParking) return { cobradas: 0, total: 0, montoCobrado: 0, montoEsperado: 0 }
-  const d = new Date((fin || ini) + 'T12:00:00')
-  const mes  = d.getMonth() + 1
-  const anio = d.getFullYear()
-  const { data } = await supabaseParking
-    .from('pagos_pension')
-    .select('monto_pagado, monto_tarifa, fecha_pago, periodo_mes, estado')
-    .eq('periodo_mes', mes)
-    .eq('periodo_año', anio)
-  const todas = data ?? []
-  const cobradas = todas.filter(p => (p.estado === 'pagado' || p.estado === 'validado') &&
-    p.fecha_pago && p.fecha_pago.slice(0, 10) >= ini && p.fecha_pago.slice(0, 10) <= fin)
-  return {
-    cobradas:      cobradas.length,
-    total:         todas.length,
-    montoCobrado:  cobradas.reduce((s, p) => s + (parseFloat(p.monto_pagado) || parseFloat(p.monto_tarifa) || 0), 0),
-    montoEsperado: todas.reduce((s, p) => s + (parseFloat(p.monto_tarifa) || 0), 0),
-  }
-}
 
 const sum = (arr, key = 'importe') => (arr || []).reduce((s, r) => s + (parseFloat(r[key]) || 0), 0)
 const fmt$ = n => '$' + Math.abs(parseFloat(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
@@ -359,26 +324,28 @@ function Separador({ emoji, titulo, count }) {
   )
 }
 
-// ── Tarjeta: operativo semanal — ingresos y egresos ──────────────────────────
+// ── Tarjeta: estado de resultados mensual (desde er_mensual / EDR) ────────────
+const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
 function TarjetaOperativo({ op }) {
-  const { totalTickets, vendingVenta, gastosRevol, rentasEf, aguaEf, pensiones,
-          nomina, mantenimiento, totalIngresos, totalEgresos } = op
+  const { edrRentas, edrEstac, edrPensiones, edrMaquinita, edrAgua,
+          edrSueldos, edrFondo, edrGastos, edrTotalIng, edrUtilNeta, edrStatus, mesNum, anioNum } = op
 
   const ingresos = [
-    { emoji: '🅿️', label: 'Estacionamiento', valor: totalTickets },
-    { emoji: '🏠', label: pensiones.total > 0
-        ? `Pensiones (${pensiones.cobradas}/${pensiones.total})`
-        : 'Pensiones', valor: pensiones.montoCobrado },
-    { emoji: '🏪', label: 'Rentas efectivo',  valor: rentasEf },
-    { emoji: '🚰', label: 'Agua efectivo',     valor: aguaEf },
-    { emoji: '🎰', label: 'Vending',           valor: vendingVenta },
-  ].filter(l => l.valor > 0 || l.label.includes('Pensiones'))
+    { emoji: '🏪', label: 'Rentas',         valor: edrRentas },
+    { emoji: '🅿️', label: 'Estacionamiento', valor: edrEstac },
+    { emoji: '🚗', label: 'Pensiones',       valor: edrPensiones },
+    { emoji: '🎰', label: 'Vending',         valor: edrMaquinita },
+    { emoji: '🚰', label: 'Agua',            valor: edrAgua },
+  ].filter(l => l.valor > 0)
 
   const egresos = [
-    { emoji: '👷', label: 'Nómina',            valor: nomina },
-    { emoji: '🔧', label: 'Mantenimiento OT',  valor: mantenimiento },
-    { emoji: '💼', label: 'Fondo revolvente',  valor: gastosRevol },
+    { emoji: '👷', label: 'Sueldos',         valor: edrSueldos },
+    { emoji: '💼', label: 'Fondo revolvente', valor: edrFondo },
   ].filter(l => l.valor > 0)
+
+  const utilPositiva = edrUtilNeta >= 0
+  const mesTitulo = mesNum ? `${MESES_LARGO[mesNum - 1]} ${anioNum}` : ''
 
   const Fila = ({ emoji, label, valor, colorValor }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #F3F4F6' }}>
@@ -387,33 +354,53 @@ function TarjetaOperativo({ op }) {
     </div>
   )
 
+  const sinDatos = edrTotalIng === 0 && edrGastos === 0
+
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.14)', marginBottom: 14 }}>
       {/* INGRESOS */}
       <div style={{ background: 'linear-gradient(135deg, #064E3B, #059669)', padding: '18px 20px 14px' }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-          💰 &nbsp; Ingresos de la Semana
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
+            💰 Ingresos — {mesTitulo}
+          </div>
+          {edrStatus && (
+            <span style={{ fontSize: 9, fontWeight: 800, background: edrStatus === 'cerrado' ? 'rgba(255,255,255,.25)' : 'rgba(232,160,32,.85)', color: 'white', borderRadius: 4, padding: '2px 7px', textTransform: 'uppercase' }}>
+              {edrStatus === 'cerrado' ? 'Cerrado' : 'Borrador'}
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 38, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalIngresos)}</div>
+        <div style={{ fontSize: 38, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(edrTotalIng)}</div>
       </div>
       <div style={{ background: 'white', padding: '10px 18px 4px' }}>
-        {ingresos.map((l, i) => <Fila key={i} {...l} colorValor="#059669" />)}
+        {sinDatos
+          ? <div style={{ padding: '10px 0', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>EDR de {mesTitulo} aún no capturado</div>
+          : ingresos.map((l, i) => <Fila key={i} {...l} colorValor="#059669" />)
+        }
       </div>
 
       {/* EGRESOS */}
       <div style={{ background: 'linear-gradient(135deg, #7F1D1D, #DC2626)', padding: '14px 20px 10px' }}>
         <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-          📤 &nbsp; Egresos de la Semana
+          📤 Egresos — {mesTitulo}
         </div>
-        <div style={{ fontSize: 32, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(totalEgresos)}</div>
+        <div style={{ fontSize: 32, fontWeight: 900, color: 'white', lineHeight: 1 }}>{fmt$(edrGastos)}</div>
       </div>
-      {egresos.length > 0 ? (
-        <div style={{ background: 'white', padding: '10px 18px 14px' }}>
+      {!sinDatos && egresos.length > 0 && (
+        <div style={{ background: 'white', padding: '10px 18px 4px' }}>
           {egresos.map((l, i) => <Fila key={i} {...l} colorValor="#DC2626" />)}
         </div>
-      ) : (
-        <div style={{ background: 'white', padding: '12px 18px 14px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
-          Sin egresos registrados esta semana
+      )}
+
+      {/* UTILIDAD NETA */}
+      {!sinDatos && (
+        <div style={{ background: utilPositiva ? '#F0FDF4' : '#FEF2F2', padding: '14px 20px', borderTop: `2px solid ${utilPositiva ? '#BBF7D0' : '#FECACA'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: utilPositiva ? '#065F46' : '#991B1B' }}>
+            {utilPositiva ? '✅ Utilidad Neta' : '⚠️ Pérdida Neta'}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: utilPositiva ? '#059669' : '#DC2626' }}>
+            {utilPositiva ? '' : '−'}{fmt$(Math.abs(edrUtilNeta))}
+          </div>
         </div>
       )}
     </div>
@@ -436,17 +423,15 @@ export default function InformePropietario() {
   const cargar = useCallback(async () => {
     if (!sem) return
     setLoading(true)
-    const { ini, fin, iniEstac } = sem
+    const { ini, fin } = sem
     // Mes y año del viernes de cierre (para filtrar prp_cobros por anio/mes)
     const dFin = new Date(fin + 'T12:00:00')
     const mesNum  = dFin.getMonth() + 1
     const anioNum = dFin.getFullYear()
 
-    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos,
-           ticketsEstac, vendingRows, gastosOp, ingresosEf, pensiones, nominaRows, mantRows] = await Promise.all([
+    const [ingS, gasS, cob, emps, asist, contr, avRows, avFotos, proyRows, evRows, evFotos, edrMes] = await Promise.all([
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
-      // prp_cobros: columnas reales son monto_total y monto_pagado (no 'importe')
       supabase.from('prp_cobros').select('monto_total,monto_pagado,estatus').eq('anio', anioNum).eq('mes', mesNum),
       supabase.from('prp_empleados').select('id').eq('estado_id', 'ACTIVO'),
       supabase.from('prp_asistencia').select('estado').eq('fecha', fin),
@@ -463,18 +448,11 @@ export default function InformePropietario() {
         .gte('fecha_evento', ini).lte('fecha_evento', fin + 'T23:59:59')
         .order('fecha_evento', { ascending: false }),
       supabase.from('evento_fotos').select('evento_id, foto_url, orden').order('orden'),
-      // ── Operativo ─────────────────────────────────────────────────────────
-      cargarTicketsParking(iniEstac, addDays(fin, -1)),
-      supabase.from('vending_semanas').select('venta_pesos').eq('fecha_inicio', ini).limit(1),
-      supabase.from('gastos_operativos').select('cantidad').gte('fecha', ini).lte('fecha', fin),
-      supabase.from('ingresos').select('importe, tipo').eq('origen', 'EFECTIVO').gte('fecha', ini).lte('fecha', fin),
-      cargarPensionesParking(ini, fin),
-      // Nómina: renglones del período cuya fecha_pago cae en la semana
-      supabase.from('prp_prenomina').select('neto_pagar').gte('fecha_pago', ini).lte('fecha_pago', fin),
-      // Mantenimiento: órdenes cerradas en la semana con costo real capturado
-      supabase.from('ordenes_trabajo').select('costo_real')
-        .gte('fecha_cierre_real', ini).lte('fecha_cierre_real', fin)
-        .not('costo_real', 'is', null),
+      // EDR del mes — ya tiene todo calculado, sin queries adicionales
+      supabase.from('er_mensual')
+        .select('calc_real_total_rentas,calc_real_total_estac,calc_real_total_pension,calc_real_total_maq,calc_real_total_agua_i,calc_real_total_ing,real_sueldos,real_fondo_revolvente,real_gasto_excedente,real_luz,real_agua_gastos,real_otros_gastos,calc_real_total_gastos,calc_real_util_neta,status')
+        .eq('anio', anioNum).eq('mes', mesNum)
+        .maybeSingle(),
     ])
 
     // KPIs — prp_cobros usa monto_pagado (cobrado) y monto_total (cargo original)
@@ -499,18 +477,21 @@ export default function InformePropietario() {
 
     setKpis({ cobradoMes, pendienteMes, pctCob, activos, totalEmps, presentes, ingSem, gasSem, netoSem, porVencer })
 
-    // ── Operativo semanal ─────────────────────────────────────────────────────
-    const totalTickets   = ticketsEstac
-    const vendingVenta   = parseFloat((vendingRows.data || [])[0]?.venta_pesos || 0)
-    const gastosRevol    = (gastosOp.data || []).reduce((s, r) => s + (parseFloat(r.cantidad) || 0), 0)
-    const rentasEf       = (ingresosEf.data || []).filter(r => r.tipo === 'RENTA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
-    const aguaEf         = (ingresosEf.data || []).filter(r => r.tipo === 'AGUA').reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
-    const nomina         = (nominaRows.data || []).reduce((s, r) => s + (parseFloat(r.neto_pagar) || 0), 0)
-    const mantenimiento  = (mantRows.data || []).reduce((s, r) => s + (parseFloat(r.costo_real) || 0), 0)
-    const totalIngresos  = totalTickets + pensiones.montoCobrado + vendingVenta + rentasEf + aguaEf
-    const totalEgresos   = nomina + mantenimiento + gastosRevol
-    setOperativo({ totalTickets, vendingVenta, gastosRevol, rentasEf, aguaEf, pensiones,
-                   nomina, mantenimiento, totalIngresos, totalEgresos })
+    // ── Operativo mensual — desde er_mensual (ya calculado en EDR) ───────────
+    const edr = edrMes.data || {}
+    const edrRentas    = parseFloat(edr.calc_real_total_rentas)  || 0
+    const edrEstac     = parseFloat(edr.calc_real_total_estac)   || 0
+    const edrPensiones = parseFloat(edr.calc_real_total_pension) || 0
+    const edrMaquinita = parseFloat(edr.calc_real_total_maq)     || 0
+    const edrAgua      = parseFloat(edr.calc_real_total_agua_i)  || 0
+    const edrSueldos   = parseFloat(edr.real_sueldos)            || 0
+    const edrFondo     = parseFloat(edr.real_fondo_revolvente)   || 0
+    const edrGastos    = parseFloat(edr.calc_real_total_gastos)  || (edrSueldos + edrFondo + (parseFloat(edr.real_gasto_excedente) || 0) + (parseFloat(edr.real_luz) || 0))
+    const edrTotalIng  = parseFloat(edr.calc_real_total_ing)     || (edrRentas + edrEstac + edrPensiones + edrMaquinita + edrAgua)
+    const edrUtilNeta  = parseFloat(edr.calc_real_util_neta)     || (edrTotalIng - edrGastos)
+    const edrStatus    = edr.status || null
+    setOperativo({ edrRentas, edrEstac, edrPensiones, edrMaquinita, edrAgua,
+                   edrSueldos, edrFondo, edrGastos, edrTotalIng, edrUtilNeta, edrStatus, mesNum, anioNum })
 
     // Avances con fotos (join cliente)
     const fotosMap = {}
