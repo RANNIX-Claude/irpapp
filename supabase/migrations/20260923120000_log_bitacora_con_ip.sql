@@ -1,5 +1,8 @@
 -- Agrega soporte para IP en log_bitacora
--- La firma anterior no tenía p_ip; ahora lo acepta como parámetro opcional.
+-- Elimina todas las versiones anteriores (overloads) antes de recrear.
+
+DROP FUNCTION IF EXISTS public.log_bitacora(text, text, text, uuid, text);
+DROP FUNCTION IF EXISTS public.log_bitacora(text, text, text, uuid, text, text);
 
 CREATE OR REPLACE FUNCTION public.log_bitacora(
   p_modulo      text,
