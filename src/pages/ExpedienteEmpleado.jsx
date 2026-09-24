@@ -512,6 +512,72 @@ function ModalBeneficio({ empleadoId, onClose, onSaved }) {
 const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }
 const inputStyle = { display: 'block', width: '100%', padding: '8px 10px', border: `1.5px solid ${C.border}`, borderRadius: 7, fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit', background: C.surface }
 
+// ── Modal edición de secciones del tab "Información Laboral" ─────────────────
+function ModalEditarEmpleado({ emp, seccion, onClose, onSaved }) {
+  const CAMPOS = {
+    personal:     ['nombre','apellido_pat','apellido_mat','sexo','fecha_nacimiento','rfc','curp','nss'],
+    laboral:      ['numero_empleado','puesto','area','departamento','centro_trabajo','supervisor','fecha_ingreso','tipo_contrato_id','contrato_fin','tipo_jornada','tipo_contratacion'],
+    compensacion: ['salario_diario','forma_pago','banco','cuenta_clabe','bono','forma_pago_bono'],
+    horario:      ['horario_trabajo','dia_descanso'],
+    contacto:     ['email','celular','telefono_fijo','contacto_emergencia_nombre','contacto_emergencia_telefono','contacto_emergencia_parentesco'],
+    domicilio:    ['calle','numero_ext','numero_int','colonia','codigo_postal','municipio','estado_domicilio','referencias_domicilio'],
+  }
+  const TITULOS = { personal:'Datos personales', laboral:'Datos laborales', compensacion:'Compensación y pago', horario:'Horario', contacto:'Contacto', domicilio:'Domicilio' }
+  const campos = CAMPOS[seccion] || []
+  const init = {}
+  campos.forEach(c => { init[c] = emp?.[c] ?? '' })
+  const [form, setForm] = useState(init)
+  const [saving, setSaving] = useState(false)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSave = async () => {
+    setSaving(true)
+    const payload = {}
+    campos.forEach(c => { payload[c] = form[c] === '' ? null : form[c] })
+    const { error } = await supabase.from('rh_empleados').update(payload).eq('id', emp.id)
+    setSaving(false)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Datos actualizados')
+    onSaved(); onClose()
+  }
+
+  const renderField = (campo) => {
+    switch (campo) {
+      case 'sexo':
+        return <FI key={campo} label="Sexo" type="select" value={form.sexo||''} onChange={v=>sf('sexo',v)} opts={[['','— Selecciona —'],['M','Masculino'],['F','Femenino'],['NB','No binario']]} />
+      case 'tipo_contrato_id':
+        return <FI key={campo} label="Tipo de contrato" type="select" value={form.tipo_contrato_id||''} onChange={v=>sf('tipo_contrato_id',v)} opts={[['','— Selecciona —'],['TEMPORAL_3SEM','Temporal 3 semanas'],['TEMPORAL_30D','Temporal 30 días'],['PRUEBA_90','Prueba 90 días'],['INDEFINIDO','Tiempo indefinido']]} />
+      case 'tipo_jornada':
+        return <FI key={campo} label="Tipo de jornada" type="select" value={form.tipo_jornada||''} onChange={v=>sf('tipo_jornada',v)} opts={[['','— Selecciona —'],['COMPLETA','Completa'],['MEDIA','Media jornada'],['POR_HORAS','Por horas'],['MIXTA','Mixta']]} />
+      case 'tipo_contratacion':
+        return <FI key={campo} label="Tipo de contratación" type="select" value={form.tipo_contratacion||''} onChange={v=>sf('tipo_contratacion',v)} opts={[['','— Selecciona —'],['DIRECTO','Directo'],['OUTSOURCING','Outsourcing'],['HONORARIOS','Honorarios'],['EVENTUAL','Eventual']]} />
+      case 'forma_pago':
+        return <FI key={campo} label="Forma de pago" type="select" value={form.forma_pago||''} onChange={v=>sf('forma_pago',v)} opts={[['','— Selecciona —'],['EFECTIVO','Efectivo'],['TRANSFERENCIA','Transferencia'],['CHEQUE','Cheque'],['MIXTO','Mixto']]} />
+      case 'forma_pago_bono':
+        return <FI key={campo} label="Forma de pago del bono" type="select" value={form.forma_pago_bono||''} onChange={v=>sf('forma_pago_bono',v)} opts={[['','— Selecciona —'],['EFECTIVO','Efectivo'],['TRANSFERENCIA','Transferencia'],['CHEQUE','Cheque']]} />
+      case 'fecha_nacimiento': case 'fecha_ingreso': case 'contrato_fin':
+        return <FI key={campo} label={campo==='fecha_nacimiento'?'Fecha de nacimiento':campo==='fecha_ingreso'?'Fecha de ingreso':'Fecha fin contrato'} type="date" value={form[campo]||''} onChange={v=>sf(campo,v)} />
+      case 'salario_diario': case 'bono':
+        return <FI key={campo} label={campo==='salario_diario'?'Sueldo diario':'Bono'} type="number" value={form[campo]||''} onChange={v=>sf(campo,v)} />
+      case 'numero_empleado':
+        return <FI key={campo} label="N° empleado" value={form.numero_empleado||''} onChange={v=>sf('numero_empleado',v)} />
+      case 'referencias_domicilio': case 'horario_trabajo':
+        return <FI key={campo} label={campo==='referencias_domicilio'?'Referencias':'Horario de trabajo'} value={form[campo]||''} onChange={v=>sf(campo,v)} span />
+      default: {
+        const LABELS = { nombre:'Nombre(s)', apellido_pat:'Apellido paterno', apellido_mat:'Apellido materno', rfc:'RFC', curp:'CURP', nss:'NSS', puesto:'Puesto', area:'Área', departamento:'Departamento', centro_trabajo:'Centro de trabajo', supervisor:'Supervisor', banco:'Banco', cuenta_clabe:'CLABE', dia_descanso:'Día de descanso', email:'Email', celular:'Celular', telefono_fijo:'Teléfono fijo', contacto_emergencia_nombre:'Contacto emergencia', contacto_emergencia_telefono:'Tel. emergencia', contacto_emergencia_parentesco:'Parentesco', calle:'Calle', numero_ext:'Número exterior', numero_int:'Número interior', colonia:'Colonia', codigo_postal:'Código postal', municipio:'Municipio / Alcaldía', estado_domicilio:'Estado' }
+        return <FI key={campo} label={LABELS[campo]||campo} value={form[campo]||''} onChange={v=>sf(campo,v)} />
+      }
+    }
+  }
+
+  return (
+    <Modal title={`Editar — ${TITULOS[seccion]}`} icon={Edit2} onClose={onClose}>
+      <FormGrid>{campos.map(renderField)}</FormGrid>
+      <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} label="Guardar cambios" />
+    </Modal>
+  )
+}
+
 function FI({ label, type = 'text', value, onChange, opts, span }) {
   return (
     <div style={span ? { gridColumn: '1/-1' } : {}}>
@@ -626,7 +692,9 @@ export default function ExpedienteEmpleado() {
   const [beneficios, setBeneficios] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef' | 'incid'
+  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef' | 'incid' | 'editar'
+  const [seccionEditar, setSeccionEditar] = useState(null)
+  const abrirEditar = (sec) => { setSeccionEditar(sec); setModal('editar') }
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const fotoInputRef = useRef(null)
   const reload = () => setRefreshKey(k => k + 1)
@@ -901,7 +969,7 @@ export default function ExpedienteEmpleado() {
           {tab === 'laboral' && (
             <Card>
               <div style={{ display: 'grid', gap: 24 }}>
-                <Section title="Datos personales" icon={User}>
+                <Section title="Datos personales" icon={User} action={<BtnSecondary onClick={() => abrirEditar('personal')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="Nombre(s)" value={emp.nombre} />
                     <Campo label="Apellido paterno" value={emp.apellido_pat} />
@@ -913,7 +981,7 @@ export default function ExpedienteEmpleado() {
                     <Campo label="NSS" value={emp.nss} mono />
                   </Grid4>
                 </Section>
-                <Section title="Datos laborales" icon={Briefcase}>
+                <Section title="Datos laborales" icon={Briefcase} action={<BtnSecondary onClick={() => abrirEditar('laboral')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="N° empleado" value={emp.numero_empleado} mono />
                     <Campo label="Puesto" value={emp.puesto} />
@@ -928,7 +996,7 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Tipo de contratación" value={emp.tipo_contratacion} />
                   </Grid4>
                 </Section>
-                <Section title="Compensación y pago" icon={DollarSign}>
+                <Section title="Compensación y pago" icon={DollarSign} action={<BtnSecondary onClick={() => abrirEditar('compensacion')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="Sueldo diario" value={fmt$(emp.salario_diario)} />
                     <Campo label="Sueldo mensual aprox." value={fmt$(salMensual)} />
@@ -938,13 +1006,13 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Forma de pago del bono" value={emp.bono ? emp.forma_pago_bono : '—'} />
                   </Grid4>
                 </Section>
-                <Section title="Horario" icon={Clock}>
+                <Section title="Horario" icon={Clock} action={<BtnSecondary onClick={() => abrirEditar('horario')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="Horario" value={emp.horario_trabajo} />
                     <Campo label="Día de descanso" value={emp.dia_descanso} />
                   </Grid4>
                 </Section>
-                <Section title="Contacto" icon={Phone}>
+                <Section title="Contacto" icon={Phone} action={<BtnSecondary onClick={() => abrirEditar('contacto')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="Email" value={emp.email} />
                     <Campo label="Celular" value={emp.celular} />
@@ -954,7 +1022,7 @@ export default function ExpedienteEmpleado() {
                     <Campo label="Parentesco" value={emp.contacto_emergencia_parentesco} />
                   </Grid4>
                 </Section>
-                <Section title="Domicilio" icon={Home}>
+                <Section title="Domicilio" icon={Home} action={<BtnSecondary onClick={() => abrirEditar('domicilio')}><Edit2 size={12} /> Editar</BtnSecondary>}>
                   <Grid4>
                     <Campo label="Calle y número" value={domicilioCalle(emp)} />
                     <Campo label="Colonia" value={emp.colonia} />
@@ -1392,6 +1460,7 @@ export default function ExpedienteEmpleado() {
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Acciones rápidas</div>
             <div style={{ display: 'grid', gap: 7 }}>
               {[
+                [Edit2, 'Editar datos laborales', () => { setTab('laboral'); abrirEditar('laboral') }],
                 [TrendingUp, 'Cambio de sueldo', () => setModal('sueldo')],
                 [User, 'Cambio de nombre', () => setModal('nombre')],
                 [FileText, 'Agregar documento', () => { setTab('documentos'); setModal('doc') }],
@@ -1417,6 +1486,7 @@ export default function ExpedienteEmpleado() {
       {modal === 'eval'   && <ModalEvaluacion empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'benef'  && <ModalBeneficio empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'incid'  && <ModalIncidencia empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
+      {modal === 'editar' && seccionEditar && <ModalEditarEmpleado emp={emp} seccion={seccionEditar} onClose={() => { setModal(null); setSeccionEditar(null) }} onSaved={reload} />}
     </div>
   )
 }
