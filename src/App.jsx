@@ -47,6 +47,7 @@ import FeedEjecutivo from './pages/FeedEjecutivo.jsx'
 import InformePropietario from './pages/InformePropietario.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
+import Entrega from './pages/Entrega.jsx'
 import './styles/theme.css'
 
 // Roles externos sin aplicación propia. El inquilino usa el rol `locatario` (uno por
@@ -260,6 +261,7 @@ function AppLayout() {
           <Route path="/despachos" element={<Despachos />} />
           <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
           <Route path="/config" element={<Configuracion />} />
+          <Route path="/entrega" element={<Entrega />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Footer />

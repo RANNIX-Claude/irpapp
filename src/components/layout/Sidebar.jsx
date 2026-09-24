@@ -6,7 +6,7 @@ import {
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
-  Package, BookOpen, Wrench,
+  Package, BookOpen, Wrench, PackageOpen,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -100,6 +100,7 @@ const NAV_SECTIONS = [
       { label: 'Validación', path: '/validacion', icon: ClipboardCheck },
       { label: 'Catálogos', path: '/catalogos', icon: BookOpen },
       { label: 'Consulta a Base de Datos', path: '/utilidades', icon: Database },
+      { label: 'Entrega', path: '/entrega', icon: PackageOpen },
     ]
   },
 ]
