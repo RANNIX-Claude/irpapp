@@ -36,6 +36,7 @@ import Utilidades from './pages/Utilidades.jsx'
 import Catalogos from './pages/Catalogos.jsx'
 import ExpedienteProveedor from './pages/ExpedienteProveedor.jsx'
 import ExpedienteProducto from './pages/ExpedienteProducto.jsx'
+import ExpedienteMantenimiento from './pages/ExpedienteMantenimiento.jsx'
 import Validacion from './pages/Validacion.jsx'
 import Calculos from './pages/Calculos.jsx'
 import PortalProspecto from './pages/PortalProspecto.jsx'
@@ -231,6 +232,7 @@ function AppLayout() {
           <Route path="/cobranza" element={<Cobranza />} />
           <Route path="/arrendatarios" element={<Arrendatarios />} />
           <Route path="/mantenimiento" element={<Mantenimiento />} />
+          <Route path="/mantenimiento/:id" element={<ExpedienteMantenimiento />} />
           <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/eventos"   element={<Eventos />} />
           <Route path="/proveedores" element={<Proveedores />} />

@@ -10,7 +10,7 @@ const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumF
 const GRUPOS = [
   'Ferretería y materiales', 'Limpieza e higiene', 'Papelería y oficina',
   'Electricidad', 'Plomería', 'Herramienta y equipo', 'Servicios externos',
-  'Vending / Reabasto', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros',
+  'Vending / Reabasto', 'Mantenimiento', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros',
 ]
 
 function calcDatos(fecha) {
@@ -216,7 +216,8 @@ function PanelIA({ onExtracted }) {
 }
 
 // ── Modal principal ───────────────────────────────────────────────────────────
-export default function TicketModal({ gasto = null, onClose, onSaved }) {
+// extra: columnas adicionales que se guardan con el ticket (p. ej. mantenimiento_id).
+export default function TicketModal({ gasto = null, onClose, onSaved, extra = null }) {
   const today = new Date().toISOString().split('T')[0]
   const isEdit = !!gasto?.id
 
@@ -329,6 +330,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved }) {
         cantidad:     montoTotal,
         ticket_total: montoTotal,
         ...calcDatos(form.fecha),
+        ...(extra || {}),
       }
 
       let gastoId = gasto?.id

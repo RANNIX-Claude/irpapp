@@ -15,6 +15,7 @@ const CATALOGOS = [
   { tabla: 'cat_clasificacion_producto', nombre: 'Clasificación de productos', grupo: 'Compras',      editar: '/productos' },
   { tabla: 'prp_cat_grupo_gasto',        nombre: 'Grupos de gasto',            grupo: 'Compras' },
   { tabla: 'vending_productos',          nombre: 'Productos de vending',       grupo: 'Vending',      editar: '/vending' },
+  { tabla: 'cat_categoria_mantenimiento', nombre: 'Categorías de mantenimiento', grupo: 'Operación', editar: '/mantenimiento' },
   { tabla: 'cat_locales',                nombre: 'Locales',                    grupo: 'Inmobiliario', editar: '/mapa-locales' },
   { tabla: 'cat_despachos',              nombre: 'Despachos',                  grupo: 'Inmobiliario', editar: '/despachos' },
   { tabla: 'prp_tipos_incidencia',       nombre: 'Tipos de incidencia',        grupo: 'RH',           editar: '/rh' },

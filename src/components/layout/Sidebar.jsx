@@ -6,7 +6,7 @@ import {
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
-  Package, BookOpen,
+  Package, BookOpen, Wrench,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -46,6 +46,7 @@ const NAV_SECTIONS = [
       { label: 'Estacionamiento', path: '/estacionamiento', icon: Car },
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
+      { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
     ]
   },
@@ -120,6 +121,7 @@ const RUTAS_OCULTAS_ADMIN = ['/estacionamiento']
 const MENUS_POR_ROL = {
   propietario: [
     { label: 'Informe Propietario',  path: '/informe',         icon: FileBarChart2  },
+    { label: 'Feed de la plaza',     path: '/feed',            icon: Rss            },
     { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
     { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
     { label: 'Contratos',            path: '/contratos',       icon: FileText       },
@@ -127,7 +129,9 @@ const MENUS_POR_ROL = {
     { label: 'Reportes',             path: '/reportes',        icon: BarChart3      },
   ],
   corporativo: [
+    { label: 'Feed de la plaza',     path: '/feed',            icon: Rss             },
     { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
+    { label: 'Mantenimiento',        path: '/mantenimiento',   icon: Wrench          },
     { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
     { label: 'Contratos',            path: '/contratos',       icon: FileText       },
     { label: 'RH / Nómina',          path: '/rh',               icon: UserCheck      },

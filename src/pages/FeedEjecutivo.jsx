@@ -193,6 +193,7 @@ const timeAgo = iso => {
 
 // ── Tarjeta de actividad operativa (con fotos + autor) ───────────────────────
 function TarjetaActividad({ act }) {
+  const navigate = useNavigate()
   const cat = CATS[act.categoria] || CATS.MANTENIMIENTO
   const fotos = act.fotos || (act.foto_url ? [act.foto_url] : [])
   const [fotoUrls, setFotoUrls] = useState([])
@@ -276,6 +277,12 @@ function TarjetaActividad({ act }) {
         </div>
         {act.descripcion && (
           <div style={{ fontSize: 14, color: '#64748B', lineHeight: 1.5 }}>{act.descripcion}</div>
+        )}
+        {act.mantenimiento_id && (
+          <button onClick={() => navigate(`/mantenimiento/${act.mantenimiento_id}`)}
+            style={{ marginTop: 10, padding: '6px 12px', border: '1px solid #E2E8F0', borderRadius: 8, background: '#F8FAFC', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#7B5EA7' }}>
+            Ver solicitud de mantenimiento →
+          </button>
         )}
       </div>
     </div>

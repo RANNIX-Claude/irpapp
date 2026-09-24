@@ -353,3 +353,43 @@ export function PaginaExpediente({ migas, estado, avatar, titulo, badge, subtitu
     </div>
   )
 }
+
+// ── Formularios y modales (mismo estilo que ExpedienteEmpleado) ─────────────
+export const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }
+export const inputStyle = { display: 'block', width: '100%', padding: '8px 10px', border: `1.5px solid ${C.border}`, borderRadius: 7, fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit', background: C.surface }
+
+export function Modal({ title, icon: Icon, onClose, children, width = 520 }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: C.surface, borderRadius: 14, width, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: C.surface, zIndex: 1 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon size={16} color={C.primary} /> {title}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+        </div>
+        <div style={{ padding: 24 }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+export function ModalFooter({ onClose, onSave, saving, label, color = C.primary }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+      <button onClick={onClose} style={{ padding: '8px 18px', border: `1.5px solid ${C.border}`, borderRadius: 7, background: 'none', cursor: 'pointer', fontSize: 13, color: C.muted }}>Cancelar</button>
+      <button onClick={onSave} disabled={saving} style={{ padding: '8px 20px', background: color, color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, cursor: 'pointer', fontSize: 13, opacity: saving ? .6 : 1 }}>
+        {saving ? 'Guardando…' : label}
+      </button>
+    </div>
+  )
+}
+
+export function Campo2({ label, children, span }) {
+  return (
+    <div style={span ? { gridColumn: '1/-1' } : {}}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  )
+}
