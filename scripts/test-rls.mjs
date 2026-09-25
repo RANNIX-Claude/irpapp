@@ -97,6 +97,10 @@ if (loc) await as("authenticated", loc.id, async t => {
   await t("update contratos → 0 filas", `update public.contratos set notas = notas where id = '${loc.contrato_id}'`, o => o === "0 filas");
   await t("rpc renovar_contrato", `select public.renovar_contrato('${loc.contrato_id}', 'X', gen_random_uuid(), gen_random_uuid(), 'T', current_date)`, denied);
   await t("rpc crear_empleado", CREAR_EMP, denied);
+  // Auto-ascenso: nadie cambia su propio rol, contrato ni estado (hallazgo 2026-09-25)
+  await t("NO puede cambiarse el rol", `update public.irp_usuarios set rol_id = 'super_admin' where id = '${loc.id}'`, denied);
+  if (otro) await t("NO puede cambiarse de contrato", `update public.irp_usuarios set contrato_id = '${otro}' where id = '${loc.id}'`, denied);
+  await t("sí puede editar su teléfono", `update public.irp_usuarios set telefono = telefono where id = '${loc.id}'`, o => o === "1 filas");
 });
 
 console.log(`\n[${which}] restaurante — solo sus dos tablas`);
@@ -104,6 +108,14 @@ if (rest) await as("authenticated", rest.id, async t => {
   await t("restaurante_gastos = total", "select count(*) from public.restaurante_gastos", o => o === T.rg);
   await t("insert restaurante_gastos", "insert into public.restaurante_gastos (fecha, total) values (current_date, 1) returning id", inserted);
   for (const v of ["contratos", "prp_empleados", "gastos_operativos", "prp_cobros"]) await t(`${v} = 0`, `select count(*) from public.${v}`, zero);
+  await t("NO puede cambiarse el rol", `update public.irp_usuarios set rol_id = 'super_admin' where id = '${rest.id}'`, denied);
+});
+
+const admin = users.find(u => u.rol_id === "admin_inmobiliaria");
+console.log(`\n[${which}] admin — sí administra roles (Configuración)`);
+if (admin && rest) await as("authenticated", admin.id, async t => {
+  await t("admin edita la ficha de otro", `update public.irp_usuarios set rol_id = rol_id where id = '${rest.id}'`, o => o === "1 filas");
+  await t("admin reasigna el rol de otro", `update public.irp_usuarios set rol_id = 'restaurante' where id = '${rest.id}'`, o => o === "1 filas");
 });
 await c.end();
 
