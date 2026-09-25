@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X, Pencil, Trash2 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { supabase, supabaseParking } from '../lib/supabase'
+import { supabase, supabaseParking, urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
 
@@ -1201,7 +1201,7 @@ export default function ResumenSemanal() {
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#6B7280', fontFamily: 'monospace' }}>{g.ticket_total ? fmt(g.ticket_total) : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                         {g.ticket_url
-                          ? <button onClick={() => setTicketLightbox(g.ticket_url)}
+                          ? <button onClick={async () => { const u = await urlFirmada('tickets-gastos', g.ticket_url); if (u) setTicketLightbox(u); else toast.error('No se pudo abrir la imagen del ticket') }}
                               style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:5, padding:'3px 7px', cursor:'pointer', color:'#0A66C2', display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700 }}
                               title="Ver imagen del ticket">
                               🖼️
