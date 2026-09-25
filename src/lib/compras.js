@@ -41,6 +41,82 @@ export async function asegurarProveedor({ nombre, rfc, razon_social }) {
   return error ? null : data.id
 }
 
+// Grupos de gasto que ofrece TicketModal. El agente propone uno de estos.
+export const GRUPOS_GASTO = [
+  'Ferretería y materiales', 'Limpieza e higiene', 'Papelería y oficina',
+  'Electricidad', 'Plomería', 'Herramienta y equipo', 'Servicios externos',
+  'Vending / Reabasto', 'Mantenimiento', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros',
+]
+
+// Columnas derivadas de la fecha que lleva gastos_operativos.
+export function datosFechaGasto(fecha) {
+  const dt = new Date(fecha + 'T12:00:00')
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+  return { anio: dt.getFullYear(), mes: MESES[dt.getMonth()], dia_semana: DIAS[dt.getDay()], semana: `S${Math.ceil(dt.getDate() / 7)}` }
+}
+
+/**
+ * Líneas de categoría VENDING de un ticket → compras en la semana de vending
+ * abierta (movimiento + acumulados). Solo aplica a productos que ya existen en
+ * vending_productos (por código de proveedor o por nombre); los demás se omiten.
+ * Se usa desde TicketModal y desde el Agente Operativo.
+ */
+export async function integrarVending({ lineas, fecha, proveedor, descripcion }) {
+  const lineasVending = lineas.filter(l => l.categoria === 'VENDING' && l.descripcion && l.precio_unit)
+  if (!lineasVending.length) return { aplicadas: 0, omitidas: 0 }
+
+  const { data: semana } = await supabase
+    .from('vending_semanas').select('id').eq('estado', 'ABIERTA')
+    .order('semana_inicio', { ascending: false }).limit(1).single()
+  if (!semana) return { aplicadas: 0, omitidas: lineasVending.length, sinSemana: true }
+
+  let aplicadas = 0
+  for (const linea of lineasVending) {
+    let vprod = null
+    if (linea.codigo_proveedor) {
+      const { data: porCodigo } = await supabase.from('vending_productos')
+        .select('id,nombre,precio_compra_default').eq('codigo_proveedor', linea.codigo_proveedor).eq('activo', true).limit(1)
+      vprod = porCodigo?.[0] || null
+    }
+    if (!vprod) {
+      const { data: porNombre } = await supabase.from('vending_productos')
+        .select('id,nombre,precio_compra_default').ilike('nombre', `%${linea.descripcion.trim()}%`).eq('activo', true).limit(1)
+      vprod = porNombre?.[0] || null
+    }
+    if (!vprod) continue
+
+    const cant   = parseFloat(linea.cantidad) || 1
+    const precio = parseFloat(linea.precio_unit) || vprod.precio_compra_default || 0
+
+    let { data: sp } = await supabase.from('vending_semana_producto')
+      .select('id,qty_compras,importe_compras').eq('semana_id', semana.id).eq('producto_id', vprod.id).single()
+
+    if (!sp) {
+      const { data: nuevo } = await supabase.from('vending_semana_producto')
+        .insert({ semana_id: semana.id, producto_id: vprod.id, qty_inicial: 0, qty_compras: 0, qty_ventas: 0, precio_compra_semana: precio, precio_venta_semana: 0, importe_compras: 0, importe_ventas: 0 })
+        .select('*').single()
+      sp = nuevo
+    }
+    if (!sp) continue
+
+    await supabase.from('vending_movimientos').insert({
+      semana_id: semana.id, producto_id: vprod.id, fecha, tipo: 'COMPRA',
+      cantidad: cant, precio_unitario: precio,
+      proveedor: proveedor || null,
+      nota: `Desde ticket gastos: ${descripcion || ''}`.trim(),
+    })
+
+    await supabase.from('vending_semana_producto').update({
+      qty_compras:     (parseFloat(sp.qty_compras) || 0) + cant,
+      importe_compras: (parseFloat(sp.importe_compras) || 0) + cant * precio,
+      precio_compra_semana: precio,
+    }).eq('id', sp.id)
+    aplicadas++
+  }
+  return { aplicadas, omitidas: lineasVending.length - aplicadas }
+}
+
 /**
  * PostgREST corta en 1000 filas por respuesta: pide en bloques hasta vaciar.
  * `armar` recibe un query builder nuevo en cada vuelta.

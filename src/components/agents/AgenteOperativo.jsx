@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MessageCircle, X, Send, Bot, Check, Loader2, Paperclip } from 'lucide-react'
 import { chatOperativo } from '../../lib/claude'
-import { ejecutarAccion, leerFicha } from '../../lib/agentActions'
+import { ejecutarAccion, leerFicha, datosFichas } from '../../lib/agentActions'
 
 // Tarjeta de una acción propuesta por el agente. Nada se ejecuta hasta el clic.
 function TarjetaAccion({ p, onConfirmar, onCancelar, onAbrir }) {
@@ -102,7 +102,7 @@ export default function AgenteOperativo() {
     setMessages(next)
     setLoading(true)
     try {
-      const { content, propuestas } = await chatOperativo(historial(next))
+      const { content, propuestas } = await chatOperativo(historial(next), '', datosFichas())
       setMessages([...next, { role: 'assistant', content, propuestas: propuestas.map(p => ({ ...p, estado: 'pendiente' })) }])
     } catch (e) {
       console.error('[AgenteOperativo]', e)

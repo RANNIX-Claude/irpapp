@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 
 // El Agente Operativo consulta datos reales con el JWT de la sesión: la
 // function aplica la misma RLS que el usuario tiene en pantalla.
-export const chatOperativo = async (messages, context = '') => {
+export const chatOperativo = async (messages, context = '', fichas = {}) => {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch('/.netlify/functions/chat-operativo', {
     method: 'POST',
@@ -11,7 +11,7 @@ export const chatOperativo = async (messages, context = '') => {
       'Content-Type': 'application/json',
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },
-    body: JSON.stringify({ messages, context }),
+    body: JSON.stringify({ messages, context, fichas }),
   })
   if (!res.ok) throw new Error('Error en Agente Operativo')
   const data = await res.json()

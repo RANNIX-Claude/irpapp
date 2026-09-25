@@ -92,6 +92,8 @@ const OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'ilike', 'is']
 // navegador los muestra en una tarjeta y, solo si el usuario confirma, los
 // ejecuta con su sesión (src/lib/agentActions.js). Agregar una acción = una
 // entrada aquí (validar/resumir) y otra allá (ejecutar).
+// Copia de GRUPOS_GASTO en src/lib/compras.js (esta function no importa de src/)
+const GRUPOS_GASTO = ['Ferretería y materiales', 'Limpieza e higiene', 'Papelería y oficina', 'Electricidad', 'Plomería', 'Herramienta y equipo', 'Servicios externos', 'Vending / Reabasto', 'Mantenimiento', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros']
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const mxn = n => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
@@ -163,8 +165,16 @@ const ACCIONES = {
   },
 
   aplicar_pago: {
-    descripcion: 'PERIODO: si el concepto de la ficha nombra un mes y año (p. ej. "RENTA SEP 2026 L08") el pago se aplica al cargo de ESE periodo, no al más antiguo; pasa periodo_mes y periodo_anio (números) o el concepto en referencia. Si ese periodo ya está pagado o no existe, la herramienta devuelve un error: repórtalo y pregunta; solo con instrucción del usuario reintenta con ignorar_periodo=true.Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid), importe (número), fecha (YYYY-MM-DD), referencia (clave de rastreo/folio; evita duplicados), forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE), ficha (id de la imagen adjunta, p. ej. "F1"), banco, ordenante, nota; opcional cargo_ids (array) para aplicar solo a esos cargos en lugar de todos los pendientes.',
-    async preparar(db, p, ctx) {
+    descripcion: 'Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid) y ficha (id de la imagen adjunta, p. ej. "F1"). Con ficha, el sistema toma importe, fecha, referencia, banco y ordenante de la ficha: NO los copies, envíalos solo si el usuario los corrigió. Sin ficha (pago dicho de palabra) envía importe, fecha (YYYY-MM-DD), referencia, forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE). Opcionales: nota; cargo_ids (array) para aplicar solo a esos cargos.',
+    async preparar(db, p0, ctx) {
+      // Los datos de la ficha (OCR) mandan; el modelo solo los pasa si el usuario los corrigió.
+      const cp = ctx.fichas?.[p0.ficha]?.comprobante_pago || {}
+      const p = {
+        importe: cp.monto, fecha: cp.fecha_pago, referencia: cp.referencia, forma_pago: cp.forma_pago, banco: cp.banco, ordenante: cp.nombre_emisor,
+        ...Object.fromEntries(Object.entries(p0).filter(([, v]) => v != null && v !== '')),
+      }
+      if (/dep[oó]sito/i.test(p.forma_pago || '')) p.forma_pago = 'DEPOSITO'
+      if (/transf|spei/i.test(p.forma_pago || '')) p.forma_pago = 'TRANSFERENCIA'
       if (!p.contrato_id) return { error: 'Falta contrato_id. Ubícalo por el número de local con consultar_datos en prp_contratos (estatus VIGENTE).' }
       const importe = Number(p.importe)
       if (!(importe > 0)) return { error: 'El importe debe ser mayor a 0.' }
@@ -273,6 +283,215 @@ const ACCIONES = {
       }
     },
   },
+
+  registrar_gasto: {
+    descripcion: 'Registra un ticket/nota de compra como gasto operativo, con proveedor, partidas y foto (mismo resultado que el módulo Compras/Gastos → Nuevo ticket). Parámetros: ficha (id de la imagen adjunta, p. ej. "F1"; de ahí salen fecha, total, proveedor y todas las partidas: NO las copies), grupo_gasto (obligatorio; uno de: ' + GRUPOS_GASTO.join(' | ') + '), categoria_lineas (VENDING si son productos para reventa en las máquinas, OPERACION si son consumibles del inmueble, MANTENIMIENTO si son materiales de reparación), descripcion (resumen breve del gasto). Solo si el usuario corrige algo o no hay imagen: fecha, total, proveedor. Elige grupo_gasto y categoria_lineas leyendo los artículos del ticket, no el nombre del proveedor.',
+    async preparar(db, p, ctx) {
+      const d = ctx.fichas?.[p.ficha] || null
+      if (p.ficha && !d) return { error: `No tengo los datos de la ficha ${p.ficha}. Pide al usuario que la adjunte de nuevo.` }
+      if (d && d.tipo_documento === 'COMPROBANTE_PAGO') return { error: `La ficha ${p.ficha} es un comprobante de pago, no un ticket de compra.` }
+      const t = d?.ticket || {}, pv = d?.proveedor || {}
+
+      const fecha = p.fecha || t.fecha
+      const total = Number(p.total ?? t.total)
+      const nombre = String(p.proveedor || pv.nombre_comercial || pv.razon_social || '').trim()
+      if (!fecha || !ISO.test(fecha)) return { error: 'No pude leer la fecha del ticket (YYYY-MM-DD). Pídesela al usuario.' }
+      if (!(total > 0)) return { error: 'No pude leer el total del ticket. Pídeselo al usuario.' }
+      if (!nombre) return { error: 'No pude leer el proveedor del ticket. Pídeselo al usuario.' }
+      if (!GRUPOS_GASTO.includes(p.grupo_gasto)) return { error: `grupo_gasto debe ser uno de: ${GRUPOS_GASTO.join(', ')}.` }
+      const cat = p.categoria_lineas ? String(p.categoria_lineas).toUpperCase() : null
+      if (cat && !['VENDING', 'OPERACION', 'MANTENIMIENTO'].includes(cat)) return { error: 'categoria_lineas debe ser VENDING, OPERACION o MANTENIMIENTO.' }
+
+      const lineas = (d?.lineas || []).map(l => ({
+        codigo_proveedor: l.sku || null, descripcion: String(l.descripcion || '').trim(),
+        cantidad: Number(l.cantidad) || 1, precio_unit: Number(l.precio_unit), categoria: cat,
+      })).filter(l => l.descripcion && l.precio_unit >= 0)
+      const suma = Math.round(lineas.reduce((s, l) => s + l.cantidad * l.precio_unit, 0) * 100) / 100
+
+      // ¿Ya es proveedor del catálogo? Mismo criterio que TicketModal (RFC o nombre normalizado).
+      const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, '')
+      const { data: provs } = await db.from('cat_proveedores').select('id, nombre, rfc').eq('activo', true)
+      const rfc = (pv.rfc || '').toUpperCase() || null
+      const prov = (provs || []).find(x => (rfc && x.rfc && x.rfc.toUpperCase() === rfc) || norm(x.nombre) === norm(nombre)) || null
+
+      const { data: dup } = await db.from('gastos_operativos').select('id').eq('fecha', fecha).eq('ticket_total', total)
+        .ilike('proveedor', `%${nombre.replace(/[%,()]/g, ' ').split(/\s+/)[0]}%`).limit(1)
+
+      const avisos = []
+      if (lineas.length && Math.abs(suma - total) > 0.02) avisos.push(`Las partidas suman ${mxn(suma)} y el ticket dice ${mxn(total)}; revisa el ticket.`)
+      if (dup?.length) avisos.push('Ya hay un gasto del mismo proveedor, fecha y total (posible duplicado); confirma que es otro ticket.')
+      if (cat === 'VENDING') avisos.push('Las partidas de vending se cargan a la semana de vending abierta solo si el producto ya existe en el catálogo de vending.')
+      if (!d) avisos.push('Sin imagen: no se guardará foto del ticket.')
+
+      const muestra = lineas.slice(0, 4).map(l => `${l.descripcion}${l.cantidad !== 1 ? ` ×${l.cantidad}` : ''}`).join(', ')
+      return {
+        params: {
+          ficha: p.ficha || null, fecha, total, folio: t.folio || null,
+          proveedor: { id: prov?.id || null, nombre: prov?.nombre || nombre, rfc, razon_social: pv.razon_social || null },
+          grupo_gasto: p.grupo_gasto, descripcion: p.descripcion || null, categoria_lineas: cat, lineas,
+        },
+        titulo: `Registrar ticket de ${prov?.nombre || nombre} — ${mxn(total)}`,
+        confirmar: 'Registrar gasto',
+        resumen: [
+          ['Proveedor', prov ? prov.nombre : `${nombre} (se dará de alta)`],
+          ['Fecha', fecha + (t.folio ? ` · folio ${t.folio}` : '')],
+          ['Total', mxn(total)],
+          ['Grupo', p.grupo_gasto + (cat ? ` · líneas ${cat}` : '')],
+          ['Artículos', lineas.length ? `${lineas.length}: ${muestra}${lineas.length > 4 ? ` y ${lineas.length - 4} más` : ''}` : 'sin partidas'],
+        ],
+        aviso: avisos.join(' ') || undefined,
+      }
+    },
+  },
+
+  alta_empleado: {
+    descripcion: 'Da de alta un empleado en RH a partir de su INE y comprobante de domicilio adjuntos (mismo resultado que RH → Nuevo empleado + Expediente): nombre, CURP, sexo, nacimiento y domicilio salen de las fichas y los documentos se archivan en su expediente. Parámetros: ficha_ine (id de la ficha INE frente, obligatorio), ficha_ine_reverso, ficha_domicilio (ids opcionales), salario_diario (obligatorio; pregúntalo si el usuario no lo dio), puesto, area, departamento, fecha_ingreso (YYYY-MM-DD, por omisión hoy), tipo_contrato (TEMPORAL_3SEM | TEMPORAL_30D | PRUEBA_90 | INDEFINIDO; por omisión TEMPORAL_3SEM), fecha_fin_contrato, horario_trabajo, dia_descanso, forma_pago (TRANSFERENCIA|EFECTIVO|MIXTO), celular, email, rfc, nss. Solo si el usuario corrige el nombre: nombre, apellido_pat, apellido_mat.',
+    async preparar(db, p, ctx) {
+      const ine = ctx.fichas?.[p.ficha_ine]?.identidad
+      const rev = ctx.fichas?.[p.ficha_ine_reverso]?.identidad
+      const dom = ctx.fichas?.[p.ficha_domicilio]?.identidad
+      if (!ine && !(p.nombre && p.apellido_pat)) return { error: 'Falta la ficha de la INE (frente). Pide al usuario que la adjunte.' }
+      if (ctx.fichas?.[p.ficha_ine] && ctx.fichas[p.ficha_ine].tipo_documento !== 'INE_FRENTE') return { error: `La ficha ${p.ficha_ine} no es el frente de una INE.` }
+      const salario = Number(p.salario_diario)
+      if (!(salario > 0)) return { error: 'Falta el salario diario. Pregúntaselo al usuario (y de paso puesto y tipo de contrato si no los dio).' }
+
+      const nombreLegal = separarNombre(ine?.nombre_completo)
+      const nombre = String(p.nombre || nombreLegal.nombre || '').trim()
+      const apellido_pat = String(p.apellido_pat || nombreLegal.pat || '').trim()
+      const apellido_mat = String(p.apellido_mat ?? nombreLegal.mat ?? '').trim()
+      if (!nombre || !apellido_pat) return { error: 'No pude separar nombre y apellidos de la INE. Pídeselos al usuario.' }
+
+      const curp = String(ine?.curp || rev?.curp || '').toUpperCase().trim() || null
+      const dir = domicilioDe(dom, ine)
+      const fechaIng = p.fecha_ingreso && ISO.test(p.fecha_ingreso) ? p.fecha_ingreso : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+      const tipoContrato = ['TEMPORAL_3SEM', 'TEMPORAL_30D', 'PRUEBA_90', 'INDEFINIDO'].includes(p.tipo_contrato) ? p.tipo_contrato : 'TEMPORAL_3SEM'
+      let fin = p.fecha_fin_contrato && ISO.test(p.fecha_fin_contrato) ? p.fecha_fin_contrato : null
+      if (!fin && tipoContrato === 'TEMPORAL_3SEM') fin = sumarDias(fechaIng, 21)
+      if (!fin && tipoContrato === 'TEMPORAL_30D') fin = sumarDias(fechaIng, 30)
+      if (!fin && tipoContrato === 'PRUEBA_90') fin = sumarDias(fechaIng, 90)
+
+      const avisos = []
+      if (curp && !/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(curp)) avisos.push(`La CURP ${curp} no tiene formato válido: pudo leerse mal, revísala.`)
+      if (curp) {
+        const { data: ya } = await db.from('rh_empleados').select('id, numero_empleado, nombre, apellido_pat').eq('curp', curp).limit(1)
+        if (ya?.length) return { error: `Ya existe un empleado con esa CURP: ${ya[0].nombre} ${ya[0].apellido_pat} (${ya[0].numero_empleado || ya[0].id}). No se duplicó.` }
+      }
+      const { data: homo } = await db.from('rh_empleados').select('numero_empleado, nombre, apellido_pat, apellido_mat').ilike('nombre', nombre).ilike('apellido_pat', apellido_pat).limit(1)
+      if (homo?.length) avisos.push(`Ya hay un empleado con el mismo nombre (${homo[0].numero_empleado || 's/n'}); confirma que no es el mismo.`)
+      if (!dom) avisos.push('Sin comprobante de domicilio: se usa el domicilio de la INE.')
+      if (String(p.nombre || '') === '' && (ine?.nombre_completo || '').trim().split(/\s+/).length > 4) avisos.push('El nombre tiene varias partes: revisa cómo quedaron apellidos y nombres.')
+
+      const vence = ine?.vigencia && /^\d{4}$/.test(String(ine.vigencia)) ? `${ine.vigencia}-12-31` : null
+      return {
+        params: {
+          nombre, apellido_pat, apellido_mat, sexo: ine?.sexo === 'H' ? 'M' : ine?.sexo === 'M' ? 'F' : (p.sexo || 'M'),
+          curp, fecha_nacimiento: ine?.fecha_nacimiento || null, rfc: p.rfc || null, nss: p.nss || null,
+          fecha_ingreso: fechaIng, puesto: p.puesto || null, area: p.area || null, departamento: p.departamento || null,
+          salario_diario: salario, email: p.email || null, celular: p.celular || null,
+          tipo_contrato: tipoContrato, fecha_fin_contrato: fin, horario_trabajo: p.horario_trabajo || null,
+          dia_descanso: p.dia_descanso || null, forma_pago: p.forma_pago || 'TRANSFERENCIA',
+          domicilio: dir.campos, ine_vence: vence,
+          fichas: { ine: p.ficha_ine || null, ine_reverso: p.ficha_ine_reverso || null, domicilio: p.ficha_domicilio || null },
+        },
+        titulo: `Alta de empleado — ${nombre} ${apellido_pat}`,
+        confirmar: 'Dar de alta',
+        resumen: [
+          ['Nombre', `${nombre} · ${apellido_pat} · ${apellido_mat || '—'}`],
+          ['CURP', curp || 'no legible'],
+          ['Nacimiento', ine?.fecha_nacimiento || '—'],
+          ['Domicilio', dir.texto || '—'],
+          ['Puesto', [p.puesto, p.area, p.departamento].filter(Boolean).join(' · ') || '—'],
+          ['Ingreso', `${fechaIng} · ${mxn(salario)} diarios`],
+          ['Contrato', `${tipoContrato}${fin ? ` hasta ${fin}` : ''}`],
+          ['Documentos', [p.ficha_ine && 'INE', p.ficha_ine_reverso && 'INE reverso', p.ficha_domicilio && 'comprobante de domicilio'].filter(Boolean).join(', ') || 'ninguno'],
+        ],
+        aviso: avisos.join(' ') || undefined,
+      }
+    },
+  },
+
+  alta_arrendatario: {
+    descripcion: 'Da de alta un arrendatario (persona física) a partir de su INE y comprobante de domicilio adjuntos: nombre y domicilio salen de las fichas y los documentos quedan en su expediente. Parámetros: ficha_ine (obligatorio), ficha_ine_reverso, ficha_domicilio (opcionales), nombre_negocio, rfc, telefono, email. No crea contrato: eso se hace después con NuevoContrato. Solo si el usuario corrige el nombre: locatario.',
+    async preparar(db, p, ctx) {
+      const ine = ctx.fichas?.[p.ficha_ine]?.identidad
+      const dom = ctx.fichas?.[p.ficha_domicilio]?.identidad
+      if (!ine && !p.locatario) return { error: 'Falta la ficha de la INE (frente). Pide al usuario que la adjunte.' }
+      if (ctx.fichas?.[p.ficha_ine] && ctx.fichas[p.ficha_ine].tipo_documento !== 'INE_FRENTE') return { error: `La ficha ${p.ficha_ine} no es el frente de una INE.` }
+
+      const n = separarNombre(ine?.nombre_completo)
+      const locatario = String(p.locatario || [n.nombre, n.pat, n.mat].filter(Boolean).join(' ')).trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())
+      if (!locatario) return { error: 'No pude leer el nombre de la INE. Pídeselo al usuario.' }
+      const dir = domicilioDe(dom, ine)
+      const rfc = p.rfc ? String(p.rfc).trim().toUpperCase() : null
+
+      const avisos = []
+      if (rfc) {
+        const { data: ya } = await db.from('arrendatarios').select('id, locatario').eq('rfc', rfc).limit(1)
+        if (ya?.length) return { error: `Ya existe un arrendatario con el RFC ${rfc}: ${ya[0].locatario}. No se duplicó.` }
+      }
+      const norm = s => (s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, '')
+      const { data: nombres } = await db.from('arrendatarios').select('id, locatario')
+      const parecido = (nombres || []).find(x => norm(x.locatario) === norm(locatario))
+      if (parecido) return { error: `Ya existe un arrendatario con ese nombre: ${parecido.locatario}. Si es el mismo, úsalo en el contrato; no se duplicó.` }
+      if (!dom) avisos.push('Sin comprobante de domicilio: se usa el domicilio de la INE.')
+      if (!rfc) avisos.push('Sin RFC: agrégalo antes de facturar.')
+      if (ctx.fichas?.[p.ficha_domicilio] && dom?.nombre_titular && norm(dom.nombre_titular) !== norm(ine?.nombre_completo) && !norm(ine?.nombre_completo || '').includes(norm(dom.nombre_titular).slice(0, 8)))
+        avisos.push(`El comprobante de domicilio está a nombre de "${dom.nombre_titular}", distinto al de la INE.`)
+
+      return {
+        params: {
+          locatario, nombre_negocio: p.nombre_negocio || null, rfc, tipo_persona: 'FISICA',
+          telefono: p.telefono || null, email: p.email ? String(p.email).toLowerCase() : null, domicilio: dir.texto || null,
+          fichas: { ine: p.ficha_ine || null, ine_reverso: p.ficha_ine_reverso || null, domicilio: p.ficha_domicilio || null },
+        },
+        titulo: `Alta de arrendatario — ${locatario}`,
+        confirmar: 'Dar de alta',
+        resumen: [
+          ['Nombre', locatario],
+          ['Negocio', p.nombre_negocio || '—'],
+          ['RFC', rfc || '—'],
+          ['Contacto', [p.telefono, p.email].filter(Boolean).join(' · ') || '—'],
+          ['Domicilio', dir.texto || '—'],
+          ['Documentos', [p.ficha_ine && 'INE', p.ficha_ine_reverso && 'INE reverso', p.ficha_domicilio && 'comprobante de domicilio'].filter(Boolean).join(', ') || 'ninguno'],
+        ],
+        aviso: avisos.join(' ') || undefined,
+      }
+    },
+  },
+}
+
+// ─── Utilidades de identidad ────────────────────────────────────────────────
+// La INE trae "APELLIDO_PATERNO APELLIDO_MATERNO NOMBRE(S)". Las partículas
+// (DE, DEL, LA, LOS…) pertenecen al apellido que las sigue.
+const PARTICULAS = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'MC', 'MAC', 'VAN', 'VON', 'SAN', 'SANTA'])
+function separarNombre(completo) {
+  const t = String(completo || '').trim().split(/\s+/).filter(Boolean)
+  if (!t.length) return {}
+  const tomarApellido = () => {
+    const partes = []
+    while (t.length > 1 && PARTICULAS.has(t[0].toUpperCase())) partes.push(t.shift())
+    if (t.length) partes.push(t.shift())
+    return partes.join(' ')
+  }
+  const cap = s => s.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())
+  if (t.length === 1) return { nombre: cap(t[0]) }
+  const pat = tomarApellido()
+  if (t.length === 1) return { pat: cap(pat), nombre: cap(t[0]) }   // solo un apellido
+  const mat = tomarApellido()
+  return { pat: cap(pat), mat: cap(mat), nombre: cap(t.join(' ')) }
+}
+
+// Domicilio: el comprobante manda; si no hay, el de la INE.
+function domicilioDe(dom, ine) {
+  const c = dom
+    ? { calle: dom.calle, numero_ext: dom.no_ext, numero_int: dom.no_int, colonia: dom.colonia, municipio: dom.municipio, estado_domicilio: dom.estado, codigo_postal: dom.cp }
+    : { calle: ine?.calle, numero_ext: ine?.no_ext, numero_int: ine?.no_int, colonia: ine?.colonia_ine, municipio: ine?.municipio_ine, estado_domicilio: ine?.estado_ine, codigo_postal: ine?.cp_ine }
+  const campos = Object.fromEntries(Object.entries(c).filter(([, v]) => v != null && String(v).trim() !== ''))
+  const texto = [
+    campos.calle && `${campos.calle}${campos.numero_ext ? ' ' + campos.numero_ext : ''}${campos.numero_int ? ' int. ' + campos.numero_int : ''}`,
+    campos.colonia && `Col. ${campos.colonia}`, campos.codigo_postal && `C.P. ${campos.codigo_postal}`, campos.municipio, campos.estado_domicilio,
+  ].filter(Boolean).join(', ')
+  return { campos, texto }
 }
 
 const TOOLS = [{
@@ -353,7 +572,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Metodo no permitido' }) }
 
   try {
-    const { messages = [], context = '' } = JSON.parse(event.body || '{}')
+    const { messages = [], context = '', fichas = {} } = JSON.parse(event.body || '{}')
 
     // Sesión del usuario: sin JWT no hay datos (pero sí conversación general).
     const auth = event.headers.authorization || event.headers.Authorization || ''
@@ -390,7 +609,11 @@ Notas sobre los datos:
 
 ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_accion):
 - Hoy disponibles: ${Object.keys(ACCIONES).join(', ')}.
-- Fichas de depósito: el usuario puede adjuntar imágenes; llegan ya leídas como "[Ficha F1 adjunta: importe…, fecha…, referencia…, concepto…]". Por cada ficha: (1) ubica el contrato por el número de local que traiga (concepto/referencia) buscando con consultar_datos en prp_contratos con estatus VIGENTE, y contrasta el ordenante con el arrendatario; (2) llama proponer_accion aplicar_pago con importe, fecha, referencia, forma_pago, banco, ordenante y ficha="F1" copiados TAL CUAL de la ficha, sin redondear. Si no hay local legible, si hay más de un contrato posible o el ordenante no coincide con el arrendatario, NO propongas: pregunta. Con varias fichas, una llamada por ficha en el mismo turno. Si la ficha dice que no se pudo leer, pide al usuario los datos.
+- Imágenes adjuntas: llegan ya leídas como "[Ficha F1 adjunta: COMPROBANTE DE PAGO — …]" o "[Ficha F2 adjunta: TICKET DE COMPRA — …]". El tipo lo dice la ficha; no lo adivines por el nombre del proveedor. Con varias fichas, una llamada a proponer_accion por ficha en el mismo turno.
+  · COMPROBANTE DE PAGO → aplicar_pago: ubica el contrato por el número de local que traiga (concepto/referencia) con consultar_datos en prp_contratos (VIGENTE) y contrasta el ordenante con el arrendatario; llama con contrato_id y ficha (el sistema toma importe, fecha y referencia de la ficha; no los copies). Si no hay local legible, hay más de un contrato posible o el ordenante no coincide, NO propongas: pregunta.
+  · TICKET DE COMPRA → registrar_gasto: llama con ficha, grupo_gasto, categoria_lineas y una descripcion breve, decididos según LOS ARTÍCULOS (p. ej. refrescos y botanas para máquinas = 'Vending / Reabasto' + VENDING; jabón, cloro y escobas = 'Limpieza e higiene' + OPERACION; cemento o tornillos = 'Ferretería y materiales' + MANTENIMIENTO). Si los artículos mezclan grupos o no puedes decidir, pregunta en una línea. Nunca llames a un ticket "papelería" o "ferretería" por el nombre de la tienda.
+  · INE (frente/reverso) y COMPROBANTE DE DOMICILIO → altas. Si el usuario quiere dar de alta a un EMPLEADO (RH) usa alta_empleado; si es un ARRENDATARIO/inquilino/locatario usa alta_arrendatario. Si no dice cuál de los dos, pregúntalo en una línea. Pasa ficha_ine, ficha_ine_reverso y ficha_domicilio con los ids de las fichas; nombre, CURP, nacimiento, sexo y domicilio salen de las fichas (no los copies). Para empleado necesitas además el salario diario (pídelo si falta, junto con puesto y tipo de contrato en la misma pregunta). Para arrendatario pide RFC, teléfono y correo solo si el usuario no los dio, pero no bloquees el alta por eso. El alta de arrendatario no crea contrato; ofrécelo como siguiente paso.
+  · Si la ficha dice que no se pudo leer o no es reconocida, pide al usuario los datos o que la retome.
 - Reglas de aplicación (ya las hace el sistema): si el concepto de la ficha nombra un periodo ("RENTA SEP 2026"), el pago cubre el cargo de ESE periodo (pasa periodo_mes y periodo_anio) y los demás atrasos solo se avisan; si el periodo ya está pagado o no existe, la herramienta te devuelve un error: explícale al usuario con esos datos (no adivines causas ni inventes fechas de generación o vencimiento) y pregunta qué hacer. Sin periodo en la ficha, cubre el cargo pendiente más antiguo. Si no alcanza queda PARCIAL; el excedente es saldo a favor del inquilino; el depósito queda POR_VALIDAR hasta la conciliación bancaria. Si la propuesta falla por referencia duplicada, díselo al usuario. Para cualquier otra modificación (cobros, gastos, altas, cambios de datos) di con franqueza que todavía no puedes hacerla desde el chat e indica el módulo donde se hace.
 - NUNCA ejecutas nada tú: proponer_accion solo muestra una tarjeta y el usuario confirma con un botón. Jamás afirmes que algo "ya quedó registrado" hasta que el usuario te lo confirme en un mensaje de sistema.
 - No hagas cuestionarios. Consulta el registro, arma la propuesta con lo que el usuario ya dijo y los valores actuales como defecto, y deja que la tarjeta muestre el detalle. Pregunta solo si falta algo que no puedas deducir o si la solicitud es ambigua (varios contratos posibles).
@@ -407,7 +630,11 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
     const conv = messages.map(m => ({ role: m.role, content: m.content }))
     let respuesta = ''
     const propuestas = []
-    const ctx = { reservado: {} }   // saldo ya asignado por propuestas de este turno
+    const ctx = {
+      reservado: {},   // saldo ya asignado por propuestas de este turno
+      // datos leídos por OCR de las imágenes adjuntas (sin imagen); tope de tamaño por si acaso
+      fichas: JSON.stringify(fichas).length < 400000 ? fichas : {},
+    }
 
     for (let vuelta = 0; vuelta <= MAX_VUELTAS; vuelta++) {
       const r = await fetch('https://api.anthropic.com/v1/messages', {

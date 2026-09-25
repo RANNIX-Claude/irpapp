@@ -3,7 +3,7 @@ import { Receipt, Plus, X, Camera, AlertTriangle, Check, FileText, Sparkles, Ext
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { ImagenPrivada, EnlacePrivado } from './ArchivoPrivado'
-import { claveProveedor } from '../../lib/compras'
+import { claveProveedor, integrarVending, datosFechaGasto } from '../../lib/compras'
 
 const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
@@ -13,12 +13,7 @@ const GRUPOS = [
   'Vending / Reabasto', 'Mantenimiento', 'Combustible', 'Seguridad', 'Alimentación', 'Nómina / Personal', 'Otros',
 ]
 
-function calcDatos(fecha) {
-  const dt = new Date(fecha + 'T12:00:00')
-  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-  const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-  return { anio: dt.getFullYear(), mes: MESES[dt.getMonth()], dia_semana: DIAS[dt.getDay()], semana: `S${Math.ceil(dt.getDate() / 7)}` }
-}
+const calcDatos = datosFechaGasto
 
 // ── Panel IA — Foto o texto pegado ───────────────────────────────────────────
 function PanelIA({ onExtracted }) {
@@ -371,56 +366,7 @@ export default function TicketModal({ gasto = null, onClose, onSaved, extra = nu
       }
 
       // ── Integración Vending: líneas VENDING → compras automáticas ──────
-      const lineasVending = lineas.filter(l => l.categoria === 'VENDING' && l.descripcion && l.precio_unit)
-      if (lineasVending.length > 0) {
-        const { data: semana } = await supabase
-          .from('vending_semanas').select('id').eq('estado', 'ABIERTA')
-          .order('semana_inicio', { ascending: false }).limit(1).single()
-
-        if (semana) {
-          for (const linea of lineasVending) {
-            let vprod = null
-            if (linea.codigo_proveedor) {
-              const { data: porCodigo } = await supabase.from('vending_productos')
-                .select('id,nombre,precio_compra_default').eq('codigo_proveedor', linea.codigo_proveedor).eq('activo', true).limit(1)
-              vprod = porCodigo?.[0] || null
-            }
-            if (!vprod) {
-              const { data: porNombre } = await supabase.from('vending_productos')
-                .select('id,nombre,precio_compra_default').ilike('nombre', `%${linea.descripcion.trim()}%`).eq('activo', true).limit(1)
-              vprod = porNombre?.[0] || null
-            }
-            if (!vprod) continue
-
-            const cant   = parseFloat(linea.cantidad) || 1
-            const precio = parseFloat(linea.precio_unit) || vprod.precio_compra_default || 0
-
-            let { data: sp } = await supabase.from('vending_semana_producto')
-              .select('id,qty_compras,importe_compras').eq('semana_id', semana.id).eq('producto_id', vprod.id).single()
-
-            if (!sp) {
-              const { data: nuevo } = await supabase.from('vending_semana_producto')
-                .insert({ semana_id: semana.id, producto_id: vprod.id, qty_inicial: 0, qty_compras: 0, qty_ventas: 0, precio_compra_semana: precio, precio_venta_semana: 0, importe_compras: 0, importe_ventas: 0 })
-                .select('*').single()
-              sp = nuevo
-            }
-            if (!sp) continue
-
-            await supabase.from('vending_movimientos').insert({
-              semana_id: semana.id, producto_id: vprod.id, fecha: form.fecha, tipo: 'COMPRA',
-              cantidad: cant, precio_unitario: precio,
-              proveedor: form.proveedor_txt || null,
-              nota: `Desde ticket gastos: ${form.descripcion || ''}`.trim(),
-            })
-
-            await supabase.from('vending_semana_producto').update({
-              qty_compras:     (parseFloat(sp.qty_compras) || 0) + cant,
-              importe_compras: (parseFloat(sp.importe_compras) || 0) + cant * precio,
-              precio_compra_semana: precio,
-            }).eq('id', sp.id)
-          }
-        }
-      }
+      await integrarVending({ lineas, fecha: form.fecha, proveedor: form.proveedor_txt, descripcion: form.descripcion })
 
       toast.success(isEdit ? 'Gasto actualizado' : 'Ticket registrado')
       onSaved()
