@@ -39,11 +39,12 @@ import TabAsistencia from '../components/rrhh/TabAsistencia'
 import TabNomina from '../components/rrhh/TabNomina'
 import TabIncidencias from '../components/rrhh/TabIncidencias'
 import TabNominaIWOL from '../components/rrhh/TabNominaIWOL'
+import TabVacacionesRH from '../components/rrhh/TabVacacionesRH'
 
 // ── Página principal ────────────────────────────────────────────────────────
 export default function RH() {
   useModuleAudit('RH')
-  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Nómina', 'Nómina IWOL']
+  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Vacaciones', 'Nómina', 'Nómina IWOL']
   const [tab, setTab] = useState('Empleados')
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -79,6 +80,7 @@ export default function RH() {
       {tab === 'Asistencia'    && <TabAsistencia />}
       {tab === 'Horarios de Guardia' && <TabHorariosGuardia />}
       {tab === 'Incidencias'   && <TabIncidencias />}
+      {tab === 'Vacaciones'    && <TabVacacionesRH />}
       {tab === 'Nómina'        && <TabNomina />}
       {tab === 'Nómina IWOL'   && <TabNominaIWOL />}
 

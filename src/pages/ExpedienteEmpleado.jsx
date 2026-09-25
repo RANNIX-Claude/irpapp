@@ -8,7 +8,8 @@ import {
   Award, CreditCard, CheckCircle, AlertTriangle,
   Users, Download, Upload, Star, BookOpen, Heart,
   History, Settings, Printer, Shield, Activity,
-  ChevronDown, MoreVertical, Eye, Home, Sparkles
+  ChevronDown, MoreVertical, Eye, Home, Sparkles,
+  Umbrella, RefreshCw
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { urlFirmada } from '../lib/supabase'
@@ -623,16 +624,17 @@ function ModalFooter({ onClose, onSave, saving, label }) {
 
 // ── TABS ─────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'resumen',      label: 'Resumen',          icon: BarChart2 },
-  { id: 'laboral',      label: 'Información laboral', icon: Briefcase },
-  { id: 'documentos',   label: 'Documentos',        icon: FileText },
-  { id: 'incidencias',  label: 'Incidencias',       icon: AlertCircle },
-  { id: 'asistencia',   label: 'Asistencia',        icon: Clock },
-  { id: 'nomina',       label: 'Nómina',            icon: CreditCard },
-  { id: 'capacitacion', label: 'Capacitación',      icon: BookOpen },
-  { id: 'evaluaciones', label: 'Evaluaciones',      icon: Star },
-  { id: 'beneficios',   label: 'Beneficios',        icon: Heart },
-  { id: 'historial',    label: 'Historial',         icon: History },
+  { id: 'resumen',      label: 'Resumen',             icon: BarChart2  },
+  { id: 'laboral',      label: 'Información laboral', icon: Briefcase  },
+  { id: 'vacaciones',   label: 'Vacaciones',          icon: Umbrella   },
+  { id: 'documentos',   label: 'Documentos',          icon: FileText   },
+  { id: 'incidencias',  label: 'Incidencias',         icon: AlertCircle },
+  { id: 'asistencia',   label: 'Asistencia',          icon: Clock      },
+  { id: 'nomina',       label: 'Nómina',              icon: CreditCard },
+  { id: 'capacitacion', label: 'Capacitación',        icon: BookOpen   },
+  { id: 'evaluaciones', label: 'Evaluaciones',        icon: Star       },
+  { id: 'beneficios',   label: 'Beneficios',          icon: Heart      },
+  { id: 'historial',    label: 'Historial',           icon: History    },
 ]
 
 // ── Avatar con upload ────────────────────────────────────────────────────────
@@ -690,9 +692,11 @@ export default function ExpedienteEmpleado() {
   const [capacitacion, setCapacitacion] = useState([])
   const [evaluaciones, setEvaluaciones] = useState([])
   const [beneficios, setBeneficios] = useState([])
+  const [vacAnios, setVacAnios]     = useState([])
+  const [vacDetalle, setVacDetalle] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef' | 'incid' | 'editar'
+  const [modal, setModal] = useState(null) // 'sueldo' | 'nombre' | 'doc' | 'capac' | 'eval' | 'benef' | 'incid' | 'editar' | 'vacacion'
   const [seccionEditar, setSeccionEditar] = useState(null)
   const abrirEditar = (sec) => { setSeccionEditar(sec); setModal('editar') }
   const [uploadingFoto, setUploadingFoto] = useState(false)
@@ -731,7 +735,7 @@ export default function ExpedienteEmpleado() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, capacR, evalR, benefR] = await Promise.all([
+    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, capacR, evalR, benefR, vacAnioR, vacDetR] = await Promise.all([
       supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
       // La vista no expone fecha_nacimiento, direccion, banco, cuenta_clabe ni
       // los campos del expediente completo. Se traen de la tabla y se fusionan.
@@ -744,6 +748,8 @@ export default function ExpedienteEmpleado() {
       supabase.from('rh_capacitacion').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
       supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
       supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
+      supabase.from('prp_vacaciones_anio').select('*').eq('empleado_id', id).order('anio_numero', { ascending: true }),
+      supabase.from('prp_vacaciones_detalle').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
     ])
     // La fila de la tabla va debajo: la vista manda en lo que sí calcula
     // (nombre_completo, antigüedad, semáforo, salario_mensual).
@@ -756,6 +762,8 @@ export default function ExpedienteEmpleado() {
     setCapacitacion(capacR.data ?? [])
     setEvaluaciones(evalR.data ?? [])
     setBeneficios(benefR.data ?? [])
+    setVacAnios(vacAnioR.data ?? [])
+    setVacDetalle(vacDetR.data ?? [])
     setLoading(false)
   }, [id])
 
@@ -1039,6 +1047,20 @@ export default function ExpedienteEmpleado() {
                 </Section>
               </div>
             </Card>
+          )}
+
+          {/* ── VACACIONES ── */}
+          {tab === 'vacaciones' && (
+            <TabVacaciones
+              emp={emp}
+              vacAnios={vacAnios}
+              vacDetalle={vacDetalle}
+              onRegistrar={() => setModal('vacacion')}
+              onGenerarAnios={async () => {
+                await supabase.rpc('fn_generar_anios_vacaciones', { p_emp: emp.id })
+                reload()
+              }}
+            />
           )}
 
           {/* ── DOCUMENTOS ── */}
@@ -1460,6 +1482,7 @@ export default function ExpedienteEmpleado() {
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Acciones rápidas</div>
             <div style={{ display: 'grid', gap: 7 }}>
               {[
+                [Umbrella, 'Registrar vacaciones', () => { setTab('vacaciones'); setModal('vacacion') }],
                 [Edit2, 'Editar datos laborales', () => { setTab('laboral'); abrirEditar('laboral') }],
                 [TrendingUp, 'Cambio de sueldo', () => setModal('sueldo')],
                 [User, 'Cambio de nombre', () => setModal('nombre')],
@@ -1486,8 +1509,222 @@ export default function ExpedienteEmpleado() {
       {modal === 'eval'   && <ModalEvaluacion empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'benef'  && <ModalBeneficio empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
       {modal === 'incid'  && <ModalIncidencia empleadoId={emp.id} onClose={() => setModal(null)} onSaved={reload} />}
-      {modal === 'editar' && seccionEditar && <ModalEditarEmpleado emp={emp} seccion={seccionEditar} onClose={() => { setModal(null); setSeccionEditar(null) }} onSaved={reload} />}
+      {modal === 'editar'   && seccionEditar && <ModalEditarEmpleado emp={emp} seccion={seccionEditar} onClose={() => { setModal(null); setSeccionEditar(null) }} onSaved={reload} />}
+      {modal === 'vacacion' && <ModalRegistrarVacacion empleadoId={emp.id} salarioDiario={emp.salario_diario} vacAnios={vacAnios} onClose={() => setModal(null)} onSaved={reload} />}
     </div>
+  )
+}
+
+// ── Tab Vacaciones ────────────────────────────────────────────────────────────
+const ESTADO_VAC_COLOR = { TOMADA: C.success, AUTORIZADA: C.primary, CANCELADA: C.muted, SOLICITADA: C.warning }
+
+function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios }) {
+  const totalAnios = vacAnios.length
+  const diasDisp = vacAnios.reduce((s, a) => s + (parseFloat(a.dias_disponibles) || 0), 0)
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      {/* Encabezado con resumen y acciones */}
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>Saldo de vacaciones</div>
+            <div style={{ fontSize: 12, color: C.muted }}>
+              {totalAnios === 0
+                ? 'Sin años laborales registrados — usa "Generar años" para calcular según fecha de ingreso'
+                : `${totalAnios} año${totalAnios > 1 ? 's' : ''} laborales · ${diasDisp} días disponibles en total`
+              }
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={onGenerarAnios}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.light, cursor: 'pointer', fontSize: 12, color: C.muted, fontWeight: 500 }}>
+              <RefreshCw size={12} /> Generar años
+            </button>
+            <BtnPrimary onClick={onRegistrar} small><Plus size={13} /> Registrar período</BtnPrimary>
+          </div>
+        </div>
+
+        {/* Barras de saldo por año laboral */}
+        {vacAnios.length > 0 && (
+          <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
+            {vacAnios.map(a => {
+              const pct = a.dias_derecho > 0 ? Math.round((a.dias_tomados / a.dias_derecho) * 100) : 0
+              const color = a.dias_disponibles <= 0 ? C.muted : a.anio_vencido ? C.warning : C.success
+              return (
+                <div key={a.id} style={{ background: C.light, borderRadius: 10, padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 7, background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color }}>
+                        {a.anio_numero}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Año {a.anio_numero}</div>
+                        {a.fecha_inicio_anio && (
+                          <div style={{ fontSize: 10, color: C.muted }}>
+                            {fmtD(a.fecha_inicio_anio)} — {fmtD(a.fecha_fin_anio)}
+                            {a.anio_vencido && <span style={{ color: C.warning, fontWeight: 700 }}> · VENCIDO</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 15, fontWeight: 800, color }}>{a.dias_disponibles}</span>
+                      <span style={{ fontSize: 11, color: C.muted }}> / {a.dias_derecho} días</span>
+                      {a.prima_cubierta && <div style={{ fontSize: 10, color: C.success, fontWeight: 600 }}>✓ Prima pagada</div>}
+                    </div>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: C.border }}>
+                    <div style={{ height: '100%', borderRadius: 3, background: color, width: `${pct}%`, transition: 'width .3s' }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Historial de períodos */}
+      <Card>
+        <Section title="Períodos tomados" icon={Umbrella}>
+          {vacDetalle.length === 0
+            ? <Empty icon={Umbrella} msg="Sin períodos registrados" />
+            : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: C.light }}>
+                      {['Año','Período','Días','Monto','Prima','Estado','Autorizado por','Registrado'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vacDetalle.map(d => (
+                      <tr key={d.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: C.primary }}>Año {d.anio_numero}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 12 }}>
+                          <div style={{ fontWeight: 600 }}>{fmtD(d.fecha_inicio)}</div>
+                          <div style={{ color: C.muted }}>al {fmtD(d.fecha_fin)}</div>
+                        </td>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, textAlign: 'center' }}>{d.dias}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{d.monto ? fmt$(d.monto) : '—'}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{d.prima ? fmt$(d.prima) : '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                            background: (ESTADO_VAC_COLOR[d.estado] || C.muted) + '15',
+                            color: ESTADO_VAC_COLOR[d.estado] || C.muted }}>
+                            {d.estado}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: C.muted }}>{d.autorizado_por_nombre || '—'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 11, color: C.muted }}>{d.registrado_en ? fmtD(d.registrado_en.slice(0,10)) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </Section>
+      </Card>
+    </div>
+  )
+}
+
+function ModalRegistrarVacacion({ empleadoId, salarioDiario, vacAnios, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    anio_numero: vacAnios.find(a => parseFloat(a.dias_disponibles) > 0)?.anio ?? '',
+    fecha_inicio: '',
+    fecha_fin: '',
+    autorizado_por_nombre: '',
+    notas: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Calcula días hábiles entre fechas (lunes-sábado, sin domingos)
+  const calcDias = (fi, ff) => {
+    if (!fi || !ff) return 0
+    let d = 0, cur = new Date(fi + 'T12:00:00'), end = new Date(ff + 'T12:00:00')
+    while (cur <= end) { if (cur.getDay() !== 0) d++; cur.setDate(cur.getDate() + 1) }
+    return d
+  }
+
+  const dias = calcDias(form.fecha_inicio, form.fecha_fin)
+  const salDia = parseFloat(salarioDiario) || 0
+  const monto = dias * salDia
+  const prima = monto * 0.25
+
+  const anioSel = vacAnios.find(a => a.anio_numero === parseInt(form.anio_numero))
+  const dispSel = anioSel ? parseFloat(anioSel.dias_disponibles) : null
+
+  const handleSave = async () => {
+    if (!form.anio_numero || !form.fecha_inicio || !form.fecha_fin) {
+      toast.error('Año laboral, fecha inicio y fecha fin son requeridos'); return
+    }
+    if (dias <= 0) { toast.error('El período no contiene días válidos'); return }
+    if (dispSel !== null && dias > dispSel) {
+      toast.error(`Solo hay ${dispSel} días disponibles en el año ${form.anio_numero}`); return
+    }
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('rh_vacaciones_detalle').insert({
+      empleado_id: empleadoId,
+      anio: parseInt(form.anio_numero),
+      fecha_inicio: form.fecha_inicio,
+      fecha_fin: form.fecha_fin,
+      dias,
+      monto: monto || null,
+      prima: prima || null,
+      estado: 'TOMADA',
+      autorizado_por_nombre: form.autorizado_por_nombre || null,
+      notas: form.notas || null,
+      registrado_por: user?.id ?? null,
+      registrado_en: new Date().toISOString(),
+    })
+    setSaving(false)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Período de vacaciones registrado')
+    onSaved(); onClose()
+  }
+
+  return (
+    <Modal title="Registrar período de vacaciones" icon={Umbrella} onClose={onClose}>
+      <FormGrid>
+        <div>
+          <label style={labelStyle}>Año laboral</label>
+          <select value={form.anio_numero} onChange={e => sf('anio_numero', e.target.value)}
+            style={{ ...inputStyle, background: C.surface, cursor: 'pointer' }}>
+            <option value="">— Selecciona —</option>
+            {vacAnios.map(a => (
+              <option key={a.id} value={a.anio_numero}>
+                Año {a.anio_numero} — {a.dias_disponibles} días disponibles de {a.dias_derecho}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Días a descontar</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: dias > 0 ? C.primary : C.muted }}>{dias}</div>
+          {dias > 0 && dispSel !== null && (
+            <div style={{ fontSize: 11, color: dias > dispSel ? C.danger : C.success }}>
+              {dias > dispSel ? `⚠ Excede saldo (${dispSel} disp.)` : `✓ Quedan ${dispSel - dias} días`}
+            </div>
+          )}
+        </div>
+        <FI label="Fecha inicio" type="date" value={form.fecha_inicio} onChange={v => sf('fecha_inicio', v)} />
+        <FI label="Fecha fin" type="date" value={form.fecha_fin} onChange={v => sf('fecha_fin', v)} />
+        <FI label="Autorizado por" value={form.autorizado_por_nombre} onChange={v => sf('autorizado_por_nombre', v)} />
+        <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>Prima vacacional (25%)</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.success }}>{prima > 0 ? fmt$(prima) : '—'}</div>
+          <div style={{ fontSize: 11, color: C.muted }}>Pago: {monto > 0 ? fmt$(monto) : '—'}</div>
+        </div>
+        <FI label="Notas" value={form.notas} onChange={v => sf('notas', v)} span />
+      </FormGrid>
+      <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} label="Registrar" />
+    </Modal>
   )
 }
 
