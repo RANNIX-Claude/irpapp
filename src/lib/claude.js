@@ -15,7 +15,8 @@ export const chatOperativo = async (messages, context = '') => {
   })
   if (!res.ok) throw new Error('Error en Agente Operativo')
   const data = await res.json()
-  return data.content ?? data.reply ?? data.text ?? JSON.stringify(data)
+  // { content, propuestas } — propuestas son acciones que el usuario debe confirmar
+  return { content: data.content ?? data.reply ?? data.text ?? JSON.stringify(data), propuestas: data.propuestas || [] }
 }
 
 export const chatAnalitico = async (messages, dataSummary = {}) => {
