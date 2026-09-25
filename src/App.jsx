@@ -48,6 +48,7 @@ import InformePropietario from './pages/InformePropietario.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import Entrega from './pages/Entrega.jsx'
+import AsistenteApp from './pages/asistente/AsistenteApp.jsx'
 import './styles/theme.css'
 
 // Roles externos sin aplicación propia. El inquilino usa el rol `locatario` (uno por
@@ -118,6 +119,12 @@ function AppLayout() {
         <Toaster position="top-right" />
       </div>
     )
+  }
+
+  // Rol asistente → aplicación móvil propia: chat a pantalla completa + consultas de solo
+  // lectura. No usa Header, Sidebar ni el resto de rutas admin.
+  if (perfil?.rol_id === 'asistente') {
+    return <AsistenteApp />
   }
 
   // Rol propietario → Informe + todo lo que tiene corporativo; landing en /informe

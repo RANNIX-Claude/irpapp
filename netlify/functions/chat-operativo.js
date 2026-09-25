@@ -498,13 +498,24 @@ function domicilioDe(dom, ine) {
   return { campos, texto }
 }
 
-const TOOLS = [{
+// El rol `asistente` NO lee las vistas prp_* (la RLS se lo impide): consulta las vistas
+// asistente_* de la migración 20260925210000, que ya vienen sin RFC, CURP, NSS ni datos bancarios del personal.
+const ASIST_VISTAS = {
+  asistente_contratos: { buscar: VISTAS.prp_contratos.buscar, columnas: 'id, folio, arrendatario_id, arrendatario_nombre, nombre_negocio, arrendatario_rfc, arrendatario_email, arrendatario_telefono, tipo_persona, tipo_contrato, giro_autorizado, fecha_inicio, fecha_fin, renta_mensual, deposito_garantia, dia_pago, penalizacion_pct, incremento_anual_pct, fiador_nombre, pagares_cantidad, contrato_anterior_id, estatus (VIGENTE|VENCIDO|RENOVADO|RESCISION|CANCELADO), estatus_proceso (EN_CONTRATACION|EN_RENOVACION|EN_EJECUCION|TERMINADO|SUSPENDIDO), locales_display, semaforo_vencimiento, dias_restantes, unidad_id, unidad_numero, m2_totales, inmueble_nombre, notas' },
+  asistente_cartera:   { buscar: VISTAS.prp_cartera.buscar, columnas: 'id, contrato_id, contrato_folio, arrendatario_nombre, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, total_aplicado, saldo, renta_mensual, inmueble_nombre, locales_display' },
+  asistente_ingresos:  { buscar: VISTAS.prp_ingresos.buscar, columnas: 'id, fecha, tipo, mes, anio, importe, factura, nota, origen, concepto_origen, contrato_id, folio, arrendatario_nombre, locales_display, estatus_validacion, clasificacion' },
+  asistente_gastos:    { buscar: ['descripcion', 'grupo_gasto', 'proveedor_nombre'], columnas: 'id, fecha, semana, anio, mes, dia_semana, grupo_gasto, descripcion, monto, ticket_total, proveedor_nombre, proveedor_cat, num_lineas' },
+  asistente_personal:  { buscar: VISTAS.prp_empleados.buscar, columnas: 'id, numero_empleado, nombre_completo, puesto, area, departamento, fecha_ingreso, estado_id, horario_trabajo, dia_descanso, tipo_contratacion, contrato_inicio, contrato_fin, semaforo_contrato, dias_antiguedad, email, celular, salario_diario, salario_mensual (sin RFC, CURP, NSS ni datos bancarios: no existen para este usuario)' },
+  asistente_proyectos: { buscar: ['nombre', 'descripcion', 'proveedor_nombre', 'estado'], columnas: 'id, nombre, descripcion, proveedor_nombre, estado, fecha_inicio, fecha_fin_estimada, fecha_fin_real, presupuesto_total, notas' },
+}
+
+const armarTools = (vistas) => [{
   name: 'consultar_datos',
   description: `Consulta de solo lectura a una vista del sistema IRP. Devuelve las filas (máximo ${MAX_FILAS}) y el conteo total que cumple los filtros. Úsala siempre que la pregunta sea sobre datos concretos del negocio (contratos, arrendatarios, cobranza, ingresos, gastos, locales, empleados, prospectos…). Puedes llamarla varias veces para cruzar información.`,
   input_schema: {
     type: 'object',
     properties: {
-      vista:  { type: 'string', enum: Object.keys(VISTAS), description: 'Vista a consultar' },
+      vista:  { type: 'string', enum: Object.keys(vistas), description: 'Vista a consultar' },
       texto:  { type: 'string', description: 'Búsqueda libre (parcial, sin distinguir mayúsculas) sobre las columnas de nombre/folio/descripción de la vista. Usa una palabra clave, p. ej. "vorwerk" en vez del nombre completo.' },
       filtros: {
         type: 'array',
@@ -542,8 +553,8 @@ const TOOLS = [{
 
 const COL = /^[a-z_][a-z0-9_]*$/
 
-async function consultar(db, input) {
-  const def = VISTAS[input.vista]
+async function consultar(db, input, vistas) {
+  const def = vistas[input.vista]
   if (!def) return { error: `Vista no permitida: ${input.vista}` }
   const columnas = (input.columnas || '*').split(',').map(s => s.trim()).filter(Boolean)
   if (columnas.some(c => c !== '*' && !COL.test(c))) return { error: 'Nombre de columna inválido' }
@@ -588,13 +599,20 @@ exports.handler = async (event) => {
       : null
 
     // Solo el personal puede proponer escrituras (un locatario solo consulta lo suyo).
-    let puedeEscribir = false
-    if (db) { const { data } = await db.rpc('es_staff'); puedeEscribir = data === true }
-    const herramientas = puedeEscribir ? TOOLS : TOOLS.filter(t => t.name === 'consultar_datos')
+    let puedeEscribir = false, rol = null
+    if (db) {
+      const [{ data: staff }, { data: r }] = await Promise.all([db.rpc('es_staff'), db.rpc('mi_rol')])
+      puedeEscribir = staff === true
+      rol = r || null
+    }
+    // Cada rol consulta lo suyo: el asistente solo las vistas asistente_*.
+    const esAsistente = rol === 'asistente'
+    const vistasActivas = esAsistente ? ASIST_VISTAS : VISTAS
+    const herramientas = armarTools(vistasActivas).filter(t => puedeEscribir || t.name === 'consultar_datos')
 
     const hoy = new Date().toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', year: 'numeric', month: 'long', day: 'numeric' })
 
-    const catalogo = Object.entries(VISTAS).map(([v, d]) => `- ${v}: ${d.columnas}`).join('\n')
+    const catalogo = Object.entries(vistasActivas).map(([v, d]) => `- ${v}: ${d.columnas}`).join('\n')
 
     const systemPrompt = `Eres el Agente Operativo de IRP (IWOL Resource Planning), la plataforma de RANNIX Consulting para la administración de inmuebles comerciales en México. Hoy es ${hoy}.
 
@@ -610,7 +628,8 @@ Notas sobre los datos:
 - estatus es la vigencia legal; estatus_proceso es la etapa operativa. En /contratos solo se listan EN_EJECUCION; los EN_RENOVACION viven en /renovaciones.
 - dias_restantes negativo = vencido. Montos en pesos mexicanos.
 - prp_cartera es la cobranza real (estado PENDIENTE/PAGADO/VENCIDO, saldo).
-
+- Si tus vistas se llaman asistente_* (cartera, contratos, gastos…) es la misma información que las prp_* descritas arriba, sin datos fiscales del personal (RFC, CURP, NSS, bancarios): si los piden, di que su rol no los ve.
+${db && !puedeEscribir ? '- Este usuario tiene permiso de CONSULTA. Si pide registrar, dar de alta o modificar algo, dile con franqueza que su cuenta todavia no puede hacerlo desde el chat.' : ''}
 ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_accion):
 - Hoy disponibles: ${Object.keys(ACCIONES).join(', ')}.
 - Imágenes adjuntas: llegan ya leídas como "[Ficha F1 adjunta: COMPROBANTE DE PAGO — …]" o "[Ficha F2 adjunta: TICKET DE COMPRA — …]". El tipo lo dice la ficha; no lo adivines por el nombre del proveedor. Con varias fichas, una llamada a proponer_accion por ficha en el mismo turno.
@@ -680,7 +699,7 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
               propuestas.push({ id: u.id, accion: u.input.accion, ...prep })
               out = { estado: 'PENDIENTE_DE_CONFIRMACION', nota: 'Aún NO se ejecuta. El usuario verá una tarjeta con el resumen y los botones Confirmar/Cancelar. Responde en 1-2 líneas qué propones y que espere su confirmación; no repitas el resumen completo.' }
             }
-          } else out = await consultar(db, u.input)
+          } else out = await consultar(db, u.input, vistasActivas)
         } catch (e) { out = { error: e.message } }
         console.log('[chat-operativo]', u.name, JSON.stringify(u.input), '→', out.error || out.estado || `${out.total} filas`)
         resultados.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out) })

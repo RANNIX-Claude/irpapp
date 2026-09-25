@@ -37,9 +37,10 @@ const rest = users.find(u => u.rol_id === "restaurante");
 const otro = loc ? (await c.query(`select id from public.contratos where id <> $1 limit 1`, [loc.contrato_id])).rows[0]?.id : null;
 const T = (await c.query(`select (select count(*) from public.contratos) c, (select count(*) from public.rh_empleados) e, (select count(*) from public.restaurante_gastos) rg`)).rows[0];
 
-async function as(role, uid, fn) {
+async function as(role, uid, fn, setup) {
   await c.query("BEGIN");
   try {
+    if (setup) await setup();   // p. ej. crear un usuario de prueba (todo se deshace con el ROLLBACK)
     await c.query(`SET LOCAL ROLE ${role}`);
     if (uid) await c.query(`SELECT set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)`, [uid, JSON.stringify({ sub: uid, role })]);
     await fn(async (label, sql, expect) => {
@@ -109,6 +110,32 @@ if (rest) await as("authenticated", rest.id, async t => {
   await t("insert restaurante_gastos", "insert into public.restaurante_gastos (fecha, total) values (current_date, 1) returning id", inserted);
   for (const v of ["contratos", "prp_empleados", "gastos_operativos", "prp_cobros"]) await t(`${v} = 0`, `select count(*) from public.${v}`, zero);
   await t("NO puede cambiarse el rol", `update public.irp_usuarios set rol_id = 'super_admin' where id = '${rest.id}'`, denied);
+});
+
+// El asistente no existe como usuario real: se crea uno dentro de la transacción de prueba.
+const ASIST = "00000000-0000-4000-8000-00000000a515";
+const tieneAsistente = (await c.query(`select 1 from public.irp_roles where id = 'asistente'`)).rowCount > 0;
+console.log(`\n[${which}] asistente — solo consulta por vistas asistente_*, sin datos fiscales y sin escribir`);
+if (!tieneAsistente) console.log("  (rol 'asistente' aún no existe en esta base: se omite)");
+else await as("authenticated", ASIST, async t => {
+  await t("es_staff() = false", "select public.es_staff()", o => o === "false");
+  await t("mi_rol() = asistente", "select public.mi_rol()", o => o === "asistente");
+  await t("asistente_contratos = total", "select count(*) from public.asistente_contratos", o => o === T.c);
+  await t("asistente_personal = total", "select count(*) from public.asistente_personal", o => o === T.e);
+  for (const v of ["asistente_gastos", "asistente_ingresos", "asistente_cartera"]) await t(`${v} > 0`, `select count(*) from public.${v}`, pos);
+  await t("asistente_proyectos legible", "select count(*) from public.asistente_proyectos", o => !o.startsWith("ERR"));
+  await t("personal SIN RFC/CURP/NSS/datos bancarios", "select count(*) from information_schema.columns where table_schema='public' and table_name='asistente_personal' and (column_name ~ 'rfc|curp|nss|clabe|banco|forma_pago')", zero);
+  await t("personal CON salario (decisión 2026-09-25)", "select count(*) from public.asistente_personal where salario_diario is not null", pos);
+  for (const v of ["rh_empleados", "prp_empleados", "prp_contratos", "contratos", "gastos_operativos", "ingresos", "prp_cobros", "nomina_periodos", "arrendatarios"])
+    await t(`${v} directo = 0`, `select count(*) from public.${v}`, zero);
+  await t("insert gastos_operativos", "insert into public.gastos_operativos (fecha, cantidad) values (current_date, 1) returning id", denied);
+  await t("insert ingresos", "insert into public.ingresos (fecha, mes, anio, tipo, importe) values (current_date, 1, 2026, 'RENTA', 1) returning id", denied);
+  await t("rpc crear_empleado", CREAR_EMP, denied);
+  await t("rpc renovar_contrato", "select public.renovar_contrato(gen_random_uuid(), 'X', gen_random_uuid(), gen_random_uuid(), 'T', current_date)", denied);
+  await t("NO puede cambiarse el rol", `update public.irp_usuarios set rol_id = 'super_admin' where id = '${ASIST}'`, denied);
+}, async () => {
+  await c.query(`insert into auth.users (id) values ('${ASIST}')`);
+  await c.query(`insert into public.irp_usuarios (id, rol_id, nombre) values ('${ASIST}', 'asistente', 'Prueba Asistente')`);
 });
 
 const admin = users.find(u => u.rol_id === "admin_inmobiliaria");
