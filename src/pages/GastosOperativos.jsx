@@ -948,7 +948,9 @@ export default function GastosOperativos() {
                               ? <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:cuadra?'#057642':'#B24020', fontWeight:700 }}>
                                   {cuadra?<Check size={13}/>:<AlertTriangle size={13}/>} {lineas.length} líneas
                                 </span>
-                              : <span style={{ fontSize:12, color:'#9CA3AF' }}>Sin detalle</span>}
+                              : g.gasto_detalle?.[0]?.count > 0
+                                ? <span style={{ fontSize:12, color:'#6B7280', fontWeight:700 }}>{g.gasto_detalle[0].count} líneas</span>
+                                : <span style={{ fontSize:12, color:'#9CA3AF' }}>Sin detalle</span>}
                           </td>
                           <td style={{ padding:'10px 12px' }}>
                             <div style={{ display:'flex', gap:5 }}>

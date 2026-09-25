@@ -48,6 +48,7 @@ ${JSON_FORMAT}
 
 Reglas:
 - "tipo_documento": decide qué es la imagen. Un ticket de tienda con lista de artículos es TICKET_COMPRA aunque se haya pagado en efectivo. Solo si es una ficha de depósito/transferencia/voucher bancario es COMPROBANTE_PAGO: en ese caso llena "comprobante_pago" con {"monto": número, "fecha_pago": "YYYY-MM-DD", "banco": texto, "referencia": "clave de rastreo, folio o número de operación", "forma_pago": "Transferencia | Depósito | Efectivo | Cheque", "concepto": "texto del concepto (puede traer el número de local)", "nombre_emisor": "quien paga o null"} y deja "lineas" vacío; en cualquier otro caso "comprobante_pago" es null. Si es INE o comprobante de domicilio, solo indica el tipo_documento y deja proveedor/ticket/lineas en null o vacío
+- Las fechas de estos documentos son mexicanas: DD/MM/AAAA (03/07/2026 es 3 de julio, NO 7 de marzo; 08/07/2026 es 8 de julio). Nunca las interpretes como MM/DD. Devuelve siempre YYYY-MM-DD
 - Extrae TODOS los datos que aparezcan en el ticket — proveedor, ticket financiero y artículos
 - Para Sam's Club: cada línea comienza con código numérico → sku; "2 X $270.07" → cantidad=2, precio_unit=270.07
 - Las letras junto al precio (A, B, C) indican tasa de impuesto — extráelas en "tasa_impuesto"

@@ -34,9 +34,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export async function urlFirmada(bucket, path, expiraEnSegundos = 3600) {
   if (!path) return null
   // Tolera filas viejas que guardaron la URL pública completa en vez de la ruta.
-  const ruta = path.startsWith('http')
+  let ruta = path.startsWith('http')
     ? (path.split(`/object/public/${bucket}/`)[1] ?? path)
     : path
+  // Upload devuelve fullPath = "<bucket>/<ruta>": si se guardó así, quitar el bucket.
+  if (ruta.startsWith(`${bucket}/`)) ruta = ruta.slice(bucket.length + 1)
   const { data, error } = await supabase.storage
     .from(bucket)
     .createSignedUrl(ruta, expiraEnSegundos)

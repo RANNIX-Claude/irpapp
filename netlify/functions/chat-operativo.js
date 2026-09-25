@@ -165,7 +165,7 @@ const ACCIONES = {
   },
 
   aplicar_pago: {
-    descripcion: 'Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid) y ficha (id de la imagen adjunta, p. ej. "F1"). Con ficha, el sistema toma importe, fecha, referencia, banco y ordenante de la ficha: NO los copies, envíalos solo si el usuario los corrigió. Sin ficha (pago dicho de palabra) envía importe, fecha (YYYY-MM-DD), referencia, forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE). Opcionales: nota; cargo_ids (array) para aplicar solo a esos cargos.',
+    descripcion: 'Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid) y ficha (id de la imagen adjunta, p. ej. "F1"). Con ficha, el sistema toma importe, fecha, referencia, banco y ordenante de la ficha: NO los copies, envíalos solo si el usuario los corrigió. Sin ficha (pago dicho de palabra) envía importe, fecha (YYYY-MM-DD), referencia, forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE). Opcionales: nota; cargo_ids (array) para aplicar solo a esos cargos; permitir_duplicado (true) SOLO si el usuario confirmó que es otro pago aunque coincidan contrato, fecha e importe con uno ya registrado.',
     async preparar(db, p0, ctx) {
       // Los datos de la ficha (OCR) mandan; el modelo solo los pasa si el usuario los corrigió.
       const cp = ctx.fichas?.[p0.ficha]?.comprobante_pago || {}
@@ -193,7 +193,11 @@ const ACCIONES = {
         const { data: dup } = await db.from('ingresos').select('id, fecha, importe').eq('referencia_banco', ref).limit(1)
         if (dup?.length) return { error: `La referencia ${ref} ya está registrada (ingreso #${dup[0].id} del ${dup[0].fecha} por ${mxn(dup[0].importe)}). No se aplicó dos veces.` }
       }
-      const { data: mismo } = await db.from('ingresos').select('id').eq('contrato_id', c.id).eq('fecha', p.fecha).eq('importe', importe).limit(1)
+      const { data: mismo } = await db.from('ingresos').select('id, referencia_banco').eq('contrato_id', c.id).eq('fecha', p.fecha).eq('importe', importe).limit(3)
+      // Sin referencia (o con la del registro previo vacía) no hay cómo distinguir dos depósitos
+      // iguales: se bloquea salvo que el usuario confirme que es otro pago distinto.
+      const indistinguible = (mismo || []).find(m => !ref || !m.referencia_banco)
+      if (indistinguible && !p.permitir_duplicado) return { error: `Ya hay un depósito de este contrato con la misma fecha (${p.fecha}) e importe (${mxn(importe)}), ingreso #${indistinguible.id}${!ref ? ' y esta ficha no trae referencia para distinguirlos' : ''}. Casi seguro es el mismo: no se aplicó. Si el usuario confirma que es OTRO pago distinto, vuelve a proponer con permitir_duplicado=true.` }
 
       // Periodo al que paga el depósito: lo dice el agente (periodo_mes/anio) o se
       // deduce del concepto de la ficha ("RENTA SEP 2026 L08"). Si se conoce, el pago

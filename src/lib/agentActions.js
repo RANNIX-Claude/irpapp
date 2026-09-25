@@ -243,7 +243,7 @@ const EJECUTORES = {
         const path = `${p.fecha.slice(0, 7)}/${g.id}.${f.ext}`
         const { data: up, error: eUp } = await supabase.storage.from('tickets-gastos').upload(path, new Blob([bytes], { type: f.mime }), { upsert: true })
         if (eUp) throw eUp
-        await supabase.from('gastos_operativos').update({ ticket_url: up.fullPath || up.path }).eq('id', g.id)
+        await supabase.from('gastos_operativos').update({ ticket_url: up.path }).eq('id', g.id)
         fichas.delete(p.ficha)
       } catch (e) { avisos.push(`la foto no se guardó (${e.message})`) }
     }
