@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import { Avatar, SemaforoContrato, fmt$ } from './rh-helpers'
 import ModalRenovarContrato from './ModalRenovarContrato'
-import ModalEditarEmpleado from './ModalEditarEmpleado'
+import EditarEmpleadoModal from './ModalEditarEmpleado'
 
 // ── Avatar con upload (modal detalle) ────────────────────────────────────────
 export function AvatarUploadSmall({ nombre, foto, uploading, inputRef, onChange }) {
