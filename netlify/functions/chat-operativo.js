@@ -94,6 +94,20 @@ const OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'ilike', 'is']
 // entrada aquí (validar/resumir) y otra allá (ejecutar).
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const mxn = n => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+
+// "RENTA SEP 2026 L08" → { mes: 9, anio: 2026 }. Acepta mes en 3 letras o completo,
+// con o sin acento; también "09/2026" o "2026-09". Sin periodo claro devuelve null.
+const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+function periodoDeTexto(t) {
+  const s = String(t || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  let m = s.match(/\b(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|SEPT|OCT|NOV|DIC)[A-Z]*\.?\s*(?:DE\s+|DEL\s+)?(20\d{2})\b/)
+  if (m) return { mes: MESES.indexOf(m[1].slice(0, 3)) + 1, anio: Number(m[2]) }
+  m = s.match(/\b(0?[1-9]|1[0-2])[\/-](20\d{2})\b/)
+  if (m) return { mes: Number(m[1]), anio: Number(m[2]) }
+  m = s.match(/\b(20\d{2})-(0[1-9]|1[0-2])\b/)
+  if (m) return { mes: Number(m[2]), anio: Number(m[1]) }
+  return null
+}
 const sumarDias = (iso, d) => { const t = new Date(iso + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + d); return t.toISOString().slice(0, 10) }
 const mismoDiaAnioSig = iso => { const t = new Date(iso + 'T00:00:00Z'); t.setUTCFullYear(t.getUTCFullYear() + 1); t.setUTCDate(t.getUTCDate() - 1); return t.toISOString().slice(0, 10) }
 
@@ -149,7 +163,7 @@ const ACCIONES = {
   },
 
   aplicar_pago: {
-    descripcion: 'Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid), importe (número), fecha (YYYY-MM-DD), referencia (clave de rastreo/folio; evita duplicados), forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE), ficha (id de la imagen adjunta, p. ej. "F1"), banco, ordenante, nota; opcional cargo_ids (array) para aplicar solo a esos cargos en lugar de todos los pendientes.',
+    descripcion: 'PERIODO: si el concepto de la ficha nombra un mes y año (p. ej. "RENTA SEP 2026 L08") el pago se aplica al cargo de ESE periodo, no al más antiguo; pasa periodo_mes y periodo_anio (números) o el concepto en referencia. Si ese periodo ya está pagado o no existe, la herramienta devuelve un error: repórtalo y pregunta; solo con instrucción del usuario reintenta con ignorar_periodo=true.Registra un depósito/ficha de pago de un arrendatario y lo aplica a sus cargos pendientes, del más antiguo al más nuevo. Si el depósito no alcanza, el último cargo queda PARCIAL; si sobra, el excedente queda como saldo a favor. El depósito queda POR_VALIDAR hasta conciliarlo con el banco. Parámetros: contrato_id (uuid), importe (número), fecha (YYYY-MM-DD), referencia (clave de rastreo/folio; evita duplicados), forma_pago (TRANSFERENCIA|DEPOSITO|EFECTIVO|CHEQUE), ficha (id de la imagen adjunta, p. ej. "F1"), banco, ordenante, nota; opcional cargo_ids (array) para aplicar solo a esos cargos en lugar de todos los pendientes.',
     async preparar(db, p, ctx) {
       if (!p.contrato_id) return { error: 'Falta contrato_id. Ubícalo por el número de local con consultar_datos en prp_contratos (estatus VIGENTE).' }
       const importe = Number(p.importe)
@@ -171,13 +185,43 @@ const ACCIONES = {
       }
       const { data: mismo } = await db.from('ingresos').select('id').eq('contrato_id', c.id).eq('fecha', p.fecha).eq('importe', importe).limit(1)
 
-      let q = db.from('prp_cartera')
-        .select('id, concepto, periodo_mes, periodo_anio, importe, saldo, fecha_vencimiento, estado')
-        .eq('contrato_id', c.id).in('estado', ['PENDIENTE', 'PARCIAL']).gt('saldo', 0.01)
-        .order('fecha_vencimiento', { ascending: true })
-      if (Array.isArray(p.cargo_ids) && p.cargo_ids.length) q = q.in('id', p.cargo_ids)
-      const { data: cargos, error: e2 } = await q
-      if (e2) return { error: e2.message }
+      // Periodo al que paga el depósito: lo dice el agente (periodo_mes/anio) o se
+      // deduce del concepto de la ficha ("RENTA SEP 2026 L08"). Si se conoce, el pago
+      // va a ESE cargo y no al más antiguo.
+      const per = (Number(p.periodo_mes) && Number(p.periodo_anio))
+        ? { mes: Number(p.periodo_mes), anio: Number(p.periodo_anio) }
+        : periodoDeTexto([p.referencia, p.nota, p.concepto].filter(Boolean).join(' '))
+      const usarPeriodo = per && !p.ignorar_periodo && !(Array.isArray(p.cargo_ids) && p.cargo_ids.length)
+
+      const COLS = 'id, concepto, periodo_mes, periodo_anio, importe, saldo, fecha_vencimiento, estado'
+      let cargos, otrosPendientes = []
+      if (usarPeriodo) {
+        const { data: delPeriodo, error: eP } = await db.from('prp_cartera').select(COLS)
+          .eq('contrato_id', c.id).eq('periodo_mes', per.mes).eq('periodo_anio', per.anio).neq('estado', 'CANCELADO')
+        if (eP) return { error: eP.message }
+        const etiquetaPer = `${String(per.mes).padStart(2, '0')}/${per.anio}`
+        if (!delPeriodo?.length) return { error: `El contrato ${c.folio} no tiene cargo del periodo ${etiquetaPer} que menciona la ficha. NO propongas: dile al usuario que no existe ese cargo y pregunta a qué periodo aplicarlo (o reintenta con ignorar_periodo=true si te pide aplicarlo al más antiguo).` }
+        const pendientesPer = delPeriodo.filter(x => Number(x.saldo) > 0.01)
+        if (!pendientesPer.length) {
+          const { data: aps } = await db.from('aplicaciones_pago').select('ingreso_id, importe_aplicado').in('cargo_id', delPeriodo.map(x => x.id))
+          const ids = [...new Set((aps || []).map(a => '#' + a.ingreso_id))].join(', ')
+          return { error: `El periodo ${etiquetaPer} de ${c.folio} YA ESTÁ PAGADO${ids ? ` (ingreso ${ids})` : ''}. NO propongas: dile al usuario que este depósito podría ser un duplicado o un pago adelantado, y pregunta si lo registra como saldo a favor (reintenta con ignorar_periodo=true) o a otro periodo.` }
+        }
+        // Si el depósito dice RENTA, el cargo de renta va primero.
+        cargos = pendientesPer.sort((a, b) => (b.concepto === 'RENTA') - (a.concepto === 'RENTA'))
+        const { data: resto } = await db.from('prp_cartera').select(COLS)
+          .eq('contrato_id', c.id).in('estado', ['PENDIENTE', 'PARCIAL']).gt('saldo', 0.01)
+          .order('fecha_vencimiento', { ascending: true })
+        otrosPendientes = (resto || []).filter(x => !cargos.some(y => y.id === x.id))
+      } else {
+        let q = db.from('prp_cartera').select(COLS)
+          .eq('contrato_id', c.id).in('estado', ['PENDIENTE', 'PARCIAL']).gt('saldo', 0.01)
+          .order('fecha_vencimiento', { ascending: true })
+        if (Array.isArray(p.cargo_ids) && p.cargo_ids.length) q = q.in('id', p.cargo_ids)
+        const { data, error: e2 } = await q
+        if (e2) return { error: e2.message }
+        cargos = data
+      }
 
       // Varias fichas del mismo contrato en un turno: no repartir dos veces el mismo saldo.
       let resto = importe
@@ -206,6 +250,10 @@ const ACCIONES = {
       const avisos = ['Queda POR_VALIDAR hasta conciliarlo con el banco; la factura sale hasta entonces.']
       if (mismo?.length) avisos.push(`Ojo: ya hay un ingreso de este contrato con la misma fecha e importe (#${mismo[0].id}). Verifica que no sea el mismo depósito.`)
       if (c.estatus !== 'VIGENTE') avisos.push(`El contrato está ${c.estatus}.`)
+      if (otrosPendientes.length) {
+        const lista = otrosPendientes.map(x => `${x.concepto} ${String(x.periodo_mes || '').padStart(2, '0')}/${x.periodo_anio || ''} (${mxn(x.saldo)})`).join(', ')
+        avisos.push(`Este pago se aplica al periodo que indica la ficha. Siguen pendientes: ${lista}.`)
+      }
 
       return {
         params: {
@@ -343,7 +391,7 @@ Notas sobre los datos:
 ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_accion):
 - Hoy disponibles: ${Object.keys(ACCIONES).join(', ')}.
 - Fichas de depósito: el usuario puede adjuntar imágenes; llegan ya leídas como "[Ficha F1 adjunta: importe…, fecha…, referencia…, concepto…]". Por cada ficha: (1) ubica el contrato por el número de local que traiga (concepto/referencia) buscando con consultar_datos en prp_contratos con estatus VIGENTE, y contrasta el ordenante con el arrendatario; (2) llama proponer_accion aplicar_pago con importe, fecha, referencia, forma_pago, banco, ordenante y ficha="F1" copiados TAL CUAL de la ficha, sin redondear. Si no hay local legible, si hay más de un contrato posible o el ordenante no coincide con el arrendatario, NO propongas: pregunta. Con varias fichas, una llamada por ficha en el mismo turno. Si la ficha dice que no se pudo leer, pide al usuario los datos.
-- Reglas de aplicación (ya las hace el sistema): el pago cubre primero el cargo pendiente más antiguo; si no alcanza queda PARCIAL; el excedente es saldo a favor del inquilino; el depósito queda POR_VALIDAR hasta la conciliación bancaria. Si la propuesta falla por referencia duplicada, díselo al usuario. Para cualquier otra modificación (cobros, gastos, altas, cambios de datos) di con franqueza que todavía no puedes hacerla desde el chat e indica el módulo donde se hace.
+- Reglas de aplicación (ya las hace el sistema): si el concepto de la ficha nombra un periodo ("RENTA SEP 2026"), el pago cubre el cargo de ESE periodo (pasa periodo_mes y periodo_anio) y los demás atrasos solo se avisan; si el periodo ya está pagado o no existe, la herramienta te devuelve un error: explícale al usuario con esos datos (no adivines causas ni inventes fechas de generación o vencimiento) y pregunta qué hacer. Sin periodo en la ficha, cubre el cargo pendiente más antiguo. Si no alcanza queda PARCIAL; el excedente es saldo a favor del inquilino; el depósito queda POR_VALIDAR hasta la conciliación bancaria. Si la propuesta falla por referencia duplicada, díselo al usuario. Para cualquier otra modificación (cobros, gastos, altas, cambios de datos) di con franqueza que todavía no puedes hacerla desde el chat e indica el módulo donde se hace.
 - NUNCA ejecutas nada tú: proponer_accion solo muestra una tarjeta y el usuario confirma con un botón. Jamás afirmes que algo "ya quedó registrado" hasta que el usuario te lo confirme en un mensaje de sistema.
 - No hagas cuestionarios. Consulta el registro, arma la propuesta con lo que el usuario ya dijo y los valores actuales como defecto, y deja que la tarjeta muestre el detalle. Pregunta solo si falta algo que no puedas deducir o si la solicitud es ambigua (varios contratos posibles).
 - Si el usuario cambia un dato después de ver la tarjeta, vuelve a llamar proponer_accion con el valor corregido.
@@ -421,3 +469,7 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
     }
   }
 }
+
+// Solo para scripts/test-agente.mjs
+exports.ACCIONES = ACCIONES
+exports.periodoDeTexto = periodoDeTexto
