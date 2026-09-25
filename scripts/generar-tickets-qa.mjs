@@ -300,8 +300,8 @@ function buildFicha(contrato, banco, anio, mes, idx) {
   const concepto = `RENTA ${MESES_ABR[mes]} ${anio} ${localSlug}`
   const claveRastreo = `${banco.key}${anio}${String(mes).padStart(2,'0')}${String(dia).padStart(2,'0')}${String(idx).padStart(9,'0')}`
   const numOp = `${banco.key}-${anio}-${String(idx).padStart(8,'0')}`
-  // Formato: L06_2608_FICHA_BSR
-  const nombrePng = `${localSlug}_${String(anio).slice(2)}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.png`
+  // Formato: L06202608_FICHA_BSR
+  const nombrePng = `${localSlug}${anio}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.png`
 
   let inner = ''
   if (banco.estilo === 'spei') {
@@ -540,8 +540,8 @@ if (modo === 'fichas' || modo === 'all') {
       // Extrae número de local con zero-padding: "LOCAL 06" → "L06"
       const rawNum = ((contrato.locales_display || '').split(',')[0].match(/(\d+)/) || [,''])[1]
       const localSlug = rawNum ? `L${rawNum.padStart(2,'0')}` : `L${String(ci+1).padStart(2,'0')}`
-      // Formato: L06_2608_FICHA_BSR
-      const nombreHtml = `${localSlug}_${String(anio).slice(2)}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.html`
+      // Formato: L06202608_FICHA_BSR
+      const nombreHtml = `${localSlug}${anio}${String(mes).padStart(2,'0')}_FICHA_${banco.key}.html`
       const nombrePng  = nombreHtml.replace('.html', '.png')
       fs.writeFileSync(path.join(OUT, nombreHtml), fullHtml, 'utf8')
       archivos.push({ idx: total, nombreHtml, nombrePng, innerHtml, banco: banco.nombre, local: localSlug, mes: `${MESES_ABR[mes]} ${anio}`, importe: `$${Number(contrato.renta_mensual).toLocaleString('es-MX', { minimumFractionDigits:2 })}` })

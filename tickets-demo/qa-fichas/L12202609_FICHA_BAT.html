@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>* {margin:0;padding:0;box-sizing:border-box;} body {background:#e8e8e8;display:flex;flex-direction:column;align-items:center;padding:24px;gap:14px;font-family:Arial,sans-serif;} .dl-btn {width:480px;padding:11px;background:#7b1a1a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;}</style>
+</head><body>
+<button class="dl-btn" onclick="descargar()">⬇ Descargar PNG</button>
+<div id="doc"><div style="background:#fff;width:480px;border:1px solid #ccc;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;">
+  <div style="background:#7b1a1a;color:#fff;padding:14px 20px;">
+    <div style="font-size:15px;font-weight:700;">Banco del Atlántico</div>
+    <div style="font-size:11px;opacity:.85;">Comprobante de Transferencia SPEI</div>
+  </div>
+  <div style="background:#f5e8e8;padding:8px 20px;font-size:11px;color:#7b1a1a;font-weight:600;border-bottom:1px solid #ddd;">
+    No. Operación: BAT-2026-00001035
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Fecha y Hora:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">07/09/2026 12:06:35</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Rafael Ortega Valdez</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Ordenante:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">ORVR760517MS6</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Cuenta Origen:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3649</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PLAZA IWOL S.A. DE C.V.</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">CLABE Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">****3812</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Banco Destino:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">Banco del Sureste</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">RFC Beneficiario:</span><span style="flex:1;font-size:12px;color:#111;font-weight:600;">PIW200301R72</span></div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;">
+    <span style="width:180px;flex-shrink:0;font-size:12px;font-weight:700;color:#333;">IMPORTE:</span>
+    <span style="flex:1;font-size:16px;color:#7b1a1a;font-weight:700;">$10,000.00 MN</span>
+  </div>
+  <div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Concepto:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">RENTA SEP 2026 L1035</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Referencia:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">202609L1035</span></div><div style="display:flex;padding:7px 20px;border-bottom:1px solid #f0f0f0;"><span style="width:180px;flex-shrink:0;font-size:12px;color:#666;">Clave de Rastreo:</span><span style="flex:1;font-size:11px;color:#111;font-weight:600;word-break:break-all;">BAT20260907000001035</span></div>
+  <div style="background:#f9f9f9;border-top:1px solid #ddd;padding:10px 20px;font-size:10px;color:#888;text-align:center;">
+    <span style="color:#7b1a1a;font-weight:600;">✓ Transferencia procesada exitosamente</span>
+    &nbsp;·&nbsp; Banco del Atlántico &nbsp;·&nbsp; Tel. 800 710 1010
+  </div>
+</div></div>
+<script>function descargar(){html2canvas(document.getElementById('doc'),{scale:2,backgroundColor:'#ffffff'}).then(function(c){var a=document.createElement('a');a.download='L1035202609_FICHA_BAT.png';a.href=c.toDataURL('image/png');a.click();});}</script>
+</body></html>
