@@ -1,36 +1,75 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { X, RefreshCw, Upload, AlertCircle, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import ConsultaChecadas from '../ui/ConsultaChecadas'
-import { parsearChecador } from '../../lib/checador'
+import { parsearChecador, resolverMarcajes } from '../../lib/checador'
 
 // ── Import asistencia de checador ──────────────────────────────────────────
 function ImportChecadorModal({ empleados, onClose, onImported }) {
   const [csv, setCsv] = useState('')
-  const [preview, setPreview] = useState([])
   const [importando, setImportando] = useState(false)
   const fileRef = useRef()
+  // Correcciones antes de guardar. Dos cosas fallan seguido en un archivo de checador: renglones
+  // que no se quieren (otra quincena, un visitante) y gente que el aparato identifica con un
+  // número que no está en el catálogo.
+  const [excluidos, setExcluidos] = useState({})   // clave empleado+fecha -> true
+  const [asignados, setAsignados] = useState({})   // numero del checador -> empleado_id
 
-  // La lectura del archivo vive en src/lib/checador.js (la comparte el Agente Operativo).
-  // Cada renglón del checador es un MARCAJE, no un día: se guardan todos en rh_checadas
-  // y el día lo arma la base.
-  const parsear = (texto) => parsearChecador(texto).map(ev => {
-    const primerNombre = (ev.nombre || '').toLowerCase().split(' ')[0]
-    const emp = empleados.find(e => e.numero_empleado === ev.numero
-      || (primerNombre && (e.nombre_completo || '').toLowerCase().includes(primerNombre)))
-    return {
-      empleado_id: emp?.id || null,
-      numero_empleado_ext: ev.numero,
-      operacion: ev.operacion,
-      fecha_hora: `${ev.fecha} ${ev.hora}:00`,
-      origen: 'ZKTeco_CSV',
-      _fecha: ev.fecha,
-      _hora: ev.hora,
-      _nombre: ev.nombre,
-      _nombre_match: emp?.nombre_completo,
-    }
-  })
+  // La lectura, el reconocimiento de personas y la decisión de ENTRADA/SALIDA viven en
+  // src/lib/checador.js (los comparte el Agente Operativo). El reloj NO dice si un marcaje es
+  // entrada o salida: se decide con el horario de cada persona y con el rol de guardia
+  // (rh_turnos_guardia), no alternando por orden, porque un marcaje faltante voltearía todo lo
+  // que sigue. Los acentos no cuentan (René = RENÉ, Verónica = veronica).
+  const [ctxAsist, setCtxAsist] = useState({ extras: new Map(), rota: new Map(), guardias: [] })
+  useEffect(() => {
+    let vivo = true
+    ;(async () => {
+      const [{ data: ex }, { data: ro }] = await Promise.all([
+        supabase.from('rh_empleados').select('id, horario_trabajo, hora_entrada_prog, hora_salida_prog, cruza_medianoche'),
+        supabase.from('rh_turnos_guardia').select('fecha, empleado_id'),
+      ])
+      if (!vivo) return
+      setCtxAsist({
+        extras: new Map((ex || []).map(x => [x.id, x])),
+        rota: new Map((ro || []).map(x => [String(x.fecha).slice(0, 10), x.empleado_id])),
+        guardias: (ex || []).filter(x => x.cruza_medianoche).map(x => x.id),
+      })
+    })()
+    return () => { vivo = false }
+  }, [])
+
+  const eventos = useMemo(() => parsearChecador(csv), [csv])
+  // Lo asignado a mano en la lista se le pasa al reconocimiento como asignación explícita.
+  const asignaciones = useMemo(() => Object.fromEntries(
+    Object.entries(asignados).filter(([, id]) => id).map(([num, id]) => {
+      const e = empleados.find(x => x.id === id)
+      return [num, e?.numero_empleado || e?.nombre_completo]
+    })), [asignados, empleados])
+
+  // Cada renglón del checador es un MARCAJE, no un día: se guardan todos en rh_checadas y el
+  // día lo arma la base.
+  const conAsignacion = useMemo(() => {
+    if (!eventos.length) return []
+    const res = resolverMarcajes(empleados, eventos, asignaciones, ctxAsist)
+    const grupo = new Map(res.grupos.map(g => [g.numero, g]))
+    const operacion = new Map(res.filas.map(f => [`${f.numero_empleado_ext}|${f.fecha_hora}`, f.operacion]))
+    return eventos.map(ev => {
+      const fh = `${ev.fecha} ${ev.hora}:00`, g = grupo.get(ev.numero)
+      return {
+        empleado_id: g?.empleado_id || null,
+        numero_empleado_ext: ev.numero,
+        operacion: operacion.get(`${ev.numero}|${fh}`) || ev.operacion,
+        fecha_hora: fh,
+        origen: 'ZKTeco_CSV',
+        _fecha: ev.fecha,
+        _hora: ev.hora,
+        _nombre: ev.nombre,
+        _nombre_match: g?.empleado,
+      }
+    })
+  }, [eventos, asignaciones, ctxAsist, empleados])
+  const preview = conAsignacion
 
   // Vista previa por día: lo que verá el usuario, aunque se guarde por marcaje.
   const resumirDias = (evs) => {
@@ -55,36 +94,13 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => {
-      const text = ev.target.result
-      setCsv(text)
-      setPreview(parsear(text))
-    }
+    reader.onload = ev => setCsv(ev.target.result)
     reader.readAsText(file, 'utf-8')
   }
 
-  const onTextChange = (e) => {
-    setCsv(e.target.value)
-    setPreview(parsear(e.target.value))
-  }
-
-  // Corrección antes de guardar. Dos cosas fallan seguido en un archivo de
-  // checador: renglones que no se quieren (otra quincena, un visitante) y
-  // gente que el aparato identifica con un número que no está en el catálogo.
-  const [excluidos, setExcluidos] = useState({})   // clave empleado+fecha -> true
-  const [asignados, setAsignados] = useState({})   // numero del checador -> empleado_id
+  const onTextChange = (e) => setCsv(e.target.value)
 
   const claveDia = r => `${r.numero_empleado_ext}_${r._fecha}`
-
-  // Se aplica lo asignado a mano antes de agrupar, para que el resumen del día
-  // ya muestre el nombre corregido.
-  const conAsignacion = useMemo(() => preview.map(e => ({
-    ...e,
-    empleado_id: asignados[e.numero_empleado_ext] ?? e.empleado_id,
-    _nombre_match: asignados[e.numero_empleado_ext]
-      ? empleados.find(x => x.id === asignados[e.numero_empleado_ext])?.nombre_completo
-      : e._nombre_match,
-  })), [preview, asignados, empleados])
 
   const dias = useMemo(() => resumirDias(conAsignacion), [conAsignacion])
   const diasIncluidos = dias.filter(d => !excluidos[claveDia(d)])
@@ -94,19 +110,51 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   const importar = async () => {
     if (!aImportar.length) return toast.error('No queda ningún marcaje por importar')
     setImportando(true)
-    // Se descartan los campos auxiliares del preview (los que empiezan con _).
-    const rows = aImportar.map(e => ({
-      empleado_id: e.empleado_id, numero_empleado_ext: e.numero_empleado_ext,
-      operacion: e.operacion, fecha_hora: e.fecha_hora, origen: e.origen,
-    }))
-    // ignoreDuplicates: volver a cargar el mismo archivo no duplica marcajes.
-    const { error } = await supabase.from('rh_checadas')
-      .upsert(rows, { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
-    setImportando(false)
-    if (error) return toast.error(error.message)
-    toast.success(`${rows.length} marcajes importados · ${diasIncluidos.length} días`)
-    onImported()
-    onClose()
+    try {
+      // Se descartan los campos auxiliares del preview (los que empiezan con _).
+      const filas = aImportar.map(e => ({
+        empleado_id: e.empleado_id, numero_empleado_ext: e.numero_empleado_ext,
+        operacion: e.operacion, fecha_hora: e.fecha_hora, origen: e.origen,
+      }))
+      // Un marcaje ya guardado se reconoce por número del checador + hora exacta. Si estaba
+      // invertido (entrada como salida), sin persona o con otra persona, se CORRIGE en su lugar:
+      // insertarlo otra vez dejaría dos marcajes a la misma hora. Nunca se le quita la persona a
+      // uno ya asignado.
+      const numeros = [...new Set(filas.map(f => f.numero_empleado_ext))]
+      const horas = filas.map(f => f.fecha_hora).sort()
+      const existentes = new Map()
+      for (let i = 0; ; i += 1000) {
+        const { data, error } = await supabase.from('rh_checadas')
+          .select('id, empleado_id, numero_empleado_ext, fecha_hora, operacion')
+          .in('numero_empleado_ext', numeros).gte('fecha', horas[0].slice(0, 10)).lte('fecha', horas[horas.length - 1].slice(0, 10))
+          .order('id').range(i, i + 999)
+        if (error) throw error
+        for (const x of data || []) existentes.set(`${x.numero_empleado_ext}|${String(x.fecha_hora).replace('T', ' ').slice(0, 19)}`, x)
+        if (!data || data.length < 1000) break
+      }
+      const nuevas = [], correcciones = []
+      for (const f of filas) {
+        const ex = existentes.get(`${f.numero_empleado_ext}|${f.fecha_hora}`)
+        if (!ex) nuevas.push(f)
+        else if (f.empleado_id && (ex.empleado_id !== f.empleado_id || ex.operacion !== f.operacion)) correcciones.push({ id: ex.id, empleado_id: f.empleado_id, operacion: f.operacion })
+      }
+      // ignoreDuplicates: volver a cargar el mismo archivo no duplica marcajes.
+      if (nuevas.length) {
+        const { error } = await supabase.from('rh_checadas').upsert(nuevas, { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
+        if (error) throw error
+      }
+      for (const c of correcciones) {
+        const { error } = await supabase.from('rh_checadas').update({ operacion: c.operacion, empleado_id: c.empleado_id }).eq('id', c.id)
+        if (error) throw error
+      }
+      toast.success(`${nuevas.length} marcajes nuevos${correcciones.length ? ` · ${correcciones.length} corregidos` : ''} · ${diasIncluidos.length} días`)
+      onImported()
+      onClose()
+    } catch (e) {
+      toast.error(e.message || String(e))
+    } finally {
+      setImportando(false)
+    }
   }
 
   // Reimportar un archivo corregido del checador no sirve de nada si los
@@ -134,7 +182,7 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Importar desde Checador</h3>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--color-text-light)' }}>Compatible con ZKTeco, BioTime, y formato genérico CSV/TXT</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--color-text-light)' }}>Compatible con ZKTeco, BioTime, y formato genérico CSV/TXT. La entrada o salida de cada marcaje se decide con el horario de cada persona y el rol de guardia.</p>
           </div>
           <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={18} /></button>
         </div>

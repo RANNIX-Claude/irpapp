@@ -1,12 +1,6 @@
 // Casos de regresión del Agente Operativo (aplicar_pago). Sin red: usa una base simulada en memoria.
 // Cada fallo real del agente se agrega aquí como caso nuevo.  Uso: node scripts/test-agente.mjs
-import { createRequire } from 'module'
-import fs from 'fs'
-// netlify/functions es CommonJS pero el paquete es type:module: se prueba una copia .cjs temporal.
-const tmp = new URL('../netlify/functions/_test_chat_operativo.cjs', import.meta.url)
-fs.copyFileSync(new URL('../netlify/functions/chat-operativo.js', import.meta.url), tmp)
-const { ACCIONES, periodoDeTexto } = createRequire(import.meta.url)('../netlify/functions/_test_chat_operativo.cjs')
-fs.unlinkSync(tmp)
+import { ACCIONES, periodoDeTexto } from '../netlify/functions/chat-operativo.js'
 
 // Mini query-builder: from().select().eq/neq/in/gt/order/limit → thenable | maybeSingle
 function baseSimulada(tablas) {

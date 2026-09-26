@@ -32,16 +32,13 @@ process.env.VITE_SUPABASE_URL = URL_
 process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE
 process.env.VITE_SUPABASE_ANON_KEY = ANON
 
-// chat-operativo.js no exporta ACCIONES ni firmar: se saca de una copia temporal.
-fs.mkdirSync(new URL('../netlify/_tmp/', import.meta.url), { recursive: true })
-const tmp = new URL('../netlify/_tmp/chat_tmp.cjs', import.meta.url)
-fs.writeFileSync(tmp, fs.readFileSync(new URL('../netlify/functions/chat-operativo.js', import.meta.url), 'utf8') + '\nexports.__t = { ACCIONES, firmar }\n')
-const { ACCIONES, firmar } = (await import(tmp.href)).default.__t   // firma de chat-operativo: la que debe aceptar ejecutar-accion
+// chat-operativo.js (ESM) exporta ACCIONES y firmar: la firma es la que debe aceptar ejecutar-accion.
+const { ACCIONES, firmar } = await import('../netlify/functions/chat-operativo.js')
 const { handler, firmar: firmarEjec } = await import('../netlify/functions/ejecutar-accion.js')
 
 const admin = createClient(URL_, SERVICE, { auth: { persistSession: false }, realtime: { transport: ws } })
 const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, password: PASSWORD }) }).then(r => r.json())
-if (!auth.access_token) { console.error('No se pudo iniciar sesión:', JSON.stringify(auth).slice(0, 120)); fs.unlinkSync(tmp); fs.rmdirSync(new URL('../netlify/_tmp/', import.meta.url)); process.exit(1) }
+if (!auth.access_token) { console.error('No se pudo iniciar sesión:', JSON.stringify(auth).slice(0, 120)); process.exit(1) }
 const UID = auth.user.id, JWT = auth.access_token
 
 let fallas = 0, total = 0
@@ -58,11 +55,11 @@ const limpiar = []   // funciones async de limpieza
 
 try {
   // ── Empaquetado ────────────────────────────────────────────────────────
-  // Node local sí puede hacer require() de un archivo ESM, pero la function desplegada en Netlify
-  // no: falla con "Unexpected token 'export'". Esta prueba no lo detecta ejecutando; lo vigila.
+  // chat-operativo es ESM puro, como ejecutar-accion (que en Netlify se empaqueta bien): un require()
+  // mezclado no se empaqueta y falla con "Unexpected token 'export'" al cargar src/. Se vigila.
   console.log('\nEmpaquetado (Netlify)')
   const fuenteChat = fs.readFileSync(new URL('../netlify/functions/chat-operativo.js', import.meta.url), 'utf8')
-  check('chat-operativo (CommonJS) no requiere archivos ESM de src/', !/require\(['"]\.\.\/\.\.\/src\//.test(fuenteChat))
+  check('chat-operativo es ESM puro (sin require ni exports.)', !/require\(/.test(fuenteChat) && !/^exports\./m.test(fuenteChat))
 
   // ── Seguridad ──────────────────────────────────────────────────────────
   console.log('\nSeguridad')
@@ -234,6 +231,49 @@ try {
   const mala = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1', asignaciones: { 999: 'NO EXISTE' } }, ctxA)
   check('asignación a alguien inexistente no se adivina', !mala.params?.filas?.some(f => f.numero_empleado_ext === '999'), JSON.stringify(mala.resumen?.find(r => r[0] === 'Sin reconocer')))
 
+  // ── Marcajes ya guardados mal: invertidos, sin persona, de otra persona ────
+  console.log('\nasistencia: corregir lo ya guardado (invertidos / sin persona) en lugar de duplicar')
+  const D3 = '2026-01-07', D4 = '2026-01-08'
+  limpiar.push(async () => { await admin.from('rh_checadas').delete().gte('fecha', D3).lte('fecha', D4).eq('origen', 'ZKTeco_CSV') })
+  const n1 = e1.numero_empleado, n2 = e2.numero_empleado
+  // guardado mal: e1 con la ENTRADA como SALIDA (y su salida como ENTRADA); e2 sin persona asignada
+  await admin.from('rh_checadas').insert([
+    { empleado_id: e1.id, numero_empleado_ext: n1, operacion: 'SALIDA', fecha_hora: `${D3} 08:00:00`, origen: 'ZKTeco_CSV' },
+    { empleado_id: e1.id, numero_empleado_ext: n1, operacion: 'ENTRADA', fecha_hora: `${D3} 16:00:00`, origen: 'ZKTeco_CSV' },
+    { empleado_id: null, numero_empleado_ext: n2, operacion: 'ENTRADA', fecha_hora: `${D3} 09:00:00`, origen: 'ZKTeco_CSV' },
+    { empleado_id: null, numero_empleado_ext: n2, operacion: 'SALIDA', fecha_hora: `${D3} 17:00:00`, origen: 'ZKTeco_CSV' },
+  ])
+  const lin = [`No,Nombre,Fecha,Hora,Status`,
+    `${n1},${e1.nombre_completo},${D3},08:00,0`, `${n1},${e1.nombre_completo},${D3},16:00,1`,
+    `${n2},${e2.nombre_completo},${D3},09:00,0`, `${n2},${e2.nombre_completo},${D3},17:00,1`].join(String.fromCharCode(10))
+  const ctxC = { ...nuevo, fichas: { F1: { tipo_documento: 'ARCHIVO_CHECADOR', nombre_archivo: 'corregir.csv', eventos: parsearChecador(lin) } } }
+  const pc = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1' }, ctxC)
+  check('preparar detecta 4 correcciones y 0 nuevos', !pc.error && pc.params.correcciones.length === 4 && pc.params.filas.length === 0, pc.error || `${pc.params?.correcciones?.length} correcciones, ${pc.params?.filas?.length} nuevos`)
+  check('la tarjeta lo explica (invertidos y sin persona)', /invertidos/.test(pc.resumen?.map(x => x.join(' ')).join(' ') || '') && /sin persona/.test(pc.resumen?.map(x => x.join(' ')).join(' ') || ''), pc.resumen?.find(x => x[0] === 'Se corrigen')?.[1])
+  r = await llamar('importar_asistencia', pc.params)
+  check('ejecuta y responde 200', r.status === 200, r.texto || r.error)
+  const { data: post } = await admin.from('rh_checadas').select('empleado_id, numero_empleado_ext, operacion, fecha_hora').gte('fecha', D3).lte('fecha', D3).order('fecha_hora')
+  check('sigue habiendo 4 marcajes (se corrigió en su lugar, no se duplicó)', post?.length === 4, post?.length)
+  const de = (n, h) => post.find(x => x.numero_empleado_ext === n && String(x.fecha_hora).includes(h))
+  check('e1: 08:00 = ENTRADA y 16:00 = SALIDA', de(n1, '08:00')?.operacion === 'ENTRADA' && de(n1, '16:00')?.operacion === 'SALIDA', post?.filter(x => x.numero_empleado_ext === n1).map(x => x.operacion[0]).join(''))
+  check('e2: los marcajes sin persona quedaron asignados a e2', post?.filter(x => x.numero_empleado_ext === n2).every(x => x.empleado_id === e2.id), JSON.stringify(post?.filter(x => x.numero_empleado_ext === n2).map(x => x.empleado_id)))
+
+  // corregir_asistencia: solo desde lo guardado (sin archivo). Un empleado de horario DIURNO (no velador) con el día al revés
+  const { data: crz } = await admin.from('rh_empleados').select('id, cruza_medianoche')
+  const diurno = emps.find(e => !(crz || []).find(x => x.id === e.id)?.cruza_medianoche && e.id !== e1.id && e.id !== e2.id)
+  await admin.from('rh_checadas').insert([
+    { empleado_id: diurno.id, numero_empleado_ext: diurno.numero_empleado, operacion: 'SALIDA', fecha_hora: `${D4} 07:30:00`, origen: 'ZKTeco_CSV' },
+    { empleado_id: diurno.id, numero_empleado_ext: diurno.numero_empleado, operacion: 'ENTRADA', fecha_hora: `${D4} 15:00:00`, origen: 'ZKTeco_CSV' },
+  ])
+  const cor = await ACCIONES.corregir_asistencia.preparar(admin, { desde: D4, hasta: D4 }, nuevo)
+  check('corregir_asistencia arma 2 correcciones para el día al revés', !cor.error && cor.params.correcciones.length === 2, cor.error || cor.params?.correcciones?.length)
+  r = await llamar('corregir_asistencia', cor.params)
+  check('ejecuta y responde 200', r.status === 200, r.texto || r.error)
+  const { data: dia3 } = await admin.from('rh_checadas').select('operacion, fecha_hora').eq('empleado_id', diurno.id).gte('fecha', D4).lte('fecha', D4).order('fecha_hora')
+  check('07:30 = ENTRADA y 15:00 = SALIDA', dia3?.[0]?.operacion === 'ENTRADA' && dia3?.[1]?.operacion === 'SALIDA', dia3?.map(x => x.operacion[0]).join(''))
+  const otraVez = await ACCIONES.corregir_asistencia.preparar(admin, { desde: D4, hasta: D4 }, nuevo)
+  check('otra vez → ya no hay nada que corregir', !!otraVez.error && /todo cuadra/.test(otraVez.error), otraVez.error)
+
   // ── renovar_contrato (se restaura) ─────────────────────────────────────
   console.log('\nrenovar_contrato (se restaura al terminar)')
   const { data: vig } = await admin.from('prp_contratos').select('id').eq('estatus', 'VIGENTE').limit(50)
@@ -261,7 +301,6 @@ try {
 } finally {
   console.log('\nLimpieza')
   for (const f of limpiar.reverse()) { try { await f() } catch (e) { console.log('  aviso al limpiar:', e.message) } }
-  fs.unlinkSync(tmp); fs.rmdirSync(new URL('../netlify/_tmp/', import.meta.url))
   console.log('  QA restaurado')
 }
 console.log(`\n${total - fallas}/${total} comprobaciones correctas${fallas ? ` — ${fallas} FALLARON` : ''}`)

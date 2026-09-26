@@ -15,9 +15,11 @@
  * usuario, tras un clic en Confirmar. Ver ACCIONES y src/lib/agentActions.js.
  */
 
-const { createClient } = require('@supabase/supabase-js')
-const ws = require('ws')
-const crypto = require('crypto')
+import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
+import crypto from 'crypto'
+// Reconocimiento de empleados y ENTRADA/SALIDA del checador: el mismo codigo que usa el modal de RH.
+import { resolverMarcajes, asignarOperaciones } from '../../src/lib/checador.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const ANON_KEY     = process.env.VITE_SUPABASE_ANON_KEY
@@ -483,142 +485,140 @@ const ACCIONES = {
 
       const { data: emps, error: eE } = await db.from('prp_empleados').select('id, numero_empleado, nombre_completo')
       if (eE) return { error: eE.message }
-      const { filas, grupos, sinReconocer } = resolverMarcajes(emps || [], d.eventos, p.asignaciones || {})
+      // Horario programado y rol de guardia: con ellos se decide ENTRADA/SALIDA (el reloj no lo dice).
+      const { data: extra } = await db.from('rh_empleados').select('id, horario_trabajo, hora_entrada_prog, hora_salida_prog, cruza_medianoche')
+      const extras = new Map((extra || []).map(x => [x.id, x]))
+      const guardias = (extra || []).filter(x => x.cruza_medianoche).map(x => x.id)
+      const { data: rotaFilas } = await db.from('rh_turnos_guardia').select('fecha, empleado_id')
+      const rota = new Map((rotaFilas || []).map(x => [String(x.fecha).slice(0, 10), x.empleado_id]))
+
+      const { filas, grupos, sinReconocer, dudosos, reasignadas, extendidos } = resolverMarcajes(emps || [], d.eventos, p.asignaciones || {}, { extras, rota, guardias })
       if (!filas.length) return { error: `No pude reconocer con certeza a nadie del archivo (${sinReconocer.length} persona(s)). ${sinReconocer.slice(0, 4).map(s => `${s.numero}${s.nombre ? ` «${s.nombre}»` : ''}: ${s.motivo}`).join(' | ')}. Muéstrale esto al usuario y pregúntale a quién corresponde cada número del checador para pasarlo en asignaciones; no adivines.` }
 
-      // Los marcajes que ya están en la base se omiten (se compara la hora de pared, sin zona).
+      // Lo que ya está en la base se identifica por el número del checador + la hora exacta (hora de pared,
+      // sin zona), no por empleado: así también se encuentran los marcajes que quedaron SIN persona o con
+      // la persona equivocada. Para cada marcaje del archivo:
+      //  · ya existe igual (misma persona y operación)            → se omite;
+      //  · existe pero con otra operación, sin persona o con otra → se CORRIGE en su lugar (duplicarlo
+      //    dejaría dos marcajes a la misma hora);
+      //  · no existe                                              → se inserta.
       const fechas = filas.map(f => f.fecha_hora).sort()
       const desde = fechas[0].slice(0, 10), hasta = fechas[fechas.length - 1].slice(0, 10)
       const ids = [...new Set(filas.map(f => f.empleado_id))]
-      const existentes = new Set()
+      const numeros = [...new Set(filas.map(f => f.numero_empleado_ext))]
+      const existentes = new Map()
       for (let i = 0; ; i += 1000) {
-        const { data } = await db.from('rh_checadas').select('empleado_id, fecha_hora, operacion')
-          .in('empleado_id', ids).gte('fecha', desde).lte('fecha', hasta).order('id').range(i, i + 999)
-        for (const x of data || []) existentes.add(`${x.empleado_id}|${String(x.fecha_hora).replace('T', ' ').slice(0, 19)}|${x.operacion}`)
+        const { data } = await db.from('rh_checadas').select('id, empleado_id, numero_empleado_ext, fecha_hora, operacion')
+          .in('numero_empleado_ext', numeros).gte('fecha', desde).lte('fecha', hasta).order('id').range(i, i + 999)
+        for (const x of data || []) existentes.set(`${x.numero_empleado_ext}|${String(x.fecha_hora).replace('T', ' ').slice(0, 19)}`, x)
         if (!data || data.length < 1000) break
       }
-      const nuevas = filas.filter(f => !existentes.has(`${f.empleado_id}|${f.fecha_hora}|${f.operacion}`))
-      const yaEstaban = filas.length - nuevas.length
-      if (!nuevas.length) return { error: `Los ${filas.length} marcajes reconocidos (${desde} → ${hasta}) ya estaban registrados. No hay nada nuevo que importar.` }
+      const nuevas = [], correcciones = []
+      let yaEstaban = 0
+      for (const f of filas) {
+        const ex = existentes.get(`${f.numero_empleado_ext}|${f.fecha_hora}`)
+        if (!ex) nuevas.push(f)
+        else if (ex.empleado_id === f.empleado_id && ex.operacion === f.operacion) yaEstaban++
+        else correcciones.push({ id: ex.id, empleado_id: f.empleado_id, operacion: f.operacion, fecha_hora: f.fecha_hora, era_operacion: ex.operacion, era_empleado: ex.empleado_id })
+      }
+      if (!nuevas.length && !correcciones.length) return { error: `Los ${filas.length} marcajes reconocidos (${desde} → ${hasta}) ya estaban registrados con la persona y la operación correctas. No hay nada que importar ni corregir.` }
 
       const dias = new Set(nuevas.map(f => `${f.empleado_id}|${f.fecha_hora.slice(0, 10)}`)).size
-      const persona = g => `${g.numero} ${g.empleado}`
+      const persona = g => `${g.numero} ${g.empleado}${g.guardia ? ' (guardia 24 h)' : ''}`
       const porNombre = grupos.filter(g => g.via === 'nombre' || g.via === 'primer_nombre')
+      const nombreDe = id => (emps || []).find(e => e.id === id)?.nombre_completo || 'sin persona'
+      const invertidos = correcciones.filter(c => c.era_operacion !== c.operacion && c.era_empleado === c.empleado_id)
+      const sinPersona = correcciones.filter(c => !c.era_empleado)
+      const otraPersona = correcciones.filter(c => c.era_empleado && c.era_empleado !== c.empleado_id)
       const avisos = []
       if (sinReconocer.length) avisos.push(`${sinReconocer.length} persona(s) del archivo NO se importan porque no las reconozco con certeza; dime a quién corresponden y las incluyo.`)
-      if (porNombre.length) avisos.push(`Reconocidas solo por nombre (verifica): ${porNombre.map(g => `${g.nombre || g.numero} (checador #${g.numero}) → ${g.empleado}${g.choque ? `; ojo: ese número en el catálogo es de ${g.choque}` : ''}`).join('; ')}.`)
-      if (yaEstaban) avisos.push(`${yaEstaban} marcaje(s) ya estaban registrados y se omiten.`)
+      if (porNombre.length) avisos.push(`Reconocidas por nombre (verifica): ${porNombre.map(g => `${g.nombre || g.numero} (checador #${g.numero}) → ${g.empleado}${g.choque ? `; ojo: ese número en el catálogo es de ${g.choque}` : ''}`).join('; ')}.`)
+      if (invertidos.length) avisos.push(`${invertidos.length} marcaje(s) ya guardados tenían la ENTRADA/SALIDA invertida y se corrigen, no se duplican.`)
+      if (sinPersona.length) avisos.push(`${sinPersona.length} marcaje(s) ya guardados no tenían persona asignada y se asignan.`)
+      if (otraPersona.length) avisos.push(`${otraPersona.length} marcaje(s) ya guardados estaban asignados a OTRA persona y se reasignan (revísalo: ${[...new Set(otraPersona.map(c => `${nombreDe(c.era_empleado).split(' ')[0]} → ${nombreDe(c.empleado_id).split(' ')[0]}`))].slice(0, 4).join('; ')}).`)
+      if (dudosos.length) avisos.push(`${dudosos.length} marcaje(s) con operación dudosa (día con un solo marcaje o fuera del rol de guardia): ${dudosos.slice(0, 4).map(x => `${x.empleado.split(' ')[0]} ${x.fecha} ${x.hora} → ${x.operacion}`).join('; ')}${dudosos.length > 4 ? '…' : ''}.`)
+      if (extendidos) avisos.push(`${extendidos} marcaje(s) de guardia se decidieron con el rol de guardia EXTENDIDO (el rol capturado llega hasta ${[...rota.keys()].sort().slice(-1)[0] || '—'}); captúralo en RH → Horarios de guardia para confirmarlo.`)
+      if (yaEstaban) avisos.push(`${yaEstaban} marcaje(s) ya estaban registrados igual y se omiten.`)
 
       return {
         params: {
-          ficha: p.ficha, archivo: d.nombre_archivo || null, filas: nuevas, desde, hasta, personas: ids.length,
+          ficha: p.ficha, archivo: d.nombre_archivo || null, filas: nuevas,
+          correcciones: correcciones.map(({ id, empleado_id, operacion }) => ({ id, empleado_id, operacion })),
+          desde, hasta, personas: ids.length,
         },
-        titulo: `Importar asistencia — ${nuevas.length} marcajes`,
+        titulo: `Importar asistencia — ${nuevas.length} marcajes${correcciones.length ? ` + ${correcciones.length} correcciones` : ''}`,
         confirmar: 'Importar asistencia',
         resumen: [
           ['Archivo', `${d.nombre_archivo || 'checador'} · ${d.eventos.length} marcajes`],
           ['Periodo', `${desde} → ${hasta}`],
-          ['Se importan', `${nuevas.length} marcajes · ${dias} días · ${ids.length} persona(s)`],
+          ['Se importan', `${nuevas.length} marcajes nuevos · ${dias} días · ${ids.length} persona(s)`],
           ['Personal', grupos.slice(0, 8).map(persona).join(', ') + (grupos.length > 8 ? ` y ${grupos.length - 8} más` : '')],
+          ['Entrada / salida', `decididas con el horario de cada persona y el rol de guardia${reasignadas ? `; ${reasignadas} difieren de la alternancia simple del reloj` : ''}`],
+          ...(correcciones.length ? [['Se corrigen', `${invertidos.length} invertidos · ${sinPersona.length} sin persona · ${otraPersona.length} de otra persona`]] : []),
           ...(sinReconocer.length ? [['Sin reconocer', sinReconocer.slice(0, 5).map(s => `${s.numero}${s.nombre ? ` «${s.nombre}»` : ''} (${s.marcajes}): ${s.motivo}`).join(' | ')]] : []),
         ],
         aviso: avisos.join(' ') || undefined,
       }
     },
   },
-}
 
-// ─── Reconocimiento de empleados en un archivo de checador ──────────────────
-const normChecador = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
-const soloDigitos = s => { const d = String(s || '').replace(/\D/g, ''); return d ? d.replace(/^0+/, '') || '0' : '' }
+  corregir_asistencia: {
+    descripcion: 'Corrige la ENTRADA/SALIDA invertida de la asistencia YA guardada en RH (un solo marcaje faltante voltea todos los siguientes). Recalcula cada día con el horario de la persona y el rol de guardia y cambia solo los marcajes que estaban mal; NO toca los días dudosos (un solo marcaje) ni asigna personas. Parámetros opcionales: desde y hasta (YYYY-MM-DD; por omisión todo lo guardado). Si el usuario tiene el archivo original del checador es mejor importar_asistencia, que además asigna marcajes sin persona.',
+    async preparar(db, p) {
+      const rango = x => (x && ISO.test(x)) ? x : null
+      const desdeP = rango(p.desde), hastaP = rango(p.hasta)
+      const { data: emps } = await db.from('prp_empleados').select('id, nombre_completo')
+      const { data: extra } = await db.from('rh_empleados').select('id, horario_trabajo, hora_entrada_prog, hora_salida_prog, cruza_medianoche')
+      const extras = new Map((extra || []).map(x => [x.id, x]))
+      const guardias = (extra || []).filter(x => x.cruza_medianoche).map(x => x.id)
+      const { data: rotaFilas } = await db.from('rh_turnos_guardia').select('fecha, empleado_id')
+      const rota = new Map((rotaFilas || []).map(x => [String(x.fecha).slice(0, 10), x.empleado_id]))
 
-/**
- * Asigna cada marcaje a un empleado del catálogo. A diferencia del modal de RH (que acepta
- * "el primer nombre aparece en algún nombre"), aquí NO se adivina: una asignación equivocada
- * en un flujo automático le pone asistencia a otra persona sin que nadie lo note.
- * Orden: asignación explícita → número del checador = número de empleado → nombre completo
- * igual → nombre (o primer nombre) que coincide con UN SOLO empleado. Lo demás queda sin
- * reconocer, con el motivo, y no se importa.
- *
- * @param {{id:string, numero_empleado:string, nombre_completo:string}[]} empleados
- * @param {ReturnType<typeof parsearChecador>} eventos
- * @param {Record<string,string>} asignaciones  { "<número o nombre del checador>": "<número de empleado o nombre completo>" }
- */
-function resolverMarcajes(empleados, eventos, asignaciones = {}) {
-  const porNumero = new Map(), porDigitos = new Map(), porNombre = new Map()
-  for (const e of empleados) {
-    if (e.numero_empleado) { porNumero.set(normChecador(e.numero_empleado), e); const d = soloDigitos(e.numero_empleado); if (d && !porDigitos.has(d)) porDigitos.set(d, e) }
-    porNombre.set(normChecador(e.nombre_completo), e)
-  }
-  const asig = Object.fromEntries(Object.entries(asignaciones || {}).map(([k, v]) => [normChecador(k), v]))
-  const buscarEmpleado = v => porNumero.get(normChecador(v)) || porNombre.get(normChecador(v)) || null
+      const guardado = []
+      for (let i = 0; ; i += 1000) {
+        let q = db.from('rh_checadas').select('id, empleado_id, fecha_hora, operacion').not('empleado_id', 'is', null).order('id').range(i, i + 999)
+        if (desdeP) q = q.gte('fecha', desdeP)
+        if (hastaP) q = q.lte('fecha', hastaP)
+        const { data } = await q
+        guardado.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      if (!guardado.length) return { error: 'No hay marcajes guardados en ese periodo.' }
 
-  // Una persona del checador = un número (el nombre puede venir recortado).
-  const personas = new Map()
-  for (const ev of eventos) {
-    const p = personas.get(ev.numero) || { numero: ev.numero, nombre: ev.nombre, marcajes: 0 }
-    if ((ev.nombre || '').length > (p.nombre || '').length) p.nombre = ev.nombre
-    p.marcajes++
-    personas.set(ev.numero, p)
-  }
-
-  const resultado = new Map()
-  for (const p of personas.values()) {
-    let emp = null, via = null, motivo = null, candidatos = [], numeroChoca = null
-    const forzado = asig[normChecador(p.numero)] ?? asig[normChecador(p.nombre)]
-    if (forzado) {
-      emp = buscarEmpleado(forzado); via = emp ? 'asignado' : null
-      if (!emp) motivo = `la asignación "${forzado}" no coincide con ningún empleado`
-    }
-    if (!emp && !forzado) {
-      emp = porNumero.get(normChecador(p.numero)) || porDigitos.get(soloDigitos(p.numero)) || null
-      if (emp) via = 'numero'
-      // Un número que coincide pero con un nombre que no se parece a nadie: casi seguro son
-      // personas distintas (el número se reasignó o el archivo es de otra plaza). Importarlo en
-      // silencio le pondría asistencia a quien no es; se detiene y se pide confirmar con asignaciones.
-      if (emp && p.nombre) {
-        // Un nombre de pila en común no basta (Luis Fernando Velázquez ≠ Luis Pérez León): se piden
-        // 2 palabras iguales cuando ambos nombres traen 2 o más. Un reloj que solo da el primer
-        // nombre (una palabra) se conforma con esa.
-        const delEmp = normChecador(emp.nombre_completo).split(' ').filter(Boolean)
-        const delArchivo = normChecador(p.nombre).split(' ').filter(Boolean)
-        const comunes = delArchivo.filter(t => delEmp.includes(t)).length
-        if (comunes < Math.min(2, delArchivo.length, delEmp.length)) {
-          // El reloj numera a su manera: el 7 del checador puede ser el E003 del catálogo. Antes de
-          // rendirse se busca por nombre; si hay UN solo empleado con ese nombre, es él, y se avisa.
-          numeroChoca = `${emp.nombre_completo} (número ${emp.numero_empleado})`
-          motivo = `el número coincide con ${emp.nombre_completo}, pero el archivo dice «${p.nombre}»: parecen personas distintas`
-          emp = null; via = null
+      const porEmp = new Map()
+      for (const g of guardado) {
+        const t = String(g.fecha_hora).replace('T', ' ')
+        const e = { id: g.id, fecha: t.slice(0, 10), hora: t.slice(11, 16), operacion: g.operacion, inferida: true }
+        ;(porEmp.get(g.empleado_id) || porEmp.set(g.empleado_id, []).get(g.empleado_id)).push(e)
+      }
+      const correcciones = [], resumen = [], noTocados = []
+      let extendidos = 0
+      for (const [empId, evs] of porEmp) {
+        const nombre = (emps || []).find(e => e.id === empId)?.nombre_completo || empId
+        const decididos = asignarOperaciones(evs, { id: empId, ...(extras.get(empId) || {}) }, rota, guardias)
+        const malos = decididos.filter(d => d.cambio && !d.dudoso)
+        for (const d of decididos) if (d.cambio && d.dudoso) noTocados.push({ nombre, fecha: d.fecha, hora: d.hora })
+        extendidos += malos.filter(d => /extendido/.test(d.metodo)).length
+        if (malos.length) {
+          malos.forEach(d => correcciones.push({ id: d.id, operacion: d.operacion }))
+          resumen.push([nombre.split(' ').slice(0, 2).join(' '), `${malos.length} marcajes en ${new Set(malos.map(d => d.fecha)).size} días (${malos.slice(0, 2).map(d => `${d.fecha.slice(5)} ${d.hora} ${d.operacion === 'ENTRADA' ? 'S→E' : 'E→S'}`).join(', ')}…)`])
         }
       }
-    }
-    if (!emp && !forzado && p.nombre) {
-      const n = normChecador(p.nombre)
-      emp = porNombre.get(n) || null
-      if (emp) via = 'nombre'
-      else {
-        const toks = n.split(' ').filter(Boolean)
-        candidatos = empleados.filter(e => { const et = normChecador(e.nombre_completo).split(' '); return toks.length && toks.every(t => et.includes(t)) })
-        if (candidatos.length === 1) { emp = candidatos[0]; via = toks.length > 1 ? 'nombre' : 'primer_nombre' }
-        else if (candidatos.length > 1) motivo = `el nombre coincide con ${candidatos.length} empleados (${candidatos.slice(0, 3).map(c => c.nombre_completo).join(', ')})`
+      if (!correcciones.length) return { error: 'No encontré marcajes con la entrada/salida invertida en ese periodo: todo cuadra con los horarios y el rol de guardia.' }
+      const fechas = guardado.map(g => String(g.fecha_hora).slice(0, 10)).sort()
+      const avisos = []
+      if (noTocados.length) avisos.push(`${noTocados.length} marcaje(s) de días con un solo marcaje NO se tocan (no hay forma segura de saber si eran entrada o salida).`)
+      if (extendidos) avisos.push(`${extendidos} corrección(es) de guardia se apoyan en el rol de guardia EXTENDIDO (el rol capturado llega hasta ${[...rota.keys()].sort().slice(-1)[0] || '—'}).`)
+      avisos.push('El cambio es reversible: solo se cambia la operación (entrada/salida) de cada marcaje, y el día se recalcula solo.')
+      return {
+        params: { ficha: null, archivo: null, filas: [], correcciones, desde: desdeP || fechas[0], hasta: hastaP || fechas[fechas.length - 1], personas: porEmp.size },
+        titulo: `Corregir entradas/salidas — ${correcciones.length} marcajes`,
+        confirmar: 'Corregir asistencia',
+        resumen: [['Periodo', `${desdeP || fechas[0]} → ${hastaP || fechas[fechas.length - 1]}`], ['Se corrigen', `${correcciones.length} marcajes de ${resumen.length} persona(s)`], ...resumen],
+        aviso: avisos.join(' '),
       }
-    }
-    if (emp) motivo = null
-    if (!emp && !motivo) motivo = 'no existe en el catálogo de empleados'
-    resultado.set(p.numero, { ...p, emp, via, motivo, choque: emp ? numeroChoca : null })
-  }
-
-  const filas = [], grupos = [], sinReconocer = []
-  for (const r of resultado.values()) {
-    if (r.emp) grupos.push({ numero: r.numero, nombre: r.nombre, empleado_id: r.emp.id, empleado: r.emp.nombre_completo, via: r.via, marcajes: r.marcajes, choque: r.choque })
-    else sinReconocer.push({ numero: r.numero, nombre: r.nombre, marcajes: r.marcajes, motivo: r.motivo })
-  }
-  for (const ev of eventos) {
-    const r = resultado.get(ev.numero)
-    if (!r?.emp) continue
-    filas.push({ empleado_id: r.emp.id, numero_empleado_ext: ev.numero, operacion: ev.operacion, fecha_hora: `${ev.fecha} ${ev.hora}:00`, origen: 'ZKTeco_CSV' })
-  }
-  return { filas, grupos, sinReconocer }
+    },
+  },
 }
 
 // ─── Utilidades de identidad ────────────────────────────────────────────────
@@ -734,7 +734,7 @@ async function consultar(db, input, vistas) {
   return { total: count, mostradas: data.length, filas: data }
 }
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -800,6 +800,7 @@ ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_a
 - Imágenes adjuntas: llegan ya leídas como "[Ficha F1 adjunta: COMPROBANTE DE PAGO — …]" o "[Ficha F2 adjunta: TICKET DE COMPRA — …]". El tipo lo dice la ficha; no lo adivines por el nombre del proveedor. Con varias fichas, una llamada a proponer_accion por ficha en el mismo turno.
   · COMPROBANTE DE PAGO → aplicar_pago: ubica el contrato por el número de local que traiga (concepto/referencia) con consultar_datos en prp_contratos (VIGENTE) y contrasta el ordenante con el arrendatario; llama con contrato_id y ficha (el sistema toma importe, fecha y referencia de la ficha; no los copies). Si no hay local legible, hay más de un contrato posible o el ordenante no coincide, NO propongas: pregunta.
   · TICKET DE COMPRA → registrar_gasto: llama con ficha, grupo_gasto, categoria_lineas y una descripcion breve, decididos según LOS ARTÍCULOS (p. ej. refrescos y botanas para máquinas = 'Vending / Reabasto' + VENDING; jabón, cloro y escobas = 'Limpieza e higiene' + OPERACION; cemento o tornillos = 'Ferretería y materiales' + MANTENIMIENTO). Si los artículos mezclan grupos o no puedes decidir, pregunta en una línea. Nunca llames a un ticket "papelería" o "ferretería" por el nombre de la tienda.
+  · Entradas y salidas de la asistencia YA guardada que están invertidas (una salida como entrada o al revés) → corregir_asistencia (opcional desde/hasta). No toca días con un solo marcaje. Si el usuario tiene el archivo original, prefiere importar_asistencia: además corrige marcajes sin persona o con otra persona.
   · ARCHIVO DE ASISTENCIA (checador) → importar_asistencia: llama con ficha. El sistema reconoce a cada persona por número de empleado o por nombre único; a quien no reconoce con certeza NO lo importa y lo lista. Si el usuario te dice a quién corresponde un número o nombre sin reconocer, vuelve a llamar con asignaciones { "<lo que trae el checador>": "<número de empleado o nombre completo>" }. Nunca adivines a quién pertenece un número. Los marcajes se importan tal cual; el estado de cada día (presente, retardo, falta) lo calcula la base.
   · INE (frente/reverso) y COMPROBANTE DE DOMICILIO → altas. Si el usuario quiere dar de alta a un EMPLEADO (RH) usa alta_empleado; si es un ARRENDATARIO/inquilino/locatario usa alta_arrendatario. Si no dice cuál de los dos, pregúntalo en una línea. Pasa ficha_ine, ficha_ine_reverso y ficha_domicilio con los ids de las fichas; nombre, CURP, nacimiento, sexo y domicilio salen de las fichas (no los copies). Para empleado necesitas además el salario diario (pídelo si falta, junto con puesto y tipo de contrato en la misma pregunta). Para arrendatario pide RFC, teléfono y correo solo si el usuario no los dio, pero no bloquees el alta por eso. El alta de arrendatario no crea contrato; ofrécelo como siguiente paso.
   · Si la ficha dice que no se pudo leer o no es reconocida, pide al usuario los datos o que la retome.
@@ -891,5 +892,4 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
 }
 
 // Solo para scripts/test-agente.mjs
-exports.ACCIONES = ACCIONES
-exports.periodoDeTexto = periodoDeTexto
+export { ACCIONES, periodoDeTexto, firmar }

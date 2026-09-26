@@ -123,7 +123,7 @@ export function crearEjecutores(ctx) {
   const { db, ficha, consumirFicha, subirArchivo, subirComprobante, audit } = ctx
   const rpc = ctx.rpc || ((n, a) => db.rpc(n, a))
 
-  return {
+  const ejecutores = {
     async renovar_contrato(p) {
       // Mismo criterio de folio que ModalRenovacion en Contratos.jsx
       const base = (p.folio_base || 'CA').replace(/-R\d{2}(-\d+)?$/, '')
@@ -359,25 +359,37 @@ export function crearEjecutores(ctx) {
     // Guarda los MARCAJES en rh_checadas (nunca en rh_asistencia: un trigger consolida el día).
     // Volver a cargar el mismo archivo no duplica nada (índice único + ignoreDuplicates).
     async importar_asistencia(p) {
-      if (!Array.isArray(p.filas) || !p.filas.length) throw new Error('No hay marcajes que importar.')
-      let nuevos = 0
-      for (let i = 0; i < p.filas.length; i += 500) {
+      const filas = Array.isArray(p.filas) ? p.filas : []
+      const correcciones = Array.isArray(p.correcciones) ? p.correcciones : []
+      if (!filas.length && !correcciones.length) throw new Error('No hay marcajes que importar ni corregir.')
+      let nuevos = 0, corregidos = 0
+      for (let i = 0; i < filas.length; i += 500) {
         const { data, error } = await db.from('rh_checadas')
-          .upsert(p.filas.slice(i, i + 500), { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
+          .upsert(filas.slice(i, i + 500), { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
           .select('id')
         if (error) throw new Error(`Se importaron ${nuevos} marcajes y falló el resto: ${error.message}`)
         nuevos += data?.length || 0
       }
+      // Marcajes ya guardados con la ENTRADA/SALIDA invertida, sin persona o con otra persona: se corrigen
+      // en su lugar (duplicarlos dejaría dos marcajes a la misma hora). El trigger recalcula el día.
+      for (const c of correcciones) {
+        const { data, error } = await db.from('rh_checadas').update({ operacion: c.operacion, ...(c.empleado_id ? { empleado_id: c.empleado_id } : {}) }).eq('id', c.id).select('id')
+        if (error) throw new Error(`Se importaron ${nuevos} y se corrigieron ${corregidos}; falló una corrección: ${error.message}`)
+        corregidos += data?.length || 0
+      }
       if (p.ficha) consumirFicha(p.ficha)
-      const yaEstaban = p.filas.length - nuevos
+      const yaEstaban = filas.length - nuevos
       await audit({
         modulo: 'RH', accion: 'IMPORTAR_ASISTENCIA', entidad: 'rh_checadas', entidad_id: null,
-        descripcion: `${nuevos} marcajes nuevos (${p.desde} → ${p.hasta}, ${p.personas} personas)${p.archivo ? ` de ${p.archivo}` : ''} (vía Agente Operativo)`,
+        descripcion: `${nuevos} marcajes nuevos, ${corregidos} corregidos (${p.desde} → ${p.hasta}, ${p.personas} personas)${p.archivo ? ` de ${p.archivo}` : ''} (vía Agente Operativo)`,
       })
       return {
-        texto: `Asistencia importada: ${nuevos} marcajes nuevos de ${p.personas} persona(s), del ${p.desde} al ${p.hasta}${yaEstaban > 0 ? ` (${yaEstaban} ya estaban registrados)` : ''}. El estado de cada día lo calcula la base.`,
+        texto: `Asistencia importada: ${nuevos} marcajes nuevos${corregidos ? ` y ${corregidos} corregidos (entrada/salida invertida o sin persona)` : ''} de ${p.personas} persona(s), del ${p.desde} al ${p.hasta}${yaEstaban > 0 ? ` (${yaEstaban} ya estaban registrados)` : ''}. El estado de cada día lo calcula la base.`,
         ruta: '/rh',
       }
     },
   }
+  // Corregir la asistencia ya guardada usa el mismo ejecutor: solo trae correcciones, sin marcajes nuevos.
+  ejecutores.corregir_asistencia = ejecutores.importar_asistencia
+  return ejecutores
 }
