@@ -1,11 +1,12 @@
 /**
  * Lector del archivo del reloj checador y reconocimiento de empleados.
  *
- * Es código puro (sin navegador ni Supabase) porque lo usan tres sitios:
- *   · ImportChecadorModal.jsx (RH → Importar desde checador): solo `parsearChecador`.
+ * Es código puro (sin navegador ni Supabase). Lo usan:
+ *   · ImportChecadorModal.jsx (RH → Importar desde checador).
  *   · El navegador, al adjuntar el archivo al chat del Agente Operativo.
- *   · chat-operativo.js (servidor), que con `resolverMarcajes` arma la vista previa y
- *     las filas que se guardan en rh_checadas.
+ * El reconocimiento de empleados (a quién pertenece cada marcaje) vive en chat-operativo.js:
+ * solo lo usa el servidor, y esa function es CommonJS, que en Netlify no puede cargar
+ * archivos ESM de src/.
  *
  * Cada renglón del checador es un MARCAJE, no un día: se guardan todos en rh_checadas y el
  * estado del día (presente, retardo, falta) lo consolida un trigger de la base.
@@ -84,78 +85,4 @@ export function parsearChecador(texto) {
     grupo.forEach((ev, i) => eventos.push({ ...ev, operacion: i % 2 === 0 ? 'ENTRADA' : 'SALIDA' }))
   })
   return eventos
-}
-
-// ── Reconocimiento de empleados ─────────────────────────────────────────────
-const norm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
-const soloDigitos = s => { const d = String(s || '').replace(/\D/g, ''); return d ? d.replace(/^0+/, '') || '0' : '' }
-
-/**
- * Asigna cada marcaje a un empleado del catálogo. A diferencia del modal de RH (que acepta
- * "el primer nombre aparece en algún nombre"), aquí NO se adivina: una asignación equivocada
- * en un flujo automático le pone asistencia a otra persona sin que nadie lo note.
- * Orden: asignación explícita → número del checador = número de empleado → nombre completo
- * igual → nombre (o primer nombre) que coincide con UN SOLO empleado. Lo demás queda sin
- * reconocer, con el motivo, y no se importa.
- *
- * @param {{id:string, numero_empleado:string, nombre_completo:string}[]} empleados
- * @param {ReturnType<typeof parsearChecador>} eventos
- * @param {Record<string,string>} asignaciones  { "<número o nombre del checador>": "<número de empleado o nombre completo>" }
- */
-export function resolverMarcajes(empleados, eventos, asignaciones = {}) {
-  const porNumero = new Map(), porDigitos = new Map(), porNombre = new Map()
-  for (const e of empleados) {
-    if (e.numero_empleado) { porNumero.set(norm(e.numero_empleado), e); const d = soloDigitos(e.numero_empleado); if (d && !porDigitos.has(d)) porDigitos.set(d, e) }
-    porNombre.set(norm(e.nombre_completo), e)
-  }
-  const asig = Object.fromEntries(Object.entries(asignaciones || {}).map(([k, v]) => [norm(k), v]))
-  const buscarEmpleado = v => porNumero.get(norm(v)) || porNombre.get(norm(v)) || null
-
-  // Una persona del checador = un número (el nombre puede venir recortado).
-  const personas = new Map()
-  for (const ev of eventos) {
-    const p = personas.get(ev.numero) || { numero: ev.numero, nombre: ev.nombre, marcajes: 0 }
-    if ((ev.nombre || '').length > (p.nombre || '').length) p.nombre = ev.nombre
-    p.marcajes++
-    personas.set(ev.numero, p)
-  }
-
-  const resultado = new Map()
-  for (const p of personas.values()) {
-    let emp = null, via = null, motivo = null, candidatos = []
-    const forzado = asig[norm(p.numero)] ?? asig[norm(p.nombre)]
-    if (forzado) {
-      emp = buscarEmpleado(forzado); via = emp ? 'asignado' : null
-      if (!emp) motivo = `la asignación "${forzado}" no coincide con ningún empleado`
-    }
-    if (!emp && !forzado) {
-      emp = porNumero.get(norm(p.numero)) || porDigitos.get(soloDigitos(p.numero)) || null
-      if (emp) via = 'numero'
-    }
-    if (!emp && !forzado && p.nombre) {
-      const n = norm(p.nombre)
-      emp = porNombre.get(n) || null
-      if (emp) via = 'nombre'
-      else {
-        const toks = n.split(' ').filter(Boolean)
-        candidatos = empleados.filter(e => { const et = norm(e.nombre_completo).split(' '); return toks.length && toks.every(t => et.includes(t)) })
-        if (candidatos.length === 1) { emp = candidatos[0]; via = toks.length > 1 ? 'nombre' : 'primer_nombre' }
-        else if (candidatos.length > 1) motivo = `el nombre coincide con ${candidatos.length} empleados (${candidatos.slice(0, 3).map(c => c.nombre_completo).join(', ')})`
-      }
-    }
-    if (!emp && !motivo) motivo = 'no existe en el catálogo de empleados'
-    resultado.set(p.numero, { ...p, emp, via, motivo })
-  }
-
-  const filas = [], grupos = [], sinReconocer = []
-  for (const r of resultado.values()) {
-    if (r.emp) grupos.push({ numero: r.numero, nombre: r.nombre, empleado_id: r.emp.id, empleado: r.emp.nombre_completo, via: r.via, marcajes: r.marcajes })
-    else sinReconocer.push({ numero: r.numero, nombre: r.nombre, marcajes: r.marcajes, motivo: r.motivo })
-  }
-  for (const ev of eventos) {
-    const r = resultado.get(ev.numero)
-    if (!r?.emp) continue
-    filas.push({ empleado_id: r.emp.id, numero_empleado_ext: ev.numero, operacion: ev.operacion, fecha_hora: `${ev.fecha} ${ev.hora}:00`, origen: 'ZKTeco_CSV' })
-  }
-  return { filas, grupos, sinReconocer }
 }

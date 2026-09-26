@@ -57,6 +57,13 @@ const nuevo = { reservado: {}, fichas: {} }
 const limpiar = []   // funciones async de limpieza
 
 try {
+  // ── Empaquetado ────────────────────────────────────────────────────────
+  // Node local sí puede hacer require() de un archivo ESM, pero la function desplegada en Netlify
+  // no: falla con "Unexpected token 'export'". Esta prueba no lo detecta ejecutando; lo vigila.
+  console.log('\nEmpaquetado (Netlify)')
+  const fuenteChat = fs.readFileSync(new URL('../netlify/functions/chat-operativo.js', import.meta.url), 'utf8')
+  check('chat-operativo (CommonJS) no requiere archivos ESM de src/', !/require\(['"]\.\.\/\.\.\/src\//.test(fuenteChat))
+
   // ── Seguridad ──────────────────────────────────────────────────────────
   console.log('\nSeguridad')
   const pGasto = { ficha: 'F1', fecha: '2026-07-03', total: 100 }

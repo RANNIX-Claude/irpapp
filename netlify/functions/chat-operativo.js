@@ -483,7 +483,6 @@ const ACCIONES = {
 
       const { data: emps, error: eE } = await db.from('prp_empleados').select('id, numero_empleado, nombre_completo')
       if (eE) return { error: eE.message }
-      const { resolverMarcajes } = require('../../src/lib/checador.js')
       const { filas, grupos, sinReconocer } = resolverMarcajes(emps || [], d.eventos, p.asignaciones || {})
       if (!filas.length) return { error: `No pude reconocer a nadie del archivo (${sinReconocer.length} persona(s) sin coincidencia). Pide al usuario a quién corresponde cada número del checador para pasarlo en asignaciones.` }
 
@@ -527,6 +526,80 @@ const ACCIONES = {
       }
     },
   },
+}
+
+// ─── Reconocimiento de empleados en un archivo de checador ──────────────────
+const normChecador = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+const soloDigitos = s => { const d = String(s || '').replace(/\D/g, ''); return d ? d.replace(/^0+/, '') || '0' : '' }
+
+/**
+ * Asigna cada marcaje a un empleado del catálogo. A diferencia del modal de RH (que acepta
+ * "el primer nombre aparece en algún nombre"), aquí NO se adivina: una asignación equivocada
+ * en un flujo automático le pone asistencia a otra persona sin que nadie lo note.
+ * Orden: asignación explícita → número del checador = número de empleado → nombre completo
+ * igual → nombre (o primer nombre) que coincide con UN SOLO empleado. Lo demás queda sin
+ * reconocer, con el motivo, y no se importa.
+ *
+ * @param {{id:string, numero_empleado:string, nombre_completo:string}[]} empleados
+ * @param {ReturnType<typeof parsearChecador>} eventos
+ * @param {Record<string,string>} asignaciones  { "<número o nombre del checador>": "<número de empleado o nombre completo>" }
+ */
+function resolverMarcajes(empleados, eventos, asignaciones = {}) {
+  const porNumero = new Map(), porDigitos = new Map(), porNombre = new Map()
+  for (const e of empleados) {
+    if (e.numero_empleado) { porNumero.set(normChecador(e.numero_empleado), e); const d = soloDigitos(e.numero_empleado); if (d && !porDigitos.has(d)) porDigitos.set(d, e) }
+    porNombre.set(normChecador(e.nombre_completo), e)
+  }
+  const asig = Object.fromEntries(Object.entries(asignaciones || {}).map(([k, v]) => [normChecador(k), v]))
+  const buscarEmpleado = v => porNumero.get(normChecador(v)) || porNombre.get(normChecador(v)) || null
+
+  // Una persona del checador = un número (el nombre puede venir recortado).
+  const personas = new Map()
+  for (const ev of eventos) {
+    const p = personas.get(ev.numero) || { numero: ev.numero, nombre: ev.nombre, marcajes: 0 }
+    if ((ev.nombre || '').length > (p.nombre || '').length) p.nombre = ev.nombre
+    p.marcajes++
+    personas.set(ev.numero, p)
+  }
+
+  const resultado = new Map()
+  for (const p of personas.values()) {
+    let emp = null, via = null, motivo = null, candidatos = []
+    const forzado = asig[normChecador(p.numero)] ?? asig[normChecador(p.nombre)]
+    if (forzado) {
+      emp = buscarEmpleado(forzado); via = emp ? 'asignado' : null
+      if (!emp) motivo = `la asignación "${forzado}" no coincide con ningún empleado`
+    }
+    if (!emp && !forzado) {
+      emp = porNumero.get(normChecador(p.numero)) || porDigitos.get(soloDigitos(p.numero)) || null
+      if (emp) via = 'numero'
+    }
+    if (!emp && !forzado && p.nombre) {
+      const n = normChecador(p.nombre)
+      emp = porNombre.get(n) || null
+      if (emp) via = 'nombre'
+      else {
+        const toks = n.split(' ').filter(Boolean)
+        candidatos = empleados.filter(e => { const et = normChecador(e.nombre_completo).split(' '); return toks.length && toks.every(t => et.includes(t)) })
+        if (candidatos.length === 1) { emp = candidatos[0]; via = toks.length > 1 ? 'nombre' : 'primer_nombre' }
+        else if (candidatos.length > 1) motivo = `el nombre coincide con ${candidatos.length} empleados (${candidatos.slice(0, 3).map(c => c.nombre_completo).join(', ')})`
+      }
+    }
+    if (!emp && !motivo) motivo = 'no existe en el catálogo de empleados'
+    resultado.set(p.numero, { ...p, emp, via, motivo })
+  }
+
+  const filas = [], grupos = [], sinReconocer = []
+  for (const r of resultado.values()) {
+    if (r.emp) grupos.push({ numero: r.numero, nombre: r.nombre, empleado_id: r.emp.id, empleado: r.emp.nombre_completo, via: r.via, marcajes: r.marcajes })
+    else sinReconocer.push({ numero: r.numero, nombre: r.nombre, marcajes: r.marcajes, motivo: r.motivo })
+  }
+  for (const ev of eventos) {
+    const r = resultado.get(ev.numero)
+    if (!r?.emp) continue
+    filas.push({ empleado_id: r.emp.id, numero_empleado_ext: ev.numero, operacion: ev.operacion, fecha_hora: `${ev.fecha} ${ev.hora}:00`, origen: 'ZKTeco_CSV' })
+  }
+  return { filas, grupos, sinReconocer }
 }
 
 // ─── Utilidades de identidad ────────────────────────────────────────────────
