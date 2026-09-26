@@ -666,6 +666,162 @@ const ASIST_VISTAS = {
   asistente_proyectos: { buscar: ['nombre', 'descripcion', 'proveedor_nombre', 'estado'], columnas: 'id, nombre, descripcion, proveedor_nombre, estado, fecha_inicio, fecha_fin_estimada, fecha_fin_real, presupuesto_total, notas' },
 }
 
+// ─── IwolPark (sistema de tickets del estacionamiento) ──────────────────────
+// Es OTRO proyecto de Supabase (el mismo que IRP ya lee desde el navegador con supabaseParking). Aquí se
+// consulta solo LECTURA y con lista blanca de tablas y columnas: NUNCA se expone `cajeros` (trae
+// password_hash, nip_hash y usuario) ni códigos de acceso de pensiones. Solo para personal y asistente:
+// un locatario o el restaurante no ven los ingresos del estacionamiento.
+const PARKING_URL = process.env.VITE_PARKING_URL || 'https://syryisrelcjgdulxmgro.supabase.co'
+const PARKING_KEY = process.env.VITE_PARKING_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5cnlpc3JlbGNqZ2R1bHhtZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwOTk0MTIsImV4cCI6MjA5OTY3NTQxMn0.64KdWTQcJSLLIEQXsyGhBVJosmEEXXQr_TyA-7Xlk54'
+let _parking = null
+const clienteParking = () => _parking || (_parking = createClient(PARKING_URL, PARKING_KEY, { auth: { persistSession: false }, realtime: { transport: ws } }))
+
+const PARKING_TABLAS = {
+  tickets: {
+    buscar: [],
+    columnas: 'id, folio, tipo, estatus (cobrado|perdido|cortesia|abierto|cerrado_admin), cajero_entrada, cajero_salida, hora_entrada, hora_salida, minutos_estancia, horas_cobradas, tarifa, penalizacion, importe, franja, fecha_op (día de operación), dia_semana, mes, anio, plaza, cierre_administrativo, incidencia_tipo, motivo_cierre, folio_relacionado',
+  },
+  pagos_pension: {
+    buscar: [],
+    columnas: 'pago_id, pension_id, periodo_mes, periodo_año, monto_tarifa, monto_pagado, diferencia, metodo_pago, estado (validado|…), fecha_pago, fecha_limite, fecha_validacion, notas',
+  },
+  pensiones: {
+    buscar: [],
+    columnas: 'pension_id, tipo, hora_inicio, hora_fin, monto_mensual, fecha_inicio, dia_pago, estado (activo|…), notas',
+  },
+}
+const COL_PARKING = /^[a-zñ_][a-z0-9ñ_]*$/
+
+// Quita la aclaración entre paréntesis para obtener solo los nombres de columna permitidos.
+const columnasPermitidas = t => PARKING_TABLAS[t].columnas.replace(/\([^)]*\)/g, '').split(',').map(s => s.trim()).filter(Boolean)
+
+const TOOLS_PARKING = [{
+  name: 'resumen_estacionamiento',
+  description: 'Resumen de INGRESOS DEL ESTACIONAMIENTO desde IwolPark (el sistema de tickets, fuente de verdad del ingreso diario desde 2026-07-13) para un rango de fechas: por día (tickets cobrados y perdidos = ingreso; cortesías, abiertos y cierres administrativos aparte), por cajero de salida, pagos de pensiones y, cuando existe, lo que IRP tiene registrado en estacionamiento_diario para comparar. Úsala para "validar", "cuánto se cobró" o "total de estacionamiento" de una semana o un mes. Máximo 92 días.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      desde: { type: 'string', description: 'YYYY-MM-DD (día de operación)' },
+      hasta: { type: 'string', description: 'YYYY-MM-DD (día de operación)' },
+    },
+    required: ['desde', 'hasta'],
+  },
+}, {
+  name: 'consultar_iwolpark',
+  description: `Consulta de solo lectura a IwolPark (tablas: ${Object.keys(PARKING_TABLAS).join(', ')}). Devuelve las filas (máximo ${MAX_FILAS}) y el conteo total. Para totales usa mejor resumen_estacionamiento.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      tabla: { type: 'string', enum: Object.keys(PARKING_TABLAS) },
+      filtros: { type: 'array', items: { type: 'object', properties: { columna: { type: 'string' }, op: { type: 'string', enum: OPS }, valor: { type: ['string', 'number', 'boolean', 'null'] } }, required: ['columna', 'op', 'valor'] } },
+      columnas: { type: 'string', description: 'Columnas separadas por coma. Por omisión todas las permitidas.' },
+      orden: { type: 'string' }, descendente: { type: 'boolean' },
+      limite: { type: 'integer', minimum: 1, maximum: MAX_FILAS },
+    },
+    required: ['tabla'],
+  },
+}]
+const PARKING_TOOLS = new Set(TOOLS_PARKING.map(t => t.name))
+
+async function consultarIwolpark(input, pk = clienteParking()) {
+  const def = PARKING_TABLAS[input.tabla]
+  if (!def) return { error: `Tabla no permitida: ${input.tabla}` }
+  const permitidas = columnasPermitidas(input.tabla)
+  const pedidas = input.columnas ? String(input.columnas).split(',').map(s => s.trim()).filter(Boolean) : permitidas
+  if (pedidas.some(c => !COL_PARKING.test(c) || !permitidas.includes(c))) return { error: `Columna no permitida. Permitidas: ${permitidas.join(', ')}` }
+  let q = pk.from(input.tabla).select(pedidas.join(','), { count: 'exact' })
+  for (const f of input.filtros || []) {
+    if (!COL_PARKING.test(f.columna || '') || !permitidas.includes(f.columna) || !OPS.includes(f.op)) return { error: `Filtro inválido: ${JSON.stringify(f)}` }
+    const v = f.op === 'ilike' ? `%${String(f.valor).replace(/[%,()]/g, ' ')}%` : f.valor
+    q = q[f.op](f.columna, v)
+  }
+  if (input.orden && permitidas.includes(input.orden)) q = q.order(input.orden, { ascending: !input.descendente })
+  const { data, error, count } = await q.limit(Math.min(MAX_FILAS, input.limite || MAX_FILAS))
+  if (error) return { error: `IwolPark: ${error.message}` }
+  return { total: count, mostradas: data.length, filas: data }
+}
+
+const redondeo = n => Math.round((Number(n) || 0) * 100) / 100
+const diasEntre = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000)
+
+/**
+ * Ingreso de estacionamiento por día = tickets `cobrado` + `perdido` (la misma regla que usa el EDR de IRP).
+ * `cortesia` no genera ingreso, `abierto` es un auto que todavía no sale y `cerrado_admin` es un cierre
+ * administrativo: se cuentan aparte para que el usuario vea cuántos hay.
+ */
+async function resumenEstacionamiento(db, { desde, hasta } = {}, pk = clienteParking()) {
+  if (!ISO.test(desde || '') || !ISO.test(hasta || '')) return { error: 'desde y hasta deben ir en formato YYYY-MM-DD' }
+  if (hasta < desde) return { error: 'hasta debe ser igual o posterior a desde' }
+  if (diasEntre(desde, hasta) > 92) return { error: 'El rango máximo es de 92 días' }
+
+  const tickets = []
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await pk.from('tickets').select('fecha_op, estatus, importe, cajero_salida').gte('fecha_op', desde).lte('fecha_op', hasta).order('id').range(i, i + 999)
+    if (error) return { error: `IwolPark: ${error.message}` }
+    tickets.push(...(data || []))
+    if (!data || data.length < 1000) break
+  }
+
+  const porDia = new Map(), porCajero = new Map()
+  const vacio = () => ({ cobrado_n: 0, cobrado_importe: 0, perdido_n: 0, perdido_importe: 0, cortesia_n: 0, abierto_n: 0, cerrado_admin_n: 0 })
+  for (const t of tickets) {
+    const d = porDia.get(t.fecha_op) || porDia.set(t.fecha_op, vacio()).get(t.fecha_op)
+    const imp = Number(t.importe) || 0
+    if (t.estatus === 'cobrado') { d.cobrado_n++; d.cobrado_importe += imp
+      const c = porCajero.get(t.cajero_salida || '(sin cajero)') || porCajero.set(t.cajero_salida || '(sin cajero)', { tickets: 0, importe: 0 }).get(t.cajero_salida || '(sin cajero)'); c.tickets++; c.importe += imp }
+    else if (t.estatus === 'perdido') { d.perdido_n++; d.perdido_importe += imp }
+    else if (t.estatus === 'cortesia') d.cortesia_n++
+    else if (t.estatus === 'abierto') d.abierto_n++
+    else if (t.estatus === 'cerrado_admin') d.cerrado_admin_n++
+  }
+
+  // Lo que IRP tiene registrado a mano (histórico): sirve para comparar donde existan ambos.
+  const irp = new Map()
+  try {
+    const { data } = await db.from('estacionamiento_diario').select('fecha, cantidad').gte('fecha', desde).lte('fecha', hasta)
+    for (const r of data || []) irp.set(String(r.fecha).slice(0, 10), (irp.get(String(r.fecha).slice(0, 10)) || 0) + (Number(r.cantidad) || 0))
+  } catch { /* sin acceso a esa tabla: no se compara */ }
+
+  const dias = []
+  for (let f = desde; f <= hasta; f = new Date(Date.parse(f + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10)) {
+    const d = porDia.get(f) || vacio()
+    const ingreso = redondeo(d.cobrado_importe + d.perdido_importe)
+    dias.push({
+      fecha: f, ingreso, cobrados: d.cobrado_n, importe_cobrado: redondeo(d.cobrado_importe), perdidos: d.perdido_n, importe_perdido: redondeo(d.perdido_importe),
+      cortesias: d.cortesia_n, abiertos: d.abierto_n, cerrados_admin: d.cerrado_admin_n,
+      ...(porDia.has(f) ? {} : { nota: 'sin tickets ese día' }),
+      ...(irp.has(f) ? { irp_registrado: redondeo(irp.get(f)), diferencia_vs_irp: redondeo(ingreso - irp.get(f)) } : {}),
+    })
+  }
+  const total = redondeo(dias.reduce((s, d) => s + d.ingreso, 0))
+  const cobrados = dias.reduce((s, d) => s + d.cobrados, 0)
+
+  // Pensiones: pagos con fecha de pago en el rango y pensiones activas (solo montos, sin datos de clientes ni vehículos).
+  let pensiones = null
+  try {
+    const pagos = []
+    for (let i = 0; ; i += 1000) {
+      const { data, error } = await pk.from('pagos_pension').select('monto_pagado, estado, periodo_mes').gte('fecha_pago', desde).lte('fecha_pago', hasta).range(i, i + 999)
+      if (error || !data) break
+      pagos.push(...data)
+      if (data.length < 1000) break
+    }
+    const { data: activas } = await pk.from('pensiones').select('monto_mensual').eq('estado', 'activo')
+    const por = {}
+    for (const p of pagos) { const e = por[p.estado || '?'] || (por[p.estado || '?'] = { pagos: 0, monto: 0 }); e.pagos++; e.monto = redondeo(e.monto + (Number(p.monto_pagado) || 0)) }
+    pensiones = { pagos_en_el_rango_por_estado: por, pensiones_activas: (activas || []).length, monto_mensual_de_activas: redondeo((activas || []).reduce((s, p) => s + (Number(p.monto_mensual) || 0), 0)) }
+  } catch { /* opcional */ }
+
+  return {
+    fuente: 'IwolPark (sistema de tickets)', regla: 'ingreso = tickets cobrado + perdido; cortesía no cobra; abierto = auto aún dentro',
+    periodo: `${desde} → ${hasta}`, total_ingreso: total, tickets_cobrados: cobrados, ticket_promedio: cobrados ? redondeo(dias.reduce((s, d) => s + d.importe_cobrado, 0) / cobrados) : 0,
+    dias_sin_tickets: dias.filter(d => d.nota).map(d => d.fecha),
+    por_dia: dias, por_cajero_de_salida: [...porCajero].map(([cajero, v]) => ({ cajero, tickets: v.tickets, importe: redondeo(v.importe) })).sort((a, b) => b.importe - a.importe),
+    ...(pensiones ? { pensiones } : {}),
+    ...(irp.size ? { comparacion_irp: `IRP tiene ${irp.size} día(s) registrados a mano en estacionamiento_diario en este rango` } : { comparacion_irp: 'IRP no tiene registros propios en este rango (su histórico manual llega hasta 2026-08-20)' }),
+  }
+}
+
 const armarTools = (vistas) => [{
   name: 'consultar_datos',
   description: `Consulta de solo lectura a una vista del sistema IRP. Devuelve las filas (máximo ${MAX_FILAS}) y el conteo total que cumple los filtros. Úsala siempre que la pregunta sea sobre datos concretos del negocio (contratos, arrendatarios, cobranza, ingresos, gastos, locales, empleados, prospectos…). Puedes llamarla varias veces para cruzar información.`,
@@ -756,10 +912,11 @@ export const handler = async (event) => {
       : null
 
     // Solo el personal puede proponer escrituras (un locatario solo consulta lo suyo).
-    let puedeEscribir = false, rol = null, usuarioId = null
+    let puedeEscribir = false, esPersonal = false, rol = null, usuarioId = null
     if (db) {
       const [{ data: staff }, { data: r }, { data: u }] = await Promise.all([db.rpc('es_staff'), db.rpc('mi_rol'), db.auth.getUser(jwt)])
       puedeEscribir = staff === true
+      esPersonal = staff === true
       rol = r || null
       usuarioId = u?.user?.id || null
     }
@@ -773,7 +930,10 @@ export const handler = async (event) => {
       : null
     if (esAsistente && admin) puedeEscribir = true
     const vistasActivas = esAsistente ? ASIST_VISTAS : VISTAS
-    const herramientas = armarTools(vistasActivas).filter(t => puedeEscribir || t.name === 'consultar_datos')
+    // Los ingresos del estacionamiento (IwolPark) los ven el personal y el asistente; un locatario o el restaurante no.
+    const puedeParking = esPersonal || esAsistente
+    const herramientas = [...armarTools(vistasActivas), ...TOOLS_PARKING]
+      .filter(t => PARKING_TOOLS.has(t.name) ? puedeParking : (puedeEscribir || t.name === 'consultar_datos'))
 
     const hoy = new Date().toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', year: 'numeric', month: 'long', day: 'numeric' })
 
@@ -788,7 +948,12 @@ ${db
 Vistas disponibles y sus columnas:
 ${catalogo}
 
-Notas sobre los datos:
+${db && puedeParking ? `IwolPark (sistema de tickets del estacionamiento, otra base de datos) — herramientas resumen_estacionamiento y consultar_iwolpark:
+- Es la FUENTE DE VERDAD del ingreso diario del estacionamiento desde 2026-07-13. El ingreso de un día es la suma de los tickets con estatus cobrado + perdido (misma regla del EDR de IRP); cortesia no cobra, abierto es un auto que aún no sale y cerrado_admin es un cierre administrativo. El día es fecha_op (día de operación).
+- Para "validar", "cuánto se cobró" o "total de estacionamiento" de una semana o un mes usa resumen_estacionamiento (una sola llamada) y responde con el total, el desglose por día y lo que llame la atención: días sin tickets, muchos abiertos o cortesías, un cajero con importes raros, diferencias contra lo que IRP tiene registrado a mano (su estacionamiento_diario llega hasta 2026-08-20; compara solo donde haya ambos).
+- No hay información de cajeros, contraseñas ni datos personales de clientes: si los piden, di que no están disponibles.
+
+` : ''}Notas sobre los datos:
 - Un arrendatario puede tener varios contratos (renovaciones: el anterior queda RENOVADO y el nuevo VIGENTE con contrato_anterior_id).
 - estatus es la vigencia legal; estatus_proceso es la etapa operativa. En /contratos solo se listan EN_EJECUCION; los EN_RENOVACION viven en /renovaciones.
 - dias_restantes negativo = vencido. Montos en pesos mexicanos.
@@ -870,7 +1035,9 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
               })
               out = { estado: 'PENDIENTE_DE_CONFIRMACION', nota: 'Aún NO se ejecuta. El usuario verá una tarjeta con el resumen y los botones Confirmar/Cancelar. Responde en 1-2 líneas qué propones y que espere su confirmación; no repitas el resumen completo.' }
             }
-          } else out = await consultar(db, u.input, vistasActivas)
+          } else if (u.name === 'resumen_estacionamiento' && puedeParking) out = await resumenEstacionamiento(db, u.input)
+          else if (u.name === 'consultar_iwolpark' && puedeParking) out = await consultarIwolpark(u.input)
+          else out = await consultar(db, u.input, vistasActivas)
         } catch (e) { out = { error: e.message } }
         console.log('[chat-operativo]', u.name, JSON.stringify(u.input), '→', out.error || out.estado || `${out.total} filas`)
         resultados.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out) })
@@ -892,4 +1059,4 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
 }
 
 // Solo para scripts/test-agente.mjs
-export { ACCIONES, periodoDeTexto, firmar }
+export { ACCIONES, periodoDeTexto, firmar, resumenEstacionamiento, consultarIwolpark, PARKING_TABLAS, TOOLS_PARKING }
