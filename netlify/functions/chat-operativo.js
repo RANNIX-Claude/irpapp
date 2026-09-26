@@ -484,7 +484,7 @@ const ACCIONES = {
       const { data: emps, error: eE } = await db.from('prp_empleados').select('id, numero_empleado, nombre_completo')
       if (eE) return { error: eE.message }
       const { filas, grupos, sinReconocer } = resolverMarcajes(emps || [], d.eventos, p.asignaciones || {})
-      if (!filas.length) return { error: `No pude reconocer a nadie del archivo (${sinReconocer.length} persona(s) sin coincidencia). Pide al usuario a quién corresponde cada número del checador para pasarlo en asignaciones.` }
+      if (!filas.length) return { error: `No pude reconocer con certeza a nadie del archivo (${sinReconocer.length} persona(s)). ${sinReconocer.slice(0, 4).map(s => `${s.numero}${s.nombre ? ` «${s.nombre}»` : ''}: ${s.motivo}`).join(' | ')}. Muéstrale esto al usuario y pregúntale a quién corresponde cada número del checador para pasarlo en asignaciones; no adivines.` }
 
       // Los marcajes que ya están en la base se omiten (se compara la hora de pared, sin zona).
       const fechas = filas.map(f => f.fecha_hora).sort()
@@ -573,8 +573,18 @@ function resolverMarcajes(empleados, eventos, asignaciones = {}) {
     if (!emp && !forzado) {
       emp = porNumero.get(normChecador(p.numero)) || porDigitos.get(soloDigitos(p.numero)) || null
       if (emp) via = 'numero'
+      // Un número que coincide pero con un nombre que no se parece a nadie: casi seguro son
+      // personas distintas (el número se reasignó o el archivo es de otra plaza). Importarlo en
+      // silencio le pondría asistencia a quien no es; se detiene y se pide confirmar con asignaciones.
+      if (emp && p.nombre) {
+        const del = new Set(normChecador(emp.nombre_completo).split(' '))
+        if (!normChecador(p.nombre).split(' ').some(t => t && del.has(t))) {
+          motivo = `el número coincide con ${emp.nombre_completo}, pero el archivo dice «${p.nombre}»: parecen personas distintas`
+          emp = null; via = null
+        }
+      }
     }
-    if (!emp && !forzado && p.nombre) {
+    if (!emp && !forzado && !motivo && p.nombre) {
       const n = normChecador(p.nombre)
       emp = porNombre.get(n) || null
       if (emp) via = 'nombre'

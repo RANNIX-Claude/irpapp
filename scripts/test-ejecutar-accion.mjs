@@ -201,6 +201,11 @@ try {
   check('solo importa a quien reconoce (6 marcajes de 2 personas)', nFilas === 6, nFilas)
   check('lista a los no reconocidos y NO los importa', /999/.test(JSON.stringify(prep.resumen)) && !prep.params.filas.some(f => f.numero_empleado_ext === '999'), JSON.stringify(prep.resumen.find(r => r[0] === 'Sin reconocer')))
   if (jose.length > 1) check('nombre ambiguo (varios José) queda sin reconocer', /coincide con \d+ empleados/.test(JSON.stringify(prep.resumen)), jose.length + ' empleados con nombre José')
+  // Mismo número que un empleado pero con un nombre que no se parece → NO se asigna en silencio
+  const distinto = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F2' }, { ...nuevo, fichas: { F2: { tipo_documento: 'ARCHIVO_CHECADOR', nombre_archivo: 'otra-plaza.csv', eventos: parsearChecador(['No,Nombre,Fecha,Hora,Status', `${e1.numero_empleado},PERSONA TOTALMENTE DISTINTA,${D1},08:00,0`, `${e1.numero_empleado},PERSONA TOTALMENTE DISTINTA,${D1},16:00,1`].join(String.fromCharCode(10))) } } })
+  check('número igual pero nombre distinto → no se importa (parecen personas distintas)', /parecen personas distintas/.test(distinto.error || ''), distinto.error)
+  const conf = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F2', asignaciones: { [e1.numero_empleado]: e1.numero_empleado } }, { ...nuevo, fichas: { F2: { tipo_documento: 'ARCHIVO_CHECADOR', eventos: parsearChecador(['No,Nombre,Fecha,Hora,Status', `${e1.numero_empleado},PERSONA TOTALMENTE DISTINTA,${D1},08:00,0`].join(String.fromCharCode(10))) } } })
+  check('...salvo que el usuario lo confirme con una asignación explícita', !!conf.params?.filas?.length || /ya estaban/.test(conf.error || ''), conf.error || 'ok')
   limpiar.push(async () => { await admin.from('rh_checadas').delete().gte('fecha', D1).lte('fecha', D2).eq('origen', 'ZKTeco_CSV') })
   r = await llamar('importar_asistencia', prep.params)
   check('ejecuta y responde 200', r.status === 200, r.texto || r.error)
