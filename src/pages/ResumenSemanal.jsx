@@ -779,7 +779,7 @@ export default function ResumenSemanal() {
     const iniParking = isoDate(viernesAnterior)
     const finParking = isoDate(jueves)
     fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=eq.cobrado&limit=2000`,
+      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=in.(cobrado,perdido)&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
     )
       .then(r => r.json())

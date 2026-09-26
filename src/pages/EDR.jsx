@@ -10,6 +10,7 @@ const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agos
 const fmt   = n => '$' + (parseFloat(n)||0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const pct   = (real, proy) => (!proy || proy === 0) ? null : Math.round((real / proy) * 100)
 
+// Ingreso de tickets = cobrado + perdido (cuota por boleto extraviado, también es efectivo cobrado; el reporte del sistema de estacionamiento lo suma).
 // PostgREST del parking no tiene aggregate functions habilitado → paginar
 async function sumTicketsMes(client, fechaIni, fechaFin) {
   let total = 0, offset = 0
@@ -17,7 +18,7 @@ async function sumTicketsMes(client, fechaIni, fechaFin) {
     const { data, error } = await client
       .from('tickets').select('importe')
       .gte('fecha_op', fechaIni).lte('fecha_op', fechaFin)
-      .eq('estatus', 'cobrado').range(offset, offset + 999)
+      .in('estatus', ['cobrado', 'perdido']).range(offset, offset + 999)
     if (error || !data || data.length === 0) break
     total += data.reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
     if (data.length < 1000) break
