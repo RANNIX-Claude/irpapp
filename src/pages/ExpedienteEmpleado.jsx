@@ -1057,7 +1057,9 @@ export default function ExpedienteEmpleado() {
               vacDetalle={vacDetalle}
               onRegistrar={() => setModal('vacacion')}
               onGenerarAnios={async () => {
-                await supabase.rpc('fn_generar_anios_vacaciones', { p_emp: emp.id })
+                const { error } = await supabase.rpc('fn_generar_anios_vacaciones', { p_emp: emp.id })
+                if (error) { toast.error('Error al generar años: ' + error.message); return }
+                toast.success('Años laborales generados')
                 reload()
               }}
             />
@@ -1521,6 +1523,16 @@ const ESTADO_VAC_COLOR = { TOMADA: C.success, AUTORIZADA: C.primary, CANCELADA: 
 function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios }) {
   const totalAnios = vacAnios.length
   const diasDisp = vacAnios.reduce((s, a) => s + (parseFloat(a.dias_disponibles) || 0), 0)
+  const [generando, setGenerando] = useState(false)
+
+  // Auto-generar años al entrar al tab si no hay ninguno y el empleado tiene fecha de ingreso
+  useEffect(() => {
+    if (totalAnios === 0 && emp?.fecha_ingreso) {
+      setGenerando(true)
+      onGenerarAnios().finally(() => setGenerando(false))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -1537,9 +1549,9 @@ function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios 
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={onGenerarAnios}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.light, cursor: 'pointer', fontSize: 12, color: C.muted, fontWeight: 500 }}>
-              <RefreshCw size={12} /> Generar años
+            <button onClick={async () => { setGenerando(true); await onGenerarAnios(); setGenerando(false) }} disabled={generando}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 7, background: C.light, cursor: generando ? 'default' : 'pointer', fontSize: 12, color: C.muted, fontWeight: 500, opacity: generando ? .6 : 1 }}>
+              <RefreshCw size={12} style={{ animation: generando ? 'spin 1s linear infinite' : 'none' }} /> {generando ? 'Calculando…' : 'Generar años'}
             </button>
             <BtnPrimary onClick={onRegistrar} small><Plus size={13} /> Registrar período</BtnPrimary>
           </div>
@@ -1697,11 +1709,14 @@ function ModalRegistrarVacacion({ empleadoId, salarioDiario, vacAnios, onClose, 
           <select value={form.anio_numero} onChange={e => sf('anio_numero', e.target.value)}
             style={{ ...inputStyle, background: C.surface, cursor: 'pointer' }}>
             <option value="">— Selecciona —</option>
-            {vacAnios.map(a => (
-              <option key={a.id} value={a.anio_numero}>
-                Año {a.anio_numero} — {a.dias_disponibles} días disponibles de {a.dias_derecho}
-              </option>
-            ))}
+            {vacAnios.length === 0
+              ? <option disabled>Sin años generados — cierra y presiona "Generar años"</option>
+              : vacAnios.map(a => (
+                <option key={a.id} value={a.anio_numero}>
+                  Año {a.anio_numero} ({a.fecha_inicio_anio?.slice(0,4) ?? '?'}–{a.fecha_fin_anio?.slice(0,4) ?? '?'}) — {a.dias_disponibles ?? 0} días disp. / {a.dias_derecho}
+                </option>
+              ))
+            }
           </select>
         </div>
         <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
