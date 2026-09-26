@@ -210,6 +210,10 @@ try {
   check('mismo número y solo el nombre de pila en común → tampoco se asigna', /parecen personas distintas/.test(pila.error || ''), pila.error)
   const reloj1 = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F4' }, { ...nuevo, fichas: { F4: { tipo_documento: 'ARCHIVO_CHECADOR', eventos: parsearChecador([String(parseInt(e1.numero_empleado.replace(/\D/g, ''), 10)), soloPila, 'Depto', '2026-01-05  08:00:00', '1'].join(String.fromCharCode(9))) } } })
   check('un reloj que solo trae el primer nombre sí se acepta con el número', !!reloj1.params?.filas?.length || /ya estaban/.test(reloj1.error || ''), reloj1.error || 'ok')
+  // El reloj numera a su manera: el número de e2 con el primer nombre (único) de e1 → es e1, y se avisa del choque
+  const numE2 = String(parseInt(e2.numero_empleado.replace(/\D/g, ''), 10))
+  const choque = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F5' }, { ...nuevo, fichas: { F5: { tipo_documento: 'ARCHIVO_CHECADOR', eventos: parsearChecador([numE2, soloPila, 'Depto', '2026-01-05  08:00:00', '1'].join(String.fromCharCode(9))) } } })
+  check('numeración del reloj distinta a la del catálogo: se reconoce por nombre único y avisa del choque', choque.params?.filas?.[0]?.empleado_id === e1.id && /ese número en el catálogo es de/.test(choque.aviso || ''), choque.error || choque.aviso)
   check('...salvo que el usuario lo confirme con una asignación explícita', !!conf.params?.filas?.length || /ya estaban/.test(conf.error || ''), conf.error || 'ok')
   limpiar.push(async () => { await admin.from('rh_checadas').delete().gte('fecha', D1).lte('fecha', D2).eq('origen', 'ZKTeco_CSV') })
   r = await llamar('importar_asistencia', prep.params)

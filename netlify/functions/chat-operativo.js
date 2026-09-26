@@ -506,7 +506,7 @@ const ACCIONES = {
       const porNombre = grupos.filter(g => g.via === 'nombre' || g.via === 'primer_nombre')
       const avisos = []
       if (sinReconocer.length) avisos.push(`${sinReconocer.length} persona(s) del archivo NO se importan porque no las reconozco con certeza; dime a quién corresponden y las incluyo.`)
-      if (porNombre.length) avisos.push(`Reconocidas solo por nombre (verifica): ${porNombre.map(g => `${g.nombre || g.numero} → ${g.empleado}`).join('; ')}.`)
+      if (porNombre.length) avisos.push(`Reconocidas solo por nombre (verifica): ${porNombre.map(g => `${g.nombre || g.numero} (checador #${g.numero}) → ${g.empleado}${g.choque ? `; ojo: ese número en el catálogo es de ${g.choque}` : ''}`).join('; ')}.`)
       if (yaEstaban) avisos.push(`${yaEstaban} marcaje(s) ya estaban registrados y se omiten.`)
 
       return {
@@ -564,7 +564,7 @@ function resolverMarcajes(empleados, eventos, asignaciones = {}) {
 
   const resultado = new Map()
   for (const p of personas.values()) {
-    let emp = null, via = null, motivo = null, candidatos = []
+    let emp = null, via = null, motivo = null, candidatos = [], numeroChoca = null
     const forzado = asig[normChecador(p.numero)] ?? asig[normChecador(p.nombre)]
     if (forzado) {
       emp = buscarEmpleado(forzado); via = emp ? 'asignado' : null
@@ -584,12 +584,15 @@ function resolverMarcajes(empleados, eventos, asignaciones = {}) {
         const delArchivo = normChecador(p.nombre).split(' ').filter(Boolean)
         const comunes = delArchivo.filter(t => delEmp.includes(t)).length
         if (comunes < Math.min(2, delArchivo.length, delEmp.length)) {
+          // El reloj numera a su manera: el 7 del checador puede ser el E003 del catálogo. Antes de
+          // rendirse se busca por nombre; si hay UN solo empleado con ese nombre, es él, y se avisa.
+          numeroChoca = `${emp.nombre_completo} (número ${emp.numero_empleado})`
           motivo = `el número coincide con ${emp.nombre_completo}, pero el archivo dice «${p.nombre}»: parecen personas distintas`
           emp = null; via = null
         }
       }
     }
-    if (!emp && !forzado && !motivo && p.nombre) {
+    if (!emp && !forzado && p.nombre) {
       const n = normChecador(p.nombre)
       emp = porNombre.get(n) || null
       if (emp) via = 'nombre'
@@ -600,13 +603,14 @@ function resolverMarcajes(empleados, eventos, asignaciones = {}) {
         else if (candidatos.length > 1) motivo = `el nombre coincide con ${candidatos.length} empleados (${candidatos.slice(0, 3).map(c => c.nombre_completo).join(', ')})`
       }
     }
+    if (emp) motivo = null
     if (!emp && !motivo) motivo = 'no existe en el catálogo de empleados'
-    resultado.set(p.numero, { ...p, emp, via, motivo })
+    resultado.set(p.numero, { ...p, emp, via, motivo, choque: emp ? numeroChoca : null })
   }
 
   const filas = [], grupos = [], sinReconocer = []
   for (const r of resultado.values()) {
-    if (r.emp) grupos.push({ numero: r.numero, nombre: r.nombre, empleado_id: r.emp.id, empleado: r.emp.nombre_completo, via: r.via, marcajes: r.marcajes })
+    if (r.emp) grupos.push({ numero: r.numero, nombre: r.nombre, empleado_id: r.emp.id, empleado: r.emp.nombre_completo, via: r.via, marcajes: r.marcajes, choque: r.choque })
     else sinReconocer.push({ numero: r.numero, nombre: r.nombre, marcajes: r.marcajes, motivo: r.motivo })
   }
   for (const ev of eventos) {
