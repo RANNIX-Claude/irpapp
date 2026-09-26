@@ -17,9 +17,21 @@
 
 const { createClient } = require('@supabase/supabase-js')
 const ws = require('ws')
+const crypto = require('crypto')
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const ANON_KEY     = process.env.VITE_SUPABASE_ANON_KEY
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// Firma de propuestas (HMAC): ejecutar-accion.js solo ejecuta propuestas que salieron de
+// aquí, para el mismo usuario y con exactamente estos parámetros. Mantener idéntica a la
+// de ejecutar-accion.js.
+const canon = v => Array.isArray(v) ? `[${v.map(canon).join(',')}]`
+  : (v && typeof v === 'object') ? `{${Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}`
+  : JSON.stringify(v)
+const firmar = (uid, accion, emitida, params) =>
+  crypto.createHmac('sha256', crypto.createHash('sha256').update('agente-firma:' + SERVICE_KEY).digest())
+    .update(`${uid}|${accion}|${emitida}|${canon(params)}`).digest('hex')
 
 const MAX_FILAS = 50
 const MAX_VUELTAS = 6   // llamadas a herramientas por pregunta
@@ -599,14 +611,22 @@ exports.handler = async (event) => {
       : null
 
     // Solo el personal puede proponer escrituras (un locatario solo consulta lo suyo).
-    let puedeEscribir = false, rol = null
+    let puedeEscribir = false, rol = null, usuarioId = null
     if (db) {
-      const [{ data: staff }, { data: r }] = await Promise.all([db.rpc('es_staff'), db.rpc('mi_rol')])
+      const [{ data: staff }, { data: r }, { data: u }] = await Promise.all([db.rpc('es_staff'), db.rpc('mi_rol'), db.auth.getUser(jwt)])
       puedeEscribir = staff === true
       rol = r || null
+      usuarioId = u?.user?.id || null
     }
     // Cada rol consulta lo suyo: el asistente solo las vistas asistente_*.
     const esAsistente = rol === 'asistente'
+    // El asistente no escribe directo: sus propuestas las firma este servidor y las ejecuta
+    // ejecutar-accion. Para armarlas (validar contra datos reales) lee con la service key,
+    // solo lectura y solo dentro de `preparar`. Sin la clave o sin usuario, no hay escritura.
+    const admin = (esAsistente && SERVICE_KEY && usuarioId)
+      ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false }, realtime: { transport: ws } })
+      : null
+    if (esAsistente && admin) puedeEscribir = true
     const vistasActivas = esAsistente ? ASIST_VISTAS : VISTAS
     const herramientas = armarTools(vistasActivas).filter(t => puedeEscribir || t.name === 'consultar_datos')
 
@@ -693,10 +713,14 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
         try {
           if (u.name === 'proponer_accion') {
             const def = ACCIONES[u.input.accion]
-            const prep = def ? await def.preparar(db, u.input.parametros || {}, ctx) : { error: 'Acción no disponible.' }
+            const prep = def ? await def.preparar(admin || db, u.input.parametros || {}, ctx) : { error: 'Acción no disponible.' }
             if (prep.error) out = { error: prep.error }
             else {
-              propuestas.push({ id: u.id, accion: u.input.accion, ...prep })
+              const emitida = Date.now()
+              propuestas.push({
+                id: u.id, accion: u.input.accion, ...prep,
+                ...(admin ? { via: 'servidor', emitida, firma: firmar(usuarioId, u.input.accion, emitida, prep.params) } : {}),
+              })
               out = { estado: 'PENDIENTE_DE_CONFIRMACION', nota: 'Aún NO se ejecuta. El usuario verá una tarjeta con el resumen y los botones Confirmar/Cancelar. Responde en 1-2 líneas qué propones y que espere su confirmación; no repitas el resumen completo.' }
             }
           } else out = await consultar(db, u.input, vistasActivas)

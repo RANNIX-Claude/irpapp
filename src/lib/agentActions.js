@@ -1,15 +1,16 @@
 /**
  * Ejecutores de las acciones que el Agente Operativo propone.
  *
- * chat-operativo.js valida y arma la propuesta; aquí se ejecuta, en el
- * navegador y con la sesión del usuario, solo después de que hace clic en
- * Confirmar. Así aplican los mismos RPC, RLS y `es_staff()` que en la pantalla
- * normal, y la bitácora registra al usuario real. Cada ejecutor devuelve un
- * texto corto con el resultado (se le pasa al agente como mensaje [Sistema]).
+ * chat-operativo.js valida y arma la propuesta; aquí se ejecuta solo después de que
+ * el usuario hace clic en Confirmar. El personal ejecuta en el navegador con su sesión
+ * (mismos RPC, RLS y `es_staff()` que la pantalla normal, y la bitácora registra al
+ * usuario real); el rol asistente lo hace por la function ejecutar-accion. Lo que hace
+ * cada acción está en agenteEjecutores.js. Cada ejecutor devuelve un texto corto con el
+ * resultado (se le pasa al agente como mensaje [Sistema]).
  */
 import { supabase, llamarFuncion } from './supabase'
 import { logAudit } from '../hooks/useAudit'
-import { asegurarProveedor, normNombre, integrarVending, datosFechaGasto } from './compras'
+import { crearEjecutores } from './agenteEjecutores'
 
 // ─── Fichas de depósito adjuntas ─────────────────────────────────────────────
 // La imagen NO viaja al agente: aquí se lee con la function de OCR y al chat
@@ -103,260 +104,47 @@ export async function leerFicha(file) {
   }
 }
 
-const redondear = n => Math.round(n * 100) / 100
-
-const EJECUTORES = {
-  async renovar_contrato(p) {
-    // Mismo criterio de folio que ModalRenovacion en Contratos.jsx
-    const base = (p.folio_base || 'CA').replace(/-R\d{2}(-\d+)?$/, '')
-    const candidato = `${base}-R${new Date().getFullYear().toString().slice(-2)}`
-    const { data: existe } = await supabase.from('contratos').select('id').eq('numero_contrato', candidato).maybeSingle()
-    const folio = existe ? `${candidato}-${Date.now().toString().slice(-4)}` : candidato
-
-    const { data: nuevoId, error } = await supabase.rpc('renovar_contrato', {
-      p_contrato_id:       p.contrato_id,
-      p_folio:             folio,
-      p_arrendatario_id:   p.arrendatario_id,
-      p_unidad_id:         p.unidad_id,
-      p_tipo_contrato:     p.tipo_contrato,
-      p_fecha_inicio:      p.fecha_inicio,
-      p_fecha_fin:         p.fecha_fin || null,
-      p_renta_mensual:     p.renta_mensual,
-      p_cuota_mant:        0,
-      p_deposito_garantia: p.deposito_garantia || 0,
-      p_dia_cobro:         p.dia_pago || 1,
-      p_penalizacion_mora: p.penalizacion_pct ?? 5,
-      p_incremento_anual:  p.incremento_anual_pct || 0,
-      p_fiador_nombre:     p.fiador_nombre || null,
-      p_fiador_rfc:        null,
-      p_fiador_domicilio:  null,
-      p_notas:             p.notas || null,
-    })
+// ─── Ejecución ──────────────────────────────────────────────────────────────
+// El personal ejecuta aquí, en el navegador y con su sesión (RLS y es_staff() normales).
+// Lo que hace cada acción vive en agenteEjecutores.js, compartido con el servidor.
+const EJECUTORES = crearEjecutores({
+  db: supabase,
+  ficha: id => fichas.get(id) || null,
+  consumirFicha: id => fichas.delete(id),
+  async subirArchivo(bucket, path, f) {
+    const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0))
+    const { data, error } = await supabase.storage.from(bucket).upload(path, new Blob([bytes], { type: f.mime }), { upsert: true })
     if (error) throw error
-    await logAudit({
-      modulo: 'Contratos', accion: 'RENOVAR', entidad: 'contratos', entidad_id: nuevoId,
-      descripcion: `Renovación ${p.folio_base} → ${folio} (vía Agente Operativo)`,
-    })
-    return { texto: `Contrato renovado. Nuevo folio ${folio}, vigencia ${p.fecha_inicio} → ${p.fecha_fin}, renta ${p.renta_mensual}.`, ruta: `/contratos/${nuevoId}` }
+    return data?.path || path
   },
-
-  // Mismo circuito que Ingresos.jsx: ingreso + aplicaciones_pago. prp_cartera
-  // deriva PARCIAL/PAGADO y el saldo a partir de las aplicaciones.
-  async aplicar_pago(p) {
-    // El mundo pudo cambiar entre la propuesta y el clic: se revalida todo.
-    if (p.referencia) {
-      const { data: dup } = await supabase.from('ingresos').select('id').eq('referencia_banco', p.referencia).limit(1)
-      if (dup?.length) throw new Error(`La referencia ${p.referencia} ya está registrada (ingreso #${dup[0].id}).`)
-    }
-    const ids = p.distribucion.map(d => d.cargo_id)
-    if (ids.length) {
-      const { data: vivos, error } = await supabase.from('prp_cartera').select('id, saldo').in('id', ids)
-      if (error) throw error
-      for (const d of p.distribucion) {
-        const v = vivos.find(x => x.id === d.cargo_id)
-        if (!v || Number(v.saldo) + 0.01 < d.aplicar) throw new Error('El saldo de un cargo cambió desde la propuesta. Pídeme la propuesta de nuevo.')
-      }
-    }
-
-    const [anio, mes] = p.fecha.split('-').map(Number)
-    const nota = ['Vía Agente Operativo', p.banco && `Banco: ${p.banco}`, p.ordenante && `Ordenante: ${p.ordenante}`, p.nota].filter(Boolean).join(' · ')
-    const { data: ing, error: eIng } = await supabase.from('ingresos').insert({
-      contrato_id: p.contrato_id, fecha: p.fecha, mes, anio,
-      importe: p.importe, importe_total: p.importe,
-      forma_pago: p.forma_pago, referencia_banco: p.referencia || null,
-      tipo: p.tipo, tipo_concepto: p.tipo,
-      origen: p.forma_pago === 'EFECTIVO' ? 'EFECTIVO' : 'TRANSFERENCIA',
-      nota, estatus_validacion: 'POR_VALIDAR',
-    }).select('id').single()
-    if (eIng) throw eIng
-
-    if (p.distribucion.length) {
-      const { error: eAp } = await supabase.from('aplicaciones_pago').insert(
-        p.distribucion.map(d => ({ ingreso_id: ing.id, cargo_id: d.cargo_id, importe_aplicado: d.aplicar })),
-      )
-      if (eAp) {
-        // No dejar un depósito sin aplicar por un fallo a medias: se deshace.
-        await supabase.from('ingresos').delete().eq('id', ing.id)
-        throw new Error('No se pudo aplicar a los cargos: ' + eAp.message)
-      }
-    }
-
-    // El comprobante es soporte, no condición: si falla, el pago igual queda.
-    let avisoComp = ''
-    const f = p.ficha && fichas.get(p.ficha)
-    if (f) {
-      try {
-        const r = await llamarFuncion('subir-comprobante', {
-          bucket: 'facturas-cfdi', path: `comprobantes/${ing.id}/comp.${f.ext}`,
-          file_base64: f.base64, mime_type: f.mime, ingreso_id: ing.id,
-        })
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status)
-        fichas.delete(p.ficha)
-      } catch (e) { avisoComp = ` (el comprobante no se pudo subir: ${e.message})` }
-    }
-
-    await logAudit({
-      modulo: 'Ingresos', accion: 'APLICAR_PAGO', entidad: 'ingresos', entidad_id: String(ing.id),
-      descripcion: `Depósito ${p.importe} ${p.folio} ref ${p.referencia || '—'} (vía Agente Operativo)`,
+  async subirComprobante(ingresoId, f) {
+    const r = await llamarFuncion('subir-comprobante', {
+      bucket: 'facturas-cfdi', path: `comprobantes/${ingresoId}/comp.${f.ext}`,
+      file_base64: f.base64, mime_type: f.mime, ingreso_id: ingresoId,
     })
-    const aplicado = redondear(p.distribucion.reduce((s, d) => s + d.aplicar, 0))
-    const favor = redondear(p.importe - aplicado)
-    return { texto: `Ingreso #${ing.id} registrado (POR_VALIDAR): aplicado ${aplicado} a ${p.distribucion.length} cargo(s)${favor > 0 ? `, saldo a favor ${favor}` : ''}${avisoComp}.`, ruta: '/ingresos' }
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status)
   },
+  audit: logAudit,
+})
 
-  // Mismo resultado que TicketModal: proveedor, gastos_operativos, gasto_detalle,
-  // foto en tickets-gastos y, si aplica, compras de vending.
-  async registrar_gasto(p) {
-    let provId = p.proveedor.id
-    if (!provId) {
-      const { data: provs } = await supabase.from('cat_proveedores').select('id, nombre').eq('activo', true)
-      provId = provs?.find(x => normNombre(x.nombre) === normNombre(p.proveedor.nombre))?.id
-        || await asegurarProveedor({ nombre: p.proveedor.nombre, rfc: p.proveedor.rfc, razon_social: p.proveedor.razon_social })
-    }
-
-    const { data: g, error: eG } = await supabase.from('gastos_operativos').insert({
-      fecha: p.fecha, proveedor: p.proveedor.nombre, proveedor_id: provId || null,
-      grupo_gasto: p.grupo_gasto, descripcion: p.descripcion || (p.folio ? `Ticket ${p.folio}` : null),
-      cantidad: p.total, ticket_total: p.total, ...datosFechaGasto(p.fecha),
-    }).select('id').single()
-    if (eG) throw eG
-
-    if (p.lineas.length) {
-      const { error: eD } = await supabase.from('gasto_detalle').insert(
-        p.lineas.filter(l => l.descripcion && l.precio_unit >= 0).map(l => ({
-          gasto_id: g.id, descripcion: l.descripcion, categoria: l.categoria || null,
-          cantidad: l.cantidad, precio_unit: l.precio_unit, codigo_proveedor: l.codigo_proveedor || null,
-        })),
-      )
-      if (eD) {
-        await supabase.from('gastos_operativos').delete().eq('id', g.id)
-        throw new Error('No se pudieron guardar las partidas: ' + eD.message)
-      }
-    }
-
-    // Foto y vending son complementos: si fallan, el gasto ya quedó bien registrado.
-    const avisos = []
-    const f = p.ficha && fichas.get(p.ficha)
-    if (f) {
-      try {
-        const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0))
-        const path = `${p.fecha.slice(0, 7)}/${g.id}.${f.ext}`
-        const { data: up, error: eUp } = await supabase.storage.from('tickets-gastos').upload(path, new Blob([bytes], { type: f.mime }), { upsert: true })
-        if (eUp) throw eUp
-        await supabase.from('gastos_operativos').update({ ticket_url: up.path }).eq('id', g.id)
-        fichas.delete(p.ficha)
-      } catch (e) { avisos.push(`la foto no se guardó (${e.message})`) }
-    }
-    if (p.categoria_lineas === 'VENDING') {
-      try {
-        const v = await integrarVending({ lineas: p.lineas, fecha: p.fecha, proveedor: p.proveedor.nombre, descripcion: p.descripcion })
-        avisos.push(v.sinSemana ? 'no hay semana de vending abierta, no se cargó a vending'
-          : `vending: ${v.aplicadas} producto(s) cargados${v.omitidas ? `, ${v.omitidas} sin coincidencia en el catálogo de vending` : ''}`)
-      } catch (e) { avisos.push(`vending no se pudo cargar (${e.message})`) }
-    }
-
-    await logAudit({
-      modulo: 'Gastos', accion: 'REGISTRAR_TICKET', entidad: 'gastos_operativos', entidad_id: g.id,
-      descripcion: `Ticket ${p.proveedor.nombre} ${p.total} ${p.fecha} (vía Agente Operativo)`,
-    })
-    return { texto: `Gasto registrado: ${p.proveedor.nombre} $${p.total} · ${p.grupo_gasto}, ${p.lineas.length} partida(s)${avisos.length ? '; ' + avisos.join('; ') : ''}.`, ruta: '/gastos-operativos' }
-  },
-
-  // Mismo resultado que RH → Nuevo empleado + documentos del expediente.
-  async alta_empleado(p) {
-    if (p.curp) {
-      const { data: ya } = await supabase.from('rh_empleados').select('id').eq('curp', p.curp).limit(1)
-      if (ya?.length) throw new Error('Ya existe un empleado con esa CURP.')
-    }
-    const { data: id, error } = await supabase.rpc('crear_empleado', {
-      p_nombre: p.nombre, p_apellido_pat: p.apellido_pat, p_apellido_mat: p.apellido_mat || '',
-      p_sexo: p.sexo, p_rfc: p.rfc, p_curp: p.curp, p_nss: p.nss, p_fecha_nacimiento: p.fecha_nacimiento,
-      p_fecha_ingreso: p.fecha_ingreso, p_puesto: p.puesto, p_area: p.area, p_departamento: p.departamento,
-      p_salario_diario: p.salario_diario, p_email: p.email, p_celular: p.celular,
-      p_tipo_contrato: p.tipo_contrato, p_fecha_fin_contrato: p.fecha_fin_contrato,
-      p_horario_trabajo: p.horario_trabajo, p_dia_descanso: p.dia_descanso, p_forma_pago: p.forma_pago,
-    })
-    if (error) throw error
-
-    const avisos = []
-    // El RPC no recibe domicilio: va en un UPDATE aparte (como hace el expediente).
-    if (Object.keys(p.domicilio || {}).length) {
-      const { error: eD } = await supabase.from('rh_empleados').update(p.domicilio).eq('id', id)
-      if (eD) avisos.push(`el domicilio no se guardó (${eD.message})`)
-    }
-    // Documentos al expediente (bucket privado expedientes-docs, tabla rh_expediente_documentos).
-    const docs = [
-      ['ine', 'INE', 'INE (frente)', p.ine_vence], ['ine_reverso', 'INE', 'INE (reverso)', null],
-      ['domicilio', 'COMPROBANTE_DOM', 'Comprobante de domicilio', null],
-    ]
-    for (const [clave, tipo, nombre, vence] of docs) {
-      const fichaId = p.fichas?.[clave]
-      const f = fichaId && fichas.get(fichaId)
-      if (!f) continue
-      try {
-        const path = `expedientes/${id}/${Date.now()}_${clave}.${f.ext}`
-        await subirBase64('expedientes-docs', path, f)
-        const { error: eDoc } = await supabase.from('rh_expediente_documentos').insert({
-          empleado_id: id, tipo, nombre, archivo_path: path, tamano_kb: Math.round(f.base64.length * 0.75 / 1024),
-          formato: f.ext.toUpperCase(), fecha_doc: p.fecha_ingreso, vence: vence || null,
-        })
-        if (eDoc) throw eDoc
-        fichas.delete(fichaId)
-      } catch (e) { avisos.push(`${nombre} no se archivó (${e.message})`) }
-    }
-
-    await logAudit({
-      modulo: 'RH', accion: 'ALTA_EMPLEADO', entidad: 'rh_empleados', entidad_id: id,
-      descripcion: `Alta ${p.nombre} ${p.apellido_pat} (vía Agente Operativo, desde INE)`,
-    })
-    return { texto: `Empleado dado de alta: ${p.nombre} ${p.apellido_pat}${avisos.length ? '; ' + avisos.join('; ') : ''}.`, ruta: `/rh/empleado/${id}` }
-  },
-
-  // Mismo resultado que Arrendatarios → Nuevo + documentos del expediente (tabla documentos).
-  async alta_arrendatario(p) {
-    if (p.rfc) {
-      const { data: ya } = await supabase.from('arrendatarios').select('id').eq('rfc', p.rfc).limit(1)
-      if (ya?.length) throw new Error(`Ya existe un arrendatario con el RFC ${p.rfc}.`)
-    }
-    const { data: a, error } = await supabase.from('arrendatarios').insert({
-      locatario: p.locatario, nombre_negocio: p.nombre_negocio, rfc: p.rfc, tipo_persona: p.tipo_persona,
-      telefono: p.telefono, email: p.email, domicilio: p.domicilio, estatus: 'ACTIVO',
-    }).select('id').single()
-    if (error) throw error
-
-    const avisos = []
-    const docs = [['ine', 'INE_FRENTE'], ['ine_reverso', 'INE_REVERSO'], ['domicilio', 'COMPROBANTE_DOMICILIO']]
-    for (const [clave, tipoDoc] of docs) {
-      const fichaId = p.fichas?.[clave]
-      const f = fichaId && fichas.get(fichaId)
-      if (!f) continue
-      try {
-        const path = `arrendatario/${a.id}/${tipoDoc}.${f.ext}`
-        await subirBase64('expedientes-docs', path, f)
-        const { error: eDoc } = await supabase.from('documentos').insert({
-          entidad_tipo: 'ARRENDATARIO', entidad_id: a.id, tipo_doc: tipoDoc, url: path,
-          nombre_archivo: `${tipoDoc}.${f.ext}`, estatus: 'PENDIENTE',
-        })
-        if (eDoc) throw eDoc
-        fichas.delete(fichaId)
-      } catch (e) { avisos.push(`${tipoDoc} no se archivó (${e.message})`) }
-    }
-
-    await logAudit({
-      modulo: 'ARRENDATARIOS', accion: 'CREAR', entidad: 'ARRENDATARIO', entidad_id: a.id,
-      descripcion: `Nuevo: ${p.locatario} (vía Agente Operativo, desde INE)`,
-    })
-    return { texto: `Arrendatario dado de alta: ${p.locatario}${avisos.length ? '; ' + avisos.join('; ') : ''}. Los documentos quedan PENDIENTES de aprobación.`, ruta: '/arrendatarios' }
-  },
-}
-
-async function subirBase64(bucket, path, f) {
-  const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0))
-  const { error } = await supabase.storage.from(bucket).upload(path, new Blob([bytes], { type: f.mime }), { upsert: true })
-  if (error) throw error
+// El rol `asistente` no tiene permisos de escritura en la base: sus propuestas vienen
+// marcadas `via: 'servidor'` y firmadas por chat-operativo, y las ejecuta la function
+// ejecutar-accion con la service_role key. Aquí solo se manda la propuesta y las imágenes.
+async function ejecutarRemoto(propuesta) {
+  const ids = [propuesta.params.ficha, ...Object.values(propuesta.params.fichas || {})].filter(Boolean)
+  const imagenes = {}
+  for (const id of ids) { const f = fichas.get(id); if (f) imagenes[id] = { base64: f.base64, mime: f.mime, ext: f.ext } }
+  const r = await llamarFuncion('ejecutar-accion', {
+    accion: propuesta.accion, params: propuesta.params, firma: propuesta.firma, emitida: propuesta.emitida, fichas: imagenes,
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(j.error || `Error ${r.status}`)
+  ids.forEach(id => fichas.delete(id))
+  return { texto: j.texto, ruta: j.ruta }
 }
 
 export async function ejecutarAccion(propuesta) {
+  if (propuesta.via === 'servidor') return ejecutarRemoto(propuesta)
   const fn = EJECUTORES[propuesta.accion]
   if (!fn) throw new Error('Acción no disponible')
   return fn(propuesta.params)

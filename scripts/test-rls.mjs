@@ -138,6 +138,14 @@ else await as("authenticated", ASIST, async t => {
   await c.query(`insert into public.irp_usuarios (id, rol_id, nombre) values ('${ASIST}', 'asistente', 'Prueba Asistente')`);
 });
 
+// La service_role key es lo que usa ejecutar-accion (Netlify Function) para escribir por el asistente.
+console.log(`\n[${which}] service_role — puede llamar las funciones de alta/renovación (ejecutar-accion)`);
+await as("service_role", "00000000-0000-4000-8000-00000000a516", async t => {
+  await t("crear_empleado (service_role)", CREAR_EMP, o => /^[0-9a-f-]{36}$/.test(o));
+  // Un contrato inexistente debe fallar por "no encontrado", NO por la guarda de autorización (42501)
+  await t("renovar_contrato pasa la guarda", "select public.renovar_contrato(gen_random_uuid(), 'X', gen_random_uuid(), gen_random_uuid(), 'T', current_date)", o => o.startsWith("ERR") && o !== "ERR 42501");
+});
+
 const admin = users.find(u => u.rol_id === "admin_inmobiliaria");
 console.log(`\n[${which}] admin — sí administra roles (Configuración)`);
 if (admin && rest) await as("authenticated", admin.id, async t => {

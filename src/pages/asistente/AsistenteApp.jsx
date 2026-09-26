@@ -1,4 +1,4 @@
-import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { MessageCircle, FileText, Users, Hammer, Receipt, Wallet, LogOut } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -129,7 +129,6 @@ const TABS = [
 
 export default function AsistenteApp() {
   const { perfil } = useApp()
-  const navigate = useNavigate()
   const enChat = useLocation().pathname === '/'
 
   return (
@@ -148,7 +147,7 @@ export default function AsistenteApp() {
       <main style={{ flex: 1, minHeight: 0 }}>
         {/* El chat queda montado al cambiar de pestaña: si no, se perdería la conversación y las fichas. */}
         <div style={{ display: enChat ? 'block' : 'none', height: '100%' }}>
-          <ChatOperativo movil saludo="¡Hola! Soy tu asistente de IRP. Mándame tickets, fichas de depósito, INE o comprobantes y me encargo, o pregúntame lo que necesites. Con la cámara puedes fotografiar los documentos." onAbrirRuta={() => navigate('/')} />
+          <ChatOperativo movil saludo="¡Hola! Soy tu asistente de IRP. Mándame tickets, fichas de depósito, INE o comprobantes y me encargo, o pregúntame lo que necesites. Con la cámara puedes fotografiar los documentos." />
         </div>
         {!enChat && (
           <Routes>

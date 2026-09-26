@@ -12,6 +12,9 @@
 [functions."subir-comprobante"]
   timeout = 26
 
+[functions."ejecutar-accion"]
+  timeout = 26
+
 [build.environment]
   NODE_VERSION = "20"
   TZ              = "America/Mexico_City"
