@@ -27,7 +27,7 @@ const CADUCA_MS = 2 * 60 * 60 * 1000   // una propuesta sin confirmar vale 2 hor
 
 // Matriz rol × acción. Agregar un rol o una acción aquí es una decisión de seguridad.
 export const PERMISOS = {
-  asistente: ['aplicar_pago', 'registrar_gasto', 'alta_empleado', 'alta_arrendatario', 'renovar_contrato'],
+  asistente: ['aplicar_pago', 'registrar_gasto', 'alta_empleado', 'alta_arrendatario', 'renovar_contrato', 'importar_asistencia'],
 }
 
 const MIMES = ['image/jpeg', 'image/png', 'image/webp']

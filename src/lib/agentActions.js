@@ -11,6 +11,7 @@
 import { supabase, llamarFuncion } from './supabase'
 import { logAudit } from '../hooks/useAudit'
 import { crearEjecutores } from './agenteEjecutores'
+import { parsearChecador } from './checador'
 
 // ─── Fichas de depósito adjuntas ─────────────────────────────────────────────
 // La imagen NO viaja al agente: aquí se lee con la function de OCR y al chat
@@ -107,6 +108,32 @@ export async function leerFicha(file) {
 // ─── Ejecución ──────────────────────────────────────────────────────────────
 // El personal ejecuta aquí, en el navegador y con su sesión (RLS y es_staff() normales).
 // Lo que hace cada acción vive en agenteEjecutores.js, compartido con el servidor.
+// ─── Archivo de asistencia del checador ─────────────────────────────────────
+// Se lee aquí (CSV, TXT, DAT o Excel) y al agente solo pasa un resumen: los marcajes ya
+// leídos viajan como datos de la ficha para que el servidor arme la vista previa.
+export async function leerArchivoChecador(file) {
+  let texto
+  if (/\.(xlsx?|xlsm)$/i.test(file.name)) {
+    // Excel: la primera hoja se vuelve CSV y pasa por el mismo lector. Se importa al vuelo para
+    // no cargar la librería en toda la app.
+    const XLSX = await import('xlsx')
+    const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true })
+    texto = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { dateNF: 'yyyy-mm-dd hh:mm:ss' })
+  } else {
+    texto = await file.text()
+  }
+  const eventos = parsearChecador(texto)
+  if (!eventos.length) throw new Error('no reconocí el formato del archivo (si es Excel, expórtalo como CSV o TXT)')
+  const id = `F${++fichaSeq}`
+  fichas.set(id, { base64: null, datos: { tipo_documento: 'ARCHIVO_CHECADOR', nombre_archivo: file.name, eventos } })
+  const fechas = eventos.map(e => e.fecha).sort()
+  const personas = new Set(eventos.map(e => e.numero)).size
+  return {
+    id, miniatura: null, archivo: file.name,
+    texto: `[Ficha ${id} adjunta: ARCHIVO DE ASISTENCIA (checador) "${file.name}" — ${eventos.length} marcajes de ${personas} persona(s), del ${fechas[0]} al ${fechas[fechas.length - 1]}]`,
+  }
+}
+
 const EJECUTORES = crearEjecutores({
   db: supabase,
   ficha: id => fichas.get(id) || null,
@@ -133,7 +160,7 @@ const EJECUTORES = crearEjecutores({
 async function ejecutarRemoto(propuesta) {
   const ids = [propuesta.params.ficha, ...Object.values(propuesta.params.fichas || {})].filter(Boolean)
   const imagenes = {}
-  for (const id of ids) { const f = fichas.get(id); if (f) imagenes[id] = { base64: f.base64, mime: f.mime, ext: f.ext } }
+  for (const id of ids) { const f = fichas.get(id); if (f?.base64) imagenes[id] = { base64: f.base64, mime: f.mime, ext: f.ext } }
   const r = await llamarFuncion('ejecutar-accion', {
     accion: propuesta.accion, params: propuesta.params, firma: propuesta.firma, emitida: propuesta.emitida, fichas: imagenes,
   })

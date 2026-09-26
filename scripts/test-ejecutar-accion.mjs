@@ -9,6 +9,7 @@
 import fs from 'fs'
 import { createClient } from '@supabase/supabase-js'
 import ws from 'ws'
+import { parsearChecador } from '../src/lib/checador.js'
 
 const [, , EMAIL, PASSWORD] = process.argv
 if (!EMAIL || !PASSWORD) { console.error('Uso: node scripts/test-ejecutar-accion.mjs <correo-asistente> <contraseña>'); process.exit(1) }
@@ -32,14 +33,15 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE
 process.env.VITE_SUPABASE_ANON_KEY = ANON
 
 // chat-operativo.js no exporta ACCIONES ni firmar: se saca de una copia temporal.
-const tmp = new URL('../_chat_tmp.cjs', import.meta.url)
+fs.mkdirSync(new URL('../netlify/_tmp/', import.meta.url), { recursive: true })
+const tmp = new URL('../netlify/_tmp/chat_tmp.cjs', import.meta.url)
 fs.writeFileSync(tmp, fs.readFileSync(new URL('../netlify/functions/chat-operativo.js', import.meta.url), 'utf8') + '\nexports.__t = { ACCIONES, firmar }\n')
 const { ACCIONES, firmar } = (await import(tmp.href)).default.__t   // firma de chat-operativo: la que debe aceptar ejecutar-accion
 const { handler, firmar: firmarEjec } = await import('../netlify/functions/ejecutar-accion.js')
 
 const admin = createClient(URL_, SERVICE, { auth: { persistSession: false }, realtime: { transport: ws } })
 const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, password: PASSWORD }) }).then(r => r.json())
-if (!auth.access_token) { console.error('No se pudo iniciar sesión:', JSON.stringify(auth).slice(0, 120)); fs.unlinkSync(tmp); process.exit(1) }
+if (!auth.access_token) { console.error('No se pudo iniciar sesión:', JSON.stringify(auth).slice(0, 120)); fs.unlinkSync(tmp); fs.rmdirSync(new URL('../netlify/_tmp/', import.meta.url)); process.exit(1) }
 const UID = auth.user.id, JWT = auth.access_token
 
 let fallas = 0, total = 0
@@ -163,6 +165,54 @@ try {
     }
   }
 
+
+  // ── importar_asistencia ────────────────────────────────────────────────
+  console.log('\nimportar_asistencia (archivo del checador)')
+  const { data: emps } = await admin.from('prp_empleados').select('id, numero_empleado, nombre_completo').order('numero_empleado')
+  const [e1, e2, e3] = emps
+  const jose = emps.filter(e => /^JOSE\b/i.test(e.nombre_completo.normalize('NFD').replace(/[̀-ͯ]/g, '')))
+  const D1 = '2026-01-05', D2 = '2026-01-06'
+  const { count: previos } = await admin.from('rh_checadas').select('id', { count: 'exact', head: true }).gte('fecha', D1).lte('fecha', D2)
+  check('rango de prueba libre en QA (sin marcajes previos)', previos === 0, previos)
+  // Formato estándar No,Nombre,Fecha,Hora,Status + una persona que no existe + un nombre ambiguo
+  const archivo = [
+    'No,Nombre,Fecha,Hora,Status',
+    `${e1.numero_empleado},${e1.nombre_completo},${D1},08:00,0`, `${e1.numero_empleado},${e1.nombre_completo},${D1},16:00,1`,
+    `${e1.numero_empleado},${e1.nombre_completo},${D2},08:05,0`, `${e1.numero_empleado},${e1.nombre_completo},${D2},16:01,1`,
+    `${e2.numero_empleado},${e2.nombre_completo},${D1},09:00,0`, `${e2.numero_empleado},${e2.nombre_completo},${D1},17:00,1`,
+    `999,FULANO DESCONOCIDO,${D1},08:00,0`, `999,FULANO DESCONOCIDO,${D1},16:00,1`,
+    `777,JOSE,${D1},08:00,0`, `777,JOSE,${D1},16:00,1`,
+  ].join('\n')
+  const ev = parsearChecador(archivo)
+  check('el lector entiende el formato estándar', ev.length === 10, ev.length)
+  const reloj = parsearChecador('1\tJuan\tDepto\t2026-01-05  08:00:00\t1\n1\tJuan\tDepto\t2026-01-05  16:00:00\t1')
+  check('el lector entiende el formato de reloj (entrada/salida por orden)', reloj.length === 2 && reloj[0].operacion === 'ENTRADA' && reloj[1].operacion === 'SALIDA', JSON.stringify(reloj.map(x => x.operacion)))
+  const ctxA = { ...nuevo, fichas: { F1: { tipo_documento: 'ARCHIVO_CHECADOR', nombre_archivo: 'prueba.csv', eventos: ev } } }
+  prep = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1' }, ctxA)
+  check('preparar arma la propuesta', !prep.error, prep.error || prep.titulo)
+  const nFilas = prep.params?.filas?.length
+  check('solo importa a quien reconoce (6 marcajes de 2 personas)', nFilas === 6, nFilas)
+  check('lista a los no reconocidos y NO los importa', /999/.test(JSON.stringify(prep.resumen)) && !prep.params.filas.some(f => f.numero_empleado_ext === '999'), JSON.stringify(prep.resumen.find(r => r[0] === 'Sin reconocer')))
+  if (jose.length > 1) check('nombre ambiguo (varios José) queda sin reconocer', /coincide con \d+ empleados/.test(JSON.stringify(prep.resumen)), jose.length + ' empleados con nombre José')
+  limpiar.push(async () => { await admin.from('rh_checadas').delete().gte('fecha', D1).lte('fecha', D2).eq('origen', 'ZKTeco_CSV') })
+  r = await llamar('importar_asistencia', prep.params)
+  check('ejecuta y responde 200', r.status === 200, r.texto || r.error)
+  const { count: guard } = await admin.from('rh_checadas').select('id', { count: 'exact', head: true }).gte('fecha', D1).lte('fecha', D2)
+  check('6 marcajes en rh_checadas', guard === 6, guard)
+  const { data: dia } = await admin.from('rh_asistencia').select('empleado_id, fecha, hora_entrada, hora_salida').eq('empleado_id', e1.id).eq('fecha', D1)
+  check('la base consolidó el día en rh_asistencia (entrada y salida)', dia?.length === 1 && dia[0].hora_entrada && dia[0].hora_salida, JSON.stringify(dia?.[0]))
+  const otra = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1' }, ctxA)
+  check('el mismo archivo otra vez → no hay nada nuevo', !!otra.error && /ya estaban registrados/.test(otra.error), otra.error)
+  r = await llamar('importar_asistencia', prep.params)
+  check('ejecutar dos veces la misma propuesta no duplica', r.status === 200 && /6 ya estaban/.test(r.texto || ''), r.texto || r.error)
+  const { count: guard2 } = await admin.from('rh_checadas').select('id', { count: 'exact', head: true }).gte('fecha', D1).lte('fecha', D2)
+  check('sigue habiendo 6 marcajes', guard2 === 6, guard2)
+  // Asignación explícita de quien no se reconocía
+  const conAsig = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1', asignaciones: { 999: e3.numero_empleado } }, ctxA)
+  check('con asignación, 999 se incluye como el empleado indicado', conAsig.params?.filas?.some(f => f.numero_empleado_ext === '999' && f.empleado_id === e3.id), conAsig.error || 'ok')
+  const mala = await ACCIONES.importar_asistencia.preparar(admin, { ficha: 'F1', asignaciones: { 999: 'NO EXISTE' } }, ctxA)
+  check('asignación a alguien inexistente no se adivina', !mala.params?.filas?.some(f => f.numero_empleado_ext === '999'), JSON.stringify(mala.resumen?.find(r => r[0] === 'Sin reconocer')))
+
   // ── renovar_contrato (se restaura) ─────────────────────────────────────
   console.log('\nrenovar_contrato (se restaura al terminar)')
   const { data: vig } = await admin.from('prp_contratos').select('id').eq('estatus', 'VIGENTE').limit(50)
@@ -190,7 +240,7 @@ try {
 } finally {
   console.log('\nLimpieza')
   for (const f of limpiar.reverse()) { try { await f() } catch (e) { console.log('  aviso al limpiar:', e.message) } }
-  fs.unlinkSync(tmp)
+  fs.unlinkSync(tmp); fs.rmdirSync(new URL('../netlify/_tmp/', import.meta.url))
   console.log('  QA restaurado')
 }
 console.log(`\n${total - fallas}/${total} comprobaciones correctas${fallas ? ` — ${fallas} FALLARON` : ''}`)

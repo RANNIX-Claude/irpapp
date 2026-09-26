@@ -3,6 +3,7 @@ import { X, RefreshCw, Upload, AlertCircle, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import ConsultaChecadas from '../ui/ConsultaChecadas'
+import { parsearChecador } from '../../lib/checador'
 
 // ── Import asistencia de checador ──────────────────────────────────────────
 function ImportChecadorModal({ empleados, onClose, onImported }) {
@@ -11,103 +12,25 @@ function ImportChecadorModal({ empleados, onClose, onImported }) {
   const [importando, setImportando] = useState(false)
   const fileRef = useRef()
 
-  // Cada renglón del checador es un MARCAJE, no un día. Antes se consolidaba
-  // aquí mismo y las checadas intermedias —la salida a comer, el regreso— se
-  // perdían. Ahora se guardan todas en rh_checadas y el día lo arma la base.
-  const esHora = v => /^\d{1,2}:\d{2}/.test((v || '').trim())
-  const hhmm   = v => { const [h, m] = v.trim().split(':'); return `${h.padStart(2,'0')}:${m.slice(0,2)}` }
-
-  // Reloj checador crudo (ej. "ID. Nombre Depart. Tiempo IDdispositivo"):
-  // fecha y hora vienen JUNTAS en una sola columna separadas por varios
-  // espacios, y el orden de columnas no es el mismo que ZKTeco/BioTime
-  // (aquí "Depart." va antes que la fecha, no después). Sin columna de
-  // estatus, así que se infiere después alternando por orden cronológico.
-  // Se busca la columna con esta forma sin importar en qué posición caiga,
-  // en vez de asumir un orden fijo de columnas.
-  const RE_FECHA_HORA_JUNTAS = /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})$/
-  // Variante sin ningún separador de columna real (todo quedó como una sola
-  // cadena, p.ej. al pegar texto que perdió los tabs).
-  const RE_MARCAJE_SIN_COLUMNAS = /^(\d+)\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})\s+\d+\s*$/
-
-  const parsear = (texto) => {
-    const lineas = texto.trim().split('\n').filter(l => l.trim())
-    const eventos = []
-    const sinEstatus = []
-
-    lineas.forEach(linea => {
-      const cols = linea.split(/[,\t;]/).map(c => c.trim().replace(/"/g, ''))
-
-      // Reloj: alguna columna trae "AAAA-MM-DD  HH:MM:SS" junta (sin importar
-      // qué haya en las demás columnas ni en qué orden vengan).
-      if (cols.length >= 2) {
-        const idxFechaHora = cols.findIndex(c => RE_FECHA_HORA_JUNTAS.test(c))
-        if (idxFechaHora >= 0 && !isNaN(parseInt(cols[0]))) {
-          const [, fecha, hora] = cols[idxFechaHora].match(RE_FECHA_HORA_JUNTAS)
-          const nombre = (cols[1] || '').trim().split(/\s+/)[0]
-          if (nombre) sinEstatus.push({ numero: cols[0].trim(), nombre, fecha, hora: hhmm(hora) })
-          return
-        }
-      }
-
-      if (cols.length < 4) {
-        const m = linea.trim().match(RE_MARCAJE_SIN_COLUMNAS)
-        if (m) {
-          const [, numero, nombreDepto, fecha, hora] = m
-          sinEstatus.push({ numero, nombre: nombreDepto.trim().split(/\s+/)[0], fecha, hora: hhmm(hora) })
-        }
-        return
-      }
-      const [col0, col1, col2, col3, col4] = cols
-
-      // Encabezado
-      if (isNaN(parseInt(col0)) && !col0.toLowerCase().includes('e0')) return
-
-      const numero = col0.toString().trim()
-      const nombre = col1 || ''
-      const fecha  = (col2 || '').replace(/\//g, '-')
-      if (!fecha || !esHora(col3)) return
-
-      // Formato de dos horarios: EmpCode,Nombre,Fecha,HoraEntrada,HoraSalida
-      if (esHora(col4)) {
-        eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion: 'ENTRADA' })
-        eventos.push({ numero, nombre, fecha, hora: hhmm(col4), operacion: 'SALIDA' })
-        return
-      }
-      // Formato de marcaje: No,Nombre,Fecha,Hora,Status (0=entrada, 1=salida)
-      const st = (col4 || '').trim().toLowerCase()
-      const operacion = ['1','out','salida','check out','o','s'].includes(st) ? 'SALIDA' : 'ENTRADA'
-      eventos.push({ numero, nombre, fecha, hora: hhmm(col3), operacion })
-    })
-
-    // Los marcajes crudos no traen estatus: se alternan ENTRADA/SALIDA por
-    // EMPLEADO (cronológico completo, cruzando días), no por empleado+día.
-    // Agrupar por día rompía los turnos de 24h que ponchan una sola vez
-    // (entra 7:00 un día, sale 7:00 al siguiente): cada marcaje quedaba
-    // como "el primero de su día" y todos salían ENTRADA, nunca SALIDA.
-    const porEmpleado = {}
-    sinEstatus.forEach(ev => { (porEmpleado[ev.numero] ||= []).push(ev) })
-    Object.values(porEmpleado).forEach(grupo => {
-      grupo.sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
-      grupo.forEach((ev, i) => eventos.push({ ...ev, operacion: i % 2 === 0 ? 'ENTRADA' : 'SALIDA' }))
-    })
-
-    return eventos.map(ev => {
-      const primerNombre = (ev.nombre || '').toLowerCase().split(' ')[0]
-      const emp = empleados.find(e => e.numero_empleado === ev.numero
-        || (primerNombre && (e.nombre_completo || '').toLowerCase().includes(primerNombre)))
-      return {
-        empleado_id: emp?.id || null,
-        numero_empleado_ext: ev.numero,
-        operacion: ev.operacion,
-        fecha_hora: `${ev.fecha} ${ev.hora}:00`,
-        origen: 'ZKTeco_CSV',
-        _fecha: ev.fecha,
-        _hora: ev.hora,
-        _nombre: ev.nombre,
-        _nombre_match: emp?.nombre_completo,
-      }
-    })
-  }
+  // La lectura del archivo vive en src/lib/checador.js (la comparte el Agente Operativo).
+  // Cada renglón del checador es un MARCAJE, no un día: se guardan todos en rh_checadas
+  // y el día lo arma la base.
+  const parsear = (texto) => parsearChecador(texto).map(ev => {
+    const primerNombre = (ev.nombre || '').toLowerCase().split(' ')[0]
+    const emp = empleados.find(e => e.numero_empleado === ev.numero
+      || (primerNombre && (e.nombre_completo || '').toLowerCase().includes(primerNombre)))
+    return {
+      empleado_id: emp?.id || null,
+      numero_empleado_ext: ev.numero,
+      operacion: ev.operacion,
+      fecha_hora: `${ev.fecha} ${ev.hora}:00`,
+      origen: 'ZKTeco_CSV',
+      _fecha: ev.fecha,
+      _hora: ev.hora,
+      _nombre: ev.nombre,
+      _nombre_match: emp?.nombre_completo,
+    }
+  })
 
   // Vista previa por día: lo que verá el usuario, aunque se guarde por marcaje.
   const resumirDias = (evs) => {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Check, Loader2, Paperclip, Camera, Mic } from 'lucide-react'
+import { Send, Check, Loader2, Paperclip, Camera, Mic, FileText } from 'lucide-react'
 import { chatOperativo } from '../../lib/claude'
-import { ejecutarAccion, leerFicha, datosFichas } from '../../lib/agentActions'
+import { ejecutarAccion, leerFicha, leerArchivoChecador, datosFichas } from '../../lib/agentActions'
 
 // Dictado por voz del navegador (Chrome/Android y Safari lo traen; si no, no se muestra el micrófono).
 const Dictado = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
@@ -94,13 +94,16 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
     }
   }
 
+  // Imágenes (tickets, fichas, INE…) y archivos del checador (CSV, TXT, DAT, Excel).
+  const esArchivoChecador = f => /\.(csv|txt|dat|xlsx?|xlsm)$/i.test(f.name) || /^text\//.test(f.type)
   const adjuntar = async (files) => {
-    const imgs = [...files].filter(f => f.type.startsWith('image/'))
-    if (imgs.length < files.length) setMessages(ms => [...ms, { role: 'assistant', content: 'Por ahora solo puedo leer fichas en imagen (JPG, PNG, WebP). Si es PDF, tómale captura.' }])
-    setLeyendo(n => n + imgs.length)
-    for (const f of imgs) {
-      try { const r = await leerFicha(f); setAdjuntos(a => [...a, r]) }
-      catch (e) { setMessages(ms => [...ms, { role: 'assistant', content: `No pude abrir ${f.name}: ${e.message}` }]) }
+    const lista = [...files]
+    const validos = lista.filter(f => f.type.startsWith('image/') || esArchivoChecador(f))
+    if (validos.length < lista.length) setMessages(ms => [...ms, { role: 'assistant', content: 'Puedo leer imágenes (JPG, PNG, WebP) y archivos de asistencia del checador (CSV, TXT, DAT o Excel). Si es PDF, tómale captura.' }])
+    setLeyendo(n => n + validos.length)
+    for (const f of validos) {
+      try { const r = f.type.startsWith('image/') ? await leerFicha(f) : await leerArchivoChecador(f); setAdjuntos(a => [...a, r]) }
+      catch (e) { setMessages(ms => [...ms, { role: 'assistant', content: `No pude leer ${f.name}: ${e.message}` }]) }
       finally { setLeyendo(n => n - 1) }
     }
   }
@@ -189,7 +192,12 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
         <div style={{ padding: '8px 12px 0', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid #E5E7EB' }}>
           {adjuntos.map(a => (
             <div key={a.id} style={{ position: 'relative' }}>
-              <img src={a.miniatura} alt={a.id} style={{ height: movil ? '56px' : '44px', borderRadius: '6px', border: '1px solid #E5E7EB' }} />
+              {a.miniatura
+                ? <img src={a.miniatura} alt={a.id} style={{ height: movil ? '56px' : '44px', borderRadius: '6px', border: '1px solid #E5E7EB' }} />
+                : <div style={{ height: movil ? '56px' : '44px', maxWidth: 150, padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <FileText size={16} color="var(--color-primary)" />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.archivo}</span>
+                  </div>}
               <button onClick={() => setAdjuntos(x => x.filter(y => y.id !== a.id))} title="Quitar"
                 style={{ position: 'absolute', top: '-7px', right: '-7px', width: movil ? 22 : 16, height: movil ? 22 : 16, borderRadius: '50%', border: 'none', background: '#374151', color: 'white', fontSize: '12px', cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
@@ -203,10 +211,10 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
         padding: movil ? '10px 10px calc(10px + env(safe-area-inset-bottom))' : '12px 16px',
         borderTop: adjuntos.length || leyendo ? 'none' : '1px solid #E5E7EB', display: 'flex', gap: '8px', alignItems: 'center',
       }}>
-        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
+        <input ref={fileRef} type="file" accept="image/*,.csv,.txt,.dat,.xls,.xlsx,text/plain,text/csv" multiple hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
         {movil && <button onClick={() => camRef.current?.click()} title="Tomar foto" style={btnIcono}><Camera size={icono} color="var(--color-primary)" /></button>}
-        <button onClick={() => fileRef.current?.click()} title="Adjuntar imagen" style={btnIcono}><Paperclip size={icono} color="var(--color-text-light)" /></button>
+        <button onClick={() => fileRef.current?.click()} title="Adjuntar imagen o archivo de asistencia" style={btnIcono}><Paperclip size={icono} color="var(--color-text-light)" /></button>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}

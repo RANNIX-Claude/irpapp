@@ -474,6 +474,59 @@ const ACCIONES = {
       }
     },
   },
+
+  importar_asistencia: {
+    descripcion: 'Importa el archivo de asistencia del reloj checador (marcajes de entrada y salida) a RH. Los marcajes se guardan tal cual y la base calcula el estado de cada día (presente, retardo, falta); volver a cargar el mismo archivo no duplica. Solo importa a quien reconoce con certeza (por número de empleado o nombre único); el resto lo reporta y NO se importa. Parámetros: ficha (id del archivo adjunto, p. ej. "F3"); opcional asignaciones: objeto { "<número o nombre que trae el checador>": "<número de empleado o nombre completo del catálogo>" } para marcajes sin reconocer que el usuario te indicó a quién pertenecen.',
+    async preparar(db, p, ctx) {
+      const d = ctx.fichas?.[p.ficha]
+      if (!d || d.tipo_documento !== 'ARCHIVO_CHECADOR' || !d.eventos?.length) return { error: `No tengo el archivo ${p.ficha || ''}: pide al usuario que lo adjunte de nuevo (CSV, TXT, DAT o Excel del checador).` }
+
+      const { data: emps, error: eE } = await db.from('prp_empleados').select('id, numero_empleado, nombre_completo')
+      if (eE) return { error: eE.message }
+      const { resolverMarcajes } = require('../../src/lib/checador.js')
+      const { filas, grupos, sinReconocer } = resolverMarcajes(emps || [], d.eventos, p.asignaciones || {})
+      if (!filas.length) return { error: `No pude reconocer a nadie del archivo (${sinReconocer.length} persona(s) sin coincidencia). Pide al usuario a quién corresponde cada número del checador para pasarlo en asignaciones.` }
+
+      // Los marcajes que ya están en la base se omiten (se compara la hora de pared, sin zona).
+      const fechas = filas.map(f => f.fecha_hora).sort()
+      const desde = fechas[0].slice(0, 10), hasta = fechas[fechas.length - 1].slice(0, 10)
+      const ids = [...new Set(filas.map(f => f.empleado_id))]
+      const existentes = new Set()
+      for (let i = 0; ; i += 1000) {
+        const { data } = await db.from('rh_checadas').select('empleado_id, fecha_hora, operacion')
+          .in('empleado_id', ids).gte('fecha', desde).lte('fecha', hasta).order('id').range(i, i + 999)
+        for (const x of data || []) existentes.add(`${x.empleado_id}|${String(x.fecha_hora).replace('T', ' ').slice(0, 19)}|${x.operacion}`)
+        if (!data || data.length < 1000) break
+      }
+      const nuevas = filas.filter(f => !existentes.has(`${f.empleado_id}|${f.fecha_hora}|${f.operacion}`))
+      const yaEstaban = filas.length - nuevas.length
+      if (!nuevas.length) return { error: `Los ${filas.length} marcajes reconocidos (${desde} → ${hasta}) ya estaban registrados. No hay nada nuevo que importar.` }
+
+      const dias = new Set(nuevas.map(f => `${f.empleado_id}|${f.fecha_hora.slice(0, 10)}`)).size
+      const persona = g => `${g.numero} ${g.empleado}`
+      const porNombre = grupos.filter(g => g.via === 'nombre' || g.via === 'primer_nombre')
+      const avisos = []
+      if (sinReconocer.length) avisos.push(`${sinReconocer.length} persona(s) del archivo NO se importan porque no las reconozco con certeza; dime a quién corresponden y las incluyo.`)
+      if (porNombre.length) avisos.push(`Reconocidas solo por nombre (verifica): ${porNombre.map(g => `${g.nombre || g.numero} → ${g.empleado}`).join('; ')}.`)
+      if (yaEstaban) avisos.push(`${yaEstaban} marcaje(s) ya estaban registrados y se omiten.`)
+
+      return {
+        params: {
+          ficha: p.ficha, archivo: d.nombre_archivo || null, filas: nuevas, desde, hasta, personas: ids.length,
+        },
+        titulo: `Importar asistencia — ${nuevas.length} marcajes`,
+        confirmar: 'Importar asistencia',
+        resumen: [
+          ['Archivo', `${d.nombre_archivo || 'checador'} · ${d.eventos.length} marcajes`],
+          ['Periodo', `${desde} → ${hasta}`],
+          ['Se importan', `${nuevas.length} marcajes · ${dias} días · ${ids.length} persona(s)`],
+          ['Personal', grupos.slice(0, 8).map(persona).join(', ') + (grupos.length > 8 ? ` y ${grupos.length - 8} más` : '')],
+          ...(sinReconocer.length ? [['Sin reconocer', sinReconocer.slice(0, 5).map(s => `${s.numero}${s.nombre ? ` «${s.nombre}»` : ''} (${s.marcajes}): ${s.motivo}`).join(' | ')]] : []),
+        ],
+        aviso: avisos.join(' ') || undefined,
+      }
+    },
+  },
 }
 
 // ─── Utilidades de identidad ────────────────────────────────────────────────
@@ -655,6 +708,7 @@ ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_a
 - Imágenes adjuntas: llegan ya leídas como "[Ficha F1 adjunta: COMPROBANTE DE PAGO — …]" o "[Ficha F2 adjunta: TICKET DE COMPRA — …]". El tipo lo dice la ficha; no lo adivines por el nombre del proveedor. Con varias fichas, una llamada a proponer_accion por ficha en el mismo turno.
   · COMPROBANTE DE PAGO → aplicar_pago: ubica el contrato por el número de local que traiga (concepto/referencia) con consultar_datos en prp_contratos (VIGENTE) y contrasta el ordenante con el arrendatario; llama con contrato_id y ficha (el sistema toma importe, fecha y referencia de la ficha; no los copies). Si no hay local legible, hay más de un contrato posible o el ordenante no coincide, NO propongas: pregunta.
   · TICKET DE COMPRA → registrar_gasto: llama con ficha, grupo_gasto, categoria_lineas y una descripcion breve, decididos según LOS ARTÍCULOS (p. ej. refrescos y botanas para máquinas = 'Vending / Reabasto' + VENDING; jabón, cloro y escobas = 'Limpieza e higiene' + OPERACION; cemento o tornillos = 'Ferretería y materiales' + MANTENIMIENTO). Si los artículos mezclan grupos o no puedes decidir, pregunta en una línea. Nunca llames a un ticket "papelería" o "ferretería" por el nombre de la tienda.
+  · ARCHIVO DE ASISTENCIA (checador) → importar_asistencia: llama con ficha. El sistema reconoce a cada persona por número de empleado o por nombre único; a quien no reconoce con certeza NO lo importa y lo lista. Si el usuario te dice a quién corresponde un número o nombre sin reconocer, vuelve a llamar con asignaciones { "<lo que trae el checador>": "<número de empleado o nombre completo>" }. Nunca adivines a quién pertenece un número. Los marcajes se importan tal cual; el estado de cada día (presente, retardo, falta) lo calcula la base.
   · INE (frente/reverso) y COMPROBANTE DE DOMICILIO → altas. Si el usuario quiere dar de alta a un EMPLEADO (RH) usa alta_empleado; si es un ARRENDATARIO/inquilino/locatario usa alta_arrendatario. Si no dice cuál de los dos, pregúntalo en una línea. Pasa ficha_ine, ficha_ine_reverso y ficha_domicilio con los ids de las fichas; nombre, CURP, nacimiento, sexo y domicilio salen de las fichas (no los copies). Para empleado necesitas además el salario diario (pídelo si falta, junto con puesto y tipo de contrato en la misma pregunta). Para arrendatario pide RFC, teléfono y correo solo si el usuario no los dio, pero no bloquees el alta por eso. El alta de arrendatario no crea contrato; ofrécelo como siguiente paso.
   · Si la ficha dice que no se pudo leer o no es reconocida, pide al usuario los datos o que la retome.
 - Reglas de aplicación (ya las hace el sistema): si el concepto de la ficha nombra un periodo ("RENTA SEP 2026"), el pago cubre el cargo de ESE periodo (pasa periodo_mes y periodo_anio) y los demás atrasos solo se avisan; si el periodo ya está pagado o no existe, la herramienta te devuelve un error: explícale al usuario con esos datos (no adivines causas ni inventes fechas de generación o vencimiento) y pregunta qué hacer. Sin periodo en la ficha, cubre el cargo pendiente más antiguo. Si no alcanza queda PARCIAL; el excedente es saldo a favor del inquilino; el depósito queda POR_VALIDAR hasta la conciliación bancaria. Si la propuesta falla por referencia duplicada, díselo al usuario. Para cualquier otra modificación (cobros, gastos, altas, cambios de datos) di con franqueza que todavía no puedes hacerla desde el chat e indica el módulo donde se hace.
@@ -676,7 +730,7 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
     const ctx = {
       reservado: {},   // saldo ya asignado por propuestas de este turno
       // datos leídos por OCR de las imágenes adjuntas (sin imagen); tope de tamaño por si acaso
-      fichas: JSON.stringify(fichas).length < 400000 ? fichas : {},
+      fichas: JSON.stringify(fichas).length < 4000000 ? fichas : {},   // un archivo de checador mensual pesa cientos de KB
     }
 
     for (let vuelta = 0; vuelta <= MAX_VUELTAS; vuelta++) {

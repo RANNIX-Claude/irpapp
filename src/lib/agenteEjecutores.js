@@ -355,5 +355,29 @@ export function crearEjecutores(ctx) {
       })
       return { texto: `Arrendatario dado de alta: ${p.locatario}${avisos.length ? '; ' + avisos.join('; ') : ''}. Los documentos quedan PENDIENTES de aprobación.`, ruta: '/arrendatarios', id: a.id }
     },
+
+    // Guarda los MARCAJES en rh_checadas (nunca en rh_asistencia: un trigger consolida el día).
+    // Volver a cargar el mismo archivo no duplica nada (índice único + ignoreDuplicates).
+    async importar_asistencia(p) {
+      if (!Array.isArray(p.filas) || !p.filas.length) throw new Error('No hay marcajes que importar.')
+      let nuevos = 0
+      for (let i = 0; i < p.filas.length; i += 500) {
+        const { data, error } = await db.from('rh_checadas')
+          .upsert(p.filas.slice(i, i + 500), { onConflict: 'empleado_id,fecha_hora,operacion', ignoreDuplicates: true })
+          .select('id')
+        if (error) throw new Error(`Se importaron ${nuevos} marcajes y falló el resto: ${error.message}`)
+        nuevos += data?.length || 0
+      }
+      if (p.ficha) consumirFicha(p.ficha)
+      const yaEstaban = p.filas.length - nuevos
+      await audit({
+        modulo: 'RH', accion: 'IMPORTAR_ASISTENCIA', entidad: 'rh_checadas', entidad_id: null,
+        descripcion: `${nuevos} marcajes nuevos (${p.desde} → ${p.hasta}, ${p.personas} personas)${p.archivo ? ` de ${p.archivo}` : ''} (vía Agente Operativo)`,
+      })
+      return {
+        texto: `Asistencia importada: ${nuevos} marcajes nuevos de ${p.personas} persona(s), del ${p.desde} al ${p.hasta}${yaEstaban > 0 ? ` (${yaEstaban} ya estaban registrados)` : ''}. El estado de cada día lo calcula la base.`,
+        ruta: '/rh',
+      }
+    },
   }
 }
