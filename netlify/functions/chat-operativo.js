@@ -577,8 +577,13 @@ function resolverMarcajes(empleados, eventos, asignaciones = {}) {
       // personas distintas (el número se reasignó o el archivo es de otra plaza). Importarlo en
       // silencio le pondría asistencia a quien no es; se detiene y se pide confirmar con asignaciones.
       if (emp && p.nombre) {
-        const del = new Set(normChecador(emp.nombre_completo).split(' '))
-        if (!normChecador(p.nombre).split(' ').some(t => t && del.has(t))) {
+        // Un nombre de pila en común no basta (Luis Fernando Velázquez ≠ Luis Pérez León): se piden
+        // 2 palabras iguales cuando ambos nombres traen 2 o más. Un reloj que solo da el primer
+        // nombre (una palabra) se conforma con esa.
+        const delEmp = normChecador(emp.nombre_completo).split(' ').filter(Boolean)
+        const delArchivo = normChecador(p.nombre).split(' ').filter(Boolean)
+        const comunes = delArchivo.filter(t => delEmp.includes(t)).length
+        if (comunes < Math.min(2, delArchivo.length, delEmp.length)) {
           motivo = `el número coincide con ${emp.nombre_completo}, pero el archivo dice «${p.nombre}»: parecen personas distintas`
           emp = null; via = null
         }
