@@ -76,9 +76,14 @@ async function checkAndRunCorte(productos, onCorteEjecutado) {
       .eq('semana_id', sem.id)
 
     // 2. Cerrar la semana
-    await supabase.from('vending_semanas')
+    const { error: errCierre } = await supabase.from('vending_semanas')
       .update({ estado: 'CERRADA', fecha_corte: new Date().toISOString() })
       .eq('id', sem.id)
+    if (errCierre) {
+      // Antes este error se ignoraba y la semana quedaba ABIERTA para siempre sin que nadie lo viera.
+      console.error('Corte de vending: no se pudo cerrar la semana', sem.fecha_inicio, errCierre)
+      continue
+    }
 
     // 3. Crear semana siguiente
     const nuevaIni = addDays(sem.fecha_inicio, 7)
@@ -266,6 +271,10 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         precio_venta_semana:  parseFloat(prod?.precio_venta) || sp.precio_venta_semana,
         precio_compra_semana: form.tipo === 'COMPRA' ? precio : sp.precio_compra_semana,
       }).eq('id', sp.id)
+
+      // Un inventario negativo casi siempre es una compra (entrada) sin registrar
+      const invFinal = (parseFloat(sp.qty_inicial) || 0) + nuevoQtyCompras - nuevoQtyVentas
+      if (invFinal < 0) toast(`${prod?.producto || 'El producto'} quedó en ${invFinal}: falta registrar una compra o el inventario inicial.`, { icon: '⚠️', duration: 7000 })
 
       // 4. Sincronizar venta_pesos en vending_semanas (lo lee ResumenSemanal)
       const { data: totales } = await supabase
