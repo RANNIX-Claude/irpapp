@@ -399,10 +399,12 @@ export default function EDR() {
     // Fallback: si el ingreso no tiene aplicaciones_pago, usa clasificacion/mes/anio del ingreso.
     const { data } = await supabase
       .from('ingresos')
-      .select('id, origen, importe, clasificacion, mes, anio, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
+      .select('id, origen, importe, clasificacion, mes, anio, estatus_validacion, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
     if (data) {
-      const filas = data.flatMap(ing => {
+      // Un ingreso POR_VALIDAR aún no está confirmado en banco: no entra al real del EDR
+      // (ni, por tanto, al reporte del propietario) hasta que se valide.
+      const filas = data.filter(ing => ing.estatus_validacion !== 'POR_VALIDAR').flatMap(ing => {
         const apps = ing.aplicaciones_pago ?? []
         if (apps.length > 0) {
           return apps.map(ap => ({

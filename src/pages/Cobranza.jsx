@@ -1007,7 +1007,7 @@ export default function Cobranza() {
 
   // Contratos activos para selector
   useEffect(() => {
-    supabase.from('prp_contratos').select('id, folio, arrendatario_nombre, locales_display, locales_referencia')
+    supabase.from('prp_contratos').select('id, folio, arrendatario_nombre, locales_display, locales_referencia, estatus_proceso')
       .then(({ data }) => setContratos(data || []))
   }, [])
 
@@ -1036,7 +1036,10 @@ export default function Cobranza() {
     fetchIngresos()
   }, [refreshKey])
 
-  const lista = cartera || []
+  // Un contrato terminado/cancelado ya no se cobra: sus cargos no entran a la cartera
+  // (ni a Por Cobrar ni a Cartera Vencida). El saldo que hubiera queda a la vista en el contrato.
+  const contratosTerminados = new Set(contratos.filter(c => c.estatus_proceso === 'TERMINADO').map(c => c.id))
+  const lista = (cartera || []).filter(c => !contratosTerminados.has(c.contrato_id))
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
 
   // KPIs
