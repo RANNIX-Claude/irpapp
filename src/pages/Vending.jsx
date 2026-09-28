@@ -996,7 +996,7 @@ export default function Vending() {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Producto','Inventario','Vtas/sem','Venta $$','Utilidad','% Inv','Semanas',''].map((h,i) => (
+                      {['Producto','Inv. inicial','Compras','Ventas','Inventario','Venta $$','Utilidad','% Inv','Semanas',''].map((h,i) => (
                         <th key={h+i} style={{ padding:'9px 14px', textAlign: i===0?'left':'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -1004,6 +1004,8 @@ export default function Vending() {
                   <tbody>
                     {detalle.map((d, i) => {
                       const prod    = d.vending_productos
+                      const inicial = parseFloat(d.qty_inicial) || 0
+                      const compras = parseFloat(d.qty_compras) || 0
                       const stock   = parseFloat(d.qty_final) || 0
                       const ventas  = parseFloat(d.qty_ventas) || 0
                       const sinStock = stock <= 0
@@ -1020,8 +1022,10 @@ export default function Vending() {
                             {prod?.producto || '—'}
                             {sinStock && <span style={{ marginLeft:'6px', fontSize:'10px', color:'var(--color-danger)', fontWeight:800 }}>SIN STOCK</span>}
                           </td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF' }}>{fmtN(inicial)}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#0A66C2', fontWeight:600 }}>{compras > 0 ? '+' + fmtN(compras) : fmtN(compras)}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{ventas > 0 ? '−' + fmtN(ventas) : fmtN(ventas)}</td>
                           <td style={{ padding:'11px 14px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
-                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(ventas)}</td>
                           <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
                           <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color:'var(--color-success)' }}>{util !== null ? fmt(util) : '—'}</td>
                           <td style={{ padding:'9px 14px', textAlign:'right' }}>
@@ -1047,8 +1051,10 @@ export default function Vending() {
                   <tfoot>
                     <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB' }}>
                       <td style={{ padding:'10px 14px', fontSize:'12px' }}>TOTAL</td>
-                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_inicial)||0),0))}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#0A66C2' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_compras)||0),0))}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(totUnidVentas)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
                       <td colSpan={3} />
@@ -1072,8 +1078,10 @@ export default function Vending() {
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>U/Pza</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap', borderRight:'2px solid #CBD5E1' }}>Utilidad</th>
                       {/* Grupo semana */}
-                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inventario</th>
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inv. inicial</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Compras</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Vta Uds</th>
+                      <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inventario</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Venta $$</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#057642', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Util sem</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>% Inv</th>
@@ -1085,6 +1093,8 @@ export default function Vending() {
                     {detalle.map((d, i) => {
                       const sinStock = parseFloat(d.qty_final) <= 0
                       const prod  = d.vending_productos
+                      const inicial = parseFloat(d.qty_inicial) || 0
+                      const compras = parseFloat(d.qty_compras) || 0
                       const stock = parseFloat(d.qty_final) || 0
                       const vtas  = parseFloat(d.qty_ventas) || 0
                       const costoU = prod?.costo_caja && prod?.unidades_caja ? parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja) : null
@@ -1118,10 +1128,14 @@ export default function Vending() {
                           <td style={{ ...tdN, color:'#057642' }}>{utilU ? fmt(utilU) : '—'}</td>
                           {/* Utilidad/caja */}
                           <td style={{ ...tdN, fontWeight:700, color:'#057642', borderRight:'2px solid #CBD5E1' }}>{utilCaja ? fmt(utilCaja) : '—'}</td>
-                          {/* Inventario (qty_final) */}
-                          <td style={{ ...tdN, fontWeight:800, color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
+                          {/* Inventario inicial de la semana */}
+                          <td style={{ ...tdN, color:'#9CA3AF' }}>{fmtN(inicial)}</td>
+                          {/* Compras de la semana */}
+                          <td style={{ ...tdN, color:'#0A66C2', fontWeight:600 }}>{compras > 0 ? '+' + fmtN(compras) : fmtN(compras)}</td>
                           {/* Vta Uds */}
-                          <td style={{ ...tdN, color:'#6B7280' }}>{fmtN(vtas)}</td>
+                          <td style={{ ...tdN, color:'#6B7280' }}>{vtas > 0 ? '−' + fmtN(vtas) : fmtN(vtas)}</td>
+                          {/* Inventario final = inicial + compras - ventas (qty_final, calculado en BD) */}
+                          <td style={{ ...tdN, fontWeight:800, color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
                           {/* Venta $$ */}
                           <td style={{ ...tdN, color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
                           {/* Utilidad semana */}
@@ -1150,8 +1164,10 @@ export default function Vending() {
                     <tr style={{ background:'#F3F4F6', fontWeight:800, borderTop:'2px solid #E5E7EB', fontSize:'12px' }}>
                       <td style={{ padding:'9px 10px' }}>TOTAL</td>
                       <td colSpan={7} style={{ borderRight:'2px solid #CBD5E1' }} />
-                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_inicial)||0),0))}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#0A66C2' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_compras)||0),0))}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(totUnidVentas)}</td>
+                      <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', color: utilidad>=0?'var(--color-success)':'var(--color-danger)', fontVariantNumeric:'tabular-nums' }}>{fmt(utilidad)}</td>
                       <td colSpan={3} />
