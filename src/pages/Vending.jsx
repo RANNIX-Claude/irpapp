@@ -54,6 +54,27 @@ function precioCostoPorUnidad(p) {
   return 0
 }
 
+// ── Totales de la semana → vending_semanas (lo lee ResumenSemanal/EDR) ─────
+// La utilidad ya viene calculada por fila en la BD (utilidad_semana = venta real − ventas × costo promedio
+// de ESA semana), así que cambiar el catálogo no reescribe semanas pasadas.
+async function sincronizarTotalesSemana(semanaId, extra = {}) {
+  const { data: rows } = await supabase
+    .from('vending_semana_producto')
+    .select('importe_ventas, qty_ventas, qty_compras, utilidad_semana')
+    .eq('semana_id', semanaId)
+  const suma = k => (rows || []).reduce((t, r) => t + (parseFloat(r[k]) || 0), 0)
+  const patch = {
+    venta_pesos:    suma('importe_ventas'),
+    utilidad:       suma('utilidad_semana'),
+    venta_unidades: suma('qty_ventas'),
+    compras:        suma('qty_compras'),
+    ...extra,
+  }
+  const { error } = await supabase.from('vending_semanas').update(patch).eq('id', semanaId)
+  if (error) console.error('Vending: no se pudieron sincronizar los totales de la semana', error)
+  return patch
+}
+
 // ── Corte semanal automático ───────────────────────────────────────────────
 async function checkAndRunCorte(productos, onCorteEjecutado) {
   const hoy = hoyLocal()
@@ -268,7 +289,7 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
         qty_ventas:     nuevoQtyVentas,
         importe_compras: nuevoImpCompras,
         importe_ventas:  nuevoImpVentas,
-        precio_venta_semana:  parseFloat(prod?.precio_venta) || sp.precio_venta_semana,
+        precio_venta_semana:  form.tipo === 'VENTA' ? (precio || sp.precio_venta_semana) : sp.precio_venta_semana,
         precio_compra_semana: form.tipo === 'COMPRA' ? precio : sp.precio_compra_semana,
       }).eq('id', sp.id)
 
@@ -276,27 +297,8 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
       const invFinal = (parseFloat(sp.qty_inicial) || 0) + nuevoQtyCompras - nuevoQtyVentas
       if (invFinal < 0) toast(`${prod?.producto || 'El producto'} quedó en ${invFinal}: falta registrar una compra o el inventario inicial.`, { icon: '⚠️', duration: 7000 })
 
-      // 4. Sincronizar venta_pesos en vending_semanas (lo lee ResumenSemanal)
-      const { data: totales } = await supabase
-        .from('vending_semana_producto')
-        .select('importe_ventas, importe_compras, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
-        .eq('semana_id', semanaId)
-      const totVentas  = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
-      const totCompras = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_compras)||0), 0)
-      const totUnidV   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
-      const totUnidC   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
-      const totUtil    = (totales||[]).reduce((s,r) => {
-        const p = r.vending_productos
-        if (!p?.precio_venta || !p?.costo_caja || !p?.unidades_caja) return s
-        const cu = parseFloat(p.costo_caja) / parseInt(p.unidades_caja)
-        return s + (parseFloat(p.precio_venta) - cu) * (parseFloat(r.qty_ventas)||0)
-      }, 0)
-      await supabase.from('vending_semanas').update({
-        venta_pesos:    totVentas,
-        utilidad:       totUtil,
-        venta_unidades: totUnidV,
-        compras:        totUnidC,
-      }).eq('id', semanaId)
+      // 4. Sincronizar totales en vending_semanas (lo lee ResumenSemanal)
+      await sincronizarTotalesSemana(semanaId)
 
       logAudit({ modulo: 'VENDING', accion: editMov ? 'EDITAR' : 'CREAR', descripcion: `${form.tipo} ${editMov ? 'actualizada' : 'registrada'}: ${prod?.nombre || ''} x${cant}` })
       toast.success(`${form.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} ${editMov ? 'actualizada' : 'registrada'}`)
@@ -403,68 +405,93 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
   )
 }
 
-// ── Modal: Ajuste de Inventario Inicial ──────────────────────────────────────
+// ── Modal: Conteo físico del inventario inicial ──────────────────────────────
+// El inventario teórico (final de la semana anterior) es solo la sugerencia; lo que se cuenta manda.
+// La diferencia queda registrada como ajuste/merma de esa semana (qty_ajuste_inicial).
 function ModalAjusteInicial({ semanaId, detalle, onClose, onSaved }) {
+  const teoricoDe = d => (d.qty_inicial_confirmado
+    ? (parseFloat(d.qty_inicial) || 0) - (parseFloat(d.qty_ajuste_inicial) || 0)
+    : (parseFloat(d.qty_inicial) || 0))
   const [vals, setVals] = useState(() => {
     const m = {}
     detalle.forEach(d => { m[d.id] = String(parseFloat(d.qty_inicial) || 0) })
     return m
   })
+  const [motivo, setMotivo] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const dif = d => (parseFloat(vals[d.id]) || 0) - teoricoDe(d)
+  const conDif = detalle.filter(d => dif(d) !== 0)
+
   const guardar = async () => {
+    if (detalle.some(d => (parseFloat(vals[d.id]) || 0) < 0)) return toast.error('El conteo no puede ser negativo')
     setSaving(true)
-    for (const d of detalle) {
-      await supabase.from('vending_semana_producto')
-        .update({ qty_inicial: parseFloat(vals[d.id]) || 0 })
-        .eq('id', d.id)
-    }
-    toast.success('Inventario inicial actualizado')
+    const conteos = detalle.map(d => ({ producto_id: d.producto_id, qty: parseFloat(vals[d.id]) || 0 }))
+    const { data, error } = await supabase.rpc('confirmar_inventario_inicial', {
+      p_semana_id: semanaId, p_conteos: conteos, p_motivo: motivo.trim() || null,
+    })
     setSaving(false)
+    if (error) return toast.error(error.message)
+    logAudit({ modulo: 'VENDING', accion: 'EDITAR', entidad_id: semanaId, descripcion: `Conteo físico inicial: ${data} productos, ${conDif.length} con diferencia` })
+    toast.success(`Inventario inicial confirmado (${data} productos${conDif.length ? `, ${conDif.length} con ajuste` : ''})`)
     onSaved()
   }
 
   const inp = { width:'80px', padding:'6px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px', fontSize:'14px', fontWeight:700, textAlign:'right', boxSizing:'border-box' }
+  const th = (c, txt) => <th style={{ padding:'8px 12px', textAlign: txt==='Producto'?'left':'right', fontSize:'10px', fontWeight:800, color:c, textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>{txt}</th>
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
-      <div style={{ background:'white', borderRadius:'14px', width:'460px', maxWidth:'95vw', maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+      <div style={{ background:'white', borderRadius:'14px', width:'560px', maxWidth:'95vw', maxHeight:'88vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #F3F4F6', flexShrink:0 }}>
           <div>
-            <div style={{ fontWeight:800, fontSize:'15px', color:'#111827' }}>📦 Ajustar Inventario Inicial</div>
-            <div style={{ fontSize:'12px', color:'#6B7280', marginTop:'2px' }}>Unidades físicas existentes al inicio de la semana</div>
+            <div style={{ fontWeight:800, fontSize:'15px', color:'#111827' }}>📦 Conteo físico — inventario inicial</div>
+            <div style={{ fontSize:'12px', color:'#6B7280', marginTop:'2px' }}>Captura lo que realmente hay al abrir la semana. La diferencia contra el teórico se registra como ajuste.</div>
           </div>
           <button onClick={onClose} style={{ background:'#F3F4F6', border:'none', borderRadius:'6px', padding:'6px', cursor:'pointer', display:'flex', color:'#6B7280' }}><X size={16}/></button>
         </div>
         <div style={{ overflowY:'auto', flex:1 }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
-            <thead>
-              <tr style={{ background:'#F9FAFB', position:'sticky', top:0 }}>
-                <th style={{ padding:'8px 16px', textAlign:'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Producto</th>
-                <th style={{ padding:'8px 16px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Actual</th>
-                <th style={{ padding:'8px 16px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'1px solid #E5E7EB' }}>Nuevo inicial</th>
-              </tr>
-            </thead>
+            <thead><tr style={{ background:'#F9FAFB', position:'sticky', top:0 }}>
+              {th('#6B7280','Producto')}{th('#9CA3AF','Teórico')}{th('#0A66C2','Conteo físico')}{th('#6B7280','Diferencia')}
+            </tr></thead>
             <tbody>
-              {detalle.map((d, i) => (
-                <tr key={d.id} style={{ background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
-                  <td style={{ padding:'10px 16px', fontWeight:600, color:'#374151' }}>{d.vending_productos?.producto || '—'}</td>
-                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{parseFloat(d.qty_inicial)||0}</td>
-                  <td style={{ padding:'8px 16px', textAlign:'right' }}>
-                    <input type="number" min="0" step="1" value={vals[d.id]}
-                      onChange={e => setVals(v => ({ ...v, [d.id]: e.target.value }))}
-                      style={inp} />
-                  </td>
-                </tr>
-              ))}
+              {detalle.map((d, i) => {
+                const df = dif(d)
+                return (
+                  <tr key={d.id} style={{ background: df !== 0 ? '#FFFBEB' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                    <td style={{ padding:'9px 12px', fontWeight:600, color:'#374151' }}>
+                      {d.vending_productos?.producto || '—'}
+                      {d.qty_inicial_confirmado && <span title="Ya contado" style={{ marginLeft:'6px', fontSize:'10px', color:'#057642', fontWeight:800 }}>✓</span>}
+                    </td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', color: teoricoDe(d) < 0 ? '#B91C1C' : '#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{fmtN(teoricoDe(d))}</td>
+                    <td style={{ padding:'6px 12px', textAlign:'right' }}>
+                      <input type="number" min="0" step="1" value={vals[d.id]}
+                        onFocus={e => e.target.select()}
+                        onChange={e => setVals(v => ({ ...v, [d.id]: e.target.value }))}
+                        style={inp} />
+                    </td>
+                    <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontVariantNumeric:'tabular-nums', color: df === 0 ? '#D1D5DB' : df < 0 ? '#B91C1C' : '#057642' }}>
+                      {df === 0 ? '—' : (df > 0 ? '+' : '') + fmtN(df)}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
-        <div style={{ padding:'16px 20px', borderTop:'1px solid #F3F4F6', display:'flex', gap:'10px', flexShrink:0 }}>
-          <button onClick={onClose} style={{ flex:1, padding:'12px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', color:'#374151' }}>Cancelar</button>
-          <button onClick={guardar} disabled={saving} style={{ flex:2, padding:'12px', background:'#0A66C2', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:800, cursor:'pointer', opacity: saving?0.7:1 }}>
-            {saving ? 'Guardando…' : 'Guardar inventario inicial'}
-          </button>
+        <div style={{ padding:'14px 20px', borderTop:'1px solid #F3F4F6', flexShrink:0 }}>
+          {conDif.length > 0 && (
+            <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)}
+              placeholder={`Motivo de las ${conDif.length} diferencias (merma, caducidad, error de captura…)`}
+              style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #E5E7EB', borderRadius:'8px', fontSize:'13px', boxSizing:'border-box', marginBottom:'10px' }} />
+          )}
+          <div style={{ display:'flex', gap:'10px' }}>
+            <button onClick={onClose} style={{ flex:1, padding:'12px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:600, cursor:'pointer', color:'#374151' }}>Cancelar</button>
+            <button onClick={guardar} disabled={saving} style={{ flex:2, padding:'12px', background:'#0A66C2', color:'white', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:800, cursor:'pointer', opacity: saving?0.7:1 }}>
+              {saving ? 'Guardando…' : 'Confirmar conteo físico'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -640,23 +667,7 @@ export default function Vending() {
       await supabase.from('vending_movimientos').delete().eq('id', mov.id)
 
       // 4. Recalcular totales en vending_semanas
-      const { data: totales } = await supabase
-        .from('vending_semana_producto')
-        .select('importe_ventas, importe_compras, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
-        .eq('semana_id', mov.semana_id)
-      const totVentas = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
-      const totUtil   = (totales||[]).reduce((s,r) => {
-        const p = r.vending_productos
-        if (!p?.precio_venta || !p?.costo_caja || !p?.unidades_caja) return s
-        const cu = parseFloat(p.costo_caja) / parseInt(p.unidades_caja)
-        return s + (parseFloat(p.precio_venta) - cu) * (parseFloat(r.qty_ventas)||0)
-      }, 0)
-      const totUnidV = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
-      const totUnidC = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
-      await supabase.from('vending_semanas').update({
-        venta_pesos: totVentas, utilidad: totUtil,
-        venta_unidades: totUnidV, compras: totUnidC,
-      }).eq('id', mov.semana_id)
+      await sincronizarTotalesSemana(mov.semana_id)
 
       logAudit({ modulo: 'VENDING', accion: 'ELIMINAR', entidad_id: mov.id, descripcion: `${mov.tipo} eliminada: ${mov.producto_id}` })
       toast.success(`${mov.tipo === 'COMPRA' ? '📦 Compra' : '🛒 Venta'} eliminada`)
@@ -761,29 +772,12 @@ export default function Vending() {
   const ejecutarCorte = async () => {
     if (!semanaDb || semanaDb.estado === 'CERRADA') return
     setCortando(true)
-    // Calcular totales finales desde el detalle
+    // Totales finales desde el detalle; cierra la semana en el mismo UPDATE
+    await sincronizarTotalesSemana(semanaDb.id, { estado: 'CERRADA', fecha_corte: new Date().toISOString() })
     const { data: totales } = await supabase
       .from('vending_semana_producto')
-      .select('importe_ventas, importe_compras, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
+      .select('qty_final, qty_ventas, vending_productos(unidades_caja, producto)')
       .eq('semana_id', semanaDb.id)
-    const totVentas  = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
-    const totCompras = (totales||[]).reduce((s,r) => s + (parseFloat(r.importe_compras)||0), 0)
-    const totUnidV   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
-    const totUnidC   = (totales||[]).reduce((s,r) => s + (parseFloat(r.qty_compras)||0), 0)
-    const totUtil    = (totales||[]).reduce((s,r) => {
-      const p = r.vending_productos
-      if (!p?.precio_venta || !p?.costo_caja || !p?.unidades_caja) return s
-      const cu = parseFloat(p.costo_caja) / parseInt(p.unidades_caja)
-      return s + (parseFloat(p.precio_venta) - cu) * (parseFloat(r.qty_ventas)||0)
-    }, 0)
-    await supabase.from('vending_semanas').update({
-      estado:         'CERRADA',
-      fecha_corte:    new Date().toISOString(),
-      venta_pesos:    totVentas,
-      utilidad:       totUtil,
-      venta_unidades: totUnidV,
-      compras:        totUnidC,
-    }).eq('id', semanaDb.id)
     toast.success('Semana cerrada. Revisa la lista de compras sugerida.')
     // Construir lista de compras post-corte
     const lista = (totales || []).map(r => {
@@ -840,14 +834,8 @@ export default function Vending() {
   const totCompras = totComprasMov + gastosVending   // incluye gastos_operativos "Vending / Reabasto"
   const totUnidVentas  = detalle.reduce((s, r) => s + (parseFloat(r.qty_ventas) || 0), 0)
   const totUnidCompras = detalle.reduce((s, r) => s + (parseFloat(r.qty_compras)|| 0), 0)
-  // Utilidad real = (precio_venta - costo_unitario) × qty_ventas por producto
-  const utilidadReal = detalle.reduce((s, r) => {
-    const prod = r.vending_productos
-    if (!prod?.precio_venta || !prod?.costo_caja || !prod?.unidades_caja) return s
-    const costoU = parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja)
-    const utilU  = parseFloat(prod.precio_venta) - costoU
-    return s + utilU * (parseFloat(r.qty_ventas) || 0)
-  }, 0)
+  // Utilidad = suma de utilidad_semana (venta real − ventas × costo promedio de la semana), calculada en la BD
+  const utilidadReal = detalle.reduce((t, r) => t + (parseFloat(r.utilidad_semana) || 0), 0)
   const utilidad = utilidadReal
 
   const tabStyle = k => ({
@@ -925,10 +913,12 @@ export default function Vending() {
                 {semanaDb.estado === 'CERRADA' ? '✅ Semana cerrada' : '🔓 Semana abierta — capturando movimientos'}
               </span>
               <div style={{ display:'flex', gap:'8px' }}>
-                <button onClick={() => setModal('ajuste')}
-                  style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
-                  📦 Ajustar Inicial
-                </button>
+                {semanaDb.estado === 'ABIERTA' && (
+                  <button onClick={() => setModal('ajuste')}
+                    style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
+                    📦 Conteo físico
+                  </button>
+                )}
                 {semanaDb.estado === 'ABIERTA' && (
                   <button onClick={ejecutarCorte} disabled={cortando} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'none', borderRadius:'8px', background:'#1A3C5E', color:'white', cursor: cortando?'not-allowed':'pointer', fontSize:'12px', fontWeight:700 }}>
                     <Scissors size={13} /> {cortando ? 'Cerrando…' : 'Hacer Corte'}
@@ -1011,8 +1001,7 @@ export default function Vending() {
                       const sinStock = stock <= 0
                       const pct     = prod?.unidades_caja ? Math.round(stock / parseInt(prod.unidades_caja) * 100) : null
                       const sem     = ventas > 0 ? +(stock / ventas).toFixed(1) : null
-                      const costoU  = prod?.costo_caja && prod?.unidades_caja ? parseFloat(prod.costo_caja) / parseInt(prod.unidades_caja) : null
-                      const util    = costoU && prod?.precio_venta ? (parseFloat(prod.precio_venta) - costoU) * ventas : null
+                      const util    = parseFloat(d.utilidad_semana) || 0
                       const pctColor = !pct ? '#9CA3AF' : pct <= 30 ? '#B91C1C' : pct <= 60 ? '#92400E' : '#057642'
                       const pctBg   = !pct ? '#F9FAFB'  : pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
                       const semColor = sem === null ? '#9CA3AF' : sem < 1 ? '#B91C1C' : sem < 2 ? '#D97706' : '#057642'
@@ -1027,7 +1016,7 @@ export default function Vending() {
                           <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{ventas > 0 ? '−' + fmtN(ventas) : fmtN(ventas)}</td>
                           <td style={{ padding:'11px 14px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: sinStock?'var(--color-danger)':'#374151' }}>{fmtN(stock)}</td>
                           <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
-                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color:'var(--color-success)' }}>{util !== null ? fmt(util) : '—'}</td>
+                          <td style={{ padding:'11px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:700, color:'var(--color-success)' }}>{fmt(util)}</td>
                           <td style={{ padding:'9px 14px', textAlign:'right' }}>
                             {pct !== null
                               ? <span style={{ padding:'3px 9px', borderRadius:'10px', fontSize:'12px', fontWeight:800, background:pctBg, color:pctColor }}>{pct}%</span>
@@ -1080,6 +1069,7 @@ export default function Vending() {
                       {/* Grupo semana */}
                       <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inv. inicial</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Compras</th>
+                      <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Costo prom.</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Vta Uds</th>
                       <th style={{ padding:'8px 10px', textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Inventario</th>
                       <th style={{ padding:'8px 8px',  textAlign:'right', fontSize:'10px', fontWeight:800, color:'#0A66C2', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>Venta $$</th>
@@ -1101,7 +1091,7 @@ export default function Vending() {
                       const utilU  = costoU && prod?.precio_venta ? parseFloat(prod.precio_venta) - costoU : null
                       const ventaMax = prod?.precio_venta && prod?.unidades_caja ? parseFloat(prod.precio_venta) * parseInt(prod.unidades_caja) : null
                       const utilCaja = utilU && prod?.unidades_caja ? utilU * parseInt(prod.unidades_caja) : null
-                      const utilSem  = utilU ? utilU * vtas : null
+                      const utilSem  = parseFloat(d.utilidad_semana) || 0
                       const pct = prod?.unidades_caja && stock > 0 ? Math.round(stock / parseInt(prod.unidades_caja) * 100) : 0
                       const sem = vtas > 0 ? +(stock / vtas).toFixed(2) : null
                       const pctBg  = pct <= 30 ? '#FEE2E2' : pct <= 60 ? '#FEF3C7' : '#F0FDF4'
@@ -1129,9 +1119,11 @@ export default function Vending() {
                           {/* Utilidad/caja */}
                           <td style={{ ...tdN, fontWeight:700, color:'#057642', borderRight:'2px solid #CBD5E1' }}>{utilCaja ? fmt(utilCaja) : '—'}</td>
                           {/* Inventario inicial de la semana */}
-                          <td style={{ ...tdN, color:'#9CA3AF' }}>{fmtN(inicial)}</td>
+                          <td style={{ ...tdN, color:'#9CA3AF' }} title={d.qty_inicial_confirmado ? `Contado físicamente${parseFloat(d.qty_ajuste_inicial) ? ` · ajuste ${fmtN(d.qty_ajuste_inicial)}` : ''}${d.motivo_ajuste ? ' · ' + d.motivo_ajuste : ''}` : 'Arrastre teórico'}>{d.qty_inicial_confirmado && <span style={{ color:'#057642', marginRight:'4px' }}>✓</span>}{fmtN(inicial)}</td>
                           {/* Compras de la semana */}
                           <td style={{ ...tdN, color:'#0A66C2', fontWeight:600 }}>{compras > 0 ? '+' + fmtN(compras) : fmtN(compras)}</td>
+                          {/* Costo promedio ponderado de la semana */}
+                          <td style={{ ...tdN, color:'#6B7280' }}>{parseFloat(d.costo_prom_semana) > 0 ? '$' + parseFloat(d.costo_prom_semana).toFixed(2) : '—'}</td>
                           {/* Vta Uds */}
                           <td style={{ ...tdN, color:'#6B7280' }}>{vtas > 0 ? '−' + fmtN(vtas) : fmtN(vtas)}</td>
                           {/* Inventario final = inicial + compras - ventas (qty_final, calculado en BD) */}
@@ -1139,7 +1131,7 @@ export default function Vending() {
                           {/* Venta $$ */}
                           <td style={{ ...tdN, color:'var(--color-success)', fontWeight:600 }}>{fmt(d.importe_ventas)}</td>
                           {/* Utilidad semana */}
-                          <td style={{ ...tdN, fontWeight:700, color:'var(--color-success)' }}>{utilSem !== null ? fmt(utilSem) : '—'}</td>
+                          <td style={{ ...tdN, fontWeight:700, color:'var(--color-success)' }}>{fmt(utilSem)}</td>
                           {/* % Inv */}
                           <td style={{ padding:'7px 8px', textAlign:'right' }}>
                             <span style={{ padding:'2px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:800, background:pctBg, color:pctTxt }}>{pct}%</span>
@@ -1166,6 +1158,7 @@ export default function Vending() {
                       <td colSpan={7} style={{ borderRight:'2px solid #CBD5E1' }} />
                       <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#9CA3AF' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_inicial)||0),0))}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#0A66C2' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_compras)||0),0))}</td>
+                      <td />
                       <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums', color:'#6B7280' }}>{fmtN(totUnidVentas)}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(detalle.reduce((s,d)=>s+(parseFloat(d.qty_final)||0),0))}</td>
                       <td style={{ padding:'9px 8px', textAlign:'right', color:'var(--color-success)', fontVariantNumeric:'tabular-nums' }}>{fmt(totVentas)}</td>
@@ -1546,19 +1539,7 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
       }
 
       // Recalcular totales en vending_semanas
-      const { data: tots } = await supabase
-        .from('vending_semana_producto')
-        .select('importe_ventas, qty_ventas, qty_compras, vending_productos(precio_venta, costo_caja, unidades_caja)')
-        .eq('semana_id', semanaId)
-      const totV = (tots||[]).reduce((s,r) => s + (parseFloat(r.importe_ventas)||0), 0)
-      const totU = (tots||[]).reduce((s,r) => s + (parseFloat(r.qty_ventas)||0), 0)
-      const totUtil = (tots||[]).reduce((s,r) => {
-        const p = r.vending_productos
-        if (!p?.precio_venta||!p?.costo_caja||!p?.unidades_caja) return s
-        const cu = parseFloat(p.costo_caja)/parseInt(p.unidades_caja)
-        return s + (parseFloat(p.precio_venta)-cu)*(parseFloat(r.qty_ventas)||0)
-      }, 0)
-      await supabase.from('vending_semanas').update({ venta_pesos: totV, utilidad: totUtil, venta_unidades: totU }).eq('id', semanaId)
+      await sincronizarTotalesSemana(semanaId)
 
       // Subir imagen fuente a Storage como referencia
       if (reporteB64) {
