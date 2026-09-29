@@ -5,6 +5,7 @@ import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
 import { supabase } from '../lib/supabase'
 import DatalistProveedores from '../components/compras/DatalistProveedores'
 import GuiaVending from '../components/ui/GuiaVending'
+import FlujoVending from '../components/ui/FlujoVending'
 import toast from 'react-hot-toast'
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -877,7 +878,7 @@ export default function Vending() {
 
       {/* ── Tabs ── */}
       <div style={{ borderBottom:'1px solid #E5E7EB', display:'flex', marginBottom:'20px' }}>
-        {[['semanal','📋 Control Semanal'],['movimientos','📝 Movimientos'],['catalogo','🏷️ Catálogo'],['guia','📖 Guía']].map(([k,l]) => (
+        {[['semanal','📋 Control Semanal'],['movimientos','📝 Movimientos'],['flujo','🔗 Flujo'],['catalogo','🏷️ Catálogo'],['guia','📖 Guía']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} style={tabStyle(k)}>{l}</button>
         ))}
       </div>
@@ -1244,6 +1245,9 @@ export default function Vending() {
           )}
         </div>
       )}
+
+      {/* ══ TAB: FLUJO (3 semanas: inicial · compras · ventas · final) ══ */}
+      {tab === 'flujo' && <FlujoVending semanas={semanas} refreshKey={refreshKey} />}
 
       {/* ══ TAB: GUÍA ══ */}
       {tab === 'guia' && <GuiaVending />}
