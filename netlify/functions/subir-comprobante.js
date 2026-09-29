@@ -11,8 +11,8 @@
  * valida la ruta para que nadie pueda escribir fuera de la carpeta que le toca.
  */
 
-const { createClient } = require('@supabase/supabase-js')
-const ws = require('ws')
+import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://kusuoxwzdxfuybvyiakg.supabase.co'
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -60,7 +60,7 @@ function rutaValida(filePath, bucket) {
   return filePath
 }
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin':  corsOrigin(event),
     'Access-Control-Allow-Methods': 'POST, OPTIONS',

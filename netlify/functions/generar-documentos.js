@@ -1,9 +1,9 @@
 // Genera contrato de subarrendamiento + 12 pagarés en DOCX
-const {
+import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   WidthType, AlignmentType, BorderStyle, ShadingType,
   PageBreak, PageOrientation, HeadingLevel, Footer, Header,
-} = require('docx');
+} from 'docx';
 
 // ─── Número a letras (español MX) ────────────────────────────────────────────
 const UNIDADES = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE',
@@ -436,7 +436,7 @@ function generarPagares(d) {
 }
 
 // ─── Handler Netlify ──────────────────────────────────────────────────────────
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }

@@ -2,12 +2,12 @@
 // Scheduled function — corre cada noche a las 23:55 MX time
 // Schedule: "55 5 * * *" (UTC equivale a 23:55 CST)
 
-const { createClient } = require('@supabase/supabase-js')
-const ws = require('ws')
+import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 const schedule = "55 5 * * *"
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     // realtime.transport: sin esto, supabase-js truena al crear el cliente en el
     // runtime de Netlify Functions (Node 20 sin WebSocket nativo expuesto). Antes
