@@ -4,6 +4,7 @@ import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
   Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import DatalistProveedores from '../components/compras/DatalistProveedores'
+import GuiaVending from '../components/ui/GuiaVending'
 import toast from 'react-hot-toast'
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -876,7 +877,7 @@ export default function Vending() {
 
       {/* ── Tabs ── */}
       <div style={{ borderBottom:'1px solid #E5E7EB', display:'flex', marginBottom:'20px' }}>
-        {[['semanal','📋 Control Semanal'],['movimientos','📝 Movimientos'],['catalogo','🏷️ Catálogo']].map(([k,l]) => (
+        {[['semanal','📋 Control Semanal'],['movimientos','📝 Movimientos'],['catalogo','🏷️ Catálogo'],['guia','📖 Guía']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} style={tabStyle(k)}>{l}</button>
         ))}
       </div>
@@ -1243,6 +1244,9 @@ export default function Vending() {
           )}
         </div>
       )}
+
+      {/* ══ TAB: GUÍA ══ */}
+      {tab === 'guia' && <GuiaVending />}
 
       {/* ══ TAB: CATÁLOGO ══ */}
       {tab === 'catalogo' && (
