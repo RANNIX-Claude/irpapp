@@ -536,6 +536,7 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
+  const [confirmarDesmarcar, setConfirmarDesmarcar] = useState(false)
   // Archivos CFDI del cargo
   const [facturaPdfFile, setFacturaPdfFile] = useState(null)
   const [facturaXmlFile, setFacturaXmlFile] = useState(null)
@@ -553,7 +554,21 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a cero'); return }
     if (!form.fecha_vencimiento) { setErr('La fecha de vencimiento es requerida'); return }
-    setSaving(true); setErr(null)
+
+    // El estado en prp_cartera es derivado de las aplicaciones_pago. Pasar a PENDIENTE
+    // un cargo que ya tiene pagos requiere borrar esas aplicaciones primero; de lo
+    // contrario la vista lo seguiría calculando como PAGADO/PARCIAL.
+    const tieneAplicaciones = parseFloat(cargo.total_aplicado || 0) > 0
+    const quierePendiente = form.estado === 'PENDIENTE' && cargo.estado !== 'PENDIENTE' && tieneAplicaciones
+    if (quierePendiente && !confirmarDesmarcar) { setConfirmarDesmarcar(true); return }
+
+    setSaving(true); setErr(null); setConfirmarDesmarcar(false)
+
+    if (quierePendiente) {
+      const { error: delErr } = await supabase.from('aplicaciones_pago').delete().eq('cargo_id', cargo.id)
+      if (delErr) { setSaving(false); setErr('No se pudieron revertir los pagos aplicados: ' + delErr.message); return }
+    }
+
     const { error } = await supabase.from('cargos_programados').update({
       concepto:          form.concepto,
       descripcion:       form.descripcion.trim() || null,
@@ -773,6 +788,27 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
             </div>
           </div>
         </div>
+
+        {confirmarDesmarcar && (
+          <div style={{ margin: '0 22px 14px', padding: '12px 14px', background: '#FEF3C7', border: '1.5px solid #F59E0B', borderRadius: 9 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>
+              ⚠ Este cargo tiene pagos registrados
+            </div>
+            <div style={{ fontSize: 12, color: '#78350F', marginBottom: 10 }}>
+              Marcarlo como PENDIENTE eliminará las distribuciones de pago asociadas a este cargo ({fmt(parseFloat(cargo.total_aplicado || 0))} aplicados). Los ingresos que los registraron no se eliminan.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmarDesmarcar(false)}
+                style={{ flex: 1, padding: '7px 0', border: '1.5px solid #D97706', borderRadius: 7, background: 'white', color: '#92400E', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
+                Cancelar
+              </button>
+              <button onClick={guardar}
+                style={{ flex: 2, padding: '7px 0', border: 'none', borderRadius: 7, background: '#D97706', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>
+                Sí, revertir y marcar como PENDIENTE
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '14px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: 10 }}>
           <button onClick={onClose}
