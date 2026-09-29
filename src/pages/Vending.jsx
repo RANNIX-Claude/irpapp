@@ -220,6 +220,27 @@ function ModalMovimiento({ semanaId, semanaIni, semanaFin, productos, productoPr
       return toast.error('Selecciona producto y cantidad')
     setSaving(true)
     try {
+      // No se puede vender lo que no hay: venta ≤ inicial + compras − ventas ya registradas.
+      // Se valida ANTES de escribir nada; al editar, el movimiento anterior se libera/quita primero.
+      const stockDe = async (pid) => {
+        const { data: r } = await supabase.from('vending_semana_producto')
+          .select('qty_inicial, qty_compras, qty_ventas').eq('semana_id', semanaId).eq('producto_id', pid).maybeSingle()
+        return r ? (parseFloat(r.qty_inicial)||0) + (parseFloat(r.qty_compras)||0) - (parseFloat(r.qty_ventas)||0) : 0
+      }
+      const cantNueva = parseFloat(form.cantidad)
+      const nombreProd = productos.find(p => p.id === form.producto_id)?.producto || 'el producto'
+      let disp = await stockDe(form.producto_id)
+      if (editMov) {
+        const cantV = parseFloat(editMov.cantidad) || 0
+        if (editMov.producto_id === form.producto_id) disp += editMov.tipo === 'VENTA' ? cantV : -cantV
+        else if (editMov.tipo === 'COMPRA' && (await stockDe(editMov.producto_id)) - cantV < 0)
+          throw new Error('Esa compra ya se vendió: mover o quitarla dejaría el inventario del producto anterior en negativo.')
+      }
+      if (form.tipo === 'VENTA' && cantNueva > disp)
+        throw new Error(`No puedes vender ${fmtN(cantNueva)} de ${nombreProd}: solo hay ${fmtN(Math.max(disp, 0))} disponibles (inicial + compras − ventas). Registra la compra o el conteo físico primero.`)
+      if (form.tipo === 'COMPRA' && disp + cantNueva < 0)
+        throw new Error(`Con esta compra ${nombreProd} seguiría en negativo (${fmtN(disp + cantNueva)}). Registra el resto de la compra o el conteo físico.`)
+
       // Si es edición, revertir el movimiento anterior primero
       if (editMov) {
         const { data: spViejo } = await supabase
@@ -656,6 +677,8 @@ export default function Vending() {
 
       const cant = parseFloat(mov.cantidad) || 0
       const imp  = parseFloat(mov.importe)  || 0
+      if (mov.tipo === 'COMPRA' && (parseFloat(sp.qty_final) || 0) - cant < 0)
+        throw new Error('No se puede eliminar esa compra: ya se vendió y el inventario quedaría en negativo. Elimina antes las ventas.')
 
       // 2. Revertir snapshot
       const patch = mov.tipo === 'COMPRA'
@@ -1504,11 +1527,15 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
   }
 
   const totalUds   = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0), 0)
+  // No se puede vender lo que no hay: cada cantidad ≤ inventario disponible (final actual de la semana)
+  const disponible = p => Math.max(parseFloat(stockMap[p.id]) || 0, 0)
+  const excedidos  = prodActivos.filter(p => (parseFloat(cantidades[p.id]) || 0) > disponible(p))
   const totalPesos = prodActivos.reduce((s, p) => s + (parseFloat(cantidades[p.id]) || 0) * (parseFloat(p.precio_venta) || 0), 0)
 
   const guardar = async () => {
     const lineas = prodActivos.filter(p => parseFloat(cantidades[p.id]) > 0)
     if (!lineas.length) return toast.error('Ingresa al menos una cantidad')
+    if (excedidos.length) return toast.error(`No puedes vender más de lo que hay: ${excedidos.map(p => `${p.producto} (máx ${fmtN(disponible(p))})`).join(', ')}`)
     setSaving(true)
     try {
       for (const prod of lineas) {
@@ -1614,8 +1641,9 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
                 const cant = parseFloat(cantidades[p.id]) || 0
                 const sub  = cant * (parseFloat(p.precio_venta) || 0)
                 const stock = stockMap[p.id] ?? '—'
+                const exceso = cant > disponible(p)
                 return (
-                  <tr key={p.id} style={{ background: cant > 0 ? '#F0FDF4' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                  <tr key={p.id} style={{ background: exceso ? '#FEE2E2' : cant > 0 ? '#F0FDF4' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                     <td style={{ padding:'7px 12px', fontWeight:600 }}>{p.producto}</td>
                     <td style={{ padding:'7px 12px', textAlign:'right', color: stock < 0 ? '#B91C1C' : '#6B7280', fontVariantNumeric:'tabular-nums' }}>{typeof stock === 'number' ? stock.toLocaleString('es-MX',{maximumFractionDigits:0}) : stock}</td>
                     <td style={{ padding:'7px 12px', textAlign:'right', color:'#6B7280' }}>${parseFloat(p.precio_venta||0).toLocaleString('es-MX')}</td>
@@ -1626,7 +1654,8 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
                         onChange={e => set(p.id, e.target.value)}
                         onFocus={e => e.target.select()}
                         placeholder="0"
-                        style={{ ...inputS, borderColor: cant > 0 ? '#057642' : '#E5E7EB', outline: cant > 0 ? '2px solid #BBF7D0' : 'none' }}
+                        title={exceso ? `Solo hay ${fmtN(disponible(p))} disponibles` : undefined}
+                        style={{ ...inputS, borderColor: exceso ? '#B91C1C' : cant > 0 ? '#057642' : '#E5E7EB', outline: exceso ? '2px solid #FCA5A5' : cant > 0 ? '2px solid #BBF7D0' : 'none' }}
                       />
                     </td>
                     <td style={{ padding:'7px 12px', textAlign:'right', fontWeight:700, color: cant > 0 ? '#057642' : '#D1D5DB', fontVariantNumeric:'tabular-nums' }}>
@@ -1649,9 +1678,14 @@ function ModalCargaBloque({ semanaId, semanaFin, detalle, productos, onClose, on
               Total: ${totalPesos.toLocaleString('es-MX',{maximumFractionDigits:0})}
             </div>
           </div>
+          {excedidos.length > 0 && (
+            <div style={{ fontSize:'12px', color:'#B91C1C', background:'#FEE2E2', borderRadius:'6px', padding:'7px 10px', marginBottom:'10px', fontWeight:600 }}>
+              No hay inventario suficiente: {excedidos.map(p => `${p.producto} (máx ${fmtN(disponible(p))})`).join(' · ')}. Registra la compra o el conteo físico antes.
+            </div>
+          )}
           <div style={{ display:'flex', gap:'10px' }}>
             <button onClick={onClose} style={{ flex:1, padding:'10px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600, color:'#6B7280' }}>Cancelar</button>
-            <button onClick={guardar} disabled={saving || totalUds === 0} style={{ flex:2, padding:'10px', border:'none', borderRadius:'8px', background:'#057642', color:'white', cursor: (saving||totalUds===0)?'not-allowed':'pointer', fontSize:'13px', fontWeight:700, opacity:(saving||totalUds===0)?0.6:1 }}>
+            <button onClick={guardar} disabled={saving || totalUds === 0 || excedidos.length > 0} style={{ flex:2, padding:'10px', border:'none', borderRadius:'8px', background:'#057642', color:'white', cursor: (saving||totalUds===0||excedidos.length>0)?'not-allowed':'pointer', fontSize:'13px', fontWeight:700, opacity:(saving||totalUds===0||excedidos.length>0)?0.6:1 }}>
               {saving ? 'Registrando…' : `Registrar ${totalUds.toLocaleString('es-MX')} unidades`}
             </button>
           </div>
