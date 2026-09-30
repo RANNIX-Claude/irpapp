@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { FileText, Upload, CheckCircle2, Search, RefreshCw, X, Paperclip } from 'lucide-react'
+import { FileText, Upload, Search, RefreshCw } from 'lucide-react'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import toast from 'react-hot-toast'
@@ -10,16 +10,14 @@ const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-MX', { style: 
 export default function Facturacion() {
   const [cargos, setCargos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [busqueda, setBusqueda] = useState([])
-  const [filtro, setFiltro] = useState('PENDIENTE') // PENDIENTE | COMPLETADO
-  const [subiendo, setSubiendo] = useState(null)
-  const [modalCargo, setModalCargo] = useState(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [filtro, setFiltro] = useState('PENDIENTE')
 
   const cargar = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('prp_cartera')
-      .select('id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, contrato_id, contrato_folio, arrendatario_nombre, locales_display, numero_factura, factura_url, factura_xml_url, tiene_factura, tiene_comprobante, tiene_pago_transferencia, tiene_pago_efectivo')
+      .select('id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, contrato_id, contrato_folio, arrendatario_nombre, locales_display, numero_factura, factura_url, factura_xml_url, tiene_factura, tiene_comprobante')
       .in('estado', ['PAGADO', 'PARCIAL'])
       .order('fecha_vencimiento', { ascending: false })
     if (error) { toast.error('Error: ' + error.message); setLoading(false); return }
@@ -160,8 +158,6 @@ function CargoFactura({ cargo: c, onActualizar }) {
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>
               {MESES[c.periodo_mes]} {c.periodo_anio}
             </span>
-            {c.tiene_pago_transferencia && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#DBEAFE', color: '#1D4ED8' }}>T</span>}
-            {c.tiene_pago_efectivo && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#FEF3C7', color: '#92400E' }}>E</span>}
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{c.arrendatario_nombre}</div>
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>{c.locales_display} · {c.contrato_folio}</div>
