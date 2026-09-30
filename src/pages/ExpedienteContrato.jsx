@@ -4,7 +4,7 @@ import {
   ArrowLeft, Building2, FileText, CreditCard, BarChart2, Phone, Mail,
   Calendar, Hash, Upload, ChevronRight, Printer, Shield, AlertTriangle,
   CheckCircle, Clock, Download, MapPin, Plus, X, Save,
-  Eye, Pencil, ZoomIn, ExternalLink, Paperclip,
+  Eye, Pencil, ZoomIn, ExternalLink, Paperclip, Wallet,
   ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
@@ -33,7 +33,8 @@ const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','N
 const TABS = [
   { id: 'resumen',    label: 'Resumen',    icon: BarChart2 },
   { id: 'contrato',   label: 'Contrato',   icon: FileText },
-  { id: 'pagos',      label: 'Pagos',      icon: CreditCard },
+  { id: 'pagos',      label: 'Cobros',     icon: CreditCard },
+  { id: 'ingresos',   label: 'Ingresos',   icon: Wallet },
   { id: 'documentos', label: 'Documentos', icon: Shield },
 ]
 
@@ -352,7 +353,7 @@ export default function ExpedienteContrato() {
   const [bulkAnio, setBulkAnio] = useState(new Date().getFullYear())
   const [confirmBulk, setConfirmBulk] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const reload = () => setRefreshKey(k => k + 1)
+  const reload = () => { setRefreshKey(k => k + 1); setPagosContrato([]) }
   // Rich detail view para cobro → ingresos
   const [ingresoDetalle, setIngresoDetalle] = useState(null)      // ingreso seleccionado
   const [ingresoDetalleApls, setIngresoDetalleApls] = useState([]) // aplicaciones del ingreso
@@ -360,6 +361,8 @@ export default function ExpedienteContrato() {
   const [editIngreso, setEditIngreso] = useState(null)            // abrir IngresoModal
   const [editContratoOpen, setEditContratoOpen] = useState(false) // editar datos del contrato completo
   const [uploadingDoc, setUploadingDoc] = useState(null)          // key del doc que se está subiendo
+  const [pagosContrato, setPagosContrato] = useState([])
+  const [loadingPagos, setLoadingPagos] = useState(false)
 
   const subirDocContrato = async (key, file) => {
     if (!file || !id) return
@@ -419,6 +422,8 @@ export default function ExpedienteContrato() {
     const cobroIds = cobrosBase.map(r => r.id).filter(Boolean)
     let comprobantesSet = new Set()
     let validacionMap = {}
+    let referenciaBancoMap = {}
+    let fechaPagoMap = {}
     if (cobroIds.length > 0) {
       const { data: aplsComp } = await supabase
         .from('aplicaciones_pago')
@@ -429,13 +434,15 @@ export default function ExpedienteContrato() {
         if (ingIds.length > 0) {
           const { data: ingsInfo } = await supabase
             .from('ingresos')
-            .select('id, comprobante_url, estatus_validacion')
+            .select('id, comprobante_url, estatus_validacion, referencia_banco, fecha')
             .in('id', ingIds)
           const ingMap = Object.fromEntries((ingsInfo || []).map(i => [i.id, i]))
           aplsComp.forEach(a => {
             const ing = ingMap[a.ingreso_id]
             if (ing?.comprobante_url) comprobantesSet.add(a.cargo_id)
             if (ing?.estatus_validacion) validacionMap[a.cargo_id] = ing.estatus_validacion
+            if (ing?.referencia_banco) referenciaBancoMap[a.cargo_id] = ing.referencia_banco
+            if (ing?.fecha) fechaPagoMap[a.cargo_id] = ing.fecha
           })
         }
       }
@@ -453,6 +460,8 @@ export default function ExpedienteContrato() {
       referencia_pago:   r.concepto,
       tiene_comprobante: comprobantesSet.has(r.id),
       estatus_validacion: validacionMap[r.id] || null,
+      referencia_banco:  referenciaBancoMap[r.id] || null,
+      fecha_pago:        fechaPagoMap[r.id] || null,
     })))
     setDocs(docsR.data ?? [])
 
@@ -474,6 +483,35 @@ export default function ExpedienteContrato() {
 
   useEffect(() => { loadData() }, [loadData, refreshKey])
 
+  const cargarPagosContrato = useCallback(async () => {
+    const cobroIds = cobros.map(c => c.id).filter(Boolean)
+    if (!id || cobroIds.length === 0) return
+    setLoadingPagos(true)
+    try {
+      const { data: apls } = await supabase
+        .from('aplicaciones_pago')
+        .select('ingreso_id, importe_aplicado, cargo:cargo_id(id, concepto, periodo_mes, periodo_anio, importe)')
+        .in('cargo_id', cobroIds)
+      if (!apls || apls.length === 0) { setPagosContrato([]); setLoadingPagos(false); return }
+      const ingIds = [...new Set(apls.map(a => a.ingreso_id).filter(Boolean))]
+      const { data: ings } = await supabase
+        .from('ingresos')
+        .select('id, fecha, importe, referencia_banco, origen, estatus_validacion, nota, comprobante_url')
+        .in('id', ingIds)
+        .order('fecha', { ascending: false })
+      const aplMap = {}
+      apls.forEach(a => {
+        if (!aplMap[a.ingreso_id]) aplMap[a.ingreso_id] = []
+        aplMap[a.ingreso_id].push(a)
+      })
+      setPagosContrato((ings || []).map(ing => ({ ...ing, cobros_cubiertos: aplMap[ing.id] || [] })))
+    } catch (e) { console.error('Error cargando pagos:', e) }
+    setLoadingPagos(false)
+  }, [id, cobros])
+
+  useEffect(() => {
+    if (tab === 'ingresos' && pagosContrato.length === 0 && !loadingPagos) cargarPagosContrato()
+  }, [tab, cargarPagosContrato, pagosContrato.length, loadingPagos])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12, color: C.muted }}>
@@ -799,6 +837,75 @@ export default function ExpedienteContrato() {
                         setLoadingIngresos(false)
                       }}
                     />}
+              </Section>
+            </Card>
+          )}
+
+          {tab === 'ingresos' && (
+            <Card>
+              <Section title={`Pagos recibidos (${pagosContrato.length})`} icon={Wallet}>
+                {loadingPagos
+                  ? <div style={{ padding: 24, textAlign: 'center', color: C.muted, fontSize: 13 }}>Cargando pagos…</div>
+                  : pagosContrato.length === 0
+                  ? <Empty msg="Sin pagos registrados para este contrato" />
+                  : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {pagosContrato.map(ing => {
+                        const validado = ing.estatus_validacion === 'VALIDADO'
+                        const totalCubierto = ing.cobros_cubiertos.reduce((s, a) => s + parseFloat(a.importe_aplicado || 0), 0)
+                        return (
+                          <div key={ing.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+                            {/* Cabecera del pago */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', background: C.light, borderBottom: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>Fecha</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{fmtD(ing.fecha)}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>Importe</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: C.success, fontFamily: 'monospace' }}>{fmt$(ing.importe)}</div>
+                              </div>
+                              {ing.referencia_banco && (
+                                <div>
+                                  <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>Referencia</div>
+                                  <div style={{ fontSize: 13, fontFamily: 'monospace', color: C.text }}>{ing.referencia_banco}</div>
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.4px' }}>Origen</div>
+                                <div style={{ fontSize: 12, color: C.text }}>{ing.origen || '—'}</div>
+                              </div>
+                              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {validado
+                                  ? <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, background: '#DCFCE7', color: '#166534' }}>Validado</span>
+                                  : <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 10, background: '#FEF3C7', color: '#92400E' }}>{ing.estatus_validacion || 'Por validar'}</span>}
+                                {ing.comprobante_url && (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: C.muted, background: '#F3F4F6', padding: '4px 9px', borderRadius: 7 }}>
+                                    <Paperclip size={12} /> Comprobante
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {/* Cobros cubiertos */}
+                            {ing.cobros_cubiertos.length > 0 && (
+                              <div style={{ padding: '10px 16px' }}>
+                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 8 }}>
+                                  Cobros cubiertos · aplicado {fmt$(totalCubierto)}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                  {ing.cobros_cubiertos.map((a, i) => (
+                                    <span key={i} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: '#EFF6FF', color: C.primary, fontWeight: 600 }}>
+                                      {a.cargo?.concepto || '—'} {MESES[a.cargo?.periodo_mes]} {a.cargo?.periodo_anio} · {fmt$(a.importe_aplicado)}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
               </Section>
             </Card>
           )}
@@ -1281,6 +1388,8 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
                 { label: null,            col: null, icon: true },
                 { label: 'Esperado',      col: 'monto' },
                 { label: 'Cobrado',       col: 'cobrado' },
+                { label: 'Factura',       col: null },
+                { label: 'Ref. Pago',     col: null },
                 { label: 'Validación',    col: 'validacion' },
                 { label: 'Estado',        col: 'estado' },
                 { label: '',              col: null },
@@ -1304,6 +1413,8 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
                 <input value={filtroRef} onChange={e => setFiltroRef(e.target.value)} placeholder="Filtrar"
                   style={{ width: '100%', padding: '4px 7px', borderRadius: 4, border: `1px solid ${C.border}`, fontSize: 11 }} />
               </th>
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
+              <th style={{ borderBottom: `1px solid ${C.border}` }} />
               <th style={{ borderBottom: `1px solid ${C.border}` }} />
               <th style={{ borderBottom: `1px solid ${C.border}` }} />
               <th style={{ borderBottom: `1px solid ${C.border}` }} />
@@ -1343,6 +1454,18 @@ function TablaPagos({ rows, enMora, onStatusChange, onMarkAllAsPaid, onDelete, o
                   {/* Cobrado */}
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, color: pagado ? C.success : C.muted }}>
                     {pagado || c.monto_pagado > 0 ? fmt$(c.monto_pagado) : '—'}
+                  </td>
+                  {/* Factura */}
+                  <td style={{ padding: '10px 12px' }}>
+                    {c.numero_factura
+                      ? <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, color: C.success }}>{c.numero_factura}</span>
+                      : <span style={{ color: C.border, fontSize: 11 }}>—</span>}
+                  </td>
+                  {/* Ref. Pago */}
+                  <td style={{ padding: '10px 12px' }}>
+                    {c.referencia_banco
+                      ? <span style={{ fontSize: 11, fontFamily: 'monospace', color: C.text }}>{c.referencia_banco}</span>
+                      : <span style={{ color: C.border, fontSize: 11 }}>—</span>}
                   </td>
                   {/* Validación */}
                   <td style={{ padding: '10px 12px' }}>
