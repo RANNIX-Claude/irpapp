@@ -6,7 +6,7 @@ import {
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
-  Package, BookOpen, Wrench, PackageOpen,
+  Package, BookOpen, Wrench, PackageOpen, Landmark, Stamp,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -37,6 +37,8 @@ const NAV_SECTIONS = [
       { label: 'Cobranza',      path: '/cobranza',      icon: CreditCard    },
       { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft, disabled: true },
       { label: 'Ingresos',      path: '/ingresos',      icon: TrendingUp    },
+      { label: 'Finanzas',      path: '/finanzas',      icon: Landmark      },
+      { label: 'Facturación',   path: '/facturacion',   icon: Stamp         },
     ]
   },
   {

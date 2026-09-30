@@ -48,6 +48,7 @@ import InformePropietario from './pages/InformePropietario.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import Finanzas from './pages/Finanzas.jsx'
+import Facturacion from './pages/Facturacion.jsx'
 import Entrega from './pages/Entrega.jsx'
 import AsistenteApp from './pages/asistente/AsistenteApp.jsx'
 import './styles/theme.css'
@@ -112,6 +113,25 @@ function AppLayout() {
           <Routes>
             <Route path="/finanzas" element={<Finanzas />} />
             <Route path="*" element={<Navigate to="/finanzas" replace />} />
+          </Routes>
+        </main>
+        <Toaster position="top-right" />
+      </div>
+    )
+  }
+
+  // Rol facturador (Fernando) → solo sube CFDI a cargos validados
+  if (perfil?.rol_id === 'facturador') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <Header />
+        <main style={{
+          marginTop: 'var(--header-height)',
+          minHeight: 'calc(100vh - var(--header-height) - 48px)',
+        }}>
+          <Routes>
+            <Route path="/facturacion" element={<Facturacion />} />
+            <Route path="*" element={<Navigate to="/facturacion" replace />} />
           </Routes>
         </main>
         <Toaster position="top-right" />
@@ -287,6 +307,8 @@ function AppLayout() {
           <Route path="/ingresos" element={<Ingresos />} />
           <Route path="/despachos" element={<Despachos />} />
           <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
+          <Route path="/finanzas" element={<Finanzas />} />
+          <Route path="/facturacion" element={<Facturacion />} />
           <Route path="/config" element={<Configuracion />} />
           <Route path="/entrega" element={<Entrega />} />
           <Route path="*" element={<Navigate to="/" replace />} />
