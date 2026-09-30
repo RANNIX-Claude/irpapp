@@ -48,7 +48,8 @@ const NAV_SECTIONS = [
       { label: 'Estacionamiento', path: '/estacionamiento', icon: Car },
       { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt },
       { label: 'Vending', path: '/vending', icon: ShoppingBag },
-      { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
+      { label: 'Solicitud', path: '/mantenimiento?vista=solicitud', icon: Wrench },
+      { label: 'Autorización', path: '/mantenimiento?vista=autorizacion', icon: ClipboardCheck },
       { label: 'Proyectos', path: '/proyectos', icon: HardHat },
     ]
   },
@@ -134,7 +135,7 @@ const MENUS_POR_ROL = {
   corporativo: [
     { label: 'Feed de la plaza',     path: '/feed',            icon: Rss             },
     { label: 'Estado de resultados', path: '/edr',             icon: LayoutDashboard },
-    { label: 'Mantenimiento',        path: '/mantenimiento',   icon: Wrench          },
+    { label: 'Autorización',         path: '/mantenimiento?vista=autorizacion', icon: ClipboardCheck },
     { label: 'Resumen Semanal',      path: '/resumen-semanal', icon: CalendarRange  },
     { label: 'Contratos',            path: '/contratos',       icon: FileText       },
     { label: 'RH / Nómina',          path: '/rh',               icon: UserCheck      },

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Wrench, Plus, Camera, AlertTriangle, CheckCircle, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
@@ -17,12 +17,18 @@ const hoy = new Date()
 export default function Mantenimiento() {
   useModuleAudit('MANTENIMIENTO')
   const navigate = useNavigate()
+  const [sp] = useSearchParams()
+  // Dos puertas de entrada al mismo módulo (menú "Solicitud" / "Autorización"):
+  // quien crea y da seguimiento a sus solicitudes no necesita ver lo mismo que
+  // quien solo entra a autorizar lo pendiente.
+  const vista = sp.get('vista') === 'autorizacion' ? 'autorizacion' : 'solicitud'
+  const esVistaAutorizacion = vista === 'autorizacion'
   const { perfil, user } = useApp()
   const rol = perfil?.rol_id || user?.user_metadata?.rol_id
   const puedeAutorizar = ROLES_AUTORIZAN.includes(rol)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState('ABIERTAS')
+  const [filtro, setFiltro] = useState(esVistaAutorizacion ? 'SOLICITADO' : 'ABIERTAS')
   const [filtroMes, setFiltroMes] = useState(0)     // 0 = todos los meses
   const [filtroAnio, setFiltroAnio] = useState(0)   // 0 = todos los años
   const [soloMias, setSoloMias] = useState(false)   // solo las que yo autoricé/rechacé
@@ -36,6 +42,10 @@ export default function Mantenimiento() {
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+  // El pathname no cambia entre las dos entradas del menú (solo el query
+  // string), así que React Router no vuelve a montar el componente: hay que
+  // resincronizar el filtro a mano cuando alguien salta de una a otra.
+  useEffect(() => { setFiltro(esVistaAutorizacion ? 'SOLICITADO' : 'ABIERTAS') }, [esVistaAutorizacion])
 
   const cuenta = (e) => rows.filter(r => r.estatus === e).length
   const urgentes = rows.filter(r => r.tipo === 'URGENTE' && ABIERTAS.includes(r.estatus)).length
@@ -82,13 +92,17 @@ export default function Mantenimiento() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Wrench size={22} color={C.primary} />
           <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.dark }}>Mantenimiento</h1>
-            <p style={{ margin: 0, fontSize: 12, color: C.muted }}>Solicitudes de reparación · Solicitado → Autorizado → En proceso → Cerrado</p>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.dark }}>{esVistaAutorizacion ? 'Autorización de mantenimiento' : 'Mantenimiento'}</h1>
+            <p style={{ margin: 0, fontSize: 12, color: C.muted }}>
+              {esVistaAutorizacion ? 'Revisa lo pendiente y autoriza o rechaza — Solicitado → Autorizado → En proceso → Cerrado' : 'Solicitudes de reparación · Solicitado → Autorizado → En proceso → Cerrado'}
+            </p>
           </div>
         </div>
-        <button onClick={() => setModal('nueva')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: C.primary, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          <Plus size={15} /> Nueva solicitud
-        </button>
+        {!esVistaAutorizacion && (
+          <button onClick={() => setModal('nueva')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: C.primary, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            <Plus size={15} /> Nueva solicitud
+          </button>
+        )}
       </div>
 
       {/* Contadores = filtros */}
@@ -160,8 +174,11 @@ export default function Mantenimiento() {
             ]}
             acciones={{
               onVer: r => navigate(`/mantenimiento/${r.id}`),
-              onEditar: r => ['SOLICITADO', 'RECHAZADO'].includes(r.estatus) ? setModal(r) : navigate(`/mantenimiento/${r.id}`),
-              onEliminar: eliminar,
+              // En Autorización no se crea ni se borra nada aquí — solo se revisa
+              // y se autoriza/rechaza; editar o eliminar la solicitud es cosa de
+              // quien la levantó, del lado de "Solicitud".
+              onEditar: esVistaAutorizacion ? undefined : r => ['SOLICITADO', 'RECHAZADO'].includes(r.estatus) ? setModal(r) : navigate(`/mantenimiento/${r.id}`),
+              onEliminar: esVistaAutorizacion ? undefined : eliminar,
               extra: r => puedeAutorizar && r.estatus === 'SOLICITADO' && (
                 <button onClick={() => setAutorizando(r)} title="Autorizar desde aquí, sin abrir el expediente"
                   style={{ padding: '5px 7px', border: `1px solid ${ESTATUS.AUTORIZADO.color}`, borderRadius: 6, background: ESTATUS.AUTORIZADO.bg, cursor: 'pointer', color: ESTATUS.AUTORIZADO.color, display: 'flex', alignItems: 'center' }}>
