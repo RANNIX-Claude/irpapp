@@ -1,23 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Plus, Camera, AlertTriangle } from 'lucide-react'
+import { Wrench, Plus, Camera, AlertTriangle, CheckCircle, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
 import { traerVista, fecha, pesos } from '../lib/compras'
-import { ESTATUS, TIPOS } from '../lib/mantenimiento'
+import { ESTATUS, TIPOS, ROLES_AUTORIZAN } from '../lib/mantenimiento'
 import { C, Card, GridExpediente, Etiqueta } from '../components/expediente/ExpedienteUI'
-import { BadgeEstatus, BadgeTipo, ModalSolicitud } from '../components/mantenimiento/MantenimientoUI'
+import { BadgeEstatus, BadgeTipo, ModalSolicitud, ModalAutorizar } from '../components/mantenimiento/MantenimientoUI'
+import { useApp } from '../context/AppContext'
 
 const ABIERTAS = ['SOLICITADO', 'AUTORIZADO', 'EN_PROCESO']
+const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+const hoy = new Date()
 
 export default function Mantenimiento() {
   useModuleAudit('MANTENIMIENTO')
   const navigate = useNavigate()
+  const { perfil, user } = useApp()
+  const rol = perfil?.rol_id || user?.user_metadata?.rol_id
+  const puedeAutorizar = ROLES_AUTORIZAN.includes(rol)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('ABIERTAS')
+  const [filtroMes, setFiltroMes] = useState(0)     // 0 = todos los meses
+  const [filtroAnio, setFiltroAnio] = useState(0)   // 0 = todos los años
+  const [soloMias, setSoloMias] = useState(false)   // solo las que yo autoricé/rechacé
   const [modal, setModal] = useState(null)   // 'nueva' | solicitud
+  const [autorizando, setAutorizando] = useState(null)  // solicitud para ModalAutorizar directo desde la lista
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -29,11 +39,23 @@ export default function Mantenimiento() {
 
   const cuenta = (e) => rows.filter(r => r.estatus === e).length
   const urgentes = rows.filter(r => r.tipo === 'URGENTE' && ABIERTAS.includes(r.estatus)).length
-  const visibles = rows.filter(r =>
-    filtro === 'TODAS' ? true
-    : filtro === 'ABIERTAS' ? ABIERTAS.includes(r.estatus)
-    : filtro === 'URGENTES' ? r.tipo === 'URGENTE' && ABIERTAS.includes(r.estatus)
-    : r.estatus === filtro)
+  const enPeriodo = r => {
+    if (!r.fecha_solicitud) return !filtroMes && !filtroAnio
+    const [a, m] = r.fecha_solicitud.slice(0, 7).split('-').map(Number)
+    return (!filtroMes || m === filtroMes) && (!filtroAnio || a === filtroAnio)
+  }
+  const visibles = rows
+    .filter(r =>
+      filtro === 'TODAS' ? true
+      : filtro === 'ABIERTAS' ? ABIERTAS.includes(r.estatus)
+      : filtro === 'URGENTES' ? r.tipo === 'URGENTE' && ABIERTAS.includes(r.estatus)
+      : r.estatus === filtro)
+    .filter(enPeriodo)
+    .filter(r => !soloMias || r.autorizado_por === user?.id)
+
+  const aniosDisponibles = [...new Set(rows.map(r => r.fecha_solicitud?.slice(0, 4)).filter(Boolean))]
+    .map(Number).sort((a, b) => b - a)
+  const ANIOS = aniosDisponibles.length ? aniosDisponibles : [hoy.getFullYear()]
 
   const eliminar = async (s) => {
     if (!['SOLICITADO', 'RECHAZADO'].includes(s.estatus)) return toast.error('Solo se eliminan solicitudes que no se han autorizado')
@@ -84,6 +106,26 @@ export default function Mantenimiento() {
         })}
       </div>
 
+      {/* Período + (si autoriza) "solo lo mío" */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select value={filtroMes} onChange={e => setFiltroMes(Number(e.target.value))}
+          style={{ padding: '7px 10px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 12.5 }}>
+          <option value={0}>Todos los meses</option>
+          {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+        </select>
+        <select value={filtroAnio} onChange={e => setFiltroAnio(Number(e.target.value))}
+          style={{ padding: '7px 10px', border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 12.5 }}>
+          <option value={0}>Todos los años</option>
+          {ANIOS.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        {puedeAutorizar && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: `1.5px solid ${soloMias ? C.primary : C.border}`, borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: soloMias ? C.primary : C.muted, cursor: 'pointer', background: soloMias ? C.primary + '10' : C.surface }}>
+            <input type="checkbox" checked={soloMias} onChange={e => setSoloMias(e.target.checked)} style={{ margin: 0 }} />
+            <User size={13} /> Autorizadas/rechazadas por mí
+          </label>
+        )}
+      </div>
+
       <Card>
         {loading ? <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>Cargando…</div> : (
           <GridExpediente
@@ -120,6 +162,12 @@ export default function Mantenimiento() {
               onVer: r => navigate(`/mantenimiento/${r.id}`),
               onEditar: r => ['SOLICITADO', 'RECHAZADO'].includes(r.estatus) ? setModal(r) : navigate(`/mantenimiento/${r.id}`),
               onEliminar: eliminar,
+              extra: r => puedeAutorizar && r.estatus === 'SOLICITADO' && (
+                <button onClick={() => setAutorizando(r)} title="Autorizar desde aquí, sin abrir el expediente"
+                  style={{ padding: '5px 7px', border: `1px solid ${ESTATUS.AUTORIZADO.color}`, borderRadius: 6, background: ESTATUS.AUTORIZADO.bg, cursor: 'pointer', color: ESTATUS.AUTORIZADO.color, display: 'flex', alignItems: 'center' }}>
+                  <CheckCircle size={13} />
+                </button>
+              ),
               titulos: { ver: 'Ver solicitud', editar: 'Editar solicitud', eliminar: 'Eliminar solicitud' },
             }}
           />
@@ -132,6 +180,10 @@ export default function Mantenimiento() {
           onClose={() => setModal(null)}
           onSaved={id => { setModal(null); modal === 'nueva' ? navigate(`/mantenimiento/${id}`) : cargar() }}
         />
+      )}
+
+      {autorizando && (
+        <ModalAutorizar s={autorizando} onClose={() => setAutorizando(null)} onSaved={() => { setAutorizando(null); cargar() }} />
       )}
     </div>
   )

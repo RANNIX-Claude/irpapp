@@ -16,7 +16,7 @@ export const TIPOS = {
 }
 
 // Debe coincidir con puede_autorizar_mantenimiento() en la base.
-export const ROLES_AUTORIZAN = ['super_admin', 'admin_inmobiliaria', 'gerente_plaza', 'supervisor_operaciones', 'corporativo']
+export const ROLES_AUTORIZAN = ['super_admin', 'admin_inmobiliaria', 'gerente_plaza', 'supervisor_operaciones', 'corporativo', 'central']
 
 export const MAX_FOTO_MB = 10
 

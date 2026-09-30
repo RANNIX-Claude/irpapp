@@ -91,14 +91,16 @@ export function TrLink({ onClick, children }) {
  *              placeholder?, render: fila => nodo, align?, mono?, icono? }]
  *   - `orden` hace clicable el encabezado; `filtro` agrega la caja "Filtrar".
  *   - `icono` pinta un ícono en lugar del texto del encabezado (p. ej. la foto).
- * acciones: { onVer?, onEditar?, onEliminar?, titulos?: { ver, editar, eliminar } }
+ * acciones: { onVer?, onEditar?, onEliminar?, extra?: fila => nodo|null, titulos?: { ver, editar, eliminar } }
+ *   - `extra` pinta lo que devuelva antes de Ver/Editar/Eliminar — para una acción puntual
+ *     que no aplica a todas las filas (p. ej. "Autorizar" solo en las que están pendientes).
  */
 export function GridExpediente({ filas, columnas, ordenInicial, acciones = {}, rowKey = 'id', vacio = 'Sin registros', resaltar }) {
   const [sortCol, setSortCol] = useState(ordenInicial?.key || null)
   const [sortDir, setSortDir] = useState(ordenInicial?.dir || 'desc')
   const [filtros, setFiltros] = useState({})
-  const { onVer, onEditar, onEliminar, titulos = {} } = acciones
-  const hayAcciones = onVer || onEditar || onEliminar
+  const { onVer, onEditar, onEliminar, extra, titulos = {} } = acciones
+  const hayAcciones = onVer || onEditar || onEliminar || extra
   const hayFiltros = columnas.some(c => c.filtro)
 
   const toggleSort = key => { setSortDir(sortCol === key && sortDir === 'asc' ? 'desc' : 'asc'); setSortCol(key) }
@@ -172,6 +174,7 @@ export function GridExpediente({ filas, columnas, ordenInicial, acciones = {}, r
               {hayAcciones && (
                 <td style={{ padding: '10px 12px' }}>
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {extra?.(r)}
                     {onVer && <button onClick={() => onVer(r)} title={titulos.ver || 'Ver'} style={btn(C.primary)}><Eye size={13} /></button>}
                     {onEditar && <button onClick={() => onEditar(r)} title={titulos.editar || 'Editar'} style={btn(C.dark)}><Pencil size={13} /></button>}
                     {onEliminar && <button onClick={() => onEliminar(r)} title={titulos.eliminar || 'Eliminar'} style={btn(C.danger, '#FECACA', '#FFF5F5')}><X size={13} /></button>}
