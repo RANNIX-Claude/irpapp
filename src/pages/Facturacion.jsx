@@ -51,8 +51,10 @@ export default function Facturacion() {
       }
     }
 
-    // 3. Merge
-    const merged = (dataCargos || []).map(c => ({ ...c, pago: pagosMap[c.id] || null }))
+    // 3. Merge — solo cargos cuyo ingreso ya fue VALIDADO por Finanzas
+    const merged = (dataCargos || [])
+      .map(c => ({ ...c, pago: pagosMap[c.id] || null }))
+      .filter(c => c.pago?.estatus_validacion === 'VALIDADO')
     setCargos(merged)
     setLoading(false)
   }, [])
