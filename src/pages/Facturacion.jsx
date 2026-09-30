@@ -22,8 +22,8 @@ export default function Facturacion() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [tab, setTab]           = useState('PENDIENTE')
-  const [mes, setMes]           = useState(HOY.getMonth() + 1)   // 1-12, 0 = todos
-  const [anio, setAnio]         = useState(HOY.getFullYear())     // 0 = todos
+  const [mes, setMes]           = useState(0)   // 0 = todos (default: sin filtro de período)
+  const [anio, setAnio]         = useState(0)   // 0 = todos
   const [concepto, setConcepto] = useState('TODOS')
 
   const cargar = useCallback(async () => {
@@ -179,8 +179,8 @@ export default function Facturacion() {
         </div>
 
         {/* Limpiar */}
-        {(mes !== HOY.getMonth()+1 || anio !== HOY.getFullYear() || concepto !== 'TODOS' || busqueda) && (
-          <button onClick={() => { setMes(HOY.getMonth()+1); setAnio(HOY.getFullYear()); setConcepto('TODOS'); setBusqueda('') }}
+        {(mes !== 0 || anio !== 0 || concepto !== 'TODOS' || busqueda) && (
+          <button onClick={() => { setMes(0); setAnio(0); setConcepto('TODOS'); setBusqueda('') }}
             style={{ fontSize: 12, color: '#0A66C2', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
             Limpiar filtros
           </button>
