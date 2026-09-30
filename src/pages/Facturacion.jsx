@@ -66,18 +66,25 @@ export default function Facturacion() {
   useEffect(() => { cargar() }, [cargar])
 
   // Opciones dinámicas derivadas de los datos cargados
+  // El eje de filtrado de período es la fecha en que Finanzas validó el pago
+  // (pago.validado_en), no el período de facturación del cargo. Así Facturación
+  // muestra exactamente lo que Jessie palomeó en ese mes.
   const aniosDisp = useMemo(() =>
-    [...new Set(cargos.map(c => c.periodo_anio).filter(Boolean))].sort((a, b) => b - a),
+    [...new Set(cargos.map(c => c.pago?.validado_en ? new Date(c.pago.validado_en).getFullYear() : null).filter(Boolean))].sort((a, b) => b - a),
     [cargos])
 
   const conceptosDisp = useMemo(() =>
     [...new Set(cargos.map(c => c.concepto).filter(Boolean))].sort(),
     [cargos])
 
-  // Aplicar filtros (frontend) sobre el total ya validado
+  // Aplicar filtros — período por validado_en, no por periodo_mes del cargo
   const filtrados = useMemo(() => cargos.filter(c => {
-    if (mes  !== 0 && c.periodo_mes  !== mes)  return false
-    if (anio !== 0 && c.periodo_anio !== anio) return false
+    if (mes !== 0 || anio !== 0) {
+      const fechaVal = c.pago?.validado_en ? new Date(c.pago.validado_en) : null
+      if (!fechaVal) return false
+      if (mes  !== 0 && fechaVal.getMonth() + 1 !== mes)          return false
+      if (anio !== 0 && fechaVal.getFullYear()     !== anio)       return false
+    }
     if (concepto !== 'TODOS' && c.concepto !== concepto) return false
     if (busqueda) {
       const q = busqueda.toLowerCase()
@@ -140,8 +147,9 @@ export default function Facturacion() {
         />
       </div>
 
-      {/* Filtros */}
+      {/* Filtros — el período es por fecha en que Finanzas validó el pago */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>Validado en:</span>
 
         {/* Período */}
         <select value={mes} onChange={e => setMes(Number(e.target.value))} style={selectStyle}>
