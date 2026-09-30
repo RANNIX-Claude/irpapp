@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { FileText, Upload, Search, RefreshCw } from 'lucide-react'
-import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
+import { FileText, Upload, Search, RefreshCw, Download } from 'lucide-react'
+import { supabase, llamarFuncion } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import toast from 'react-hot-toast'
 
@@ -12,24 +12,44 @@ const fmtDT = iso => {
   return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
-const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const MESES_LARGOS = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
-const HOY = new Date()
+function exportarCSV(lista) {
+  const cols = ['Arrendatario','Local','Contrato','Concepto','Período','Importe','Fecha Pago','Monto Pagado','Referencia','Validado Por','Validado En','Folio Factura','Con CFDI']
+  const rows = lista.map(c => [
+    c.arrendatario_nombre || '',
+    c.locales_display || '',
+    c.contrato_folio || '',
+    c.concepto || '',
+    `${MESES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`.trim(),
+    c.importe,
+    c.pago?.fecha || '',
+    c.pago?.importe_total || c.pago?.importe_aplicado || '',
+    c.pago?.referencia_banco || '',
+    c.pago?.validado_por || '',
+    c.pago?.validado_en ? fmtDT(c.pago.validado_en) : '',
+    c.numero_factura || '',
+    c.tiene_factura ? 'Sí' : 'No',
+  ])
+  const csv = [cols, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = `facturacion-${Date.now()}.csv`
+  a.click(); URL.revokeObjectURL(url)
+}
 
 export default function Facturacion() {
-  const [cargos, setCargos]   = useState([])
-  const [loading, setLoading] = useState(true)
+  const [cargos, setCargos]     = useState([])
+  const [loading, setLoading]   = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [tab, setTab]           = useState('PENDIENTE')
-  const [mes, setMes]           = useState(0)   // 0 = todos (default: sin filtro de período)
-  const [anio, setAnio]         = useState(0)   // 0 = todos
+  const [tab, setTab]           = useState('TODOS')
+  const [mes, setMes]           = useState(0)        // 0 = todos los meses
+  const [anio, setAnio]         = useState(0)        // 0 = todos los años
   const [concepto, setConcepto] = useState('TODOS')
 
   const cargar = useCallback(async () => {
     setLoading(true)
-
-    // 1. Todos los cargos PAGADO/PARCIAL — filtramos período en frontend para no perder los meses disponibles
     const { data: dataCargos, error } = await supabase
       .from('prp_cartera')
       .select('id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, contrato_id, contrato_folio, arrendatario_nombre, locales_display, numero_factura, factura_url, factura_xml_url, tiene_factura, tiene_comprobante')
@@ -37,7 +57,6 @@ export default function Facturacion() {
       .order('fecha_vencimiento', { ascending: false })
     if (error) { toast.error('Error: ' + error.message); setLoading(false); return }
 
-    // 2. Aplicaciones de pago con datos del ingreso
     const ids = (dataCargos || []).map(c => c.id)
     let pagosMap = {}
     if (ids.length) {
@@ -55,7 +74,6 @@ export default function Facturacion() {
       }
     }
 
-    // 3. Merge — solo cargos con ingreso VALIDADO por Finanzas
     const merged = (dataCargos || [])
       .map(c => ({ ...c, pago: pagosMap[c.id] || null }))
       .filter(c => c.pago?.estatus_validacion === 'VALIDADO')
@@ -65,10 +83,6 @@ export default function Facturacion() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  // Opciones dinámicas derivadas de los datos cargados
-  // El eje de filtrado de período es la fecha en que Finanzas validó el pago
-  // (pago.validado_en), no el período de facturación del cargo. Así Facturación
-  // muestra exactamente lo que Jessie palomeó en ese mes.
   const aniosDisp = useMemo(() =>
     [...new Set(cargos.map(c => c.pago?.validado_en ? new Date(c.pago.validado_en).getFullYear() : null).filter(Boolean))].sort((a, b) => b - a),
     [cargos])
@@ -77,100 +91,78 @@ export default function Facturacion() {
     [...new Set(cargos.map(c => c.concepto).filter(Boolean))].sort(),
     [cargos])
 
-  // Aplicar filtros — período por validado_en, no por periodo_mes del cargo
+  // Filtros — período por fecha en que Finanzas validó (validado_en)
   const filtrados = useMemo(() => cargos.filter(c => {
     if (mes !== 0 || anio !== 0) {
-      const fechaVal = c.pago?.validado_en ? new Date(c.pago.validado_en) : null
-      if (!fechaVal) return false
-      if (mes  !== 0 && fechaVal.getMonth() + 1 !== mes)          return false
-      if (anio !== 0 && fechaVal.getFullYear()     !== anio)       return false
+      const fv = c.pago?.validado_en ? new Date(c.pago.validado_en) : null
+      if (!fv) return false
+      if (mes  !== 0 && fv.getMonth() + 1 !== mes)  return false
+      if (anio !== 0 && fv.getFullYear()   !== anio) return false
     }
     if (concepto !== 'TODOS' && c.concepto !== concepto) return false
     if (busqueda) {
       const q = busqueda.toLowerCase()
       if (!(c.arrendatario_nombre || '').toLowerCase().includes(q) &&
           !(c.locales_display     || '').toLowerCase().includes(q) &&
-          !(c.contrato_folio      || '').toLowerCase().includes(q))
-        return false
+          !(c.contrato_folio      || '').toLowerCase().includes(q)) return false
     }
     return true
   }), [cargos, mes, anio, concepto, busqueda])
 
   const pendientes  = filtrados.filter(c => !c.tiene_factura)
-  const completados = filtrados.filter(c =>  c.tiene_factura)
-  const lista       = tab === 'PENDIENTE' ? pendientes : completados
+  const facturados  = filtrados.filter(c =>  c.tiene_factura)
+
+  const lista = tab === 'TODOS' ? filtrados : tab === 'PENDIENTES' ? pendientes : facturados
 
   const sumPend = pendientes.reduce((s, c) => s + (Number(c.importe) || 0), 0)
-  const sumComp = completados.reduce((s, c) => s + (Number(c.importe) || 0), 0)
+  const sumFact = facturados.reduce((s, c) => s + (Number(c.importe) || 0), 0)
 
-  const selectStyle = {
-    padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8,
-    fontSize: 13, background: 'white', cursor: 'pointer', color: '#374151',
-  }
+  const hayFiltros = mes !== 0 || anio !== 0 || concepto !== 'TODOS' || busqueda
+
+  const sel = { padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, background: 'white', cursor: 'pointer', color: '#374151' }
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1140, margin: '0 auto' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111827' }}>Facturación</h1>
           <div style={{ fontSize: 13, color: '#6B7280', marginTop: 3 }}>
             Adjunta el CFDI PDF + ZIP a cada cobro validado por Finanzas
           </div>
         </div>
-        <button onClick={cargar} disabled={loading}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Actualizar
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => exportarCSV(lista)} disabled={lista.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: lista.length ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 600, color: '#374151', opacity: lista.length ? 1 : 0.4 }}>
+            <Download size={14} /> Exportar
+          </button>
+          <button onClick={cargar} disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Actualizar
+          </button>
+        </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
-        <KPICard
-          label="Pendientes de factura"
-          count={pendientes.length}
-          total={sumPend}
-          color="#92400E" bg="#FEF3C7" border="#FDE68A"
-        />
-        <KPICard
-          label="Con CFDI adjunto"
-          count={completados.length}
-          total={sumComp}
-          color="#166534" bg="#DCFCE7" border="#86EFAC"
-        />
-        <KPICard
-          label="Total del período"
-          count={filtrados.length}
-          total={sumPend + sumComp}
-          color="#1D4ED8" bg="#DBEAFE" border="#93C5FD"
-        />
-      </div>
-
-      {/* Filtros — el período es por fecha en que Finanzas validó el pago */}
+      {/* Filtros — ARRIBA de las métricas */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>Validado en:</span>
 
-        {/* Período */}
-        <select value={mes} onChange={e => setMes(Number(e.target.value))} style={selectStyle}>
+        <select value={mes} onChange={e => setMes(Number(e.target.value))} style={sel}>
           <option value={0}>Todos los meses</option>
-          {MESES_LARGOS.slice(1).map((m, i) => (
-            <option key={i+1} value={i+1}>{m}</option>
-          ))}
+          {MESES_LARGOS.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
         </select>
 
-        <select value={anio} onChange={e => setAnio(Number(e.target.value))} style={selectStyle}>
+        <select value={anio} onChange={e => setAnio(Number(e.target.value))} style={sel}>
           <option value={0}>Todos los años</option>
           {aniosDisp.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
-        {/* Concepto */}
-        <select value={concepto} onChange={e => setConcepto(e.target.value)} style={selectStyle}>
+        <select value={concepto} onChange={e => setConcepto(e.target.value)} style={sel}>
           <option value="TODOS">Todos los conceptos</option>
           {conceptosDisp.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
-        {/* Búsqueda */}
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
@@ -178,8 +170,7 @@ export default function Facturacion() {
             style={{ width: '100%', padding: '7px 11px 7px 32px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box', background: 'white' }} />
         </div>
 
-        {/* Limpiar */}
-        {(mes !== 0 || anio !== 0 || concepto !== 'TODOS' || busqueda) && (
+        {hayFiltros && (
           <button onClick={() => { setMes(0); setAnio(0); setConcepto('TODOS'); setBusqueda('') }}
             style={{ fontSize: 12, color: '#0A66C2', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
             Limpiar filtros
@@ -187,10 +178,21 @@ export default function Facturacion() {
         )}
       </div>
 
+      {/* KPI cards — ABAJO de los filtros */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+        <KPICard label="Pendientes de factura" count={pendientes.length} total={sumPend} color="#92400E" bg="#FEF3C7" border="#FDE68A" onClick={() => setTab('PENDIENTES')} active={tab === 'PENDIENTES'} />
+        <KPICard label="Con CFDI adjunto"      count={facturados.length} total={sumFact} color="#166534" bg="#DCFCE7" border="#86EFAC" onClick={() => setTab('FACTURADOS')} active={tab === 'FACTURADOS'} />
+        <KPICard label="Total filtrado"         count={filtrados.length}  total={sumPend + sumFact} color="#1D4ED8" bg="#DBEAFE" border="#93C5FD" onClick={() => setTab('TODOS')} active={tab === 'TODOS'} />
+      </div>
+
       {/* Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 8, padding: 3, gap: 2 }}>
-          {[['PENDIENTE', `Pendientes (${pendientes.length})`], ['COMPLETADO', `Con CFDI (${completados.length})`]].map(([k, l]) => (
+          {[
+            ['TODOS',      `Todos (${filtrados.length})`],
+            ['PENDIENTES', `Pendientes (${pendientes.length})`],
+            ['FACTURADOS', `Facturados (${facturados.length})`],
+          ].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)}
               style={{ padding: '7px 16px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
                 background: tab === k ? 'white' : 'transparent',
@@ -201,7 +203,7 @@ export default function Facturacion() {
           ))}
         </div>
         <span style={{ fontSize: 12, color: '#9CA3AF' }}>
-          {lista.length} cobro{lista.length !== 1 ? 's' : ''} · {fmt(lista.reduce((s,c) => s+(Number(c.importe)||0), 0))}
+          {lista.length} cobro{lista.length !== 1 ? 's' : ''} · {fmt(lista.reduce((s, c) => s + (Number(c.importe) || 0), 0))}
         </span>
       </div>
 
@@ -210,23 +212,21 @@ export default function Facturacion() {
         ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Cargando…</div>
         : lista.length === 0
         ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF', fontSize: 14 }}>
-            {tab === 'PENDIENTE'
-              ? 'No hay cobros pendientes de factura para este filtro ✓'
-              : 'No hay cobros con CFDI en este período'}
+            No hay cobros que coincidan con los filtros seleccionados
           </div>
         : <div style={{ display: 'grid', gap: 10 }}>
-            {lista.map(c => (
-              <CargoFactura key={c.id} cargo={c} onActualizar={cargar} />
-            ))}
+            {lista.map(c => <CargoFactura key={c.id} cargo={c} onActualizar={cargar} />)}
           </div>
       }
     </div>
   )
 }
 
-function KPICard({ label, count, total, color, bg, border }) {
+function KPICard({ label, count, total, color, bg, border, onClick, active }) {
   return (
-    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '14px 16px' }}>
+    <div onClick={onClick}
+      style={{ background: bg, border: `2px solid ${active ? color : border}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+        boxShadow: active ? `0 0 0 3px ${color}22` : 'none', transition: 'box-shadow .15s, border-color .15s' }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1.1 }}>{count}</div>
       <div style={{ fontSize: 12, color, fontWeight: 600, marginTop: 3, opacity: 0.8 }}>{fmt(total)}</div>
@@ -235,8 +235,8 @@ function KPICard({ label, count, total, color, bg, border }) {
 }
 
 function CargoFactura({ cargo: c, onActualizar }) {
-  const [subiendo, setSubiendo]       = useState(null)
-  const [folioEdit, setFolioEdit]     = useState(c.numero_factura || '')
+  const [subiendo, setSubiendo]           = useState(null)
+  const [folioEdit, setFolioEdit]         = useState(c.numero_factura || '')
   const [guardandoFolio, setGuardandoFolio] = useState(false)
   const pdfRef = useRef()
   const xmlRef = useRef()
@@ -279,7 +279,7 @@ function CargoFactura({ cargo: c, onActualizar }) {
   }
 
   const pago = c.pago
-  const pagoValidado = pago?.estatus_validacion === 'VALIDADO'
+  const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
   return (
     <div style={{ background: 'white', border: '1px solid #E5E7EB', borderLeft: `4px solid ${c.tiene_factura ? '#057642' : '#E8A020'}`, borderRadius: 10, padding: '14px 16px' }}>
@@ -295,6 +295,11 @@ function CargoFactura({ cargo: c, onActualizar }) {
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>
               {MESES[c.periodo_mes]} {c.periodo_anio}
             </span>
+            {c.tiene_factura && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC' }}>
+                ✓ Facturado
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{c.arrendatario_nombre}</div>
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>{c.locales_display} · {c.contrato_folio}</div>
@@ -318,12 +323,9 @@ function CargoFactura({ cargo: c, onActualizar }) {
               )}
               <div style={{ gridColumn: '1/-1' }}>
                 <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>VALIDADO POR FINANZAS</div>
-                {pagoValidado
-                  ? <div style={{ fontSize: 11.5, fontWeight: 700, color: '#057642' }}>
-                      ✓ {pago.validado_por || '—'} · {fmtDT(pago.validado_en)}
-                    </div>
-                  : <div style={{ fontSize: 11.5, color: '#F59E0B', fontWeight: 600 }}>⏳ Pendiente de validación</div>
-                }
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#057642' }}>
+                  ✓ {pago?.validado_por || '—'} · {fmtDT(pago?.validado_en)}
+                </div>
               </div>
             </div>
           </div>
