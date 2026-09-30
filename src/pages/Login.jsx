@@ -5,13 +5,17 @@ import toast from 'react-hot-toast'
 import { logAudit } from '../hooks/useAudit'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Si el input no trae '@' se asume usuario corto interno y se completa el dominio
+  const resolverEmail = (u) => u.includes('@') ? u : `${u.trim().toLowerCase()}@irpapp.local`
 
   const handleEmail = async (e) => {
     e.preventDefault()
     setLoading(true)
+    const email = resolverEmail(usuario)
     const { error } = await signInWithEmail(email, password)
     if (error) toast.error(error.message)
     else logAudit({ modulo: 'AUTH', accion: 'LOGIN', descripcion: `Inicio de sesión: ${email}` })
@@ -66,14 +70,15 @@ export default function Login() {
         <form onSubmit={handleEmail}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', marginBottom: '6px' }}>
-              Correo electrónico
+              Usuario
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              value={usuario}
+              onChange={e => setUsuario(e.target.value)}
               required
-              placeholder="usuario@empresa.com"
+              placeholder="nombre o correo"
+              autoComplete="username"
               style={{
                 width: '100%',
                 padding: '10px 12px',
