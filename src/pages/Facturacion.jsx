@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { FileText, Upload, Search, RefreshCw } from 'lucide-react'
 import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
@@ -13,17 +13,23 @@ const fmtDT = iso => {
 }
 
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const MESES_LARGOS = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+const HOY = new Date()
 
 export default function Facturacion() {
-  const [cargos, setCargos] = useState([])
+  const [cargos, setCargos]   = useState([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [filtro, setFiltro] = useState('PENDIENTE')
+  const [tab, setTab]           = useState('PENDIENTE')
+  const [mes, setMes]           = useState(HOY.getMonth() + 1)   // 1-12, 0 = todos
+  const [anio, setAnio]         = useState(HOY.getFullYear())     // 0 = todos
+  const [concepto, setConcepto] = useState('TODOS')
 
   const cargar = useCallback(async () => {
     setLoading(true)
 
-    // 1. Cargos pagados/parciales
+    // 1. Todos los cargos PAGADO/PARCIAL — filtramos período en frontend para no perder los meses disponibles
     const { data: dataCargos, error } = await supabase
       .from('prp_cartera')
       .select('id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, contrato_id, contrato_folio, arrendatario_nombre, locales_display, numero_factura, factura_url, factura_xml_url, tiene_factura, tiene_comprobante')
@@ -31,7 +37,7 @@ export default function Facturacion() {
       .order('fecha_vencimiento', { ascending: false })
     if (error) { toast.error('Error: ' + error.message); setLoading(false); return }
 
-    // 2. Aplicaciones de pago con datos del ingreso (fecha pago + validación Finanzas)
+    // 2. Aplicaciones de pago con datos del ingreso
     const ids = (dataCargos || []).map(c => c.id)
     let pagosMap = {}
     if (ids.length) {
@@ -39,19 +45,17 @@ export default function Facturacion() {
         .from('aplicaciones_pago')
         .select('cargo_id, importe_aplicado, ingresos(id, fecha, importe_total, forma_pago, referencia_banco, estatus_validacion, validado_por, validado_en)')
         .in('cargo_id', ids)
-      // Para cada cargo guardamos el primer ingreso VALIDADO (o el primero disponible)
       for (const ap of (aplicaciones || [])) {
         const ing = ap.ingresos
         if (!ing) continue
         const prev = pagosMap[ap.cargo_id]
         const esValidado = ing.estatus_validacion === 'VALIDADO'
-        if (!prev || (esValidado && prev.estatus_validacion !== 'VALIDADO')) {
+        if (!prev || (esValidado && prev.estatus_validacion !== 'VALIDADO'))
           pagosMap[ap.cargo_id] = { ...ing, importe_aplicado: ap.importe_aplicado }
-        }
       }
     }
 
-    // 3. Merge — solo cargos cuyo ingreso ya fue VALIDADO por Finanzas
+    // 3. Merge — solo cargos con ingreso VALIDADO por Finanzas
     const merged = (dataCargos || [])
       .map(c => ({ ...c, pago: pagosMap[c.id] || null }))
       .filter(c => c.pago?.estatus_validacion === 'VALIDADO')
@@ -61,19 +65,51 @@ export default function Facturacion() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const pendientes  = cargos.filter(c => !c.tiene_factura)
-  const completados = cargos.filter(c => c.tiene_factura)
+  // Opciones dinámicas derivadas de los datos cargados
+  const aniosDisp = useMemo(() =>
+    [...new Set(cargos.map(c => c.periodo_anio).filter(Boolean))].sort((a, b) => b - a),
+    [cargos])
 
-  const lista = (filtro === 'PENDIENTE' ? pendientes : completados)
-    .filter(c => !busqueda || (c.arrendatario_nombre || '').toLowerCase().includes(busqueda.toLowerCase()) || (c.locales_display || '').toLowerCase().includes(busqueda.toLowerCase()))
+  const conceptosDisp = useMemo(() =>
+    [...new Set(cargos.map(c => c.concepto).filter(Boolean))].sort(),
+    [cargos])
+
+  // Aplicar filtros (frontend) sobre el total ya validado
+  const filtrados = useMemo(() => cargos.filter(c => {
+    if (mes  !== 0 && c.periodo_mes  !== mes)  return false
+    if (anio !== 0 && c.periodo_anio !== anio) return false
+    if (concepto !== 'TODOS' && c.concepto !== concepto) return false
+    if (busqueda) {
+      const q = busqueda.toLowerCase()
+      if (!(c.arrendatario_nombre || '').toLowerCase().includes(q) &&
+          !(c.locales_display     || '').toLowerCase().includes(q) &&
+          !(c.contrato_folio      || '').toLowerCase().includes(q))
+        return false
+    }
+    return true
+  }), [cargos, mes, anio, concepto, busqueda])
+
+  const pendientes  = filtrados.filter(c => !c.tiene_factura)
+  const completados = filtrados.filter(c =>  c.tiene_factura)
+  const lista       = tab === 'PENDIENTE' ? pendientes : completados
+
+  const sumPend = pendientes.reduce((s, c) => s + (Number(c.importe) || 0), 0)
+  const sumComp = completados.reduce((s, c) => s + (Number(c.importe) || 0), 0)
+
+  const selectStyle = {
+    padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8,
+    fontSize: 13, background: 'white', cursor: 'pointer', color: '#374151',
+  }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: 1140, margin: '0 auto' }}>
+
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111827' }}>Facturación</h1>
           <div style={{ fontSize: 13, color: '#6B7280', marginTop: 3 }}>
-            Adjunta el CFDI PDF + ZIP a cada cobro validado
+            Adjunta el CFDI PDF + ZIP a cada cobro validado por Finanzas
           </div>
         </div>
         <button onClick={cargar} disabled={loading}
@@ -83,44 +119,92 @@ export default function Facturacion() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22, maxWidth: 480 }}>
-        {[
-          { label: 'Pendientes de factura', val: pendientes.length, color: '#92400E', bg: '#FEF3C7' },
-          { label: 'Con CFDI adjunto',      val: completados.length, color: '#166534', bg: '#DCFCE7' },
-        ].map(({ label, val, color, bg }) => (
-          <div key={label} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color }}>{val}</div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
+        <KPICard
+          label="Pendientes de factura"
+          count={pendientes.length}
+          total={sumPend}
+          color="#92400E" bg="#FEF3C7" border="#FDE68A"
+        />
+        <KPICard
+          label="Con CFDI adjunto"
+          count={completados.length}
+          total={sumComp}
+          color="#166534" bg="#DCFCE7" border="#86EFAC"
+        />
+        <KPICard
+          label="Total del período"
+          count={filtrados.length}
+          total={sumPend + sumComp}
+          color="#1D4ED8" bg="#DBEAFE" border="#93C5FD"
+        />
       </div>
 
-      {/* Tabs + búsqueda */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+      {/* Filtros */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
+
+        {/* Período */}
+        <select value={mes} onChange={e => setMes(Number(e.target.value))} style={selectStyle}>
+          <option value={0}>Todos los meses</option>
+          {MESES_LARGOS.slice(1).map((m, i) => (
+            <option key={i+1} value={i+1}>{m}</option>
+          ))}
+        </select>
+
+        <select value={anio} onChange={e => setAnio(Number(e.target.value))} style={selectStyle}>
+          <option value={0}>Todos los años</option>
+          {aniosDisp.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+
+        {/* Concepto */}
+        <select value={concepto} onChange={e => setConcepto(e.target.value)} style={selectStyle}>
+          <option value="TODOS">Todos los conceptos</option>
+          {conceptosDisp.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* Búsqueda */}
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+          <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Arrendatario, local o contrato…"
+            style={{ width: '100%', padding: '7px 11px 7px 32px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box', background: 'white' }} />
+        </div>
+
+        {/* Limpiar */}
+        {(mes !== HOY.getMonth()+1 || anio !== HOY.getFullYear() || concepto !== 'TODOS' || busqueda) && (
+          <button onClick={() => { setMes(HOY.getMonth()+1); setAnio(HOY.getFullYear()); setConcepto('TODOS'); setBusqueda('') }}
+            style={{ fontSize: 12, color: '#0A66C2', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
         <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 8, padding: 3, gap: 2 }}>
-          {[['PENDIENTE','Pendientes'], ['COMPLETADO','Con CFDI']].map(([k, l]) => (
-            <button key={k} onClick={() => setFiltro(k)}
+          {[['PENDIENTE', `Pendientes (${pendientes.length})`], ['COMPLETADO', `Con CFDI (${completados.length})`]].map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)}
               style={{ padding: '7px 16px', borderRadius: 6, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
-                background: filtro === k ? 'white' : 'transparent',
-                color: filtro === k ? 'var(--color-primary)' : '#6B7280',
-                boxShadow: filtro === k ? '0 1px 4px rgba(0,0,0,.10)' : 'none' }}>
+                background: tab === k ? 'white' : 'transparent',
+                color: tab === k ? 'var(--color-primary)' : '#6B7280',
+                boxShadow: tab === k ? '0 1px 4px rgba(0,0,0,.10)' : 'none' }}>
               {l}
             </button>
           ))}
         </div>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 340 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
-          <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
-            placeholder="Buscar arrendatario o local…"
-            style={{ width: '100%', padding: '9px 11px 9px 32px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
-        </div>
+        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+          {lista.length} cobro{lista.length !== 1 ? 's' : ''} · {fmt(lista.reduce((s,c) => s+(Number(c.importe)||0), 0))}
+        </span>
       </div>
 
+      {/* Lista */}
       {loading
-        ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Cargando cargos…</div>
+        ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Cargando…</div>
         : lista.length === 0
         ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF', fontSize: 14 }}>
-            {filtro === 'PENDIENTE' ? 'Todos los cobros tienen CFDI adjunto ✓' : 'Aún no hay cobros con factura adjunta'}
+            {tab === 'PENDIENTE'
+              ? 'No hay cobros pendientes de factura para este filtro ✓'
+              : 'No hay cobros con CFDI en este período'}
           </div>
         : <div style={{ display: 'grid', gap: 10 }}>
             {lista.map(c => (
@@ -132,9 +216,19 @@ export default function Facturacion() {
   )
 }
 
+function KPICard({ label, count, total, color, bg, border }) {
+  return (
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1.1 }}>{count}</div>
+      <div style={{ fontSize: 12, color, fontWeight: 600, marginTop: 3, opacity: 0.8 }}>{fmt(total)}</div>
+    </div>
+  )
+}
+
 function CargoFactura({ cargo: c, onActualizar }) {
-  const [subiendo, setSubiendo] = useState(null) // 'pdf' | 'xml'
-  const [folioEdit, setFolioEdit] = useState(c.numero_factura || '')
+  const [subiendo, setSubiendo]       = useState(null)
+  const [folioEdit, setFolioEdit]     = useState(c.numero_factura || '')
   const [guardandoFolio, setGuardandoFolio] = useState(false)
   const pdfRef = useRef()
   const xmlRef = useRef()
@@ -146,7 +240,7 @@ function CargoFactura({ cargo: c, onActualizar }) {
       const b64 = await new Promise((res, rej) => {
         const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
       })
-      const ext = file.name.split('.').pop() || (campo === 'factura_url' ? 'pdf' : 'xml')
+      const ext  = file.name.split('.').pop() || (campo === 'factura_url' ? 'pdf' : 'xml')
       const mime = file.type || (ext === 'zip' ? 'application/zip' : campo === 'factura_url' ? 'application/pdf' : 'application/xml')
       const nombre = campo === 'factura_url' ? `factura.${ext}` : `cfdi.${ext}`
       const resp = await llamarFuncion('subir-comprobante', {
@@ -176,7 +270,7 @@ function CargoFactura({ cargo: c, onActualizar }) {
     onActualizar()
   }
 
-  const pago = c.pago  // ingreso VALIDADO que cubrió este cargo
+  const pago = c.pago
   const pagoValidado = pago?.estatus_validacion === 'VALIDADO'
 
   return (
@@ -197,7 +291,7 @@ function CargoFactura({ cargo: c, onActualizar }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{c.arrendatario_nombre}</div>
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>{c.locales_display} · {c.contrato_folio}</div>
 
-          {/* Ficha del pago que cubrió este cobro */}
+          {/* Ficha del pago */}
           <div style={{ marginTop: 8, padding: '8px 10px', background: '#F8FAFC', borderRadius: 7, border: '1px solid #F1F5F9' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
               <div>
@@ -229,12 +323,9 @@ function CargoFactura({ cargo: c, onActualizar }) {
 
         {/* Folio + archivos */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260 }}>
-
-          {/* Folio */}
           <div style={{ display: 'flex', gap: 6 }}>
             <input value={folioEdit} onChange={e => setFolioEdit(e.target.value)}
-              onBlur={guardarFolio}
-              onKeyDown={e => e.key === 'Enter' && guardarFolio()}
+              onBlur={guardarFolio} onKeyDown={e => e.key === 'Enter' && guardarFolio()}
               placeholder="No. Factura / Folio"
               style={{ flex: 1, padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 7, fontSize: 13, background: 'white' }} />
             {guardandoFolio && <span style={{ fontSize: 11, color: '#9CA3AF', alignSelf: 'center' }}>Guardando…</span>}
