@@ -50,9 +50,9 @@ export default function NuevoCargoModal({ onClose, onSaved, contratoFijo = null 
   useEffect(() => {
     if (contratoFijo) return
     supabase.from('prp_contratos')
-      .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago, porcentaje_mora')
+      .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago')
       .order('locales_display', { ascending: true, nullsFirst: false })
-      .then(({ data }) => setContratos(data ?? []))
+      .then(({ data, error }) => { if (error) console.error('NuevoCargoModal contratos', error); setContratos(data ?? []) })
   }, [contratoFijo])
 
   // Propone importe y fecha de vencimiento al cambiar contrato / concepto / período.
