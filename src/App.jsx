@@ -47,6 +47,7 @@ import FeedEjecutivo from './pages/FeedEjecutivo.jsx'
 import InformePropietario from './pages/InformePropietario.jsx'
 import Despachos from './pages/Despachos.jsx'
 import RestauranteGastos from './pages/RestauranteGastos.jsx'
+import Finanzas from './pages/Finanzas.jsx'
 import Entrega from './pages/Entrega.jsx'
 import AsistenteApp from './pages/asistente/AsistenteApp.jsx'
 import './styles/theme.css'
@@ -97,6 +98,25 @@ function AppLayout() {
   // Rol externo sin aplicación → pantalla informativa, nunca el admin
   if (perfil && ROLES_SIN_APP.includes(perfil.rol_id)) {
     return <SinAcceso rol={perfil.rol_id} />
+  }
+
+  // Rol finanzas (Jessie) → solo validación de depósitos
+  if (perfil?.rol_id === 'finanzas') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <Header />
+        <main style={{
+          marginTop: 'var(--header-height)',
+          minHeight: 'calc(100vh - var(--header-height) - 48px)',
+        }}>
+          <Routes>
+            <Route path="/finanzas" element={<Finanzas />} />
+            <Route path="*" element={<Navigate to="/finanzas" replace />} />
+          </Routes>
+        </main>
+        <Toaster position="top-right" />
+      </div>
+    )
   }
 
   // Rol restaurante → solo puede ver su módulo
