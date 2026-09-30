@@ -7,6 +7,15 @@ import toast from 'react-hot-toast'
 
 const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
+const MESES_LABEL = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const MESES_CORTO = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+const fmtDateTime = iso => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 const FP_LABEL = {
   TRANSFERENCIA: 'Transferencia',
   DEPOSITO:      'Depósito bancario',
@@ -32,6 +41,9 @@ export default function Finanzas() {
   const [busqueda, setBusqueda] = useState('')
   const [validando, setValidando] = useState(null)
   const [verIngreso, setVerIngreso] = useState(null)
+  const hoy = new Date()
+  const [filtroMes, setFiltroMes] = useState(hoy.getMonth() + 1)   // 1–12
+  const [filtroAnio, setFiltroAnio] = useState(hoy.getFullYear())
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -77,9 +89,20 @@ export default function Finanzas() {
     if (verIngreso?.id === ing.id) setVerIngreso(actualizado)
   }
 
-  const porValidar  = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'POR_VALIDAR')
-  const observados  = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'OBSERVADO')
-  const validados   = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'VALIDADO')
+  // Filtra por mes/año del campo fecha del ingreso
+  const porPeriodo = list => list.filter(r => {
+    const f = r.fecha ? new Date(r.fecha + 'T00:00:00') : null
+    if (!f) return true
+    return f.getMonth() + 1 === filtroMes && f.getFullYear() === filtroAnio
+  })
+
+  const todosPorValidar = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'POR_VALIDAR')
+  const todosObservados = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'OBSERVADO')
+  const todosValidados  = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'VALIDADO')
+
+  const porValidar = porPeriodo(todosPorValidar)
+  const observados = porPeriodo(todosObservados)
+  const validados  = porPeriodo(todosValidados)
 
   const filtrar = list => list.filter(r =>
     !busqueda ||
@@ -90,6 +113,10 @@ export default function Finanzas() {
   )
 
   const totalPorValidar = porValidar.reduce((s, r) => s + (parseFloat(r.importe_total || r.importe) || 0), 0)
+  const totalValidados  = validados.reduce((s, r) => s + (parseFloat(r.importe_total || r.importe) || 0), 0)
+
+  // Años disponibles en los datos
+  const aniosDisponibles = [...new Set(ingresos.map(r => r.fecha ? new Date(r.fecha + 'T00:00:00').getFullYear() : null).filter(Boolean))].sort((a, b) => b - a)
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
@@ -108,12 +135,32 @@ export default function Finanzas() {
         </button>
       </div>
 
+      {/* Filtros de período */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>Período:</span>
+        <select value={filtroMes} onChange={e => setFiltroMes(Number(e.target.value))}
+          style={{ padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'white', cursor: 'pointer' }}>
+          {MESES_LABEL.slice(1).map((m, i) => (
+            <option key={i+1} value={i+1}>{m}</option>
+          ))}
+        </select>
+        <select value={filtroAnio} onChange={e => setFiltroAnio(Number(e.target.value))}
+          style={{ padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'white', cursor: 'pointer' }}>
+          {(aniosDisponibles.length ? aniosDisponibles : [hoy.getFullYear()]).map(a => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+          {MESES_CORTO[filtroMes]} {filtroAnio} · {porValidar.length + observados.length + validados.length} registros
+        </span>
+      </div>
+
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
         {[
           { label: 'Por validar', valor: porValidar.length, monto: totalPorValidar, color: '#92400E', icono: Clock },
           { label: 'Observados',  valor: observados.length,  monto: null, color: '#991B1B', icono: AlertTriangle },
-          { label: 'Validados',   valor: validados.length,   monto: null, color: '#166534', icono: CheckCircle2 },
+          { label: 'Validados',   valor: validados.length,   monto: totalValidados, color: '#166534', icono: CheckCircle2 },
         ].map(({ label, valor, monto, color, icono: Icono }) => (
           <div key={label} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -143,10 +190,14 @@ export default function Finanzas() {
             <SeccionDepositos titulo="Observados — requieren revisión" color="#991B1B" lista={filtrar(observados)}
               onValidar={validar} validando={validando} onVer={setVerIngreso} />
           )}
-          {filtrar(validados).length > 0 && (
-            <SeccionDepositos titulo={`Validados este período (${filtrar(validados).length})`} color="#166534"
-              lista={filtrar(validados)} colapsado validando={validando} onVer={setVerIngreso} />
-          )}
+          <SeccionDepositos
+            titulo={`Validados ${MESES_CORTO[filtroMes]} ${filtroAnio}`}
+            color="#166534"
+            lista={filtrar(validados)}
+            validando={validando}
+            onVer={setVerIngreso}
+            mostrarValidacion
+          />
         </>
       }
 
@@ -165,9 +216,18 @@ export default function Finanzas() {
 }
 
 /* ── Sección colapsable ─────────────────────────────────── */
-function SeccionDepositos({ titulo, color, lista, onValidar, onObservar, validando, colapsado = false, onVer }) {
+function SeccionDepositos({ titulo, color, lista, onValidar, onObservar, validando, colapsado = false, onVer, mostrarValidacion = false }) {
   const [abierto, setAbierto] = useState(!colapsado)
-  if (lista.length === 0) return null
+  if (lista.length === 0) return (
+    mostrarValidacion
+      ? <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>{titulo}</div>
+          <div style={{ padding: '20px', textAlign: 'center', color: '#9CA3AF', fontSize: 13, border: '1px dashed #E5E7EB', borderRadius: 10 }}>
+            Sin depósitos validados en este período
+          </div>
+        </div>
+      : null
+  )
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -214,6 +274,11 @@ function SeccionDepositos({ titulo, color, lista, onValidar, onObservar, validan
                     {ing.fecha && <span> · {ing.fecha}</span>}
                   </div>
                   {ing.referencia_banco && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Ref: {ing.referencia_banco}</div>}
+                  {mostrarValidacion && ing.validado_en && (
+                    <div style={{ fontSize: 11, color: '#166534', marginTop: 4, fontWeight: 600 }}>
+                      ✓ Autorizado por {ing.validado_por || '—'} · {fmtDateTime(ing.validado_en)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Estado comprobante + acciones */}
