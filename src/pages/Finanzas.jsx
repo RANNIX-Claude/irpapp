@@ -1,23 +1,28 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle2, Clock, AlertTriangle, Paperclip, Search, RefreshCw } from 'lucide-react'
-import { supabase, urlFirmada } from '../lib/supabase'
+import { CheckCircle2, Clock, AlertTriangle, Paperclip, Search, RefreshCw, X, ChevronRight, FileText } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import { EnlacePrivado } from '../components/ui/ArchivoPrivado'
 import { useApp } from '../context/AppContext'
 import toast from 'react-hot-toast'
 
 const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
-const ESTATUS = {
-  POR_VALIDAR: { label: 'Por validar', bg: '#FEF3C7', color: '#92400E' },
-  VALIDADO:    { label: 'Validado',    bg: '#DCFCE7', color: '#166534' },
-  OBSERVADO:   { label: 'Observado',   bg: '#FEE2E2', color: '#991B1B' },
-}
-
 const FP_LABEL = {
   TRANSFERENCIA: 'Transferencia',
-  DEPOSITO:      'Depósito',
+  DEPOSITO:      'Depósito bancario',
   CHEQUE:        'Cheque',
   EFECTIVO:      'Efectivo',
+}
+
+const BUCKETS_COMPROBANTE = ['comprobantes-pago', 'facturas-cfdi', 'tickets-gastos']
+
+// Intenta firmar la URL con el bucket correcto
+function EnlaceComprobante({ url, style, children }) {
+  // Detectar bucket del path si es una URL completa de Supabase
+  const bucket = url?.includes('comprobantes-pago') ? 'comprobantes-pago'
+    : url?.includes('facturas-cfdi') ? 'facturas-cfdi'
+    : 'comprobantes-pago'
+  return <EnlacePrivado bucket={bucket} valor={url} style={style}>{children}</EnlacePrivado>
 }
 
 export default function Finanzas() {
@@ -25,13 +30,14 @@ export default function Finanzas() {
   const [ingresos, setIngresos] = useState([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [validando, setValidando] = useState(null) // id del ingreso que se está validando
+  const [validando, setValidando] = useState(null)
+  const [verIngreso, setVerIngreso] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('prp_ingresos')
-      .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, comprobante_url, estatus_validacion, validado_por, validado_en, contrato_id, folio, arrendatario_nombre, locales_display, nota')
+      .select('id, fecha, importe, importe_total, forma_pago, referencia_banco, comprobante_url, estatus_validacion, validado_por, validado_en, contrato_id, folio, arrendatario_nombre, locales_display, nota, tipo, concepto_origen')
       .order('fecha', { ascending: false })
     if (error) { toast.error('Error al cargar depósitos: ' + error.message); setLoading(false); return }
     setIngresos(data || [])
@@ -54,22 +60,21 @@ export default function Finanzas() {
     setValidando(null)
     if (error) { toast.error('No se pudo validar: ' + error.message); return }
     toast.success(`Depósito de ${fmt(ing.importe_total || ing.importe)} validado`)
-    setIngresos(prev => prev.map(r => r.id === ing.id
-      ? { ...r, estatus_validacion: 'VALIDADO', validado_por: perfil?.nombre || perfil?.email || 'Finanzas', validado_en: new Date().toISOString() }
-      : r))
+    const actualizado = { ...ing, estatus_validacion: 'VALIDADO', validado_por: perfil?.nombre || perfil?.email || 'Finanzas', validado_en: new Date().toISOString() }
+    setIngresos(prev => prev.map(r => r.id === ing.id ? actualizado : r))
+    if (verIngreso?.id === ing.id) setVerIngreso(actualizado)
   }
 
   const observar = async (ing) => {
     if (validando) return
     setValidando(ing.id)
-    const { error } = await supabase
-      .from('ingresos')
-      .update({ estatus_validacion: 'OBSERVADO' })
-      .eq('id', ing.id)
+    const { error } = await supabase.from('ingresos').update({ estatus_validacion: 'OBSERVADO' }).eq('id', ing.id)
     setValidando(null)
     if (error) { toast.error('Error: ' + error.message); return }
     toast('Depósito marcado como Observado', { icon: '⚠️' })
-    setIngresos(prev => prev.map(r => r.id === ing.id ? { ...r, estatus_validacion: 'OBSERVADO' } : r))
+    const actualizado = { ...ing, estatus_validacion: 'OBSERVADO' }
+    setIngresos(prev => prev.map(r => r.id === ing.id ? actualizado : r))
+    if (verIngreso?.id === ing.id) setVerIngreso(actualizado)
   }
 
   const porValidar  = ingresos.filter(r => (r.estatus_validacion || 'POR_VALIDAR') === 'POR_VALIDAR')
@@ -106,10 +111,10 @@ export default function Finanzas() {
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
         {[
-          { label: 'Por validar', valor: porValidar.length, monto: totalPorValidar, color: '#92400E', bg: '#FEF3C7', icono: Clock },
-          { label: 'Observados',  valor: observados.length,  monto: null, color: '#991B1B', bg: '#FEE2E2', icono: AlertTriangle },
-          { label: 'Validados',   valor: validados.length,   monto: null, color: '#166534', bg: '#DCFCE7', icono: CheckCircle2 },
-        ].map(({ label, valor, monto, color, bg, icono: Icono }) => (
+          { label: 'Por validar', valor: porValidar.length, monto: totalPorValidar, color: '#92400E', icono: Clock },
+          { label: 'Observados',  valor: observados.length,  monto: null, color: '#991B1B', icono: AlertTriangle },
+          { label: 'Validados',   valor: validados.length,   monto: null, color: '#166534', icono: CheckCircle2 },
+        ].map(({ label, valor, monto, color, icono: Icono }) => (
           <div key={label} style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <Icono size={14} style={{ color }} />
@@ -132,49 +137,37 @@ export default function Finanzas() {
       {loading
         ? <div style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Cargando depósitos…</div>
         : <>
-          {/* ── Por validar ── */}
-          <SeccionDepositos
-            titulo="Por validar"
-            color="#92400E" bg="#FEF9C3"
-            lista={filtrar(porValidar)}
-            onValidar={validar}
-            onObservar={observar}
-            validando={validando}
-          />
-
-          {/* ── Observados ── */}
+          <SeccionDepositos titulo="Por validar" color="#92400E" lista={filtrar(porValidar)}
+            onValidar={validar} onObservar={observar} validando={validando} onVer={setVerIngreso} />
           {filtrar(observados).length > 0 && (
-            <SeccionDepositos
-              titulo="Observados — requieren revisión"
-              color="#991B1B" bg="#FEE2E2"
-              lista={filtrar(observados)}
-              onValidar={validar}
-              validando={validando}
-            />
+            <SeccionDepositos titulo="Observados — requieren revisión" color="#991B1B" lista={filtrar(observados)}
+              onValidar={validar} validando={validando} onVer={setVerIngreso} />
           )}
-
-          {/* ── Validados (colapsado) ── */}
           {filtrar(validados).length > 0 && (
-            <SeccionDepositos
-              titulo={`Validados este período (${filtrar(validados).length})`}
-              color="#166534" bg="#F0FDF4"
-              lista={filtrar(validados)}
-              colapsado
-              validando={validando}
-            />
+            <SeccionDepositos titulo={`Validados este período (${filtrar(validados).length})`} color="#166534"
+              lista={filtrar(validados)} colapsado validando={validando} onVer={setVerIngreso} />
           )}
         </>
       }
+
+      {/* Panel de detalle */}
+      {verIngreso && (
+        <DetalleIngreso
+          ing={verIngreso}
+          onClose={() => setVerIngreso(null)}
+          onValidar={validar}
+          onObservar={observar}
+          validando={validando}
+        />
+      )}
     </div>
   )
 }
 
-function SeccionDepositos({ titulo, color, bg, lista, onValidar, onObservar, validando, colapsado = false }) {
+/* ── Sección colapsable ─────────────────────────────────── */
+function SeccionDepositos({ titulo, color, lista, onValidar, onObservar, validando, colapsado = false, onVer }) {
   const [abierto, setAbierto] = useState(!colapsado)
-
   if (lista.length === 0) return null
-
-  const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -191,80 +184,240 @@ function SeccionDepositos({ titulo, color, bg, lista, onValidar, onObservar, val
             const monto = parseFloat(ing.importe_total || ing.importe) || 0
             const esEfectivo = (ing.forma_pago || '').toUpperCase() === 'EFECTIVO'
             const fpLabel = FP_LABEL[(ing.forma_pago || '').toUpperCase()] || ing.forma_pago || '—'
+            const estatus = ing.estatus_validacion || 'POR_VALIDAR'
 
             return (
-              <div key={ing.id} style={{ background: 'white', border: `1px solid #E5E7EB`, borderLeft: `4px solid ${color}`, borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                {/* Datos del depósito */}
+              <div key={ing.id}
+                onClick={() => onVer?.(ing)}
+                style={{ background: 'white', border: '1px solid #E5E7EB', borderLeft: `4px solid ${color}`, borderRadius: 10,
+                  padding: '14px 16px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap',
+                  cursor: 'pointer', transition: 'box-shadow .12s' }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.10)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+              >
+                {/* Info principal */}
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#111827' }}>{fmt(monto)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: '#111827' }}>{fmt(monto)}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                       background: esEfectivo ? '#FEF3C7' : '#DBEAFE',
                       color: esEfectivo ? '#92400E' : '#1D4ED8' }}>
                       {esEfectivo ? '💵 Efectivo' : `⇄ ${fpLabel}`}
                     </span>
-                    {ing.estatus_validacion === 'VALIDADO' && (
-                      <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#DCFCE7', color: '#166534' }}>✓ Validado</span>
-                    )}
-                    {ing.estatus_validacion === 'OBSERVADO' && (
-                      <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B' }}>⚠ Observado</span>
-                    )}
+                    {estatus === 'VALIDADO' && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#DCFCE7', color: '#166534' }}>✓ Validado</span>}
+                    {estatus === 'OBSERVADO' && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B' }}>⚠ Observado</span>}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{ing.arrendatario_nombre}</div>
-                  <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 2 }}>
+                  <div style={{ fontSize: 11.5, color: '#6B7280' }}>
                     {ing.folio && <span>{ing.folio}</span>}
                     {ing.locales_display && <span> · {ing.locales_display}</span>}
                     {ing.fecha && <span> · {ing.fecha}</span>}
                   </div>
-                  {ing.referencia_banco && (
-                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>Ref: {ing.referencia_banco}</div>
-                  )}
-                  {ing.nota && (
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3, fontStyle: 'italic' }}>{ing.nota}</div>
-                  )}
-                  {ing.estatus_validacion === 'VALIDADO' && ing.validado_por && (
-                    <div style={{ fontSize: 10.5, color: '#166534', marginTop: 4 }}>
-                      Validó {ing.validado_por}{ing.validado_en ? ` · ${ing.validado_en.slice(0, 10)}` : ''}
-                    </div>
-                  )}
+                  {ing.referencia_banco && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Ref: {ing.referencia_banco}</div>}
                 </div>
 
-                {/* Comprobante */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                {/* Estado comprobante + acciones */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }} onClick={e => e.stopPropagation()}>
                   {ing.comprobante_url
-                    ? <EnlacePrivado bucket="facturas-cfdi" valor={ing.comprobante_url}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700,
-                          color: '#0A66C2', background: '#EFF6FF', padding: '6px 12px', borderRadius: 20,
-                          border: '1px solid #BFDBFE', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        <Paperclip size={12} /> Comprobante
-                      </EnlacePrivado>
-                    : <span style={{ fontSize: 11.5, color: '#9CA3AF', padding: '6px 12px', border: '1px dashed #E5E7EB', borderRadius: 20 }}>
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: '#0A66C2', background: '#EFF6FF', padding: '4px 10px', borderRadius: 20, border: '1px solid #BFDBFE', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Paperclip size={11} /> Con comprobante
+                      </span>
+                    : <span style={{ fontSize: 11, color: '#9CA3AF', padding: '4px 10px', border: '1px dashed #E5E7EB', borderRadius: 20 }}>
                         Sin comprobante
                       </span>
                   }
-
-                  {/* Acciones */}
-                  {(ing.estatus_validacion || 'POR_VALIDAR') !== 'VALIDADO' && onValidar && (
-                    <button onClick={() => onValidar(ing)} disabled={validando === ing.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: 'none', borderRadius: 8,
-                        background: '#057642', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                        opacity: validando === ing.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                      <CheckCircle2 size={14} /> {validando === ing.id ? 'Validando…' : 'Validar'}
+                  {estatus !== 'VALIDADO' && onValidar && (
+                    <button onClick={e => { e.stopPropagation(); onValidar(ing) }} disabled={validando === ing.id}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: 'none', borderRadius: 7,
+                        background: '#057642', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, opacity: validando === ing.id ? 0.7 : 1 }}>
+                      <CheckCircle2 size={13} /> {validando === ing.id ? 'Validando…' : 'Validar'}
                     </button>
                   )}
-                  {(ing.estatus_validacion || 'POR_VALIDAR') === 'POR_VALIDAR' && onObservar && (
-                    <button onClick={() => onObservar(ing)} disabled={!!validando}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1.5px solid #FCA5A5', borderRadius: 8,
-                        background: 'white', color: '#991B1B', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      <AlertTriangle size={12} /> Observar
+                  {estatus === 'POR_VALIDAR' && onObservar && (
+                    <button onClick={e => { e.stopPropagation(); onObservar(ing) }} disabled={!!validando}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', border: '1.5px solid #FCA5A5', borderRadius: 7,
+                        background: 'white', color: '#991B1B', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                      <AlertTriangle size={11} /> Observar
                     </button>
                   )}
                 </div>
+
+                <ChevronRight size={16} style={{ color: '#D1D5DB', flexShrink: 0 }} />
               </div>
             )
           })}
         </div>
       )}
     </div>
+  )
+}
+
+/* ── Panel de detalle ───────────────────────────────────── */
+function DetalleIngreso({ ing, onClose, onValidar, onObservar, validando }) {
+  const [aplicaciones, setAplicaciones] = useState([])
+  const estatus = ing.estatus_validacion || 'POR_VALIDAR'
+  const monto = parseFloat(ing.importe_total || ing.importe) || 0
+  const esEfectivo = (ing.forma_pago || '').toUpperCase() === 'EFECTIVO'
+  const fpLabel = FP_LABEL[(ing.forma_pago || '').toUpperCase()] || ing.forma_pago || '—'
+
+  useEffect(() => {
+    supabase
+      .from('aplicaciones_pago')
+      .select('id, importe_aplicado, cargo_id, cargos_programados(concepto, periodo_mes, periodo_anio, importe)')
+      .eq('ingreso_id', ing.id)
+      .then(({ data }) => setAplicaciones(data || []))
+  }, [ing.id])
+
+  const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 1000, backdropFilter: 'blur(2px)' }} />
+
+      {/* Panel */}
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '100vw',
+        background: 'white', zIndex: 1001, boxShadow: '-4px 0 32px rgba(0,0,0,.15)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Encabezado del panel */}
+        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F3F4F6', background: '#F9FAFB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>
+                Detalle del depósito
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#111827' }}>{fmt(monto)}</div>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4, borderRadius: 6 }}>
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Badges */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+              background: esEfectivo ? '#FEF3C7' : '#DBEAFE', color: esEfectivo ? '#92400E' : '#1D4ED8' }}>
+              {esEfectivo ? '💵 Efectivo' : `⇄ ${fpLabel}`}
+            </span>
+            {estatus === 'VALIDADO' && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#DCFCE7', color: '#166534' }}>✓ Validado</span>}
+            {estatus === 'OBSERVADO' && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B' }}>⚠ Observado</span>}
+            {estatus === 'POR_VALIDAR' && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#FEF3C7', color: '#92400E' }}>⏳ Por validar</span>}
+          </div>
+        </div>
+
+        {/* Cuerpo */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Arrendatario */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Arrendatario</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 2 }}>{ing.arrendatario_nombre || '—'}</div>
+            <div style={{ fontSize: 12.5, color: '#6B7280' }}>{ing.folio}{ing.locales_display ? ` · ${ing.locales_display}` : ''}</div>
+          </section>
+
+          {/* Datos del pago */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Datos del pago</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
+              {[
+                ['Fecha',        ing.fecha || '—'],
+                ['Forma de pago', fpLabel],
+                ['Importe',      fmt(ing.importe)],
+                ['Total recibido', fmt(ing.importe_total || ing.importe)],
+                ['Referencia bancaria', ing.referencia_banco || '—'],
+                ['Tipo', ing.tipo || '—'],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 10.5, color: '#9CA3AF', fontWeight: 600, marginBottom: 1 }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+            {ing.nota && (
+              <div style={{ marginTop: 10, padding: '8px 12px', background: '#F9FAFB', borderRadius: 7, fontSize: 12.5, color: '#6B7280', fontStyle: 'italic', border: '1px solid #F3F4F6' }}>
+                {ing.nota}
+              </div>
+            )}
+          </section>
+
+          {/* Comprobante */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Comprobante de pago</div>
+            {ing.comprobante_url
+              ? <EnlaceComprobante url={ing.comprobante_url}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 9,
+                    background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#0A66C2',
+                    fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none' }}>
+                  <FileText size={15} /> Ver comprobante
+                </EnlaceComprobante>
+              : <div style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 9, border: '1px dashed #E5E7EB', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
+                  Sin comprobante adjunto
+                </div>
+            }
+          </section>
+
+          {/* Cargos aplicados */}
+          {aplicaciones.length > 0 && (
+            <section>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                Cargos cubiertos ({aplicaciones.length})
+              </div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {aplicaciones.map(ap => {
+                  const cp = ap.cargos_programados
+                  return (
+                    <div key={ap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '8px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #F3F4F6' }}>
+                      <div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#374151' }}>{cp?.concepto || 'Cargo'}</div>
+                        {cp?.periodo_mes && <div style={{ fontSize: 11, color: '#9CA3AF' }}>{MESES[cp.periodo_mes]} {cp.periodo_anio}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#111827' }}>{fmt(ap.importe_aplicado)}</div>
+                        {cp?.importe && parseFloat(ap.importe_aplicado) < parseFloat(cp.importe) && (
+                          <div style={{ fontSize: 10, color: '#F59E0B' }}>de {fmt(cp.importe)}</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Validación */}
+          {estatus === 'VALIDADO' && ing.validado_por && (
+            <section>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Validación</div>
+              <div style={{ padding: '10px 14px', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, fontSize: 13, color: '#166534' }}>
+                ✓ Validado por <strong>{ing.validado_por}</strong>
+                {ing.validado_en && <span style={{ color: '#4ADE80' }}> · {ing.validado_en.slice(0, 10)}</span>}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Acciones */}
+        {estatus !== 'VALIDADO' && (
+          <div style={{ padding: '14px 20px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: 8 }}>
+            <button onClick={() => onValidar(ing)} disabled={validando === ing.id}
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '11px', border: 'none', borderRadius: 9, background: '#057642', color: 'white',
+                cursor: 'pointer', fontSize: 14, fontWeight: 700, opacity: validando === ing.id ? 0.7 : 1 }}>
+              <CheckCircle2 size={16} /> {validando === ing.id ? 'Validando…' : 'Validar depósito'}
+            </button>
+            {estatus === 'POR_VALIDAR' && (
+              <button onClick={() => onObservar(ing)} disabled={!!validando}
+                style={{ padding: '11px 16px', border: '1.5px solid #FCA5A5', borderRadius: 9, background: 'white',
+                  color: '#991B1B', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <AlertTriangle size={14} /> Observar
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
