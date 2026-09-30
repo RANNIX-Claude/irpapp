@@ -6,7 +6,14 @@ import toast from 'react-hot-toast'
 
 const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
-// Cargos con al menos un ingreso VALIDADO y sin factura adjunta aún
+const fmtDT = iso => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
 export default function Facturacion() {
   const [cargos, setCargos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,13 +22,38 @@ export default function Facturacion() {
 
   const cargar = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
+
+    // 1. Cargos pagados/parciales
+    const { data: dataCargos, error } = await supabase
       .from('prp_cartera')
       .select('id, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, contrato_id, contrato_folio, arrendatario_nombre, locales_display, numero_factura, factura_url, factura_xml_url, tiene_factura, tiene_comprobante')
       .in('estado', ['PAGADO', 'PARCIAL'])
       .order('fecha_vencimiento', { ascending: false })
     if (error) { toast.error('Error: ' + error.message); setLoading(false); return }
-    setCargos(data || [])
+
+    // 2. Aplicaciones de pago con datos del ingreso (fecha pago + validación Finanzas)
+    const ids = (dataCargos || []).map(c => c.id)
+    let pagosMap = {}
+    if (ids.length) {
+      const { data: aplicaciones } = await supabase
+        .from('aplicaciones_pago')
+        .select('cargo_id, importe_aplicado, ingresos(id, fecha, importe_total, forma_pago, referencia_banco, estatus_validacion, validado_por, validado_en)')
+        .in('cargo_id', ids)
+      // Para cada cargo guardamos el primer ingreso VALIDADO (o el primero disponible)
+      for (const ap of (aplicaciones || [])) {
+        const ing = ap.ingresos
+        if (!ing) continue
+        const prev = pagosMap[ap.cargo_id]
+        const esValidado = ing.estatus_validacion === 'VALIDADO'
+        if (!prev || (esValidado && prev.estatus_validacion !== 'VALIDADO')) {
+          pagosMap[ap.cargo_id] = { ...ing, importe_aplicado: ap.importe_aplicado }
+        }
+      }
+    }
+
+    // 3. Merge
+    const merged = (dataCargos || []).map(c => ({ ...c, pago: pagosMap[c.id] || null }))
+    setCargos(merged)
     setLoading(false)
   }, [])
 
@@ -142,14 +174,15 @@ function CargoFactura({ cargo: c, onActualizar }) {
     onActualizar()
   }
 
-  const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const pago = c.pago  // ingreso VALIDADO que cubrió este cargo
+  const pagoValidado = pago?.estatus_validacion === 'VALIDADO'
 
   return (
     <div style={{ background: 'white', border: '1px solid #E5E7EB', borderLeft: `4px solid ${c.tiene_factura ? '#057642' : '#E8A020'}`, borderRadius: 10, padding: '14px 16px' }}>
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
         {/* Info del cargo */}
-        <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{fmt(c.importe)}</span>
             <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#DBEAFE', color: '#1D4ED8' }}>
@@ -161,6 +194,35 @@ function CargoFactura({ cargo: c, onActualizar }) {
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{c.arrendatario_nombre}</div>
           <div style={{ fontSize: 11.5, color: '#6B7280' }}>{c.locales_display} · {c.contrato_folio}</div>
+
+          {/* Ficha del pago que cubrió este cobro */}
+          <div style={{ marginTop: 8, padding: '8px 10px', background: '#F8FAFC', borderRadius: 7, border: '1px solid #F1F5F9' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+              <div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>PAGO RECIBIDO</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{pago?.fecha || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>MONTO PAGADO</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{fmt(pago?.importe_total || pago?.importe_aplicado)}</div>
+              </div>
+              {pago?.referencia_banco && (
+                <div style={{ gridColumn: '1/-1' }}>
+                  <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>REFERENCIA BANCARIA</div>
+                  <div style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace' }}>{pago.referencia_banco}</div>
+                </div>
+              )}
+              <div style={{ gridColumn: '1/-1' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>VALIDADO POR FINANZAS</div>
+                {pagoValidado
+                  ? <div style={{ fontSize: 11.5, fontWeight: 700, color: '#057642' }}>
+                      ✓ {pago.validado_por || '—'} · {fmtDT(pago.validado_en)}
+                    </div>
+                  : <div style={{ fontSize: 11.5, color: '#F59E0B', fontWeight: 600 }}>⏳ Pendiente de validación</div>
+                }
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Folio + archivos */}
