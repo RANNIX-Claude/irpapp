@@ -191,22 +191,21 @@ export function ModalSolicitud({ solicitud, onClose, onSaved }) {
 }
 
 // ─── Autorizar y asignar ─────────────────────────────────────────────────────
+// "Asignar a" es texto libre, no un catálogo: puede ser una cuadrilla interna
+// (albañiles, electricistas de la plaza) o un proveedor externo que ni
+// siquiera está dado de alta todavía. asignado_proveedor_id se conserva por
+// las solicitudes viejas ya autorizadas contra el catálogo (su expediente
+// sigue siendo clickeable desde el detalle), pero el formulario ya no lo pide.
 export function ModalAutorizar({ s, onClose, onSaved }) {
-  const [provs, setProvs] = useState([])
-  const [form, setForm] = useState({ asignado_proveedor_id: s.asignado_proveedor_id || '', fecha_programada: s.fecha_programada || '', costo_estimado: s.costo_estimado ?? '', nota_cambio: '' })
+  const [form, setForm] = useState({ asignado_texto: s.asignado_texto || s.asignado_nombre || '', fecha_programada: s.fecha_programada || '', costo_estimado: s.costo_estimado ?? '', nota_cambio: '' })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  useEffect(() => {
-    supabase.from('cat_proveedores').select('id,nombre,categoria').eq('activo', true).order('nombre').then(({ data }) => setProvs(data || []))
-  }, [])
-  // Primero los de mantenimiento/mixto, que son los que suelen hacer estos trabajos.
-  const orden = [...provs].sort((a, b) => (['MANTENIMIENTO', 'MIXTO'].includes(b.categoria) ? 1 : 0) - (['MANTENIMIENTO', 'MIXTO'].includes(a.categoria) ? 1 : 0))
 
   const guardar = async () => {
-    if (!form.asignado_proveedor_id) return toast.error('Asigna a quién hará el trabajo')
+    if (!form.asignado_texto.trim()) return toast.error('Di quién va a atenderlo (cuadrilla interna o proveedor)')
     setSaving(true)
     const { error } = await supabase.from('mantenimiento_solicitudes').update({
-      estatus: 'AUTORIZADO', asignado_proveedor_id: form.asignado_proveedor_id,
+      estatus: 'AUTORIZADO', asignado_texto: form.asignado_texto.trim(),
       fecha_programada: form.fecha_programada || null, costo_estimado: form.costo_estimado === '' ? null : Number(form.costo_estimado),
       nota_cambio: form.nota_cambio.trim() || null,
     }).eq('id', s.id)
@@ -222,11 +221,8 @@ export function ModalAutorizar({ s, onClose, onSaved }) {
       <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginBottom: 14 }}>{s.titulo}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <Campo2 label="Asignar a *" span>
-          <select value={form.asignado_proveedor_id} onChange={e => set('asignado_proveedor_id', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-            <option value="">— Seleccionar del catálogo de proveedores —</option>
-            {orden.map(p => <option key={p.id} value={p.id}>{p.nombre}{p.categoria ? ` · ${p.categoria.toLowerCase()}` : ''}</option>)}
-          </select>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>¿No está? Dalo de alta en Compras → Proveedores (p. ej. "Juan Pérez — plomero", categoría Mantenimiento).</div>
+          <input value={form.asignado_texto} onChange={e => set('asignado_texto', e.target.value)}
+            placeholder="Ej: Cuadrilla interna (Juan y Pedro) o Electricista Ramírez (externo)" style={inputStyle} />
         </Campo2>
         <Campo2 label="Fecha programada">
           <input type="date" value={form.fecha_programada} onChange={e => set('fecha_programada', e.target.value)} style={inputStyle} />

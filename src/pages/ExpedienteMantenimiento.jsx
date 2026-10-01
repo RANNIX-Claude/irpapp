@@ -158,8 +158,8 @@ export default function ExpedienteMantenimiento() {
         </SideCard>
         <SideCard titulo="Responsable">
           {s.asignado_nombre ? (
-            <SideItem primero icono={Truck} titulo={s.asignado_nombre} sub={s.asignado_telefono || 'Ver expediente del proveedor'}
-              onClick={() => navigate(`/proveedores/${s.asignado_proveedor_id}`)} />
+            <SideItem primero icono={Truck} titulo={s.asignado_nombre} sub={s.asignado_telefono || (s.asignado_proveedor_id ? 'Ver expediente del proveedor' : 'Cuadrilla interna o proveedor sin catálogo')}
+              onClick={s.asignado_proveedor_id ? () => navigate(`/proveedores/${s.asignado_proveedor_id}`) : undefined} />
           ) : <div style={{ fontSize: 12, color: C.muted }}>Sin asignar</div>}
           {s.asignado_telefono && <a href={`tel:${s.asignado_telefono}`} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, color: C.primary, fontWeight: 600, textDecoration: 'none' }}><Phone size={12} /> Llamar</a>}
         </SideCard>
