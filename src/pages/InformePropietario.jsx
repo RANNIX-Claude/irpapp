@@ -392,10 +392,10 @@ export default function InformePropietario() {
         .eq('anio', anio).eq('mes', mes)
         .maybeSingle(),
 
-      // Contratos activos para KPI de locales
+      // Contratos activos para KPI de locales (incluye VENCIDO = en ejecución pero vencidos)
       supabase.from('prp_contratos')
         .select('id,estatus,fecha_fin')
-        .in('estatus', ['ACTIVO', 'VIGENTE']),
+        .in('estatus', ['ACTIVO', 'VIGENTE', 'VENCIDO']),
 
       // Locales ligados a contratos (para contar cuántos locales están ocupados)
       supabase.from('contratos_locales').select('contrato_id'),
