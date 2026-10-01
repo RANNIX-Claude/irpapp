@@ -277,10 +277,11 @@ function Separador({ emoji, titulo, count }) {
   )
 }
 
-// ── Tarjeta: estado de resultados mensual (desde er_mensual) ──────────────────
+// ── Tarjeta: estado de resultados mensual (desde er_mensual o tiempo real) ────
 function TarjetaOperativo({ op }) {
   const { edrRentas, edrEstac, edrPensiones, edrMaquinita, edrAgua,
-          edrSueldos, edrFondo, edrGastos, edrTotalIng, edrUtilNeta, edrStatus, label } = op
+          edrSueldos, edrFondo, edrGastos, edrTotalIng, edrUtilNeta,
+          edrStatus, esParcial, label } = op
 
   const ingresos = [
     { emoji: '🏪', label: 'Rentas',         valor: edrRentas },
@@ -313,9 +314,13 @@ function TarjetaOperativo({ op }) {
           <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.6)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
             💰 Ingresos — {label}
           </div>
-          {edrStatus && (
-            <span style={{ fontSize: 9, fontWeight: 800, background: edrStatus === 'cerrado' ? 'rgba(255,255,255,.25)' : 'rgba(232,160,32,.85)', color: 'white', borderRadius: 4, padding: '2px 7px', textTransform: 'uppercase' }}>
-              {edrStatus === 'cerrado' ? 'Cerrado' : 'Borrador'}
+          {(edrStatus || esParcial) && (
+            <span style={{ fontSize: 9, fontWeight: 800,
+              background: edrStatus === 'cerrado' ? 'rgba(255,255,255,.25)'
+                        : esParcial ? 'rgba(14,107,107,.85)'
+                        : 'rgba(232,160,32,.85)',
+              color: 'white', borderRadius: 4, padding: '2px 7px', textTransform: 'uppercase' }}>
+              {edrStatus === 'cerrado' ? 'Cerrado' : esParcial ? '🔄 En curso' : 'Borrador'}
             </span>
           )}
         </div>
@@ -323,7 +328,11 @@ function TarjetaOperativo({ op }) {
       </div>
       <div style={{ background: 'white', padding: '10px 18px 4px' }}>
         {sinDatos
-          ? <div style={{ padding: '10px 0', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>EDR de {label} aún no capturado</div>
+          ? <div style={{ padding: '10px 0', fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>
+              {esParcial
+                ? '⚠️ Total cobrado hasta hoy — EDR aún no cerrado'
+                : `EDR de ${label} aún no capturado`}
+            </div>
           : ingresos.map((l, i) => <Fila key={i} {...l} colorValor="#059669" />)
         }
       </div>
@@ -376,7 +385,7 @@ export default function InformePropietario() {
     const ini  = primerDia(anio, mes)
     const fin  = ultimoDia(anio, mes)
 
-    const [edrRes, contr, avRows, avFotos, proyRows, evRows, evFotos] = await Promise.all([
+    const [edrRes, contr, avRows, avFotos, proyRows, evRows, evFotos, ingRes, gasRes] = await Promise.all([
       // Estado de resultados mensual — ya calculado por el sistema
       supabase.from('er_mensual')
         .select('calc_real_total_rentas,calc_real_total_estac,calc_real_total_pension,calc_real_total_maq,calc_real_total_agua_i,calc_real_total_ing,real_sueldos,real_fondo_revolvente,real_gasto_excedente,real_luz,real_agua_gastos,real_otros_gastos,calc_real_total_gastos,calc_real_util_neta,status')
@@ -407,9 +416,13 @@ export default function InformePropietario() {
 
       supabase.from('evento_fotos')
         .select('evento_id,foto_url,orden').order('orden'),
+
+      // Fallback en tiempo real — usado cuando er_mensual aún no existe
+      supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
+      supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
     ])
 
-    // ── Operativo mensual desde er_mensual ────────────────────────────────────
+    // ── Operativo mensual — EDR cerrado o fallback en tiempo real ─────────────
     const edr = edrRes.data || {}
     const edrRentas    = parseFloat(edr.calc_real_total_rentas)  || 0
     const edrEstac     = parseFloat(edr.calc_real_total_estac)   || 0
@@ -422,8 +435,23 @@ export default function InformePropietario() {
     const edrTotalIng  = parseFloat(edr.calc_real_total_ing)     || (edrRentas + edrEstac + edrPensiones + edrMaquinita + edrAgua)
     const edrUtilNeta  = parseFloat(edr.calc_real_util_neta)     || (edrTotalIng - edrGastos)
     const edrStatus    = edr.status || null
-    setOp({ edrRentas, edrEstac, edrPensiones, edrMaquinita, edrAgua,
-             edrSueldos, edrFondo, edrGastos, edrTotalIng, edrUtilNeta, edrStatus, label })
+
+    const sinEdr = edrTotalIng === 0 && edrGastos === 0
+
+    // Totales en tiempo real desde prp_ingresos / prp_gastos
+    const rtIng = (ingRes.data || []).reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+    const rtGas = (gasRes.data || []).reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+
+    setOp({
+      edrRentas, edrEstac, edrPensiones, edrMaquinita, edrAgua,
+      edrSueldos, edrFondo,
+      edrGastos:   sinEdr ? rtGas     : edrGastos,
+      edrTotalIng: sinEdr ? rtIng     : edrTotalIng,
+      edrUtilNeta: sinEdr ? rtIng - rtGas : edrUtilNeta,
+      edrStatus: sinEdr && rtIng > 0 ? 'parcial' : edrStatus,
+      esParcial: sinEdr,
+      label,
+    })
 
     // ── KPIs de contratos ─────────────────────────────────────────────────────
     const hoyD = new Date()
