@@ -572,19 +572,27 @@ const ACCIONES = {
       if (!Number.isInteger(anio) || anio < 2020 || anio > 2030) return { error: 'anio debe ser un año válido (p. ej. 2026).' }
 
       const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`
+      // Incluye VIGENTES + VENCIDOS que siguen EN_EJECUCION o EN_RENOVACION (misma lógica que la función SQL)
       const { data: contratos, error: eC } = await db.from('prp_contratos')
-        .select('id, folio, arrendatario_nombre, locales_display, renta_mensual')
-        .eq('estatus', 'VIGENTE').lte('fecha_inicio', primerDia).gt('renta_mensual', 0)
+        .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, estatus, estatus_proceso, fecha_fin')
+        .lte('fecha_inicio', primerDia).gt('renta_mensual', 0)
+        .not('estatus', 'in', '("RESCISION","CANCELADO")')
       if (eC) return { error: eC.message }
 
-      const idsContratos = (contratos || []).map(c => c.id)
+      // Replicar el criterio del WHERE de fn_generar_cargos_mes
+      const contratosActivos = (contratos || []).filter(c =>
+        !c.fecha_fin || c.fecha_fin >= primerDia ||
+        ['EN_EJECUCION', 'EN_RENOVACION'].includes(c.estatus_proceso)
+      )
+
+      const idsContratos = contratosActivos.map(c => c.id)
       const yaConCargo = new Set()
       if (idsContratos.length) {
         const { data: cargos } = await db.from('prp_cartera').select('contrato_id')
           .in('contrato_id', idsContratos).eq('periodo_mes', mes).eq('periodo_anio', anio).eq('concepto', 'RENTA')
         for (const c of cargos || []) yaConCargo.add(c.contrato_id)
       }
-      const sinCargo = (contratos || []).filter(c => !yaConCargo.has(c.id))
+      const sinCargo = contratosActivos.filter(c => !yaConCargo.has(c.id))
       const MESES_STR = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
       if (!sinCargo.length) return { error: `Todos los contratos VIGENTES ya tienen cargo de RENTA para ${MESES_STR[mes - 1]} ${anio}. No hay nada que generar.` }
 
@@ -595,7 +603,7 @@ const ACCIONES = {
         confirmar: 'Generar cobros',
         resumen: [
           ['Período', `${MESES_STR[mes - 1]} ${anio}`],
-          ['Contratos VIGENTES', String((contratos || []).length)],
+          ['Contratos activos', String(contratosActivos.length)],
           ['Ya tienen cargo', String(yaConCargo.size)],
           ['Se generarán', String(sinCargo.length)],
           ['Primeros contratos', muestra + (sinCargo.length > 5 ? ` y ${sinCargo.length - 5} más` : '')],
