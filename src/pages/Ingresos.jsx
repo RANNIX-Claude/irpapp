@@ -242,7 +242,7 @@ const BLANK = {
 // contrato específico (no hace falta buscarlo). cargoObjetivo: el cargo/cobro
 // puntual que se está por pagar — precarga el importe con su saldo y, en
 // cuanto cargan los cargos pendientes, lo deja ya aplicado.
-export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = null, cargoObjetivo = null }) {
+export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = null, cargoObjetivo = null, initialOverrides = {} }) {
   const [form, setForm] = useState(ingreso ? {
     fecha:           ingreso.fecha ? ingreso.fecha.slice(0,10) : new Date().toISOString().slice(0,10),
     contrato_id:     ingreso.contrato_id || '',
@@ -261,6 +261,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     clasificacion:   ingreso.clasificacion_manual ? (ingreso.clasificacion || '') : '',
   } : {
     ...BLANK,
+    ...initialOverrides,
     contrato_id: contratoFijo || '',
     importe: cargoObjetivo ? String(parseFloat(cargoObjetivo.saldo ?? cargoObjetivo.monto_total ?? 0) || '') : '',
   })

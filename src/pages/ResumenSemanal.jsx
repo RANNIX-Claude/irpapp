@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { supabase, supabaseParking, urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import { ImagenPrivada, EnlacePrivado } from '../components/ui/ArchivoPrivado'
+import { IngresoModal } from './Ingresos'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // Extrae nombre legible de proveedor (puede ser string normal, objeto JSON o JSON serializado)
@@ -1299,18 +1300,16 @@ export default function ResumenSemanal() {
         </Modal>
       )}
       {modal === 'renta' && (
-        <Modal titulo="🏠 Registrar Renta en Efectivo" onClose={() => setModal(null)}>
-          <ModalIngreso tipo="RENTA" semIni={semSel.ini} semFin={semSel.fin}
-            onClose={() => setModal(null)}
-            onSaved={() => { setModal(null); recargar() }} />
-        </Modal>
+        <IngresoModal
+          initialOverrides={{ origen: 'EFECTIVO', tipo: 'RENTA' }}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); recargar() }} />
       )}
       {modal === 'agua' && (
-        <Modal titulo="💧 Registrar Cobro de Agua en Efectivo" onClose={() => setModal(null)}>
-          <ModalIngreso tipo="AGUA" semIni={semSel.ini} semFin={semSel.fin}
-            onClose={() => setModal(null)}
-            onSaved={() => { setModal(null); recargar() }} />
-        </Modal>
+        <IngresoModal
+          initialOverrides={{ origen: 'EFECTIVO', tipo: 'AGUA' }}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); recargar() }} />
       )}
 
       {/* ── MODAL EDICIÓN ── */}
