@@ -295,7 +295,7 @@ export default function Usuarios() {
     } finally {
       setLoading(false)
     }
-  }, [session])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
