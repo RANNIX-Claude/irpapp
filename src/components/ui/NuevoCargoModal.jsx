@@ -50,7 +50,9 @@ export default function NuevoCargoModal({ onClose, onSaved, contratoFijo = null 
   useEffect(() => {
     if (contratoFijo) return
     supabase.from('prp_contratos')
-      .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago')
+      .select('id, folio, arrendatario_nombre, locales_display, renta_mensual, dia_pago, estatus, estatus_proceso')
+      .not('estatus_proceso', 'in', '("TERMINADO","SUSPENDIDO")')
+      .not('estatus', 'in', '("RENOVADO","CANCELADO","RESCISION","TERMINADO")')
       .order('locales_display', { ascending: true, nullsFirst: false })
       .then(({ data, error }) => { if (error) console.error('NuevoCargoModal contratos', error); setContratos(data ?? []) })
   }, [contratoFijo])
@@ -197,7 +199,7 @@ export default function NuevoCargoModal({ onClose, onSaved, contratoFijo = null 
                 <option value="">— Seleccionar —</option>
                 {contratos.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.locales_display ? `${c.locales_display} · ` : ''}{c.arrendatario_nombre}
+                    {c.locales_display ? `${c.locales_display} · ` : ''}{c.arrendatario_nombre}{c.folio ? ` (${c.folio})` : ''}
                   </option>
                 ))}
               </select>

@@ -1200,6 +1200,9 @@ export default function Cobranza() {
   // KPIs
   const carteraVencida = lista.filter(c => c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy)
   const carteraVencidaSum = carteraVencida.reduce((a, c) => a + (parseFloat(c.saldo) || 0), 0)
+  // Cuando hay filtro de mes: cargo total del período y cuánto se ha pagado de él.
+  const cargoPeriodo  = mesFiltro !== 0 ? lista.filter(c => c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro).reduce((a, c) => a + (parseFloat(c.importe) || 0), 0) : 0
+  const pagadoPeriodo = mesFiltro !== 0 ? lista.filter(c => c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro).reduce((a, c) => a + (parseFloat(c.total_aplicado) || 0), 0) : 0
 
   const inicioMes = new Date(anioFiltro, mesFiltro - 1, 1)
   const finMes    = new Date(anioFiltro, mesFiltro, 0, 23, 59, 59)
@@ -1333,7 +1336,16 @@ export default function Cobranza() {
 
       {/* KPIs — debajo de la navegación para que los filtros sean lo primero */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
+        {mesFiltro !== 0
+          ? <KPICard
+              title={`Cobros ${MES_NOMBRES[mesFiltro]}`}
+              value={`$${(cargoPeriodo / 1000).toFixed(0)}K`}
+              subtitle={`Pagado $${(pagadoPeriodo / 1000).toFixed(0)}K · Diferencia $${((cargoPeriodo - pagadoPeriodo) / 1000).toFixed(0)}K`}
+              icon={AlertTriangle}
+              color={pagadoPeriodo < cargoPeriodo ? 'var(--color-danger)' : 'var(--color-success)'}
+            />
+          : <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
+        }
         <KPICard title={`Pagado ${MES_NOMBRES[mesFiltro]}`} value={`$${(pagadoMes / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-success)" />
         <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
         <KPICard title="Ingresos sin Aplicar" value={ingresosLibres} icon={DollarSign} color="var(--color-secondary)" />
@@ -1385,7 +1397,8 @@ export default function Cobranza() {
           {/* Qué se está viendo. Con filtros puestos, el total de lo filtrado
               es la respuesta que se busca: cuánto suman las sanciones de agosto. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px', fontSize: '12.5px', color: 'var(--color-text-light)', flexWrap: 'wrap' }}>
-            <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong> de {lista.length} cargos</span>
+            <span style={{ fontWeight: 600 }}>Total de cobros:</span>
+            <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong>{carteraFiltrada.length !== lista.length ? ` de ${lista.length}` : ''} cargos</span>
             <span>Cargo <strong style={{ color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
               ${carteraFiltrada.reduce((a, c) => a + (parseFloat(c.importe) || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </strong></span>
