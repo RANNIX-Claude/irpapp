@@ -1,20 +1,69 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Check, Loader2, Paperclip, Camera, Mic, FileText } from 'lucide-react'
+import { Send, Check, Loader2, Paperclip, Camera, Mic, FileText, RotateCcw, Lightbulb } from 'lucide-react'
 import { chatOperativo } from '../../lib/claude'
 import { ejecutarAccion, leerFicha, leerArchivoChecador, datosFichas } from '../../lib/agentActions'
 
 // Dictado por voz del navegador (Chrome/Android y Safari lo traen; si no, no se muestra el micrófono).
 const Dictado = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
-// Preguntas de arranque por tema — solo se muestran con la ventana ampliada (en chico estorban) y
-// mientras la conversación sigue en el saludo inicial. No limitan al usuario: puede preguntar cualquier
-// cosa; son un atajo para no partir de la pantalla en blanco.
-const TEMAS_SUGERIDOS = [
-  { tema: 'Cobranza', preguntas: ['¿Qué cartera está vencida ahorita?', '¿Quién debe más de un mes?'] },
-  { tema: 'Contratos', preguntas: ['¿Qué contratos vencen este mes?', '¿Hay renovaciones pendientes?'] },
-  { tema: 'Estacionamiento', preguntas: ['Valida el ingreso de estacionamiento de esta semana'] },
-  { tema: 'RH', preguntas: ['¿Quién faltó esta semana?', '¿Hay incidencias de asistencia sin revisar?'] },
+const SALUDO_DEFAULT = '¡Hola! Soy el Agente Operativo de IRP. ¿En qué puedo ayudarte con la administración de tus inmuebles?'
+
+// Preguntas de arranque, congruentes con el módulo donde está parado el usuario (pathname de la pantalla
+// actual) — no una lista genérica fija. `contexto` además se le dice al agente en el prompt (ver claude.js
+// / chat-operativo.js), para que sepa de qué módulo viene la pregunta aunque el usuario no lo mencione.
+// Solo se muestran con la ventana ampliada o en la app del celular (en chico estorban), y no limitan nada:
+// se puede preguntar cualquier cosa, son solo un atajo para no partir de la pantalla en blanco.
+const CONTEXTOS_RUTA = [
+  { test: p => p === '/', tema: 'Dashboard', contexto: 'el Dashboard general con los KPIs de la plaza',
+    preguntas: ['¿Qué KPIs están en rojo ahorita?', '¿Cómo va la ocupación este mes?'] },
+  { test: p => p.startsWith('/cobranza'), tema: 'Cobranza', contexto: 'el módulo de Cobranza',
+    preguntas: ['¿Qué cartera está vencida ahorita?', '¿Quién debe más de un mes?', '¿Cuánto llevamos cobrado este mes?'] },
+  { test: p => p.startsWith('/conciliacion'), tema: 'Conciliación', contexto: 'el módulo de Conciliación bancaria',
+    preguntas: ['¿Qué depósitos siguen sin conciliar?'] },
+  { test: p => p.startsWith('/renovaciones'), tema: 'Renovaciones', contexto: 'el módulo de Renovaciones de contrato',
+    preguntas: ['¿Qué renovaciones están pendientes?', '¿Qué contratos vencen en los próximos 60 días?'] },
+  { test: p => p.startsWith('/contratos'), tema: 'Contratos', contexto: 'el módulo de Contratos de arrendamiento',
+    preguntas: ['¿Qué contratos vencen este mes?', '¿Cuántos contratos están vigentes?'] },
+  { test: p => p.startsWith('/arrendatarios'), tema: 'Arrendatarios', contexto: 'el módulo de Arrendatarios',
+    preguntas: ['¿Qué arrendatario tiene más adeudo acumulado?'] },
+  { test: p => p.startsWith('/ingresos'), tema: 'Ingresos', contexto: 'el módulo de Ingresos',
+    preguntas: ['¿Cuánto llevamos de ingresos este mes?', '¿Qué ingresos están por validar?'] },
+  { test: p => p.startsWith('/gastos-operativos'), tema: 'Gastos operativos', contexto: 'el módulo de Gastos operativos',
+    preguntas: ['¿Cuánto llevamos de gasto este mes?', '¿Cuál es el grupo de gasto más alto?'] },
+  { test: p => p.startsWith('/fondo-revolvente'), tema: 'Fondo revolvente', contexto: 'el módulo de Fondo revolvente',
+    preguntas: ['¿Cuánto saldo queda del fondo revolvente?'] },
+  { test: p => p.startsWith('/edr'), tema: 'Estado de Resultados', contexto: 'el Estado de Resultados (EDR) mensual',
+    preguntas: ['¿Cómo va la utilidad del mes contra lo proyectado?'] },
+  { test: p => p.startsWith('/resumen-semanal'), tema: 'Resumen semanal', contexto: 'el Resumen semanal',
+    preguntas: ['¿Cómo cerró el estacionamiento esta semana?'] },
+  { test: p => p.startsWith('/mantenimiento'), tema: 'Mantenimiento', contexto: 'el módulo de Mantenimiento y órdenes de trabajo',
+    preguntas: ['¿Qué órdenes de trabajo siguen abiertas?'] },
+  { test: p => p.startsWith('/proyectos'), tema: 'Proyectos', contexto: 'el módulo de Proyectos y Obras',
+    preguntas: ['¿Cómo van los proyectos activos?'] },
+  { test: p => p.startsWith('/proveedores'), tema: 'Proveedores', contexto: 'el módulo de Proveedores',
+    preguntas: ['¿Qué proveedor es el más usado este mes?'] },
+  { test: p => p.startsWith('/bitacora'), tema: 'Bitácora', contexto: 'la Bitácora del sistema',
+    preguntas: ['¿Qué pasó hoy en el sistema?'] },
+  { test: p => p.startsWith('/agua'), tema: 'Agua', contexto: 'el módulo de Consumo de agua',
+    preguntas: ['¿Cómo va el consumo de agua este mes?'] },
+  { test: p => p.startsWith('/estacionamiento'), tema: 'Estacionamiento', contexto: 'el módulo de Estacionamiento y pensiones',
+    preguntas: ['Valida el ingreso de estacionamiento de esta semana', '¿Cuántas pensiones activas hay?'] },
+  { test: p => p.startsWith('/vending'), tema: 'Vending', contexto: 'el módulo de Vending',
+    preguntas: ['¿Cómo va la venta de vending esta semana?'] },
+  { test: p => p.startsWith('/rh'), tema: 'RH', contexto: 'el módulo de RH y Nómina',
+    preguntas: ['¿Quién faltó esta semana?', '¿Hay incidencias de asistencia sin revisar?'] },
+  { test: p => p.startsWith('/prospectos'), tema: 'Prospectos', contexto: 'el módulo de Prospectos y CRM',
+    preguntas: ['¿Qué prospectos están esperando respuesta?'] },
+  { test: p => p.startsWith('/mapa-locales'), tema: 'Mapa de locales', contexto: 'el Mapa visual de locales',
+    preguntas: ['¿Qué locales están vacantes ahorita?'] },
+  { test: p => p.startsWith('/inmuebles'), tema: 'Inmuebles', contexto: 'el módulo de Inmuebles y Unidades',
+    preguntas: ['¿Cuántas unidades hay disponibles?'] },
+  { test: p => p.startsWith('/restaurante'), tema: 'Restaurante', contexto: 'los Gastos de restaurante',
+    preguntas: ['¿Cómo van los gastos del restaurante este mes?'] },
 ]
+const CONTEXTO_GENERAL = { tema: 'General', contexto: null,
+  preguntas: ['¿Qué contratos vencen este mes?', '¿Qué cartera está vencida ahorita?', '¿Quién faltó esta semana?'] }
+const resolverContexto = pathname => CONTEXTOS_RUTA.find(c => c.test(pathname || '')) || CONTEXTO_GENERAL
 
 // Tarjeta de una acción propuesta por el agente. Nada se ejecuta hasta el clic.
 function TarjetaAccion({ p, movil, onConfirmar, onCancelar, onAbrir }) {
@@ -59,26 +108,35 @@ function TarjetaAccion({ p, movil, onConfirmar, onCancelar, onAbrir }) {
  *
  * @param {boolean} movil     letra y botones más grandes, cámara y dictado por voz
  * @param {boolean} ampliado  panel de escritorio en su tamaño grande: se muestran las preguntas sugeridas
+ * @param {string}  pathname  ruta de la pantalla actual, para sugerir preguntas congruentes con el módulo
  * @param {string}  saludo    primer mensaje del asistente
  * @param {(ruta:string)=>void} onAbrirRuta  qué hacer con el enlace "Abrir" de una tarjeta
  */
-export default function ChatOperativo({ movil = false, ampliado = false, saludo, onAbrirRuta }) {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: saludo || '¡Hola! Soy el Agente Operativo de IRP. ¿En qué puedo ayudarte con la administración de tus inmuebles?' },
-  ])
+export default function ChatOperativo({ movil = false, ampliado = false, pathname = '', saludo, onAbrirRuta }) {
+  const [messages, setMessages] = useState([{ role: 'assistant', content: saludo || SALUDO_DEFAULT }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [adjuntos, setAdjuntos] = useState([])   // fichas ya leídas, pendientes de enviar
   const [leyendo, setLeyendo] = useState(0)
   const [escuchando, setEscuchando] = useState(false)
+  const [mostrarSugeridas, setMostrarSugeridas] = useState(true)
   const bottomRef = useRef(null)
   const fileRef = useRef(null)
   const camRef = useRef(null)
   const vozRef = useRef(null)
   // Un id por sesión de chat (se abre el panel o se entra a la app): agrupa sus turnos en la bitácora.
+  // "Nueva conversación" genera uno distinto, para que la bitácora no mezcle los dos temas.
   const conversacionIdRef = useRef(crypto.randomUUID())
+  const ctx = resolverContexto(pathname)
+  const sugeridasDisponibles = ampliado || movil
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
+
+  const nuevaConversacion = () => {
+    setMessages([{ role: 'assistant', content: saludo || SALUDO_DEFAULT }])
+    setAdjuntos([]); setInput(''); setMostrarSugeridas(true)
+    conversacionIdRef.current = crypto.randomUUID()
+  }
 
   // Al servidor solo viaja role/content; las tarjetas son estado de la interfaz.
   const historial = msgs => msgs.slice(1).map(({ role, content }) => ({ role, content }))
@@ -148,12 +206,13 @@ export default function ChatOperativo({ movil = false, ampliado = false, saludo,
     if ((!escrito && !adjuntos.length) || loading || leyendo) return
     const text = [escrito || 'Procesa estos documentos.', ...adjuntos.map(a => a.texto)].join('\n')
     const archivosAdjuntos = adjuntos.map(a => ({ miniatura: a.miniatura, archivo: a.archivo }))
-    setInput(''); setAdjuntos([])
+    setInput(''); setAdjuntos([]); setMostrarSugeridas(false)
     const next = [...messages, { role: 'user', content: text, archivosAdjuntos }]
     setMessages(next)
     setLoading(true)
     try {
-      const { content, propuestas } = await chatOperativo(historial(next), '', datosFichas(), conversacionIdRef.current, movil ? 'movil' : 'web')
+      const contextoPantalla = ctx.contexto ? `El usuario está viendo ${ctx.contexto}.` : ''
+      const { content, propuestas } = await chatOperativo(historial(next), contextoPantalla, datosFichas(), conversacionIdRef.current, movil ? 'movil' : 'web')
       setMessages([...next, { role: 'assistant', content, propuestas: propuestas.map(p => ({ ...p, estado: 'pendiente' })) }])
     } catch (e) {
       console.error('[ChatOperativo]', e)
@@ -168,6 +227,21 @@ export default function ChatOperativo({ movil = false, ampliado = false, saludo,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white' }}>
+      {/* Barra: nueva conversación (reinicia también la bitácora con un id distinto) y, si hay preguntas
+          sugeridas disponibles para esta pantalla, el botón para mostrarlas/ocultarlas a demanda. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', padding: movil ? '8px 10px 0' : '8px 12px 0', flexShrink: 0 }}>
+        {sugeridasDisponibles && (
+          <button onClick={() => setMostrarSugeridas(s => !s)} title={mostrarSugeridas ? 'Ocultar preguntas sugeridas' : 'Mostrar preguntas sugeridas'}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 9px', borderRadius: '7px', border: '1px solid #E5E7EB', background: mostrarSugeridas ? 'rgba(10,102,194,0.08)' : 'none', color: mostrarSugeridas ? 'var(--color-primary)' : 'var(--color-text-light)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+            <Lightbulb size={12} /> Sugerencias
+          </button>
+        )}
+        <button onClick={nuevaConversacion} title="Nueva conversación"
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 9px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'none', color: 'var(--color-text-light)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+          <RotateCcw size={12} /> Nueva conversación
+        </button>
+      </div>
+
       {/* Mensajes */}
       <div style={{ flex: 1, overflowY: 'auto', padding: movil ? '14px 12px' : '16px', display: 'flex', flexDirection: 'column', gap: '12px', WebkitOverflowScrolling: 'touch' }}>
         {messages.map((m, i) => m.sistema ? (
@@ -213,26 +287,20 @@ export default function ChatOperativo({ movil = false, ampliado = false, saludo,
         <div ref={bottomRef} />
       </div>
 
-      {/* Preguntas sugeridas por tema: solo con la ventana ampliada (en chico estorban) y antes de
-          empezar a platicar. No limitan nada — el usuario puede preguntar lo que sea igual. */}
-      {ampliado && messages.length === 1 && !loading && (
+      {/* Preguntas sugeridas, congruentes con el módulo donde está el usuario ahorita (ctx.tema): solo
+          con la ventana ampliada o en el celular (en chico estorban), y mientras el botón de la bombilla
+          las tenga activas. No limitan nada — el usuario puede preguntar lo que sea igual. */}
+      {sugeridasDisponibles && mostrarSugeridas && !loading && (
         <div style={{ padding: '0 16px 12px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '8px' }}>
-            Para empezar
+            Sobre {ctx.tema}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {TEMAS_SUGERIDOS.map(({ tema, preguntas }) => (
-              <div key={tema}>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginBottom: '4px' }}>{tema}</div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {preguntas.map(p => (
-                    <button key={p} onClick={() => send(p)}
-                      style={{ padding: '6px 11px', borderRadius: '14px', border: '1.5px solid #E5E7EB', background: '#F9FAFB', color: 'var(--color-text)', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {ctx.preguntas.map(p => (
+              <button key={p} onClick={() => send(p)}
+                style={{ padding: '6px 11px', borderRadius: '14px', border: '1.5px solid #E5E7EB', background: '#F9FAFB', color: 'var(--color-text)', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}>
+                {p}
+              </button>
             ))}
           </div>
         </div>

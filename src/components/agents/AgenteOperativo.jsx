@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { MessageCircle, X, Bot, Maximize2, Minimize2 } from 'lucide-react'
 import ChatOperativo from './ChatOperativo'
 
@@ -14,6 +14,7 @@ export default function AgenteOperativo() {
   const [open, setOpen] = useState(false)
   const [ampliado, setAmpliado] = useState(false)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const tam = ampliado ? TAMANO.ampliado : TAMANO.normal
 
   return (
@@ -56,7 +57,7 @@ export default function AgenteOperativo() {
           </button>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ChatOperativo ampliado={ampliado} onAbrirRuta={ruta => { setOpen(false); navigate(ruta) }} />
+          <ChatOperativo ampliado={ampliado} pathname={pathname} onAbrirRuta={ruta => { setOpen(false); navigate(ruta) }} />
         </div>
       </div>
     </>
