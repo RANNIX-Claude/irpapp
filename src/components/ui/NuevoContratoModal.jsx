@@ -1,8 +1,10 @@
 // NuevoContratoModal — inserta en public.contratos + public.contratos_locales
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, CheckCircle, DollarSign, ChevronRight } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
 import { supabase } from '../../lib/supabase'
+
+function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }
 
 export default function NuevoContratoModal({ onClose, onCreated, fromProspecto = null, arrendatarioId = null, arrendatarioNombre = null }) {
   // Arrendatarios activos de public.arrendatarios
@@ -36,8 +38,12 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
+  const [contratoCreado, setContratoCreado] = useState(null) // { id, folio, deposito, fecha_inicio, contrato_id }
+  const [depositoForm, setDepositoForm] = useState({ origen: 'EFECTIVO', fecha: '', yaCobrado: false })
+  const [savingDep, setSavingDep] = useState(false)
+  const [errDep, setErrDep] = useState(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setDep = (k, v) => setDepositoForm(f => ({ ...f, [k]: v }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -74,11 +80,61 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
       })
       if (e2) throw e2
 
-      setSuccess(`Contrato ${folio} creado exitosamente.`)
-      setTimeout(() => { onCreated?.(); onClose() }, 1800)
+      const dep = parseFloat(form.deposito_garantia) || parseFloat(form.renta_mensual || 0) * 2
+      setContratoCreado({ id: nuevo.id, folio, deposito: dep, fecha_inicio: form.fecha_inicio })
+      setDepositoForm(f => ({ ...f, fecha: form.fecha_inicio }))
     } catch (err) {
       setError(err.message)
     } finally { setSaving(false) }
+  }
+
+  const registrarDeposito = async () => {
+    setSavingDep(true); setErrDep(null)
+    try {
+      const fechaDep = depositoForm.fecha || contratoCreado.fecha_inicio
+      const _fd = new Date(fechaDep + 'T12:00:00')
+
+      // Cargo programado de Depósito en Garantía
+      const { data: cargo, error: eCargo } = await supabase.from('cargos_programados').insert({
+        contrato_id:      contratoCreado.id,
+        concepto:         'DEPOSITO_GARANTIA',
+        descripcion:      'Depósito en garantía',
+        periodo_mes:      _fd.getMonth() + 1,
+        periodo_anio:     _fd.getFullYear(),
+        importe:          contratoCreado.deposito,
+        fecha_vencimiento: fechaDep,
+        generado_auto:    false,
+      }).select().single()
+      if (eCargo) throw eCargo
+
+      // Si ya fue cobrado, crear ingreso + aplicación
+      if (depositoForm.yaCobrado) {
+        const { data: ing, error: eIng } = await supabase.from('ingresos').insert({
+          fecha:          fechaDep,
+          mes:            _fd.getMonth() + 1,
+          anio:           _fd.getFullYear(),
+          tipo:           'DEPOSITO_GARANTIA',
+          tipo_concepto:  'DEPOSITO_GARANTIA',
+          origen:         depositoForm.origen,
+          importe:        contratoCreado.deposito,
+          contrato_id:    contratoCreado.id,
+          concepto_origen: `Depósito en Garantía - ${contratoCreado.folio}`,
+        }).select().single()
+        if (eIng) throw eIng
+
+        const { error: eAp } = await supabase.from('aplicaciones_pago').insert({
+          ingreso_id:       ing.id,
+          cargo_id:         cargo.id,
+          importe_aplicado: contratoCreado.deposito,
+        })
+        if (eAp) throw eAp
+      }
+
+      onCreated?.()
+      onClose()
+    } catch (err) {
+      setErrDep(err.message)
+    } finally { setSavingDep(false) }
   }
 
   const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
@@ -114,10 +170,61 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
           </div>
         )}
 
-        {success ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#057642' }}>{success}</div>
+        {contratoCreado ? (
+          /* ── Paso 2: Depósito en Garantía ── */
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '10px', marginBottom: '20px' }}>
+              <CheckCircle size={20} color="#057642" />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#065F46' }}>Contrato {contratoCreado.folio} creado</div>
+                <div style={{ fontSize: '12px', color: '#059669' }}>Ahora registra el cobro del depósito en garantía</div>
+              </div>
+            </div>
+
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '10px', padding: '16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369A1', textTransform: 'uppercase', marginBottom: '2px' }}>Depósito en Garantía</div>
+                <div style={{ fontSize: '22px', fontWeight: 900, color: '#0A66C2' }}>{fmt(contratoCreado.deposito)}</div>
+              </div>
+              <DollarSign size={32} color="#BAE6FD" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={lbl}>Fecha del depósito</label>
+                <input type="date" value={depositoForm.fecha} onChange={e => setDep('fecha', e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={lbl}>Forma de cobro</label>
+                <select value={depositoForm.origen} onChange={e => setDep('origen', e.target.value)} style={inp}>
+                  {['EFECTIVO','TRANSFERENCIA','CHEQUE','DEPOSITO'].map(o => <option key={o}>{o}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: depositoForm.yaCobrado ? '#ECFDF5' : '#F9FAFB', border: `1.5px solid ${depositoForm.yaCobrado ? '#6EE7B7' : '#E5E7EB'}`, borderRadius: '8px', cursor: 'pointer', marginBottom: '16px' }}>
+              <input type="checkbox" checked={depositoForm.yaCobrado} onChange={e => setDep('yaCobrado', e.target.checked)}
+                style={{ width: '16px', height: '16px', accentColor: '#057642' }} />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: depositoForm.yaCobrado ? '#065F46' : '#374151' }}>Ya fue cobrado</div>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>Crea también el ingreso y lo aplica al cargo</div>
+              </div>
+            </label>
+
+            {errDep && <div style={{ padding: '8px 12px', background: '#FEF2F2', color: '#B24020', borderRadius: '7px', fontSize: '12px', marginBottom: '12px' }}>{errDep}</div>}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => { onCreated?.(); onClose() }}
+                style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                Omitir
+              </button>
+              <button onClick={registrarDeposito} disabled={savingDep}
+                style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: savingDep ? '#9CA3AF' : '#0A66C2', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: savingDep ? 'default' : 'pointer' }}>
+                <DollarSign size={14} />
+                {savingDep ? 'Registrando…' : 'Registrar depósito'}
+                {!savingDep && <ChevronRight size={14} />}
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'grid', gap: '16px' }}>
