@@ -380,9 +380,30 @@ function ModalIngreso({ tipo, semIni, semFin, onClose, onSaved }) {
   const fechaDefault = hoy >= semIni && hoy <= semFin ? hoy : semFin
   const [form, setForm] = useState({
     fecha: fechaDefault, importe: '', propietario: '',
-    id_contrato: '', concepto_origen: '', nota: '',
+    id_contrato: '', concepto_origen: '', nota: '', contrato_id: '',
   })
   const [saving, setSaving] = useState(false)
+  const [contratos, setContratos] = useState([])
+
+  useEffect(() => {
+    supabase.from('prp_contratos')
+      .select('id,folio,arrendatario_nombre,locales_display,renta_mensual')
+      .in('estatus_proceso', ['EN_EJECUCION','EN_RENOVACION'])
+      .order('locales_display')
+      .then(({ data }) => setContratos(data || []))
+  }, [])
+
+  const seleccionarContrato = (id) => {
+    if (!id) { setForm(p => ({ ...p, contrato_id: '', propietario: '', id_contrato: '' })); return }
+    const c = contratos.find(x => x.id === id)
+    if (!c) return
+    setForm(p => ({
+      ...p,
+      contrato_id: c.id,
+      propietario: c.arrendatario_nombre || '',
+      id_contrato: c.locales_display || c.folio || '',
+    }))
+  }
 
   const guardar = async () => {
     if (!form.importe) return toast.error('Ingresa el importe')
@@ -397,6 +418,7 @@ function ModalIngreso({ tipo, semIni, semFin, onClose, onSaved }) {
       importe: parseFloat(form.importe),
       propietario: form.propietario || null,
       id_contrato: form.id_contrato || null,
+      contrato_id: form.contrato_id || null,
       concepto_origen: form.concepto_origen || `${tipo} ${MESES_INGRESO[_fecha.getMonth()]}${_fecha.getFullYear().toString().slice(2)}`,
       nota: form.nota || null,
     })
@@ -422,15 +444,17 @@ function ModalIngreso({ tipo, semIni, semFin, onClose, onSaved }) {
             style={{ ...inp, fontSize:'22px', fontWeight:800, textAlign:'right', color }} />
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
-        <div>
-          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Propietario / Razón Social</label>
-          <input value={form.propietario} onChange={e => setForm(p => ({ ...p, propietario: e.target.value }))} placeholder="Nombre..." style={inp} />
-        </div>
-        <div>
-          <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>ID Contrato / Local</label>
-          <input value={form.id_contrato} onChange={e => setForm(p => ({ ...p, id_contrato: e.target.value }))} placeholder="Ej: L04" style={inp} />
-        </div>
+      <div style={{ marginBottom:'12px' }}>
+        <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Contrato</label>
+        <select value={form.contrato_id} onChange={e => seleccionarContrato(e.target.value)}
+          style={{ ...inp, background:'white' }}>
+          <option value="">— Sin contrato asociado —</option>
+          {contratos.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.locales_display ? `${c.locales_display} · ` : ''}{c.arrendatario_nombre}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ marginBottom:'12px' }}>
         <label style={{ fontSize:'12px', fontWeight:700, color:'#6B7280', display:'block', marginBottom:'5px' }}>Concepto (opcional)</label>
