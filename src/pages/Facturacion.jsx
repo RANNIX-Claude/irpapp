@@ -312,8 +312,8 @@ function CargoFactura({ cargo: c, onActualizar }) {
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{pago?.fecha || '—'}</div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>MONTO PAGADO</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{fmt(pago?.importe_total || pago?.importe_aplicado)}</div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>MONTO APLICADO</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{fmt(pago?.importe_aplicado || pago?.importe_total)}</div>
               </div>
               {pago?.referencia_banco && (
                 <div style={{ gridColumn: '1/-1' }}>
