@@ -385,7 +385,7 @@ export default function InformePropietario() {
     const ini  = primerDia(anio, mes)
     const fin  = ultimoDia(anio, mes)
 
-    const [edrRes, contr, avRows, avFotos, proyRows, evRows, evFotos, ingRes, gasRes] = await Promise.all([
+    const [edrRes, contr, locsRows, avRows, avFotos, proyRows, evRows, evFotos, ingRes, gasRes] = await Promise.all([
       // Estado de resultados mensual — ya calculado por el sistema
       supabase.from('er_mensual')
         .select('calc_real_total_rentas,calc_real_total_estac,calc_real_total_pension,calc_real_total_maq,calc_real_total_agua_i,calc_real_total_ing,real_sueldos,real_fondo_revolvente,real_gasto_excedente,real_luz,real_agua_gastos,real_otros_gastos,calc_real_total_gastos,calc_real_util_neta,status')
@@ -396,6 +396,9 @@ export default function InformePropietario() {
       supabase.from('prp_contratos')
         .select('id,estatus,fecha_fin')
         .in('estatus', ['ACTIVO', 'VIGENTE']),
+
+      // Locales ligados a contratos (para contar cuántos locales están ocupados)
+      supabase.from('contratos_locales').select('contrato_id'),
 
       // Avances de proyectos del mes
       supabase.from('proyecto_avances')
@@ -455,13 +458,15 @@ export default function InformePropietario() {
 
     // ── KPIs de contratos ─────────────────────────────────────────────────────
     const hoyD = new Date()
-    const activos = (contr.data || []).length
-    const porVencer = (contr.data || []).filter(c => {
+    const contratoActivos = contr.data || []
+    const activoIds = new Set(contratoActivos.map(c => c.id))
+    const localesActivos = (locsRows.data || []).filter(l => activoIds.has(l.contrato_id)).length
+    const porVencer = contratoActivos.filter(c => {
       if (!c.fecha_fin) return false
       const diff = (new Date(c.fecha_fin) - hoyD) / 86400000
       return diff >= 0 && diff <= 60
     })
-    setKpis({ activos, porVencer })
+    setKpis({ activos: contratoActivos.length, locales: localesActivos, porVencer })
 
     // ── Avances con fotos ─────────────────────────────────────────────────────
     const fotosMap = {}
@@ -522,8 +527,10 @@ export default function InformePropietario() {
             {kpis && (
               <TarjetaKPI
                 emoji="🏢" label="Locales Activos"
-                valor={`${kpis.activos}`}
-                sub="contratos activos en la plaza"
+                valor={`${kpis.locales || kpis.activos}`}
+                sub={kpis.locales
+                  ? `locales ocupados en ${kpis.activos} contratos activos`
+                  : `contratos activos en la plaza`}
                 detalle={kpis.porVencer.length > 0 ? `⚠️ ${kpis.porVencer.length} contratos vencen en 60 días` : '✅ Contratos al corriente'}
                 colores={['#0d3d3d', '#0e6b6b']}
                 path="/contratos"
