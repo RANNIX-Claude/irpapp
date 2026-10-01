@@ -46,7 +46,7 @@ const VISTAS = {
   },
   prp_cartera: {
     buscar: ['arrendatario_nombre', 'contrato_folio', 'concepto', 'locales_display'],
-    columnas: 'id, contrato_id, contrato_folio, arrendatario_nombre, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, total_aplicado, saldo, renta_mensual, inmueble_nombre, locales_display',
+    columnas: 'id, contrato_id, contrato_folio, arrendatario_nombre, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, total_aplicado, saldo, renta_mensual, inmueble_nombre, locales_display, estatus_proceso (del contrato: EN_CONTRATACION|EN_RENOVACION|EN_EJECUCION|TERMINADO|SUSPENDIDO)',
   },
   prp_expediente_arrendatario: {
     buscar: ['nombre_completo', 'rfc', 'email', 'numero_local'],
@@ -711,7 +711,7 @@ function domicilioDe(dom, ine) {
 // asistente_* de la migración 20260925210000, que ya vienen sin RFC, CURP, NSS ni datos bancarios del personal.
 const ASIST_VISTAS = {
   asistente_contratos: { buscar: VISTAS.prp_contratos.buscar, columnas: 'id, folio, arrendatario_id, arrendatario_nombre, nombre_negocio, arrendatario_rfc, arrendatario_email, arrendatario_telefono, tipo_persona, tipo_contrato, giro_autorizado, fecha_inicio, fecha_fin, renta_mensual, deposito_garantia, dia_pago, penalizacion_pct, incremento_anual_pct, fiador_nombre, pagares_cantidad, contrato_anterior_id, estatus (VIGENTE|VENCIDO|RENOVADO|RESCISION|CANCELADO), estatus_proceso (EN_CONTRATACION|EN_RENOVACION|EN_EJECUCION|TERMINADO|SUSPENDIDO), locales_display, semaforo_vencimiento, dias_restantes, unidad_id, unidad_numero, m2_totales, inmueble_nombre, notas' },
-  asistente_cartera:   { buscar: VISTAS.prp_cartera.buscar, columnas: 'id, contrato_id, contrato_folio, arrendatario_nombre, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, total_aplicado, saldo, renta_mensual, inmueble_nombre, locales_display' },
+  asistente_cartera:   { buscar: VISTAS.prp_cartera.buscar, columnas: 'id, contrato_id, contrato_folio, arrendatario_nombre, concepto, descripcion, periodo_mes, periodo_anio, importe, fecha_vencimiento, estado, total_aplicado, saldo, renta_mensual, inmueble_nombre, locales_display, estatus_proceso (del contrato: EN_CONTRATACION|EN_RENOVACION|EN_EJECUCION|TERMINADO|SUSPENDIDO)' },
   asistente_ingresos:  { buscar: VISTAS.prp_ingresos.buscar, columnas: 'id, fecha, tipo, mes, anio, importe, factura, nota, origen, concepto_origen, contrato_id, folio, arrendatario_nombre, locales_display, estatus_validacion, clasificacion' },
   asistente_gastos:    { buscar: ['descripcion', 'grupo_gasto', 'proveedor_nombre'], columnas: 'id, fecha, semana, anio, mes, dia_semana, grupo_gasto, descripcion, monto, ticket_total, proveedor_nombre, proveedor_cat, num_lineas' },
   asistente_personal:  { buscar: VISTAS.prp_empleados.buscar, columnas: 'id, numero_empleado, nombre_completo, puesto, area, departamento, fecha_ingreso, estado_id, horario_trabajo, dia_descanso, tipo_contratacion, contrato_inicio, contrato_fin, semaforo_contrato, dias_antiguedad, email, celular, salario_diario, salario_mensual (sin RFC, CURP, NSS ni datos bancarios: no existen para este usuario)' },
@@ -1015,7 +1015,8 @@ ${db && puedeParking ? `IwolPark (sistema de tickets del estacionamiento, otra b
 - Un arrendatario puede tener varios contratos (renovaciones: el anterior queda RENOVADO y el nuevo VIGENTE con contrato_anterior_id).
 - estatus es la vigencia legal; estatus_proceso es la etapa operativa. En /contratos solo se listan EN_EJECUCION; los EN_RENOVACION viven en /renovaciones.
 - dias_restantes negativo = vencido. Montos en pesos mexicanos.
-- prp_cartera es la cobranza real (estado PENDIENTE/PAGADO/VENCIDO, saldo).
+- prp_cartera es la cobranza real. Su columna "estado" solo vale PENDIENTE, PARCIAL, PAGADO o CANCELADO — NUNCA "VENCIDO" (no existe ese valor). Un cargo está vencido cuando fecha_vencimiento es anterior a hoy Y estado es PENDIENTE o PARCIAL; así es como contestas "qué está vencido" o "cartera vencida", nunca busques estado = VENCIDO ni le digas al usuario que no hay nada vencido solo por eso.
+- Un contrato con estatus_proceso TERMINADO ya no es cartera activa: SIEMPRE excluye sus cargos de "cartera vencida", "por cobrar" o cualquier KPI/resumen de cobranza, salvo que el usuario pregunte explícitamente por ese contrato o arrendatario. Si vas a reportar cartera vencida, primero fíjate en estatus_proceso de cada renglón (ya viene en prp_cartera y asistente_cartera).
 - Si tus vistas se llaman asistente_* (cartera, contratos, gastos…) es la misma información que las prp_* descritas arriba, sin datos fiscales del personal (RFC, CURP, NSS, bancarios): si los piden, di que su rol no los ve.
 ${db && !puedeEscribir ? '- Este usuario tiene permiso de CONSULTA. Si pide registrar, dar de alta o modificar algo, dile con franqueza que su cuenta todavia no puede hacerlo desde el chat.' : ''}
 ${db && puedeEscribir ? `Operaciones que modifican datos (herramienta proponer_accion):
