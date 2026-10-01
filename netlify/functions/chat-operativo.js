@@ -581,8 +581,9 @@ const ACCIONES = {
 
       // Replicar el criterio del WHERE de fn_generar_cargos_mes
       const contratosActivos = (contratos || []).filter(c =>
-        !c.fecha_fin || c.fecha_fin >= primerDia ||
-        ['EN_EJECUCION', 'EN_RENOVACION'].includes(c.estatus_proceso)
+        !['RENOVADO', 'TERMINADO'].includes(c.estatus) &&
+        (!c.fecha_fin || c.fecha_fin >= primerDia ||
+          ['EN_EJECUCION', 'EN_RENOVACION'].includes(c.estatus_proceso))
       )
 
       const idsContratos = contratosActivos.map(c => c.id)
