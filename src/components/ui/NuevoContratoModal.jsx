@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
 import { supabase } from '../../lib/supabase'
 
-export default function NuevoContratoModal({ onClose, onCreated, fromProspecto = null }) {
+export default function NuevoContratoModal({ onClose, onCreated, fromProspecto = null, arrendatarioId = null, arrendatarioNombre = null }) {
   // Arrendatarios activos de public.arrendatarios
   const { data: arrendatarios } = usePRP('arrendatarios', {
     filters: [['estatus', 'eq', 'ACTIVO']],
@@ -22,7 +22,7 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
   defaultFin.setDate(defaultFin.getDate() - 1)
 
   const [form, setForm] = useState({
-    arrendatario_id: '',
+    arrendatario_id: arrendatarioId || '',
     local_id: '',          // id_local de cat_locales (TEXT)
     tipo_contrato: 'ANUAL',
     fecha_inicio: new Date().toISOString().split('T')[0],
@@ -127,12 +127,18 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
               {/* Arrendatario */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={lbl}>Arrendatario *</label>
-                <select value={form.arrendatario_id} onChange={e => set('arrendatario_id', e.target.value)} style={inp} required>
-                  <option value="">— Seleccionar —</option>
-                  {(arrendatarios ?? []).map(a => (
-                    <option key={a.id} value={a.id}>{a.locatario} {a.nombre_negocio ? `· ${a.nombre_negocio}` : ''} {a.rfc ? `(${a.rfc})` : ''}</option>
-                  ))}
-                </select>
+                {arrendatarioId ? (
+                  <div style={{ ...inp, background: '#F0F9FF', color: '#0A66C2', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+                    {arrendatarioNombre || 'Arrendatario seleccionado'}
+                  </div>
+                ) : (
+                  <select value={form.arrendatario_id} onChange={e => set('arrendatario_id', e.target.value)} style={inp} required>
+                    <option value="">— Seleccionar —</option>
+                    {(arrendatarios ?? []).map(a => (
+                      <option key={a.id} value={a.id}>{a.locatario} {a.nombre_negocio ? `· ${a.nombre_negocio}` : ''} {a.rfc ? `(${a.rfc})` : ''}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Local disponible */}

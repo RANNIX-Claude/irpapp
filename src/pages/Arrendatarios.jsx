@@ -11,6 +11,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
+import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
 function fdate(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }
@@ -140,7 +141,7 @@ function ArrendatarioModal({ initial, onClose, onSaved }) {
 }
 
 // ── Ficha Arrendatario (panel lateral) ───────────────────────────────────────
-function FichaArrendatario({ arrendatario, onClose, onEdit }) {
+function FichaArrendatario({ arrendatario, onClose, onEdit, onNuevoContrato }) {
   const [contratos, setContratos] = useState([])
   const [loading, setLoading]     = useState(true)
 
@@ -251,9 +252,15 @@ function FichaArrendatario({ arrendatario, onClose, onEdit }) {
 
         {/* Historial de contratos */}
         <div style={{ flex: 1, padding: '16px 24px' }}>
-          <h3 style={{ margin: '0 0 14px', fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Historial de contratos ({contratos.length})
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Historial de contratos ({contratos.length})
+            </h3>
+            <button onClick={() => onNuevoContrato(arrendatario)}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+              <Plus size={13} /> Nuevo contrato
+            </button>
+          </div>
 
           {loading
             ? <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><LoadingSpinner /></div>
@@ -461,6 +468,7 @@ export default function Arrendatarios() {
   const [ficha, setFicha]     = useState(null)   // arrendatario seleccionado para panel
   const [confirm, setConfirm] = useState(null)
   const [reload, setReload]   = useState(0)
+  const [nuevoContratoArr, setNuevoContratoArr] = useState(null) // arrendatario para nuevo contrato
 
   // Intentar cargar desde view, fallback a tabla directa
   const { data: dataView, loading: loadingView } = usePRP('prp_expediente_arrendatario', {
@@ -556,9 +564,14 @@ export default function Arrendatarios() {
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>Arrendatarios</h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{total} registrados · {filtrados.length} en vista</p>
         </div>
-        <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <Plus size={15} /> Nuevo arrendatario
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setNuevoContratoArr({})} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <FileText size={15} /> Nuevo contrato
+          </button>
+          <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <Plus size={15} /> Nuevo arrendatario
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
@@ -643,6 +656,7 @@ export default function Arrendatarios() {
           arrendatario={{ ...ficha, id: ficha.arrendatario_id || ficha.id }}
           onClose={() => setFicha(null)}
           onEdit={abrirEditar}
+          onNuevoContrato={a => { setFicha(null); setNuevoContratoArr(a) }}
         />
       )}
 
@@ -653,6 +667,19 @@ export default function Arrendatarios() {
           onSaved={() => { setModal(null); setReload(r => r + 1) }}
         />
       )}
+
+      {nuevoContratoArr && (() => {
+        const arrId = nuevoContratoArr.arrendatario_id || nuevoContratoArr.id || null
+        const arrNombre = nuevoContratoArr.locatario || nuevoContratoArr.nombre_completo || null
+        return (
+          <NuevoContratoModal
+            arrendatarioId={arrId}
+            arrendatarioNombre={arrNombre}
+            onClose={() => setNuevoContratoArr(null)}
+            onCreated={() => { setNuevoContratoArr(null); setReload(r => r + 1) }}
+          />
+        )
+      })()}
 
       {confirm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
