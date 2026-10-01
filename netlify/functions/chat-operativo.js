@@ -562,6 +562,49 @@ const ACCIONES = {
     },
   },
 
+  generar_cargos_mes: {
+    descripcion: 'Genera los cargos de RENTA del mes para todos los contratos VIGENTES que todavía no los tienen. Solo úsala cuando el usuario pida explícitamente generar cobros de un mes. Parámetros: mes (1-12, por omisión el mes actual), anio (YYYY, por omisión el año actual).',
+    async preparar(db, p, _ctx) {
+      const hoy = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }))
+      const mes = Number(p.mes ?? hoy.getMonth() + 1)
+      const anio = Number(p.anio ?? hoy.getFullYear())
+      if (!Number.isInteger(mes) || mes < 1 || mes > 12) return { error: 'mes debe ser un número del 1 al 12.' }
+      if (!Number.isInteger(anio) || anio < 2020 || anio > 2030) return { error: 'anio debe ser un año válido (p. ej. 2026).' }
+
+      const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`
+      const { data: contratos, error: eC } = await db.from('prp_contratos')
+        .select('id, folio, arrendatario_nombre, locales_display, renta_mensual')
+        .eq('estatus', 'VIGENTE').lte('fecha_inicio', primerDia).gt('renta_mensual', 0)
+      if (eC) return { error: eC.message }
+
+      const idsContratos = (contratos || []).map(c => c.id)
+      const yaConCargo = new Set()
+      if (idsContratos.length) {
+        const { data: cargos } = await db.from('prp_cartera').select('contrato_id')
+          .in('contrato_id', idsContratos).eq('periodo_mes', mes).eq('periodo_anio', anio).eq('concepto', 'RENTA')
+        for (const c of cargos || []) yaConCargo.add(c.contrato_id)
+      }
+      const sinCargo = (contratos || []).filter(c => !yaConCargo.has(c.id))
+      const MESES_STR = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+      if (!sinCargo.length) return { error: `Todos los contratos VIGENTES ya tienen cargo de RENTA para ${MESES_STR[mes - 1]} ${anio}. No hay nada que generar.` }
+
+      const muestra = sinCargo.slice(0, 5).map(c => `${c.locales_display || c.folio} — ${mxn(c.renta_mensual)}`).join(', ')
+      return {
+        params: { mes, anio },
+        titulo: `Generar cobros de RENTA — ${MESES_STR[mes - 1]} ${anio}`,
+        confirmar: 'Generar cobros',
+        resumen: [
+          ['Período', `${MESES_STR[mes - 1]} ${anio}`],
+          ['Contratos VIGENTES', String((contratos || []).length)],
+          ['Ya tienen cargo', String(yaConCargo.size)],
+          ['Se generarán', String(sinCargo.length)],
+          ['Primeros contratos', muestra + (sinCargo.length > 5 ? ` y ${sinCargo.length - 5} más` : '')],
+        ],
+        aviso: `Se crearán ${sinCargo.length} cargos de RENTA en estado PENDIENTE. Los montos son los de la renta mensual actual de cada contrato.`,
+      }
+    },
+  },
+
   corregir_asistencia: {
     descripcion: 'Corrige la ENTRADA/SALIDA invertida de la asistencia YA guardada en RH (un solo marcaje faltante voltea todos los siguientes). Recalcula cada día con el horario de la persona y el rol de guardia y cambia solo los marcajes que estaban mal; NO toca los días dudosos (un solo marcaje) ni asigna personas. Parámetros opcionales: desde y hasta (YYYY-MM-DD; por omisión todo lo guardado). Si el usuario tiene el archivo original del checador es mejor importar_asistencia, que además asigna marcajes sin persona.',
     async preparar(db, p) {

@@ -391,5 +391,21 @@ export function crearEjecutores(ctx) {
   }
   // Corregir la asistencia ya guardada usa el mismo ejecutor: solo trae correcciones, sin marcajes nuevos.
   ejecutores.corregir_asistencia = ejecutores.importar_asistencia
+
+  ejecutores.generar_cargos_mes = async function(p) {
+    const { data, error } = await db.rpc('fn_generar_cargos_mes', { p_mes: p.mes, p_anio: p.anio })
+    if (error) throw error
+    const r = data?.[0] || { cargos_creados: 0, contratos_procesados: 0 }
+    const MESES_STR = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+    await audit({
+      modulo: 'Cobranza', accion: 'GENERAR_CARGOS', entidad: 'cargos_programados', entidad_id: null,
+      descripcion: `Generados ${r.cargos_creados} cargos de RENTA para ${MESES_STR[p.mes - 1]} ${p.anio} (vía Agente Operativo)`,
+    })
+    return {
+      texto: `Listo. Se generaron ${r.cargos_creados} cargos de RENTA para ${MESES_STR[p.mes - 1]} ${p.anio}.`,
+      ruta: '/cobranza',
+    }
+  }
+
   return ejecutores
 }
