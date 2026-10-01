@@ -392,10 +392,10 @@ export default function InformePropietario() {
         .eq('anio', anio).eq('mes', mes)
         .maybeSingle(),
 
-      // Contratos activos para KPI de locales (incluye VENCIDO = en ejecución pero vencidos)
+      // Contratos en ejecución: VIGENTE + VENCIDO (excluye TERMINADO y ACTIVO legado)
       supabase.from('prp_contratos')
         .select('id,estatus,fecha_fin')
-        .in('estatus', ['ACTIVO', 'VIGENTE', 'VENCIDO']),
+        .in('estatus', ['VIGENTE', 'VENCIDO']),
 
       // Locales ligados a contratos (para contar cuántos locales están ocupados)
       supabase.from('contratos_locales').select('contrato_id'),
@@ -526,11 +526,11 @@ export default function InformePropietario() {
             {/* ── KPIs DE CONTRATOS ────────────────────────────── */}
             {kpis && (
               <TarjetaKPI
-                emoji="🏢" label="Locales Activos"
-                valor={`${kpis.locales || kpis.activos}`}
+                emoji="🏢" label="Contratos en Ejecución"
+                valor={`${kpis.activos}`}
                 sub={kpis.locales
-                  ? `locales ocupados en ${kpis.activos} contratos activos`
-                  : `contratos activos en la plaza`}
+                  ? `contratos · ${kpis.locales} locales ocupados`
+                  : `contratos vigentes en la plaza`}
                 detalle={kpis.porVencer.length > 0 ? `⚠️ ${kpis.porVencer.length} contratos vencen en 60 días` : '✅ Contratos al corriente'}
                 colores={['#0d3d3d', '#0e6b6b']}
                 path="/contratos"
