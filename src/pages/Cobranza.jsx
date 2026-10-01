@@ -1,5 +1,6 @@
 import { useModuleAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import toast from 'react-hot-toast'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
   Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, ChevronUp, ChevronsUpDown, CalendarPlus,
@@ -56,6 +57,120 @@ const OCR_FN = '/.netlify/functions/extraer-documento'
 
 const MESES_C = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const TIPO_CLR = { RENTA: '#057642', SANCION: '#B24020', AGUA: '#0284C7', OTRO: '#6B7280' }
+
+// Lo mismo que corre solo cada noche a las 23:55 (netlify/functions/generar-sanciones.js), pero a mano y
+// con vista previa: un cargo de renta vencido y sin pagar (que todavía no tenga su mora de este mes) genera
+// un cargo SANCION nuevo, ligado al original (origen_cargo_id), por el % de penalización del contrato
+// (o 10% si no lo tiene capturado). Ese cargo nuevo se cobra y se aplica igual que cualquier otro.
+function ModalMoras({ onClose, onGenerado }) {
+  const [filas, setFilas] = useState(null)   // null = cargando
+  const [generando, setGenerando] = useState(false)
+  const [hecho, setHecho] = useState(null)   // { sanciones_creadas }
+
+  useEffect(() => {
+    supabase.rpc('fn_previsualizar_sanciones').then(({ data, error }) => {
+      if (error) { toast.error('No se pudo calcular la vista previa: ' + error.message); setFilas([]); return }
+      setFilas(data || [])
+    })
+  }, [])
+
+  const total = (filas || []).reduce((s, f) => s + (parseFloat(f.importe_sancion) || 0), 0)
+
+  const generar = async () => {
+    setGenerando(true)
+    try {
+      const { data, error } = await supabase.rpc('fn_generar_sanciones')
+      if (error) throw error
+      const creadas = data?.[0]?.sanciones_creadas ?? filas.length
+      setHecho({ sanciones_creadas: creadas })
+      toast.success(`${creadas} cargo${creadas === 1 ? '' : 's'} de mora generado${creadas === 1 ? '' : 's'}`)
+      onGenerado?.()
+    } catch (e) {
+      toast.error('No se pudieron generar las moras: ' + e.message)
+    }
+    setGenerando(false)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '14px', width: '620px', maxWidth: '95vw', maxHeight: '86vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertTriangle size={17} color="var(--color-danger)" />
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Generar moras del mes</h2>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6B7280' }}>
+              Rentas vencidas y sin pagar que todavía no tienen su cargo de mora de este mes.
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: '16px 24px', overflowY: 'auto', flex: 1 }}>
+          {filas === null && <div style={{ padding: '30px 0', textAlign: 'center' }}><LoadingSpinner /></div>}
+
+          {filas && filas.length === 0 && !hecho && (
+            <EmptyState title="No hay moras pendientes" description="Todas las rentas vencidas ya tienen su cargo de mora de este mes, o no hay ninguna vencida." />
+          )}
+
+          {hecho && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, color: 'var(--color-success)', fontWeight: 700, fontSize: 13 }}>
+              <CheckCircle size={18} /> {hecho.sanciones_creadas} cargo{hecho.sanciones_creadas === 1 ? '' : 's'} de mora creado{hecho.sanciones_creadas === 1 ? '' : 's'}. Ya están en la cartera, listos para cobrarse.
+            </div>
+          )}
+
+          {filas && filas.length > 0 && !hecho && (
+            <>
+              <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--color-text)' }}>
+                Se van a crear <strong>{filas.length}</strong> cargo{filas.length === 1 ? '' : 's'} de mora por un total de <strong>${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>.
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: '#6B7280', borderBottom: '1px solid #E5E7EB' }}>
+                    <th style={{ padding: '6px 8px' }}>Arrendatario</th>
+                    <th style={{ padding: '6px 8px' }}>Folio</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Días vencido</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Saldo</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>%</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Mora</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filas.map(f => (
+                    <tr key={f.cargo_id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <td style={{ padding: '6px 8px' }}>{f.arrendatario_nombre}</td>
+                      <td style={{ padding: '6px 8px', color: '#9CA3AF' }}>{f.folio}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{f.dias_vencido}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>${parseFloat(f.saldo_pendiente).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>{parseFloat(f.pct_aplicado)}%</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--color-danger)' }}>${parseFloat(f.importe_sancion).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+
+        <div style={{ padding: '14px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', background: '#F3F4F6', color: 'var(--color-text)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {hecho ? 'Cerrar' : 'Cancelar'}
+          </button>
+          {filas && filas.length > 0 && !hecho && (
+            <button onClick={generar} disabled={generando}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: generando ? 'default' : 'pointer', opacity: generando ? 0.7 : 1 }}>
+              {generando ? 'Generando…' : `Generar ${filas.length} mora${filas.length === 1 ? '' : 's'}`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
   const compRef = useRef()
@@ -993,6 +1108,7 @@ export default function Cobranza() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalCargo, setModalCargo] = useState(false)
+  const [modalMoras, setModalMoras] = useState(false)
   const [modalAplicar, setModalAplicar] = useState(null) // ingreso seleccionado
   const [editarIngreso, setEditarIngreso] = useState(null)
   const [ingresosRaw, setIngresosRaw] = useState([])
@@ -1163,6 +1279,10 @@ export default function Cobranza() {
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{lista.length} cargos en cartera</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setModalMoras(true)} title="Generar los cargos de mora de los cobros vencidos sin pagar"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', color: 'var(--color-danger)', border: '1.5px solid #FECACA', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <AlertTriangle size={15} /> Generar moras
+          </button>
           <button onClick={() => setModalCargo(true)} title="Registrar un cargo por cobrar"
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', color: 'var(--color-primary)', border: '1.5px solid var(--color-primary)', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
             <CalendarPlus size={15} /> Agregar cobro
@@ -1364,6 +1484,10 @@ export default function Cobranza() {
 
       {modalCargo && (
         <NuevoCargoModal onClose={() => setModalCargo(false)} onSaved={onSaved} />
+      )}
+
+      {modalMoras && (
+        <ModalMoras onClose={() => setModalMoras(false)} onGenerado={onSaved} />
       )}
 
       {editarIngreso && (
