@@ -18,6 +18,12 @@
 [functions."chat-operativo"]
   timeout = 26
 
+[functions."generar-cargos-mes"]
+  schedule = "0 12 1 * *"
+
+[functions."generar-sanciones"]
+  schedule = "55 5 * * *"
+
 [build.environment]
   NODE_VERSION = "20"
   TZ              = "America/Mexico_City"
