@@ -899,8 +899,14 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Metodo no permitido' }) }
 
+  const inicio = Date.now()
+  // Declaradas aquí (no dentro del try) para que el catch siempre pueda registrar la bitácora, incluso
+  // si el error ocurre antes de leer el body o de resolver la sesión.
+  let messages = [], conversacionId = null, canal = 'web', rol = null, usuarioId = null
   try {
-    const { messages = [], context = '', fichas = {} } = JSON.parse(event.body || '{}')
+    const body = JSON.parse(event.body || '{}')
+    ;({ messages = [], conversacion_id: conversacionId = null, canal = 'web' } = body)
+    const { context = '', fichas = {} } = body
 
     // Sesión del usuario: sin JWT no hay datos (pero sí conversación general).
     const auth = event.headers.authorization || event.headers.Authorization || ''
@@ -912,7 +918,7 @@ export const handler = async (event) => {
       : null
 
     // Solo el personal puede proponer escrituras (un locatario solo consulta lo suyo).
-    let puedeEscribir = false, esPersonal = false, rol = null, usuarioId = null
+    let puedeEscribir = false, esPersonal = false
     if (db) {
       const [{ data: staff }, { data: r }, { data: u }] = await Promise.all([db.rpc('es_staff'), db.rpc('mi_rol'), db.auth.getUser(jwt)])
       puedeEscribir = staff === true
@@ -985,6 +991,7 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
     const conv = messages.map(m => ({ role: m.role, content: m.content }))
     let respuesta = ''
     const propuestas = []
+    const herramientasLog = []   // bitácora: {nombre, entrada, resultado} de cada herramienta usada en el turno
     const ctx = {
       reservado: {},   // saldo ya asignado por propuestas de este turno
       // datos leídos por OCR de las imágenes adjuntas (sin imagen); tope de tamaño por si acaso
@@ -1039,7 +1046,9 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
           else if (u.name === 'consultar_iwolpark' && puedeParking) out = await consultarIwolpark(u.input)
           else out = await consultar(db, u.input, vistasActivas)
         } catch (e) { out = { error: e.message } }
-        console.log('[chat-operativo]', u.name, JSON.stringify(u.input), '→', out.error || out.estado || `${out.total} filas`)
+        const resumen = out.error || out.estado || `${out.total} filas`
+        console.log('[chat-operativo]', u.name, JSON.stringify(u.input), '→', resumen)
+        herramientasLog.push({ nombre: u.name, entrada: u.input, resultado: resumen })
         resultados.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out) })
       }
       conv.push({ role: 'user', content: resultados })
@@ -1047,14 +1056,45 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
       if (vuelta === MAX_VUELTAS) respuesta = texto || 'No pude completar la consulta; intenta con una pregunta más específica.'
     }
 
+    await registrarBitacora({ conversacionId, usuarioId, rol, canal, messages, respuesta, propuestas, herramientasLog, inicio })
     return { statusCode: 200, headers, body: JSON.stringify({ content: respuesta, propuestas }) }
   } catch (error) {
     console.error('chat-operativo error:', error)
+    await registrarBitacora({ conversacionId, usuarioId, rol, canal, messages, respuesta: '', propuestas: [], herramientasLog: [], inicio, error: error.message })
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: 'Error interno del Agente Operativo', detail: error.message }),
     }
+  }
+}
+
+// Bitácora de conversaciones (qué pregunta, qué responde, qué herramientas usó): insumo para mejorar el
+// agente. Se escribe SIEMPRE con la service key, sin importar el rol de quien chatea, y nunca tira la
+// respuesta al usuario si falla. conversacionId lo genera el frontend (un uuid por sesión de chat abierta).
+async function registrarBitacora({ conversacionId, usuarioId, rol, canal, messages, respuesta, propuestas, herramientasLog, inicio, error = null }) {
+  if (!SERVICE_KEY || !conversacionId) return
+  try {
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    const preguntaTurno = [...messages].reverse().find(m => m.role === 'user' && !/^\[Sistema\]/.test(m.content || ''))?.content || ''
+    const { data: existente } = await admin.from('agente_conversaciones').select('id, turnos').eq('id', conversacionId).maybeSingle()
+    if (!existente) {
+      await admin.from('agente_conversaciones').insert({
+        id: conversacionId, usuario_id: usuarioId, rol, canal,
+        titulo: String(preguntaTurno).slice(0, 120),
+      })
+    }
+    const turno = (existente?.turnos || 0) + 1
+    await admin.from('agente_mensajes').insert({
+      conversacion_id: conversacionId, turno,
+      pregunta:  String(preguntaTurno).slice(0, 8000),
+      respuesta: String(respuesta || '').slice(0, 8000),
+      herramientas: herramientasLog, propuestas,
+      modelo: 'claude-sonnet-4-6', duracion_ms: Date.now() - inicio, error,
+    })
+    await admin.from('agente_conversaciones').update({ turnos: turno, actualizada_en: new Date().toISOString() }).eq('id', conversacionId)
+  } catch (e) {
+    console.error('[bitacora] no se pudo registrar:', e.message)
   }
 }
 

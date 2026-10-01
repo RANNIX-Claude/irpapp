@@ -64,6 +64,8 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
   const fileRef = useRef(null)
   const camRef = useRef(null)
   const vozRef = useRef(null)
+  // Un id por sesión de chat (se abre el panel o se entra a la app): agrupa sus turnos en la bitácora.
+  const conversacionIdRef = useRef(crypto.randomUUID())
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
 
@@ -131,7 +133,7 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
     setMessages(next)
     setLoading(true)
     try {
-      const { content, propuestas } = await chatOperativo(historial(next), '', datosFichas())
+      const { content, propuestas } = await chatOperativo(historial(next), '', datosFichas(), conversacionIdRef.current, movil ? 'movil' : 'web')
       setMessages([...next, { role: 'assistant', content, propuestas: propuestas.map(p => ({ ...p, estado: 'pendiente' })) }])
     } catch (e) {
       console.error('[ChatOperativo]', e)
