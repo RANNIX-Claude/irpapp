@@ -1075,7 +1075,7 @@ ${context ? `\nContexto de la pantalla actual: ${context}` : ''}`
 async function registrarBitacora({ conversacionId, usuarioId, rol, canal, messages, respuesta, propuestas, herramientasLog, inicio, error = null }) {
   if (!SERVICE_KEY || !conversacionId) return
   try {
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false }, realtime: { transport: ws } })
     const preguntaTurno = [...messages].reverse().find(m => m.role === 'user' && !/^\[Sistema\]/.test(m.content || ''))?.content || ''
     const { data: existente } = await admin.from('agente_conversaciones').select('id, turnos').eq('id', conversacionId).maybeSingle()
     if (!existente) {
