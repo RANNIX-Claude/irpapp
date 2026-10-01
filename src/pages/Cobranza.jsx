@@ -1204,10 +1204,12 @@ export default function Cobranza() {
   const cargoPeriodo  = mesFiltro !== 0 ? lista.filter(c => c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro).reduce((a, c) => a + (parseFloat(c.importe) || 0), 0) : 0
   const pagadoPeriodo = mesFiltro !== 0 ? lista.filter(c => c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro).reduce((a, c) => a + (parseFloat(c.total_aplicado) || 0), 0) : 0
 
-  const inicioMes = new Date(anioFiltro, mesFiltro - 1, 1)
-  const finMes    = new Date(anioFiltro, mesFiltro, 0, 23, 59, 59)
-  const pagadoMes = lista
-    .filter(c => c.estado === 'PAGADO' && new Date(c.fecha_vencimiento) >= inicioMes && new Date(c.fecha_vencimiento) <= finMes)
+  // KPI "Pagado": usa periodo_mes/anio (no fecha_vencimiento) para ser consistente con el filtro.
+  // Cuando no hay filtro de mes, muestra el mes natural actual.
+  const mesKpi  = mesFiltro !== 0 ? mesFiltro  : (hoy.getMonth() + 1)
+  const anioKpi = mesFiltro !== 0 ? anioFiltro : hoy.getFullYear()
+  const pagadoKpi = lista
+    .filter(c => c.estado === 'PAGADO' && c.periodo_mes === mesKpi && c.periodo_anio === anioKpi)
     .reduce((a, c) => a + (parseFloat(c.total_aplicado) || 0), 0)
 
   // Por Cobrar = todo el saldo que la cartera todavía debe, vencido incluido.
@@ -1334,26 +1336,10 @@ export default function Cobranza() {
         )}
       </div>
 
-      {/* KPIs — debajo de la navegación para que los filtros sean lo primero */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        {mesFiltro !== 0
-          ? <KPICard
-              title={`Cobros ${MES_NOMBRES[mesFiltro]}`}
-              value={`$${(cargoPeriodo / 1000).toFixed(0)}K`}
-              subtitle={`Pagado $${(pagadoPeriodo / 1000).toFixed(0)}K · Diferencia $${((cargoPeriodo - pagadoPeriodo) / 1000).toFixed(0)}K`}
-              icon={AlertTriangle}
-              color={pagadoPeriodo < cargoPeriodo ? 'var(--color-danger)' : 'var(--color-success)'}
-            />
-          : <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
-        }
-        <KPICard title={`Pagado ${MES_NOMBRES[mesFiltro]}`} value={`$${(pagadoMes / 1000).toFixed(0)}K`} icon={CheckCircle} color="var(--color-success)" />
-        <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
-        <KPICard title="Ingresos sin Aplicar" value={ingresosLibres} icon={DollarSign} color="var(--color-secondary)" />
-      </div>
-
       {/* ── Tab Cartera ── */}
       {tab === 'cartera' && (
         <>
+          {/* Filtros — van primero para que las KPIs reflejen lo que está seleccionado */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
@@ -1394,8 +1380,36 @@ export default function Cobranza() {
             </select>
           </div>
 
-          {/* Qué se está viendo. Con filtros puestos, el total de lo filtrado
-              es la respuesta que se busca: cuánto suman las sanciones de agosto. */}
+          {/* KPIs — después de los filtros para que reflejen el universo seleccionado */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '14px' }}>
+            {mesFiltro !== 0
+              ? <KPICard
+                  title={`Cobros ${MES_NOMBRES[mesFiltro]}`}
+                  value={`$${(cargoPeriodo / 1000).toFixed(0)}K`}
+                  subtitle={`Facturado en el período`}
+                  icon={AlertTriangle}
+                  color="var(--color-primary)"
+                />
+              : <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
+            }
+            <KPICard
+              title={`Pagado ${MES_NOMBRES[mesKpi]}`}
+              value={`$${(pagadoKpi / 1000).toFixed(0)}K`}
+              subtitle={mesFiltro !== 0 ? `de $${(cargoPeriodo / 1000).toFixed(0)}K facturado` : 'cobros del período pagados'}
+              icon={CheckCircle}
+              color="var(--color-success)"
+            />
+            <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
+            <KPICard
+              title="Cobros"
+              value={carteraFiltrada.length}
+              subtitle={carteraFiltrada.length !== lista.length ? `de ${lista.length} en cartera` : `total en cartera`}
+              icon={DollarSign}
+              color="var(--color-secondary)"
+            />
+          </div>
+
+          {/* Resumen del universo filtrado — pegado al encabezado del grid */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px', fontSize: '12.5px', color: 'var(--color-text-light)', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600 }}>Total de cobros:</span>
             <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong>{carteraFiltrada.length !== lista.length ? ` de ${lista.length}` : ''} cargos</span>
