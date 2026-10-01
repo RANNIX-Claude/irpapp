@@ -1239,6 +1239,12 @@ export default function Cobranza() {
   const carteraFiltrada = lista.filter(c =>
     pasaFiltrosBase(c) && (filtroConcepto === 'Todos' || c.concepto === filtroConcepto))
 
+  // Métricas del universo visible — siempre derivadas de carteraFiltrada
+  // para que reaccionen a cualquier combinación de filtros activos.
+  const filtradoCargo  = carteraFiltrada.reduce((a, c) => a + (parseFloat(c.importe)        || 0), 0)
+  const filtradoPagado = carteraFiltrada.reduce((a, c) => a + (parseFloat(c.total_aplicado) || 0), 0)
+  const filtradoSaldo  = carteraFiltrada.reduce((a, c) => a + (parseFloat(c.saldo)          || 0), 0)
+
   // Cuántos cargos hay de cada concepto con los demás filtros ya aplicados.
   // Va en la etiqueta de cada opción: así se ve que en agosto sí hay una
   // sanción sin tener que seleccionarla para descubrir que no hay nada.
@@ -1380,45 +1386,44 @@ export default function Cobranza() {
             </select>
           </div>
 
-          {/* KPIs — después de los filtros para que reflejen el universo seleccionado */}
+          {/* KPIs — 100% reactivas al universo filtrado (carteraFiltrada) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '14px' }}>
-            {mesFiltro !== 0
-              ? <KPICard
-                  title={`Cobros ${MES_NOMBRES[mesFiltro]}`}
-                  value={`$${(cargoPeriodo / 1000).toFixed(0)}K`}
-                  subtitle={`Facturado en el período`}
-                  icon={AlertTriangle}
-                  color="var(--color-primary)"
-                />
-              : <KPICard title="Cartera Vencida" value={`$${(carteraVencidaSum / 1000).toFixed(0)}K`} subtitle="incluida en Por Cobrar" icon={AlertTriangle} color="var(--color-danger)" />
-            }
             <KPICard
-              title={`Pagado ${MES_NOMBRES[mesKpi]}`}
-              value={`$${(pagadoKpi / 1000).toFixed(0)}K`}
-              subtitle={mesFiltro !== 0 ? `de $${(cargoPeriodo / 1000).toFixed(0)}K facturado` : 'cobros del período pagados'}
+              title="Cargo total"
+              value={`$${(filtradoCargo / 1000).toFixed(0)}K`}
+              subtitle="suma de cobros en vista"
+              icon={DollarSign}
+              color="var(--color-primary)"
+            />
+            <KPICard
+              title="Cobrado"
+              value={`$${(filtradoPagado / 1000).toFixed(0)}K`}
+              subtitle={`${filtradoCargo > 0 ? ((filtradoPagado / filtradoCargo) * 100).toFixed(0) : 0}% del cargo total`}
               icon={CheckCircle}
               color="var(--color-success)"
             />
-            <KPICard title="Por Cobrar" value={`$${(porCobrar / 1000).toFixed(0)}K`} subtitle="saldo total, vencido incluido" icon={Clock} color="var(--color-warning)" />
+            <KPICard
+              title="Saldo pendiente"
+              value={`$${(filtradoSaldo / 1000).toFixed(0)}K`}
+              subtitle="diferencia cargo − cobrado"
+              icon={Clock}
+              color={filtradoSaldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}
+            />
             <KPICard
               title="Cobros"
               value={carteraFiltrada.length}
-              subtitle={carteraFiltrada.length !== lista.length ? `de ${lista.length} en cartera` : `total en cartera`}
-              icon={DollarSign}
+              subtitle={carteraFiltrada.length !== lista.length ? `de ${lista.length} en cartera` : 'total en cartera'}
+              icon={AlertTriangle}
               color="var(--color-secondary)"
             />
           </div>
 
-          {/* Resumen del universo filtrado — pegado al encabezado del grid */}
+          {/* Resumen compacto — pegado al encabezado del grid */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px', fontSize: '12.5px', color: 'var(--color-text-light)', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600 }}>Total de cobros:</span>
             <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong>{carteraFiltrada.length !== lista.length ? ` de ${lista.length}` : ''} cargos</span>
-            <span>Cargo <strong style={{ color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
-              ${carteraFiltrada.reduce((a, c) => a + (parseFloat(c.importe) || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-            </strong></span>
-            <span>Saldo <strong style={{ color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>
-              ${carteraFiltrada.reduce((a, c) => a + (parseFloat(c.saldo) || 0), 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-            </strong></span>
+            <span>Cargo <strong style={{ color: '#374151', fontVariantNumeric: 'tabular-nums' }}>${filtradoCargo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
+            <span>Saldo <strong style={{ color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>${filtradoSaldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
             {(filtroConcepto !== 'Todos' || filtroEstado !== 'Todos' || mesFiltro !== 0 || search) && (
               <button onClick={() => { setFiltroConcepto('Todos'); setFiltroEstado('Todos'); setMesFiltro(0); setSearch('') }}
                 style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--color-primary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
