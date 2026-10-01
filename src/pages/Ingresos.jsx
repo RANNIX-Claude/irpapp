@@ -1102,7 +1102,19 @@ export default function Ingresos() {
     return m
   }, [dataDescuadres])
 
-  // Lo proyectado sale de los contratos, no de los ingresos: son fuentes distintas.
+  // Cargos programados del período — fuente de la KPI "Por cobrar".
+  // Se recarga cada vez que cambia el período seleccionado.
+  const [cargosPeriodo, setCargosPeriodo] = useState([])
+  useEffect(() => {
+    if (!filtroMes || !filtroAnio) { setCargosPeriodo([]); return }
+    supabase
+      .from('cargos_programados')
+      .select('contrato_id, importe, concepto')
+      .eq('periodo_mes', filtroMes)
+      .eq('periodo_anio', filtroAnio)
+      .then(({ data }) => setCargosPeriodo(data ?? []))
+  }, [filtroMes, filtroAnio])
+
   const { data: dataContratos } = usePRP('prp_contratos', { select: 'id, estatus, renta_mensual, fecha_inicio, fecha_fin' })
   const operacion = useOperacion()
   const contratos = dataContratos ?? []
@@ -1202,15 +1214,11 @@ export default function Ingresos() {
   const totalRenta = suma(rentasCobradas)
   const totalSanciones = suma(sancionesCobradas)
 
-  // Por cobrar: la renta de los locales EN OPERACIÓN. No se usa `estatus` ni la
-  // fecha de fin — hay contratos vencidos que siguen ocupando y pagando, y su
-  // renta se cobra igual. El estatus de operación se captura en el contrato.
-  const contratosOcupados = contratos.filter(c => operacion[c.id] !== 'DESOCUPADO' && operacion[c.id])
-  const totalProyectado = contratosOcupados.reduce((a, c) => a + (parseFloat(c.renta_mensual) || 0), 0)
-  const ocupadosSinContrato = contratosOcupados.filter(c => {
-    const fin = (c.fecha_fin || '').slice(0, 10)
-    return fin && fin < new Date().toISOString().slice(0, 10)
-  }).length
+  // Por cobrar: cargos de RENTA programados para el período seleccionado.
+  // Coincide exactamente con lo que muestra Cobranza al filtrar ese mes.
+  const rentasProgramadas = cargosPeriodo.filter(c => c.concepto === 'RENTA')
+  const totalProyectado   = rentasProgramadas.reduce((a, c) => a + (parseFloat(c.importe) || 0), 0)
+  const contratosConCargo = rentasProgramadas.length   // 18 para octubre 2026
 
   // Recibido vs. correspondido: `fecha` es cuándo se pagó, `mes`/`anio` a qué renta
   // corresponde. Siempre se parte de la fecha de pago, aunque el toggle esté en período.
@@ -1331,9 +1339,9 @@ export default function Ingresos() {
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
-        <KPICard title="Por cobrar (locales ocupados)"
+        <KPICard title="Por cobrar (período)"
           value={fmtK(totalProyectado)}
-          subtitle={`${contratosOcupados.length} en operación${ocupadosSinContrato ? ` · ${ocupadosSinContrato} sin contrato vigente` : ''}`}
+          subtitle={`${contratosConCargo} cobro${contratosConCargo !== 1 ? 's' : ''} de renta programados`}
           icon={Target} color="var(--color-primary)" />
         <KPICard title="Rentas cobradas"
           value={fmtK(totalRenta)}
