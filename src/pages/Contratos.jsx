@@ -1,4 +1,4 @@
-﻿import { useModuleAudit } from '../hooks/useAudit'
+﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -93,6 +93,7 @@ function EstatusBadge({ c, onChange }) {
   const cambiar = async (val) => {
     setOpen(false); setSaving(true)
     await supabase.from('contratos').update({ estatus: val, updated_at: new Date().toISOString() }).eq('id', c.id)
+    logAudit({ modulo: 'CONTRATOS', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: { folio: c.numero_contrato || c.folio, arrendatario: c.arrendatario_nombre, campo: 'estatus', antes: c.estatus, despues: val } })
     setSaving(false)
     onChange?.()
   }
@@ -130,6 +131,7 @@ function ProcesoBadge({ c, onChange }) {
   const cambiar = async (val) => {
     setOpen(false); setSaving(true)
     await supabase.from('contratos').update({ estatus_proceso: val, updated_at: new Date().toISOString() }).eq('id', c.id)
+    logAudit({ modulo: 'CONTRATOS', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: { folio: c.numero_contrato || c.folio, arrendatario: c.arrendatario_nombre, campo: 'estatus_proceso', antes: c.estatus_proceso, despues: val } })
     setSaving(false)
     onChange?.()
   }
@@ -535,6 +537,7 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
       await supabase.from('cat_locales').update({ contrato_activo_id: c.id, estatus: 'OCUPADO' }).in('id_local', localesSel)
     }
 
+    logAudit({ modulo: 'CONTRATOS', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: { folio: payload.numero_contrato || c.numero_contrato, arrendatario: editForm.arr_locatario || c.arrendatario_nombre, locales: payload.locales_display, renta: payload.renta_mensual, fecha_inicio: payload.fecha_inicio, fecha_fin: payload.fecha_fin, estatus: payload.estatus } })
     setSavingEdit(false)
     setEditMode(false)
     onUpdated?.()
@@ -571,6 +574,7 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
     })
     setSavingNota(false)
     if (error) { setNotaErr(error.message); return }
+    logAudit({ modulo: 'CONTRATOS', accion: 'CREAR', entidad: 'nota_contrato', entidad_id: c.id, descripcion: { folio: c.numero_contrato || c.folio, arrendatario: c.arrendatario_nombre, nota: nuevaNota.trim().slice(0, 120) } })
     setNuevaNota('')
     cargarNotas()
   }

@@ -523,6 +523,8 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       ;({ error, data } = await supabase.from('ingresos').insert(payload).select('id').single())
     }
     if (error) { setSaving(false); setErr(error.message); return }
+    const contratoInfo = (contratos || []).find(ct => ct.id === (form.contrato_id || ingreso?.contrato_id))
+    logAudit({ modulo: 'INGRESOS', accion: ingreso ? 'EDITAR' : 'CREAR', entidad: 'ingreso', entidad_id: ingreso?.id || data?.id, descripcion: { folio: contratoInfo?.folio || contratoInfo?.arrendatario_nombre, importe: payload.importe, fecha: payload.fecha, origen: payload.origen, concepto: payload.concepto_origen || null, ref: payload.referencia_banco || null } })
 
     const ingresoId = ingreso?.id || data?.id
     const aplicaciones = Object.entries(dist)

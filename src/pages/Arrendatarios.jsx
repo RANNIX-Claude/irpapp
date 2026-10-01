@@ -56,11 +56,11 @@ function ArrendatarioModal({ initial, onClose, onSaved }) {
       if (editando) {
         const { error: e } = await supabase.from('arrendatarios').update(payload).eq('id', initial.id)
         if (e) throw e
-        logAudit({ modulo: 'ARRENDATARIOS', accion: 'EDITAR', entidad: 'ARRENDATARIO', entidad_id: initial.id, descripcion: `Editado: ${payload.locatario}` })
+        logAudit({ modulo: 'ARRENDATARIOS', accion: 'EDITAR', entidad: 'ARRENDATARIO', entidad_id: initial.id, descripcion: { locatario: payload.locatario, nombre_negocio: payload.nombre_negocio, rfc: payload.rfc, estatus: payload.estatus } })
       } else {
         const { error: e } = await supabase.from('arrendatarios').insert(payload)
         if (e) throw e
-        logAudit({ modulo: 'ARRENDATARIOS', accion: 'CREAR', entidad: 'ARRENDATARIO', descripcion: `Nuevo: ${payload.locatario}` })
+        logAudit({ modulo: 'ARRENDATARIOS', accion: 'CREAR', entidad: 'ARRENDATARIO', descripcion: { locatario: payload.locatario, nombre_negocio: payload.nombre_negocio, rfc: payload.rfc } })
       }
       onSaved()
     } catch (e) { setError(e.message || 'Error al guardar') }
@@ -515,7 +515,7 @@ export default function Arrendatarios() {
     const id = a.arrendatario_id || a.id
     const { error } = await supabase.from('arrendatarios').delete().eq('id', id)
     if (!error) {
-      logAudit({ modulo: 'ARRENDATARIOS', accion: 'ELIMINAR', entidad: 'ARRENDATARIO', entidad_id: id, descripcion: `Eliminado: ${a.locatario || a.nombre_completo}` })
+      logAudit({ modulo: 'ARRENDATARIOS', accion: 'ELIMINAR', entidad: 'ARRENDATARIO', entidad_id: id, descripcion: { locatario: a.locatario || a.nombre_completo, rfc: a.rfc, nombre_negocio: a.nombre_negocio } })
       setConfirm(null)
       setFicha(null)
       setReload(r => r + 1)

@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import {
@@ -285,6 +285,9 @@ function RegistrarIngresoModal({ contratos, onClose, onSaved }) {
           .upsert(aplicaciones, { onConflict: 'cargo_id,ingreso_id' })
         if (apErr) throw new Error('Ingreso guardado pero error al aplicar cargos: ' + apErr.message)
       }
+
+      const contratoInfo = (contratos || []).find(ct => ct.id === form.contrato_id)
+      logAudit({ modulo: 'COBRANZA', accion: 'PAGO_REGISTRADO', entidad: 'ingreso', entidad_id: ing.id, descripcion: { folio: contratoInfo?.folio, arrendatario: contratoInfo?.arrendatario_nombre, importe: parseFloat(form.importe_total), fecha: form.fecha, forma_pago: form.forma_pago, referencia: form.referencia_banco || null, tipos: tiposPrincipales } })
 
       // Upload comprobante
       if (comprobanteFile && ing?.id) {

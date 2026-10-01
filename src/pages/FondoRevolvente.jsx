@@ -93,10 +93,10 @@ function GastoModal({ gasto = null, fondo, onClose, onSaved }) {
       let error
       if (gasto) {
         ;({ error } = await supabase.from('gastos_operativos').update(payload).eq('id', gasto.id))
-        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'EDITAR', entidad: 'gasto', entidad_id: gasto.id, descripcion: `Gasto editado: ${form.descripcion || rubro?.label}` })
+        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'EDITAR', entidad: 'gasto', entidad_id: gasto.id, descripcion: { descripcion: form.descripcion || rubro?.label, importe: parseFloat(form.monto_pagado), grupo: form.grupo_gasto } })
       } else {
         ;({ error } = await supabase.from('gastos_operativos').insert(payload))
-        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'CREAR', descripcion: `Gasto creado: ${form.descripcion || rubro?.label} — $${form.monto_pagado}` })
+        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'CREAR', descripcion: { descripcion: form.descripcion || rubro?.label, importe: parseFloat(form.monto_pagado), grupo: form.grupo_gasto } })
       }
       if (error) throw error
       onSaved()
@@ -255,7 +255,7 @@ export default function FondoRevolvente() {
   const eliminar = async (g) => {
     const { error } = await supabase.from('gastos_operativos').delete().eq('id', g.id)
     if (error) { toast.error(error.message); return }
-    logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: `Gasto eliminado: ${g.descripcion || g.grupo_gasto}` })
+    logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'ELIMINAR', entidad: 'gasto', entidad_id: g.id, descripcion: { descripcion: g.descripcion || null, grupo: g.grupo_gasto, importe: g.monto_pagado || g.cantidad } })
     toast.success('Gasto eliminado')
     setConfirmDel(null)
     setRefreshKey(k => k + 1)

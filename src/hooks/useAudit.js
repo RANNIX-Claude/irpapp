@@ -36,6 +36,19 @@ export async function logAudit({ modulo, accion, entidad, entidad_id, descripcio
   }
 }
 
+// Compara dos objetos y devuelve solo los campos que cambiaron: { campo: { antes, despues } }
+// Útil para logAudit en operaciones de edición: descripcion: diffObjetos(antes, despues)
+export function diffObjetos(antes, despues) {
+  const cambios = {}
+  const keys = new Set([...Object.keys(antes || {}), ...Object.keys(despues || {})])
+  for (const k of keys) {
+    const a = antes?.[k] ?? null
+    const d = despues?.[k] ?? null
+    if (String(a) !== String(d)) cambios[k] = { antes: a, despues: d }
+  }
+  return Object.keys(cambios).length ? cambios : null
+}
+
 // Hook: registra automáticamente la visita a un módulo al montarse
 export function useModuleAudit(modulo) {
   const logged = useRef(false)

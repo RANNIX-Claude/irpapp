@@ -1,4 +1,4 @@
-import { useModuleAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   HardHat, Plus, ArrowLeft, Save, Trash2, Upload, FileText, X,
@@ -324,6 +324,7 @@ function NuevoProyectoModal({ proveedores, onClose, onCreated }) {
     const { data, error } = await supabase.from('proyectos').insert(payload).select().single()
     setSaving(false)
     if (error) { toast.error(error.message); return }
+    logAudit({ modulo: 'PROYECTOS', accion: 'CREAR', entidad: 'proyecto', entidad_id: data?.id, descripcion: { nombre: payload.nombre, estado: payload.estado, presupuesto: payload.presupuesto_total } })
     toast.success('Proyecto creado')
     onCreated(data)
   }
@@ -484,6 +485,7 @@ function TabResumen({ proyecto: p, proveedores, onReload }) {
     }).eq('id', p.id)
     setSaving(false)
     if (error) { toast.error(error.message); return }
+    logAudit({ modulo: 'PROYECTOS', accion: 'EDITAR', entidad: 'proyecto', entidad_id: p.id, descripcion: { nombre: form.nombre, estado: form.estado, presupuesto: parseFloat(form.presupuesto_total) || null, proveedor: prov?.nombre || form.proveedor_nombre || null } })
     toast.success('Guardado')
     setEditing(false)
     onReload()
@@ -608,6 +610,7 @@ function TabCotizaciones({ proyecto }) {
   }
   const handleDelete = async (id) => {
     await supabase.from('proyecto_cotizaciones').delete().eq('id', id)
+    logAudit({ modulo: 'PROYECTOS', accion: 'ELIMINAR', entidad: 'cotizacion', entidad_id: proyecto.id, descripcion: { proyecto: proyecto.nombre, cotizacion_id: id } })
     load()
   }
 
@@ -847,13 +850,14 @@ function ContratoForm({ proyectoId, onClose, onSaved }) {
     let contrato_url = null, anexo_url = null
     if (fileC) contrato_url = await uploadFile('proyectos-docs', 'contratos', fileC)
     if (fileA) anexo_url    = await uploadFile('proyectos-docs', 'contratos', fileA)
-    const { error } = await supabase.from('proyecto_contratos').insert({
+    const { error, data: ins } = await supabase.from('proyecto_contratos').insert({
       proyecto_id: proyectoId,
       descripcion: form.descripcion || null,
       fecha_firma: form.fecha_firma || null,
       monto_contratado: parseFloat(form.monto_contratado) || null,
       contrato_url, anexo_url,
-    })
+    }).select('id').single()
+    if (!error) logAudit({ modulo: 'PROYECTOS', accion: 'CREAR', entidad: 'contrato_proyecto', entidad_id: ins?.id, descripcion: { proyecto_id: proyectoId, descripcion: form.descripcion, monto: parseFloat(form.monto_contratado) || null, fecha_firma: form.fecha_firma } })
     setSaving(false)
     if (error) { toast.error(error.message); return }
     toast.success('Contrato registrado')
@@ -1032,6 +1036,7 @@ function PagoForm({ proyectoId, onClose, onSaved }) {
     })
     setSaving(false)
     if (error) { toast.error(error.message); return }
+    logAudit({ modulo: 'PROYECTOS', accion: 'CREAR', entidad: 'pago_proyecto', entidad_id: null, descripcion: { proyecto_id: proyectoId, descripcion: form.descripcion, monto: parseFloat(form.monto), tipo: form.tipo, fecha: form.fecha } })
     toast.success('Pago registrado')
     onSaved()
   }
