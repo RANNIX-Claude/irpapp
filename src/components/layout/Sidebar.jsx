@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, CreditCard, Users,
   UserCheck, Car,
-  BarChart3, Settings,
+  BarChart3, Settings, UserCog,
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
@@ -90,6 +90,7 @@ const NAV_SECTIONS = [
     label: null,
     items: [
       { label: 'Bitácora', path: '/bitacora', icon: ClipboardList },
+      { label: 'Usuarios', path: '/usuarios', icon: UserCog },
       { label: 'Configuración', path: '/config', icon: Settings },
     ]
   },

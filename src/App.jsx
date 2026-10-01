@@ -50,6 +50,7 @@ import RestauranteGastos from './pages/RestauranteGastos.jsx'
 import Finanzas from './pages/Finanzas.jsx'
 import Facturacion from './pages/Facturacion.jsx'
 import Entrega from './pages/Entrega.jsx'
+import Usuarios from './pages/Usuarios.jsx'
 import AsistenteApp from './pages/asistente/AsistenteApp.jsx'
 import './styles/theme.css'
 
@@ -310,6 +311,7 @@ function AppLayout() {
           <Route path="/finanzas" element={<Finanzas />} />
           <Route path="/facturacion" element={<Facturacion />} />
           <Route path="/config" element={<Configuracion />} />
+          <Route path="/usuarios" element={<Usuarios />} />
           <Route path="/entrega" element={<Entrega />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
