@@ -84,21 +84,17 @@ export default function Facturacion() {
   useEffect(() => { cargar() }, [cargar])
 
   const aniosDisp = useMemo(() =>
-    [...new Set(cargos.map(c => c.pago?.validado_en ? new Date(c.pago.validado_en).getFullYear() : null).filter(Boolean))].sort((a, b) => b - a),
+    [...new Set(cargos.map(c => c.periodo_anio).filter(Boolean))].sort((a, b) => b - a),
     [cargos])
 
   const conceptosDisp = useMemo(() =>
     [...new Set(cargos.map(c => c.concepto).filter(Boolean))].sort(),
     [cargos])
 
-  // Filtros — período por fecha en que Finanzas validó (validado_en)
+  // Filtros — período de facturación (periodo_mes/periodo_anio del cargo)
   const filtrados = useMemo(() => cargos.filter(c => {
-    if (mes !== 0 || anio !== 0) {
-      const fv = c.pago?.validado_en ? new Date(c.pago.validado_en) : null
-      if (!fv) return false
-      if (mes  !== 0 && fv.getMonth() + 1 !== mes)  return false
-      if (anio !== 0 && fv.getFullYear()   !== anio) return false
-    }
+    if (mes  !== 0 && c.periodo_mes  !== mes)  return false
+    if (anio !== 0 && c.periodo_anio !== anio) return false
     if (concepto !== 'TODOS' && c.concepto !== concepto) return false
     if (busqueda) {
       const q = busqueda.toLowerCase()
@@ -146,7 +142,7 @@ export default function Facturacion() {
 
       {/* Filtros — ARRIBA de las métricas */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap', background: 'white', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>Validado en:</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }}>Período:</span>
 
         <select value={mes} onChange={e => setMes(Number(e.target.value))} style={sel}>
           <option value={0}>Todos los meses</option>
