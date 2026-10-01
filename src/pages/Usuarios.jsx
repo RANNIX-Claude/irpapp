@@ -1,14 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Users, Plus, Key, UserCheck, UserX, Shield, RefreshCw, Search, X } from 'lucide-react'
-import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 const API = '/.netlify/functions/admin-usuarios'
 
-async function callApi(accion, payload, session) {
-  const jwt = session?.access_token
+async function getJwt() {
+  const { data } = await supabase.auth.getSession()
+  return data?.session?.access_token
+}
+
+async function callApi(accion, payload) {
+  const jwt = await getJwt()
+  if (!jwt) throw new Error('Sin sesión activa')
   const res = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
@@ -41,7 +46,7 @@ function RolBadge({ rol_id }) {
 }
 
 // ── Modal: Nuevo usuario ───────────────────────────────────────────────────
-function ModalNuevo({ roles, onClose, onSave, session }) {
+function ModalNuevo({ roles, onClose, onSave }) {
   const [form, setForm] = useState({ email: '', password: '', nombre: '', apellido: '', rol_id: '' })
   const [saving, setSaving] = useState(false)
 
@@ -53,7 +58,7 @@ function ModalNuevo({ roles, onClose, onSave, session }) {
     }
     setSaving(true)
     try {
-      await callApi('crear', form, session)
+      await callApi('crear', form)
       toast.success('Usuario creado')
       onSave()
     } catch (e) {
@@ -129,7 +134,7 @@ function ModalNuevo({ roles, onClose, onSave, session }) {
 }
 
 // ── Modal: Cambiar contraseña ──────────────────────────────────────────────
-function ModalPass({ usuario, onClose, onSave, session }) {
+function ModalPass({ usuario, onClose, onSave }) {
   const [pw, setPw] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -137,7 +142,7 @@ function ModalPass({ usuario, onClose, onSave, session }) {
     if (pw.length < 8) { toast.error('Mínimo 8 caracteres'); return }
     setSaving(true)
     try {
-      await callApi('cambiar_pass', { usuario_id: usuario.id, password: pw }, session)
+      await callApi('cambiar_pass', { usuario_id: usuario.id, password: pw })
       toast.success('Contraseña actualizada')
       onSave()
     } catch (e) {
@@ -189,7 +194,7 @@ function ModalPass({ usuario, onClose, onSave, session }) {
 }
 
 // ── Modal: Cambiar rol ─────────────────────────────────────────────────────
-function ModalRol({ usuario, roles, onClose, onSave, session }) {
+function ModalRol({ usuario, roles, onClose, onSave }) {
   const [form, setForm] = useState({ rol_id: usuario.rol_id || '', nombre: usuario.nombre || '', apellido: usuario.apellido || '' })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -198,7 +203,7 @@ function ModalRol({ usuario, roles, onClose, onSave, session }) {
     if (!form.rol_id) { toast.error('Selecciona un rol'); return }
     setSaving(true)
     try {
-      await callApi('cambiar_rol', { usuario_id: usuario.id, ...form }, session)
+      await callApi('cambiar_rol', { usuario_id: usuario.id, ...form })
       toast.success('Perfil actualizado')
       onSave()
     } catch (e) {
@@ -273,7 +278,6 @@ function ModalRol({ usuario, roles, onClose, onSave, session }) {
 
 // ── Página principal ───────────────────────────────────────────────────────
 export default function Usuarios() {
-  const { session } = useApp()
   const [usuarios, setUsuarios] = useState([])
   const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
@@ -283,7 +287,7 @@ export default function Usuarios() {
   const cargar = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await callApi('listar', {}, session)
+      const data = await callApi('listar', {})
       setUsuarios(data.usuarios || [])
       setRoles(data.roles || [])
     } catch (e) {
@@ -298,7 +302,7 @@ export default function Usuarios() {
   const toggleActivo = async (u) => {
     const accion = u.activo ? 'desactivar' : 'activar'
     try {
-      await callApi(accion, { usuario_id: u.id }, session)
+      await callApi(accion, { usuario_id: u.id })
       toast.success(u.activo ? 'Usuario desactivado' : 'Usuario activado')
       cargar()
     } catch (e) {
@@ -439,13 +443,13 @@ export default function Usuarios() {
 
       {/* Modales */}
       {modal?.tipo === 'nuevo' && (
-        <ModalNuevo roles={roles} session={session} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
+        <ModalNuevo roles={roles} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
       )}
       {modal?.tipo === 'pass' && (
-        <ModalPass usuario={modal.usuario} session={session} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
+        <ModalPass usuario={modal.usuario} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
       )}
       {modal?.tipo === 'rol' && (
-        <ModalRol usuario={modal.usuario} roles={roles} session={session} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
+        <ModalRol usuario={modal.usuario} roles={roles} onClose={() => setModal(null)} onSave={() => { setModal(null); cargar() }} />
       )}
     </div>
   )
