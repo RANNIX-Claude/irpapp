@@ -6,6 +6,16 @@ import { ejecutarAccion, leerFicha, leerArchivoChecador, datosFichas } from '../
 // Dictado por voz del navegador (Chrome/Android y Safari lo traen; si no, no se muestra el micrófono).
 const Dictado = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
+// Preguntas de arranque por tema — solo se muestran con la ventana ampliada (en chico estorban) y
+// mientras la conversación sigue en el saludo inicial. No limitan al usuario: puede preguntar cualquier
+// cosa; son un atajo para no partir de la pantalla en blanco.
+const TEMAS_SUGERIDOS = [
+  { tema: 'Cobranza', preguntas: ['¿Qué cartera está vencida ahorita?', '¿Quién debe más de un mes?'] },
+  { tema: 'Contratos', preguntas: ['¿Qué contratos vencen este mes?', '¿Hay renovaciones pendientes?'] },
+  { tema: 'Estacionamiento', preguntas: ['Valida el ingreso de estacionamiento de esta semana'] },
+  { tema: 'RH', preguntas: ['¿Quién faltó esta semana?', '¿Hay incidencias de asistencia sin revisar?'] },
+]
+
 // Tarjeta de una acción propuesta por el agente. Nada se ejecuta hasta el clic.
 function TarjetaAccion({ p, movil, onConfirmar, onCancelar, onAbrir }) {
   const btn = {
@@ -47,11 +57,12 @@ function TarjetaAccion({ p, movil, onConfirmar, onCancelar, onAbrir }) {
  * llamador decide si es un panel flotante (escritorio) o la pantalla completa del
  * rol asistente (celular, `movil`).
  *
- * @param {boolean} movil   letra y botones más grandes, cámara y dictado por voz
- * @param {string}  saludo  primer mensaje del asistente
+ * @param {boolean} movil     letra y botones más grandes, cámara y dictado por voz
+ * @param {boolean} ampliado  panel de escritorio en su tamaño grande: se muestran las preguntas sugeridas
+ * @param {string}  saludo    primer mensaje del asistente
  * @param {(ruta:string)=>void} onAbrirRuta  qué hacer con el enlace "Abrir" de una tarjeta
  */
-export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
+export default function ChatOperativo({ movil = false, ampliado = false, saludo, onAbrirRuta }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: saludo || '¡Hola! Soy el Agente Operativo de IRP. ¿En qué puedo ayudarte con la administración de tus inmuebles?' },
   ])
@@ -96,18 +107,27 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
     }
   }
 
-  // Imágenes (tickets, fichas, INE…) y archivos del checador (CSV, TXT, DAT, Excel).
+  // Imágenes y PDFs (tickets, fichas, INE…) y archivos del checador (CSV, TXT, DAT, Excel).
+  const esFicha = f => f.type.startsWith('image/') || f.type === 'application/pdf'
   const esArchivoChecador = f => /\.(csv|txt|dat|xlsx?|xlsm)$/i.test(f.name) || /^text\//.test(f.type)
   const adjuntar = async (files) => {
     const lista = [...files]
-    const validos = lista.filter(f => f.type.startsWith('image/') || esArchivoChecador(f))
-    if (validos.length < lista.length) setMessages(ms => [...ms, { role: 'assistant', content: 'Puedo leer imágenes (JPG, PNG, WebP) y archivos de asistencia del checador (CSV, TXT, DAT o Excel). Si es PDF, tómale captura.' }])
+    const validos = lista.filter(f => esFicha(f) || esArchivoChecador(f))
+    if (validos.length < lista.length) setMessages(ms => [...ms, { role: 'assistant', content: 'Puedo leer imágenes (JPG, PNG, WebP), PDFs y archivos de asistencia del checador (CSV, TXT, DAT o Excel).' }])
     setLeyendo(n => n + validos.length)
     for (const f of validos) {
-      try { const r = f.type.startsWith('image/') ? await leerFicha(f) : await leerArchivoChecador(f); setAdjuntos(a => [...a, r]) }
+      try { const r = esFicha(f) ? await leerFicha(f) : await leerArchivoChecador(f); setAdjuntos(a => [...a, r]) }
       catch (e) { setMessages(ms => [...ms, { role: 'assistant', content: `No pude leer ${f.name}: ${e.message}` }]) }
       finally { setLeyendo(n => n - 1) }
     }
+  }
+
+  // Pegar una imagen copiada (p. ej. una captura de pantalla) directo en el campo de texto.
+  const pegar = e => {
+    const archivos = [...(e.clipboardData?.items || [])]
+      .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+      .map(it => it.getAsFile()).filter(Boolean)
+    if (archivos.length) { e.preventDefault(); adjuntar(archivos) }
   }
 
   const dictar = () => {
@@ -123,13 +143,13 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
     r.start()
   }
 
-  const send = async () => {
-    const escrito = input.trim()
+  const send = async (textoSugerido) => {
+    const escrito = (typeof textoSugerido === 'string' ? textoSugerido : input).trim()
     if ((!escrito && !adjuntos.length) || loading || leyendo) return
     const text = [escrito || 'Procesa estos documentos.', ...adjuntos.map(a => a.texto)].join('\n')
-    const miniaturas = adjuntos.map(a => a.miniatura)
+    const archivosAdjuntos = adjuntos.map(a => ({ miniatura: a.miniatura, archivo: a.archivo }))
     setInput(''); setAdjuntos([])
-    const next = [...messages, { role: 'user', content: text, miniaturas }]
+    const next = [...messages, { role: 'user', content: text, archivosAdjuntos }]
     setMessages(next)
     setLoading(true)
     try {
@@ -164,9 +184,13 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
               borderBottomRightRadius: m.role === 'user' ? '4px' : '14px',
               borderBottomLeftRadius: m.role === 'assistant' ? '4px' : '14px',
             }}>
-              {m.miniaturas?.length > 0 && (
+              {m.archivosAdjuntos?.length > 0 && (
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                  {m.miniaturas.map((src, k) => <img key={k} src={src} alt="Ficha" style={{ height: movil ? '72px' : '56px', borderRadius: '6px' }} />)}
+                  {m.archivosAdjuntos.map((a, k) => a.miniatura
+                    ? <img key={k} src={a.miniatura} alt="Ficha" style={{ height: movil ? '72px' : '56px', borderRadius: '6px' }} />
+                    : <div key={k} style={{ height: movil ? '72px' : '56px', maxWidth: 160, padding: '0 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'inherit' }}>
+                        <FileText size={14} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.archivo || 'archivo'}</span>
+                      </div>)}
                 </div>
               )}
               {m.content}
@@ -188,6 +212,31 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Preguntas sugeridas por tema: solo con la ventana ampliada (en chico estorban) y antes de
+          empezar a platicar. No limitan nada — el usuario puede preguntar lo que sea igual. */}
+      {ampliado && messages.length === 1 && !loading && (
+        <div style={{ padding: '0 16px 12px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '8px' }}>
+            Para empezar
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {TEMAS_SUGERIDOS.map(({ tema, preguntas }) => (
+              <div key={tema}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-light)', marginBottom: '4px' }}>{tema}</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {preguntas.map(p => (
+                    <button key={p} onClick={() => send(p)}
+                      style={{ padding: '6px 11px', borderRadius: '14px', border: '1.5px solid #E5E7EB', background: '#F9FAFB', color: 'var(--color-text)', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Fichas adjuntas */}
       {(adjuntos.length > 0 || leyendo > 0) && (
@@ -213,15 +262,16 @@ export default function ChatOperativo({ movil = false, saludo, onAbrirRuta }) {
         padding: movil ? '10px 10px calc(10px + env(safe-area-inset-bottom))' : '12px 16px',
         borderTop: adjuntos.length || leyendo ? 'none' : '1px solid #E5E7EB', display: 'flex', gap: '8px', alignItems: 'center',
       }}>
-        <input ref={fileRef} type="file" accept="image/*,.csv,.txt,.dat,.xls,.xlsx,text/plain,text/csv" multiple hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf,.pdf,.csv,.txt,.dat,.xls,.xlsx,text/plain,text/csv" multiple hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { adjuntar(e.target.files); e.target.value = '' }} />
         {movil && <button onClick={() => camRef.current?.click()} title="Tomar foto" style={btnIcono}><Camera size={icono} color="var(--color-primary)" /></button>}
-        <button onClick={() => fileRef.current?.click()} title="Adjuntar imagen o archivo de asistencia" style={btnIcono}><Paperclip size={icono} color="var(--color-text-light)" /></button>
+        <button onClick={() => fileRef.current?.click()} title="Adjuntar imagen, PDF o archivo de asistencia" style={btnIcono}><Paperclip size={icono} color="var(--color-text-light)" /></button>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-          placeholder={adjuntos.length ? 'Indica qué hacer, o envía…' : (movil ? 'Escribe o dicta…' : 'Escribe tu consulta...')}
+          onPaste={pegar}
+          placeholder={adjuntos.length ? 'Indica qué hacer, o envía…' : (movil ? 'Escribe o dicta…' : 'Escribe o pega una imagen…')}
           style={{ flex: 1, minWidth: 0, padding: movil ? '0 14px' : '9px 12px', height: movil ? 44 : 'auto', border: '1.5px solid #E5E7EB', borderRadius: movil ? '12px' : '8px', fontSize: movil ? '16px' : '13px', outline: 'none' }}
         />
         {movil && Dictado && (

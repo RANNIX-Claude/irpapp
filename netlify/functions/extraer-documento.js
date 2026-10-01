@@ -188,10 +188,10 @@ export const handler = async (event) => {
         b64 = Buffer.from(buffer).toString('base64')
       }
       prompt = PROMPTS[tipo_doc] || PROMPTS.DEFAULT
-      messageContent = [
-        { type: 'image', source: { type: 'base64', media_type: resolvedMediaType, data: b64 } },
-        { type: 'text', text: prompt },
-      ]
+      const bloque = resolvedMediaType === 'application/pdf'
+        ? { type: 'document', source: { type: 'base64', media_type: resolvedMediaType, data: b64 } }
+        : { type: 'image', source: { type: 'base64', media_type: resolvedMediaType, data: b64 } }
+      messageContent = [bloque, { type: 'text', text: prompt }]
     }
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {

@@ -83,10 +83,11 @@ export const handler = async (event) => {
     if (texto_libre) {
       messageContent = [{ type: 'text', text: PROMPT_TEXTO(texto_libre) }]
     } else {
-      messageContent = [
-        { type: 'image', source: { type: 'base64', media_type, data: image_base64 } },
-        { type: 'text', text: PROMPT_IMAGEN },
-      ]
+      // Un PDF va como bloque "document" (Claude lo lee página por página); una imagen como "image".
+      const bloque = media_type === 'application/pdf'
+        ? { type: 'document', source: { type: 'base64', media_type, data: image_base64 } }
+        : { type: 'image', source: { type: 'base64', media_type, data: image_base64 } }
+      messageContent = [bloque, { type: 'text', text: PROMPT_IMAGEN }]
     }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {

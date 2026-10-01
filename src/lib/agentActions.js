@@ -20,6 +20,16 @@ import { parsearChecador } from './checador'
 const fichas = new Map()   // 'F1' → { base64, mime, ext }
 let fichaSeq = 0
 
+// Un PDF se manda tal cual (Claude lo lee directo); no hay nada que comprimir.
+function aBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result)
+    r.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    r.readAsDataURL(file)
+  })
+}
+
 // Reduce a 1600 px máx. en JPEG: una foto de celular pesa MB y el OCR no lo necesita.
 function comprimir(file) {
   return new Promise((resolve, reject) => {
@@ -45,13 +55,19 @@ export const datosFichas = () => Object.fromEntries([...fichas].map(([id, f]) =>
  *  Devuelve { id, miniatura, texto } listo para el mensaje al agente. */
 export async function leerFicha(file) {
   const id = `F${++fichaSeq}`
-  const dataUrl = await comprimir(file)
-  const f = { base64: dataUrl.split(',')[1], mime: 'image/jpeg', ext: 'jpg', datos: null }
+  const esPdf = file.type === 'application/pdf'
+  const dataUrl = esPdf ? await aBase64(file) : await comprimir(file)
+  const f = esPdf
+    ? { base64: dataUrl.split(',')[1], mime: 'application/pdf', ext: 'pdf', datos: null }
+    : { base64: dataUrl.split(',')[1], mime: 'image/jpeg', ext: 'jpg', datos: null }
+  // Un PDF no tiene miniatura de imagen: se muestra como chip con el nombre del archivo.
+  const miniatura = esPdf ? null : dataUrl
+  const archivo = esPdf ? file.name : undefined
   fichas.set(id, f)
   try {
     const resp = await fetch('/.netlify/functions/gastos-ocr', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ image_base64: f.base64, media_type: 'image/jpeg' }),
+      body: JSON.stringify({ image_base64: f.base64, media_type: f.mime }),
     })
     const d = await resp.json()
     if (!resp.ok || d.error) throw new Error(d.error || 'Sin datos')
@@ -64,7 +80,7 @@ export async function leerFicha(file) {
         c.referencia && `referencia ${c.referencia}`, c.forma_pago && `forma ${c.forma_pago}`,
         c.concepto && `concepto "${c.concepto}"`, c.nombre_emisor && `ordenante "${c.nombre_emisor}"`,
       ].filter(Boolean)
-      return { id, miniatura: dataUrl, texto: `[Ficha ${id} adjunta: COMPROBANTE DE PAGO — ${partes.join(', ')}]` }
+      return { id, miniatura, archivo, texto: `[Ficha ${id} adjunta: COMPROBANTE DE PAGO — ${partes.join(', ')}]` }
     }
     if (d.tipo_documento === 'TICKET_COMPRA' || d.lineas?.length) {
       const t = d.ticket || {}, p = d.proveedor || {}
@@ -75,13 +91,13 @@ export async function leerFicha(file) {
         `${d.lineas?.length || 0} artículos`, t.validacion && t.validacion !== 'ok' && `ojo: ${t.validacion}`,
         desc && `artículos: ${desc}`,
       ].filter(Boolean)
-      return { id, miniatura: dataUrl, texto: `[Ficha ${id} adjunta: TICKET DE COMPRA — ${partes.join(', ')}]` }
+      return { id, miniatura, archivo, texto: `[Ficha ${id} adjunta: TICKET DE COMPRA — ${partes.join(', ')}]` }
     }
     if (['INE_FRENTE', 'INE_REVERSO', 'COMPROBANTE_DOMICILIO'].includes(d.tipo_documento)) {
       // Documento de identidad: segunda pasada con el prompt específico (extraer-documento).
       const r2 = await fetch('/.netlify/functions/extraer-documento', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ image_base64: f.base64, media_type: 'image/jpeg', tipo_doc: d.tipo_documento }),
+        body: JSON.stringify({ image_base64: f.base64, media_type: f.mime, tipo_doc: d.tipo_documento }),
       })
       const j = await r2.json()
       if (!r2.ok || !j.datos) throw new Error(j.error || 'Sin datos')
@@ -96,12 +112,12 @@ export async function leerFicha(file) {
           ? [x.nombre_completo && `nombre "${x.nombre_completo}"`, x.curp && `CURP ${x.curp}`, x.fecha_nacimiento && `nacimiento ${x.fecha_nacimiento}`, x.sexo && `sexo ${x.sexo}`, x.vigencia && `vigencia ${x.vigencia}`, ...dir]
           : [x.curp && `CURP ${x.curp}`, x.seccion && `sección ${x.seccion}`]
       const et = { INE_FRENTE: 'INE (frente)', INE_REVERSO: 'INE (reverso)', COMPROBANTE_DOMICILIO: 'COMPROBANTE DE DOMICILIO' }[d.tipo_documento]
-      return { id, miniatura: dataUrl, texto: `[Ficha ${id} adjunta: ${et} — ${partes.filter(Boolean).join(', ') || 'sin datos legibles'}]` }
+      return { id, miniatura, archivo, texto: `[Ficha ${id} adjunta: ${et} — ${partes.filter(Boolean).join(', ') || 'sin datos legibles'}]` }
     }
-    return { id, miniatura: dataUrl, texto: `[Ficha ${id} adjunta: documento no reconocido (ni ticket, ni comprobante de pago, ni INE, ni comprobante de domicilio)]` }
+    return { id, miniatura, archivo, texto: `[Ficha ${id} adjunta: documento no reconocido (ni ticket, ni comprobante de pago, ni INE, ni comprobante de domicilio)]` }
   } catch (e) {
     console.error('[leerFicha]', e)
-    return { id, miniatura: dataUrl, texto: `[Ficha ${id} adjunta: no se pudo leer la imagen]` }
+    return { id, miniatura, archivo, texto: `[Ficha ${id} adjunta: no se pudo leer ${esPdf ? 'el PDF' : 'la imagen'}]` }
   }
 }
 
