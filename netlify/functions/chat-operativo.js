@@ -580,10 +580,10 @@ const ACCIONES = {
       if (eC) return { error: eC.message }
 
       // Replicar el criterio del WHERE de fn_generar_cargos_mes
+      // Misma regla que fn_generar_cargos_mes v4: solo EN_EJECUCION
       const contratosActivos = (contratos || []).filter(c =>
-        !['RENOVADO', 'TERMINADO'].includes(c.estatus) &&
-        (!c.fecha_fin || c.fecha_fin >= primerDia ||
-          ['EN_EJECUCION', 'EN_RENOVACION'].includes(c.estatus_proceso))
+        c.estatus_proceso === 'EN_EJECUCION' &&
+        !['RESCISION', 'CANCELADO', 'RENOVADO', 'TERMINADO'].includes(c.estatus)
       )
 
       const idsContratos = contratosActivos.map(c => c.id)
