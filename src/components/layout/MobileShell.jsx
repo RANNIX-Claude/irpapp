@@ -7,6 +7,7 @@ import { signOut } from '../../lib/auth'
 import { menuMovil } from '../../lib/menusMovil'
 import { claveIcono } from '../../lib/pwa'
 import ChatOperativo from '../agents/ChatOperativo'
+import RutasMovil from '../../mobile/Rutas'
 
 // ¿Está activa esta pestaña? Soporta rutas con query (/mantenimiento?vista=autorizacion).
 function activa(path, loc) {
@@ -27,7 +28,7 @@ const estiloTab = (on) => ({
  * menú inferior. Para el administrador, la pestaña «Asistente» (ruta `/`) es el chat operativo
  * a pantalla completa y queda montado al cambiar de pestaña para no perder la conversación.
  */
-export default function MobileShell({ children }) {
+export default function MobileShell() {
   const { perfil, user } = useApp()
   const loc = useLocation()
   const navigate = useNavigate()
@@ -70,7 +71,7 @@ export default function MobileShell({ children }) {
               saludo="¡Hola! Soy tu asistente de IRP. Mándame tickets, fichas de depósito, INE, contratos o comprobantes (con la cámara o desde tus archivos) y me encargo del alta, el cobro o el registro. También pregúntame por cobranza, contratos, gastos, personal o cualquier tablero." />
           </div>
         )}
-        {!enChat && children}
+        {!enChat && <RutasMovil rolId={rolId} perfil={perfil} />}
       </main>
 
       <nav style={{ flexShrink: 0, display: 'flex', background: 'white', borderTop: '1px solid #E5E7EB', paddingBottom: 'env(safe-area-inset-bottom)' }}>

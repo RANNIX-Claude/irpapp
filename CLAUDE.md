@@ -350,6 +350,11 @@ Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 - **Todos los roles** tienen versión móvil (<768 px): `Marco` en `src/App.jsx` elige `MobileShell`
   (`src/components/layout/MobileShell.jsx`, barra superior + menú inferior + hoja «Más») o el Header+Sidebar de escritorio.
   El menú de cada rol vive en `src/lib/menusMovil.js`. El rol `asistente` conserva su propia app (`pages/asistente/`).
+- **El móvil NO reutiliza las páginas de escritorio**: tiene pantallas propias en `src/mobile/` (consulta visual de solo lectura:
+  mosaicos, fotos/logos, tarjetas grandes, detalle en hoja inferior). Piezas: `kit.jsx` (Kpi, Avatar, Galeria, Hoja…) y `Lista.jsx`
+  (buscador + chips + lista/mosaico sobre una vista `prp_*`). Rutas en `mobile/Rutas.jsx`; lo que no tiene versión móvil muestra
+  «esta pantalla es para escritorio» y manda al asistente. Excepciones con acción mínima: Finanzas (validar/observar depósito) y
+  Facturación (folio + PDF/ZIP). Para sumar una pantalla: componente en `src/mobile/` + entrada en `COMUNES` (y `PERMITIDAS` si el rol es acotado).
 - **Administrador (staff)**: la pestaña «Asistente» (`/`) es el chat operativo a pantalla completa (`ChatOperativo movil`: cámara,
   voz, adjuntos → altas, cobros, contratos); el Dashboard pasó a `/tablero` en móvil (en escritorio `/` sigue siendo Dashboard).
 - **PWA por rol**: cada rol instala su app con ícono y color propios. `src/lib/pwa.js` cambia el manifiesto

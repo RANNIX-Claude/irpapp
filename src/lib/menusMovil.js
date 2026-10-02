@@ -1,8 +1,7 @@
 import {
-  MessageCircle, LayoutDashboard, CreditCard, FileText, Users, UserPlus, RotateCcw, Building2,
-  TrendingUp, Landmark, Stamp, Receipt, ShoppingBag, Wrench, ClipboardCheck, HardHat, CalendarDays,
-  Truck, Package, UserCheck, BarChart3, ClipboardList, UserCog, Settings, Rss, Sun, FileBarChart2,
-  CalendarRange, FolderOpen, UtensilsCrossed, LogOut, Car,
+  MessageCircle, LayoutDashboard, CreditCard, FileText, Users, Building2,
+  TrendingUp, Landmark, Stamp, Receipt, Wrench, ClipboardCheck, HardHat,
+  UserCheck, Rss, FileBarChart2, CalendarRange, FolderOpen, UtensilsCrossed, LogOut,
 } from 'lucide-react'
 
 // Menú inferior de la versión móvil, por rol. `tabs` van siempre visibles abajo (máx. 5);
@@ -10,43 +9,29 @@ import {
 // `chat: true` → la ruta `/` es el Asistente Operativo a pantalla completa (casa del administrador).
 // `accion: 'salir'` → pestaña que cierra la sesión (roles con una sola pantalla).
 
+// Solo lo que tiene pantalla móvil (src/mobile/). Lo demás (altas, catálogos, reportes en tabla…)
+// se hace pidiéndoselo al asistente o desde el escritorio.
 const MAS_ADMIN = [
   { label: 'Resumen', items: [
-    { label: 'Feed ejecutivo', path: '/feed', icon: Rss },
-    { label: 'Foto del día', path: '/foto-del-dia', icon: Sun },
-    { label: 'Estado de resultados', path: '/edr', icon: LayoutDashboard },
-    { label: 'Informe propietario', path: '/informe', icon: FileBarChart2 },
+    { label: 'Feed de la plaza', path: '/feed', icon: Rss },
+    { label: 'Resultados del mes', path: '/edr', icon: LayoutDashboard },
     { label: 'Resumen semanal', path: '/resumen-semanal', icon: CalendarRange },
-    { label: 'Eventos', path: '/eventos', icon: CalendarDays },
   ] },
   { label: 'Locales', items: [
-    { label: 'Locales', path: '/inmuebles', icon: Building2 },
+    { label: 'Mapa de locales', path: '/mapa-locales', icon: Building2 },
     { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
-    { label: 'Prospectos', path: '/prospectos', icon: UserPlus },
-    { label: 'Renovaciones', path: '/renovaciones', icon: RotateCcw },
   ] },
   { label: 'Dinero', items: [
     { label: 'Ingresos', path: '/ingresos', icon: TrendingUp },
-    { label: 'Finanzas', path: '/finanzas', icon: Landmark },
+    { label: 'Validar depósitos', path: '/finanzas', icon: Landmark },
     { label: 'Facturación', path: '/facturacion', icon: Stamp },
-    { label: 'Gastos operativos', path: '/gastos-operativos', icon: Receipt },
+    { label: 'Gastos', path: '/gastos-operativos', icon: Receipt },
   ] },
   { label: 'Operación', items: [
-    { label: 'Solicitudes', path: '/mantenimiento?vista=solicitud', icon: Wrench },
-    { label: 'Autorización', path: '/mantenimiento?vista=autorizacion', icon: ClipboardCheck },
+    { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
+    { label: 'Por autorizar', path: '/mantenimiento?vista=autorizacion', icon: ClipboardCheck },
     { label: 'Proyectos', path: '/proyectos', icon: HardHat },
-    { label: 'Vending', path: '/vending', icon: ShoppingBag },
-    { label: 'Proveedores', path: '/proveedores', icon: Truck },
-    { label: 'Productos', path: '/productos', icon: Package },
-  ] },
-  { label: 'Personal y análisis', items: [
-    { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
-    { label: 'Reportes', path: '/reportes', icon: BarChart3 },
-  ] },
-  { label: 'Sistema', items: [
-    { label: 'Bitácora', path: '/bitacora', icon: ClipboardList },
-    { label: 'Usuarios', path: '/usuarios', icon: UserCog },
-    { label: 'Configuración', path: '/config', icon: Settings },
+    { label: 'Personal', path: '/rh', icon: UserCheck },
   ] },
 ]
 
@@ -73,8 +58,7 @@ const MENUS = {
     ],
     mas: [{ label: 'Más', items: [
       { label: 'Resumen semanal', path: '/resumen-semanal', icon: CalendarRange },
-      { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
-      { label: 'Reportes', path: '/reportes', icon: BarChart3 },
+      { label: 'Personal', path: '/rh', icon: UserCheck },
     ] }],
   },
   corporativo: {
@@ -86,8 +70,7 @@ const MENUS = {
     ],
     mas: [{ label: 'Más', items: [
       { label: 'Resumen semanal', path: '/resumen-semanal', icon: CalendarRange },
-      { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
-      { label: 'Reportes', path: '/reportes', icon: BarChart3 },
+      { label: 'Personal', path: '/rh', icon: UserCheck },
     ] }],
   },
   finanzas: { tabs: [{ label: 'Finanzas', path: '/finanzas', icon: Landmark }, SALIR], mas: [] },
@@ -102,4 +85,3 @@ export function menuMovil(rolId, perfil) {
   return MENUS[rolId] || ADMIN
 }
 
-export { Car }

@@ -81,7 +81,8 @@ function SinAcceso({ rol }) {
 // pantalla; `desktopExtras` suma pie y chat flotante (en celular el chat es la pestaña Asistente).
 function Marco({ children, sidebar = true, desktopExtras = false }) {
   const { sidebarOpen, isMobile } = useApp()
-  if (isMobile) return <MobileShell>{children}</MobileShell>
+  // En celular NO se usan las páginas de escritorio (children): MobileShell trae las suyas, de src/mobile/.
+  if (isMobile) return <MobileShell />
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
       <Header />
