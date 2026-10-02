@@ -1,7 +1,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseParking } from '../lib/supabase'
+
+// Suma tickets cobrados/perdidos en un rango de fechas (paginada, igual que EDR)
+async function sumTicketsMes(ini, fin) {
+  if (!supabaseParking) return 0
+  let total = 0, offset = 0
+  while (true) {
+    const { data, error } = await supabaseParking
+      .from('tickets').select('importe')
+      .gte('fecha_op', ini).lte('fecha_op', fin)
+      .in('estatus', ['cobrado', 'perdido']).range(offset, offset + 999)
+    if (error || !data || data.length === 0) break
+    total += data.reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
+    if (data.length < 1000) break
+    offset += 1000
+  }
+  return total
+}
 
 // ── Utilidades ────────────────────────────────────────────────────────────────
 const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -385,7 +402,7 @@ export default function InformePropietario() {
     const ini  = primerDia(anio, mes)
     const fin  = ultimoDia(anio, mes)
 
-    const [edrRes, contr, locsRows, avRows, avFotos, proyRows, evRows, evFotos, ingRes, gasRes] = await Promise.all([
+    const [edrRes, contr, locsRows, avRows, avFotos, proyRows, evRows, evFotos, ingRes, gasRes, liveEstac, livePension] = await Promise.all([
       // Estado de resultados mensual — ya calculado por el sistema
       supabase.from('er_mensual')
         .select('calc_real_total_rentas,calc_real_total_estac,calc_real_total_pension,calc_real_total_maq,calc_real_total_agua_i,calc_real_total_ing,real_sueldos,real_fondo_revolvente,real_gasto_excedente,real_luz,real_agua_gastos,real_otros_gastos,calc_real_total_gastos,calc_real_util_neta,status')
@@ -423,21 +440,37 @@ export default function InformePropietario() {
       // Fallback en tiempo real — usado cuando er_mensual aún no existe
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
+
+      // Estacionamiento live: mismo criterio que EDR (fecha_op = cobro)
+      sumTicketsMes(ini, fin),
+
+      // Pensiones live: pagos validados del período
+      supabaseParking
+        ? supabaseParking.from('pagos_pension').select('monto_pagado')
+            .eq('periodo_mes', mes).eq('periodo_año', anio).eq('estado', 'validado')
+        : Promise.resolve({ data: [] }),
     ])
 
     // ── Operativo mensual — EDR cerrado o fallback en tiempo real ─────────────
     const edr = edrRes.data || {}
     const edrRentas    = parseFloat(edr.calc_real_total_rentas)  || 0
-    const edrEstac     = parseFloat(edr.calc_real_total_estac)   || 0
-    const edrPensiones = parseFloat(edr.calc_real_total_pension) || 0
     const edrMaquinita = parseFloat(edr.calc_real_total_maq)     || 0
     const edrAgua      = parseFloat(edr.calc_real_total_agua_i)  || 0
     const edrSueldos   = parseFloat(edr.real_sueldos)            || 0
     const edrFondo     = parseFloat(edr.real_fondo_revolvente)   || 0
     const edrGastos    = parseFloat(edr.calc_real_total_gastos)  || (edrSueldos + edrFondo + (parseFloat(edr.real_gasto_excedente) || 0) + (parseFloat(edr.real_luz) || 0))
-    const edrTotalIng  = parseFloat(edr.calc_real_total_ing)     || (edrRentas + edrEstac + edrPensiones + edrMaquinita + edrAgua)
-    const edrUtilNeta  = parseFloat(edr.calc_real_util_neta)     || (edrTotalIng - edrGastos)
     const edrStatus    = edr.status || null
+
+    // Estacionamiento y pensiones: valor live del sistema de tickets (igual que EDR)
+    // tiene prioridad sobre el snapshot de er_mensual, que solo se actualiza por cron nocturno
+    const liveEstacVal    = typeof liveEstac === 'number' ? liveEstac : 0
+    const livePensionVal  = ((livePension?.data || []).reduce((s, r) => s + (parseFloat(r.monto_pagado) || 0), 0))
+    const edrEstac     = liveEstacVal   || parseFloat(edr.calc_real_total_estac)   || 0
+    const edrPensiones = livePensionVal || parseFloat(edr.calc_real_total_pension) || 0
+
+    // Total recalculado con valores live (no usar calc_real_total_ing que puede tener estac viejo)
+    const edrTotalIng  = edrRentas + edrEstac + edrPensiones + edrMaquinita + edrAgua
+    const edrUtilNeta  = edrTotalIng - edrGastos
 
     const sinEdr = edrTotalIng === 0 && edrGastos === 0
 
