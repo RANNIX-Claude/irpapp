@@ -27,6 +27,9 @@
 [functions."generar-sanciones"]
   schedule = "55 5 * * *"
 
+[functions."cron-estac-mensual"]
+  schedule = "0 8 * * *"
+
 [build.environment]
   NODE_VERSION = "20"
   TZ              = "America/Mexico_City"
