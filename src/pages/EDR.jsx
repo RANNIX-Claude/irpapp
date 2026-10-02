@@ -17,7 +17,8 @@ async function sumTicketsMes(client, fechaIni, fechaFin) {
   while (true) {
     const { data, error } = await client
       .from('tickets').select('importe')
-      .gte('fecha_op', fechaIni).lte('fecha_op', fechaFin)
+      .gte('hora_salida_at', fechaIni).lte('hora_salida_at', fechaFin + 'T23:59:59')
+      .not('hora_salida_at', 'is', null)
       .in('estatus', ['cobrado', 'perdido']).range(offset, offset + 999)
     if (error || !data || data.length === 0) break
     total += data.reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)

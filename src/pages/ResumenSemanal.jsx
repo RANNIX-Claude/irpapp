@@ -804,7 +804,7 @@ export default function ResumenSemanal() {
     const iniParking = isoDate(viernesAnterior)
     const finParking = isoDate(jueves)
     fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=in.(cobrado,perdido)&limit=2000`,
+      `${PARKING_URL}/rest/v1/tickets?select=hora_salida_at,importe,estatus&hora_salida_at=gte.${iniParking}&hora_salida_at=lte.${finParking}T23%3A59%3A59&hora_salida_at=not.is.null&estatus=in.(cobrado,perdido)&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
     )
       .then(r => r.json())
@@ -812,7 +812,8 @@ export default function ResumenSemanal() {
         const byDay = {}
         let total = 0
         rows.forEach(t => {
-          const d = t.fecha_op
+          const d = t.hora_salida_at ? t.hora_salida_at.split('T')[0] : null
+          if (!d) return
           if (!byDay[d]) byDay[d] = { fecha: d, tickets: 0, importe: 0 }
           byDay[d].tickets++
           byDay[d].importe += parseFloat(t.importe) || 0

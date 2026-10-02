@@ -10,7 +10,8 @@ async function sumTicketsMes(ini, fin) {
   while (true) {
     const { data, error } = await supabaseParking
       .from('tickets').select('importe')
-      .gte('fecha_op', ini).lte('fecha_op', fin)
+      .gte('hora_salida_at', ini).lte('hora_salida_at', fin + 'T23:59:59')
+      .not('hora_salida_at', 'is', null)
       .in('estatus', ['cobrado', 'perdido']).range(offset, offset + 999)
     if (error || !data || data.length === 0) break
     total += data.reduce((s, r) => s + (parseFloat(r.importe) || 0), 0)
@@ -441,7 +442,7 @@ export default function InformePropietario() {
       supabase.from('prp_ingresos').select('importe').gte('fecha', ini).lte('fecha', fin),
       supabase.from('prp_gastos').select('importe').gte('fecha', ini).lte('fecha', fin),
 
-      // Estacionamiento live: mismo criterio que EDR (fecha_op = cobro)
+      // Estacionamiento live: por hora_salida_at (momento de cobro/salida)
       sumTicketsMes(ini, fin),
 
       // Pensiones live: pagos validados del período
