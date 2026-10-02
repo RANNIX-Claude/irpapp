@@ -386,9 +386,10 @@ export default function EDR() {
   const [resumenCarga,  setResumenCarga]  = useState(null) // { rentas, pensiones, sueldos }
 
   const loadProyectado = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('contratos').select('renta_mensual')
       .eq('estatus_operacion', 'OCUPADO')
+    if (error) console.error('[EDR] loadProyectado:', error.message, error)
     if (data) setProyRentas(data.reduce((s, c) => s + (parseFloat(c.renta_mensual)||0), 0))
   }, [])
 
@@ -397,10 +398,11 @@ export default function EDR() {
     const fechaFin = `${a}-${String(m).padStart(2,'0')}-${new Date(a, m, 0).getDate()}`
     // Base caja: pagos con fecha en el mes. Concepto y periodo vienen del cobro cubierto.
     // Fallback: si el ingreso no tiene aplicaciones_pago, usa clasificacion/mes/anio del ingreso.
-    const { data } = await supabase
+    const { data, error: errIngresos } = await supabase
       .from('ingresos')
       .select('id, origen, importe, clasificacion, mes, anio, estatus_validacion, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
       .gte('fecha', fechaIni).lte('fecha', fechaFin)
+    if (errIngresos) console.error('[EDR] loadRealRentas:', errIngresos.message, errIngresos)
     if (data) {
       // Un ingreso POR_VALIDAR aún no está confirmado en banco: no entra al real del EDR
       // (ni, por tanto, al reporte del propietario) hasta que se valide.
@@ -679,10 +681,11 @@ export default function EDR() {
     // 4. Sueldos reales: nóminas autorizadas/pagadas con fecha_pago en el mes
     const fechaIni = fechaIniR
     const fechaFin = fechaFinR
-    const { data: nominas } = await supabase
+    const { data: nominas, error: errNominas } = await supabase
       .from('nomina_periodos').select('total_neto')
       .in('estado', ['AUTORIZADA','PAGADA','TIMBRADA'])
       .gte('fecha_pago', fechaIni).lte('fecha_pago', fechaFin)
+    if (errNominas) console.error('[EDR] nomina_periodos:', errNominas.message, errNominas)
     const sumSueldos = nominas?.reduce((s, n) => s + (parseFloat(n.total_neto)||0), 0) || 0
     resumen.sueldos = sumSueldos
 
@@ -835,16 +838,18 @@ export default function EDR() {
   const rmTotalRentas = rmRentaFact + rmRentaSin
   const opTotalRentas = opRentaFact + opRentaSin
 
-  // Subtotales desde calc_* — PostgreSQL los mantiene; fallback solo para registros legacy
-  const rTotalRentas  = parseFloat(r.calc_real_total_rentas)  || (rRentaFact + rRentaSin)
-  const rRentasBrutas = parseFloat(r.calc_real_rentas_brutas) || (rTotalRentas + rPenaliz)
-  const rIva          = parseFloat(r.calc_real_iva)           || -(rmIva + opIva)
-  const rIngNeto      = parseFloat(r.calc_real_ing_neto)      || (rRentasBrutas + rIva)
-  const rEstac        = parseFloat(r.calc_real_total_estac)   || (rmEstac + opEstac)
-  const rPensiones    = parseFloat(r.calc_real_total_pension) || (rmPension + opPension)
-  const rMaquinita    = parseFloat(r.calc_real_total_maq)     || (rmMaquinita + opMaquinita)
-  const rAguaIng      = parseFloat(r.calc_real_total_agua_i)  || (rmAguaIng + opAguaIng)
-  const rTotalIng     = parseFloat(r.calc_real_total_ing)     || (rIngNeto + rEstac + rPensiones + rMaquinita + rAguaIng)
+  // Subtotales: la suma live (_mes + _otros en el form) tiene prioridad sobre calc_*
+  // porque cargarDatosAutomaticos actualiza real_* en el form sin hacer round-trip a la BD,
+  // dejando calc_* (GENERATED STORED) con el valor del último snapshot guardado.
+  const rTotalRentas  = (rRentaFact + rRentaSin) || parseFloat(r.calc_real_total_rentas)  || 0
+  const rRentasBrutas = rTotalRentas + rPenaliz
+  const rIva          = -(rmIva + opIva) || parseFloat(r.calc_real_iva) || 0
+  const rIngNeto      = rRentasBrutas + rIva
+  const rEstac        = (rmEstac + opEstac)         || parseFloat(r.calc_real_total_estac)   || 0
+  const rPensiones    = (rmPension + opPension)     || parseFloat(r.calc_real_total_pension) || 0
+  const rMaquinita    = (rmMaquinita + opMaquinita) || parseFloat(r.calc_real_total_maq)     || 0
+  const rAguaIng      = (rmAguaIng + opAguaIng)    || parseFloat(r.calc_real_total_agua_i)  || 0
+  const rTotalIng     = rIngNeto + rEstac + rPensiones + rMaquinita + rAguaIng
   const rSueldos   = parseFloat(r.real_sueldos) || 0
   const rFondo     = parseFloat(r.real_fondo_revolvente) || 0
   const rExcedente = parseFloat(r.real_gasto_excedente) || 0
@@ -856,11 +861,11 @@ export default function EDR() {
   const rUtilBruta = parseFloat(r.calc_real_util_bruta)  || (rTotalIng - rTotalG)
   const rUtilNeta  = parseFloat(r.calc_real_util_neta)   || (rUtilBruta - rTotalImp)
 
-  // Split mes/otros para subtotales — calc_* reemplaza la aritmética IVA proporcional
-  const rmIngNeto  = parseFloat(r.calc_real_ing_neto_mes)     || (rmRentaFact + rmRentaSin + rmPenaliz - rmIva)
-  const opIngNeto  = parseFloat(r.calc_real_ing_neto_otros)   || (opRentaFact + opRentaSin + opPenaliz - opIva)
-  const rmTotalIng = parseFloat(r.calc_real_total_ing_mes)    || (rmIngNeto + rmEstac + rmPension + rmMaquinita + rmAguaIng)
-  const opTotalIng = parseFloat(r.calc_real_total_ing_otros)  || (opIngNeto + opEstac + opPension + opMaquinita + opAguaIng)
+  // Split mes/otros para subtotales — aritmética live tiene prioridad sobre calc_*
+  const rmIngNeto  = (rmRentaFact + rmRentaSin + rmPenaliz - rmIva)  || parseFloat(r.calc_real_ing_neto_mes)    || 0
+  const opIngNeto  = (opRentaFact + opRentaSin + opPenaliz - opIva)  || parseFloat(r.calc_real_ing_neto_otros)  || 0
+  const rmTotalIng = (rmIngNeto + rmEstac + rmPension + rmMaquinita + rmAguaIng) || parseFloat(r.calc_real_total_ing_mes)   || 0
+  const opTotalIng = (opIngNeto + opEstac + opPension + opMaquinita + opAguaIng) || parseFloat(r.calc_real_total_ing_otros) || 0
 
   /* ── Composición de los renglones calculados ────────────────────────────────
      Cada subtotal declara su fórmula y sus sumandos con el valor de este mes.
