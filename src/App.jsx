@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AppProvider, useApp } from './context/AppContext'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
+import MobileShell from './components/layout/MobileShell'
+import { aplicarIdentidadPWA } from './lib/pwa'
 import Footer from './components/layout/Footer'
 import AgenteOperativo from './components/agents/AgenteOperativo.jsx'
 import LoadingSpinner from './components/ui/LoadingSpinner'
@@ -73,9 +76,38 @@ function SinAcceso({ rol }) {
   )
 }
 
+// Marco de la aplicación según el dispositivo: en celular, menú inferior (MobileShell, para
+// todos los roles); en escritorio, Header + Sidebar. `sidebar={false}` para roles de una sola
+// pantalla; `desktopExtras` suma pie y chat flotante (en celular el chat es la pestaña Asistente).
+function Marco({ children, sidebar = true, desktopExtras = false }) {
+  const { sidebarOpen, isMobile } = useApp()
+  if (isMobile) return <MobileShell>{children}</MobileShell>
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+      <Header />
+      {sidebar && <Sidebar />}
+      <main style={{
+        marginLeft: sidebar ? (sidebarOpen ? '220px' : '60px') : 0,
+        marginTop: 'var(--header-height)',
+        minHeight: 'calc(100vh - var(--header-height) - 48px)',
+        transition: 'margin-left 0.2s ease',
+      }}>
+        {children}
+        {desktopExtras && <Footer />}
+      </main>
+      {desktopExtras && <AgenteOperativo />}
+      <Toaster position="top-right" />
+    </div>
+  )
+}
+
 function AppLayout() {
-  const { user, perfil, loading, sidebarOpen, isMobile } = useApp()
+  const { user, perfil, loading } = useApp()
   const location = useLocation()
+
+  // Manifiesto, ícono y color de la PWA del rol (distinguible en la pantalla de inicio)
+  const rolPwa = perfil?.rol_id
+  useEffect(() => { if (rolPwa) aplicarIdentidadPWA(rolPwa) }, [rolPwa])
 
   // Rutas públicas — sin layout admin (portal de prospecto)
   if (location.pathname.startsWith('/portal/')) {
@@ -105,60 +137,36 @@ function AppLayout() {
   // Rol finanzas (Jessie) → solo validación de depósitos
   if (perfil?.rol_id === 'finanzas') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <main style={{
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-        }}>
-          <Routes>
-            <Route path="/finanzas" element={<Finanzas />} />
-            <Route path="*" element={<Navigate to="/finanzas" replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco sidebar={false}>
+        <Routes>
+          <Route path="/finanzas" element={<Finanzas />} />
+          <Route path="*" element={<Navigate to="/finanzas" replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
   // Rol facturador (Fernando) → solo sube CFDI a cargos validados
   if (perfil?.rol_id === 'facturador') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <main style={{
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-        }}>
-          <Routes>
-            <Route path="/facturacion" element={<Facturacion />} />
-            <Route path="*" element={<Navigate to="/facturacion" replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco sidebar={false}>
+        <Routes>
+          <Route path="/facturacion" element={<Facturacion />} />
+          <Route path="*" element={<Navigate to="/facturacion" replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
   // Rol restaurante → solo puede ver su módulo
   if (perfil?.rol_id === 'restaurante') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <Sidebar />
-        <main style={{
-          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-          transition: 'margin-left 0.2s ease',
-        }}>
-          <Routes>
-            <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
-            <Route path="*" element={<Navigate to="/restaurante/gastos" replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco>
+        <Routes>
+          <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
+          <Route path="*" element={<Navigate to="/restaurante/gastos" replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
@@ -171,29 +179,20 @@ function AppLayout() {
   // Rol propietario → Informe + todo lo que tiene corporativo; landing en /informe
   if (perfil?.rol_id === 'propietario') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <Sidebar />
-        <main style={{
-          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-          transition: 'margin-left 0.2s ease',
-        }}>
-          <Routes>
-            <Route path="/informe" element={<InformePropietario />} />
-            <Route path="/edr" element={<EDR />} />
-            <Route path="/contratos" element={<Contratos />} />
-            <Route path="/contratos/:id" element={<ExpedienteContrato />} />
-            <Route path="/resumen-semanal" element={<ResumenSemanal />} />
-            <Route path="/rh" element={<RH />} />
-            <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
-            <Route path="/reportes" element={<Reportes />} />
-            <Route path="*" element={<Navigate to="/informe" replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco>
+        <Routes>
+          <Route path="/informe" element={<InformePropietario />} />
+          <Route path="/feed" element={<FeedEjecutivo />} />
+          <Route path="/edr" element={<EDR />} />
+          <Route path="/contratos" element={<Contratos />} />
+          <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+          <Route path="/resumen-semanal" element={<ResumenSemanal />} />
+          <Route path="/rh" element={<RH />} />
+          <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
+          <Route path="/reportes" element={<Reportes />} />
+          <Route path="*" element={<Navigate to="/informe" replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
@@ -201,28 +200,21 @@ function AppLayout() {
   // RH/Nómina y Reportes; el resto redirige al dashboard.
   if (perfil?.rol_id === 'corporativo') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <Sidebar />
-        <main style={{
-          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-          transition: 'margin-left 0.2s ease',
-        }}>
-          <Routes>
-            <Route path="/edr" element={<EDR />} />
-            <Route path="/contratos" element={<Contratos />} />
-            <Route path="/contratos/:id" element={<ExpedienteContrato />} />
-            <Route path="/resumen-semanal" element={<ResumenSemanal />} />
-            <Route path="/rh" element={<RH />} />
-            <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
-            <Route path="/reportes" element={<Reportes />} />
-            <Route path="*" element={<Navigate to="/edr" replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco>
+        <Routes>
+          <Route path="/feed" element={<FeedEjecutivo />} />
+          <Route path="/edr" element={<EDR />} />
+          <Route path="/mantenimiento" element={<Mantenimiento />} />
+          <Route path="/mantenimiento/:id" element={<ExpedienteMantenimiento />} />
+          <Route path="/contratos" element={<Contratos />} />
+          <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+          <Route path="/resumen-semanal" element={<ResumenSemanal />} />
+          <Route path="/rh" element={<RH />} />
+          <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
+          <Route path="/reportes" element={<Reportes />} />
+          <Route path="*" element={<Navigate to="/edr" replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
@@ -240,86 +232,65 @@ function AppLayout() {
       )
     }
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-        <Header />
-        <Sidebar />
-        <main style={{
-          marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
-          marginTop: 'var(--header-height)',
-          minHeight: 'calc(100vh - var(--header-height) - 48px)',
-          transition: 'margin-left 0.2s ease',
-        }}>
-          <Routes>
-            <Route path="/contratos/:id" element={<ExpedienteContrato />} />
-            <Route path="*" element={<Navigate to={`/contratos/${perfil.contrato_id}`} replace />} />
-          </Routes>
-        </main>
-        <Toaster position="top-right" />
-      </div>
+      <Marco>
+        <Routes>
+          <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+          <Route path="*" element={<Navigate to={`/contratos/${perfil.contrato_id}`} replace />} />
+        </Routes>
+      </Marco>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
-      <Header />
-      <Sidebar />
-      <main style={{
-        marginLeft: isMobile ? 0 : (sidebarOpen ? '220px' : '60px'),
-        marginTop: 'var(--header-height)',
-        minHeight: 'calc(100vh - var(--header-height) - 48px)',
-        transition: 'margin-left 0.2s ease',
-      }}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/feed" element={<FeedEjecutivo />} />
-          <Route path="/informe" element={<InformePropietario />} />
-          <Route path="/foto-del-dia" element={<FotoDelDia />} />
-          <Route path="/inmuebles" element={<Inmuebles />} />
-          <Route path="/contratos" element={<Contratos />} />
-          <Route path="/contratos/:id" element={<ExpedienteContrato />} />
-          <Route path="/renovaciones" element={<Renovaciones />} />
-          <Route path="/cobranza" element={<Cobranza />} />
-          <Route path="/arrendatarios" element={<Arrendatarios />} />
-          <Route path="/mantenimiento" element={<Mantenimiento />} />
-          <Route path="/mantenimiento/:id" element={<ExpedienteMantenimiento />} />
-          <Route path="/proyectos" element={<Proyectos />} />
-          <Route path="/eventos"   element={<Eventos />} />
-          <Route path="/proveedores" element={<Proveedores />} />
-          <Route path="/proveedores/:id" element={<ExpedienteProveedor />} />
-          <Route path="/productos" element={<Productos />} />
-          <Route path="/productos/:id" element={<ExpedienteProducto />} />
-          <Route path="/rh" element={<RH />} />
-          <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
-          <Route path="/estacionamiento" element={<Estacionamiento />} />
-          <Route path="/prospectos" element={<Prospectos />} />
-          <Route path="/reportes" element={<Reportes />} />
-          <Route path="/gastos-operativos" element={<GastosOperativos />} />
-          <Route path="/conciliacion" element={<Conciliacion />} />
-          <Route path="/agua" element={<Agua />} />
-          <Route path="/vending" element={<Vending />} />
-          <Route path="/edr" element={<EDR />} />
-          <Route path="/resumen-semanal" element={<ResumenSemanal />} />
-          <Route path="/bitacora" element={<Bitacora />} />
-          <Route path="/utilidades" element={<Utilidades />} />
-          <Route path="/catalogos" element={<Catalogos />} />
-          <Route path="/validacion" element={<Validacion />} />
-          <Route path="/calculos" element={<Calculos />} />
-          <Route path="/mapa-locales" element={<MapaLocales />} />
-          <Route path="/ingresos" element={<Ingresos />} />
-          <Route path="/despachos" element={<Despachos />} />
-          <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
-          <Route path="/finanzas" element={<Finanzas />} />
-          <Route path="/facturacion" element={<Facturacion />} />
-          <Route path="/config" element={<Configuracion />} />
-          <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/entrega" element={<Entrega />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <Footer />
-      </main>
-      <AgenteOperativo />
-      <Toaster position="top-right" />
-    </div>
+    <Marco desktopExtras>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/tablero" element={<Dashboard />} />
+        <Route path="/feed" element={<FeedEjecutivo />} />
+        <Route path="/informe" element={<InformePropietario />} />
+        <Route path="/foto-del-dia" element={<FotoDelDia />} />
+        <Route path="/inmuebles" element={<Inmuebles />} />
+        <Route path="/contratos" element={<Contratos />} />
+        <Route path="/contratos/:id" element={<ExpedienteContrato />} />
+        <Route path="/renovaciones" element={<Renovaciones />} />
+        <Route path="/cobranza" element={<Cobranza />} />
+        <Route path="/arrendatarios" element={<Arrendatarios />} />
+        <Route path="/mantenimiento" element={<Mantenimiento />} />
+        <Route path="/mantenimiento/:id" element={<ExpedienteMantenimiento />} />
+        <Route path="/proyectos" element={<Proyectos />} />
+        <Route path="/eventos"   element={<Eventos />} />
+        <Route path="/proveedores" element={<Proveedores />} />
+        <Route path="/proveedores/:id" element={<ExpedienteProveedor />} />
+        <Route path="/productos" element={<Productos />} />
+        <Route path="/productos/:id" element={<ExpedienteProducto />} />
+        <Route path="/rh" element={<RH />} />
+        <Route path="/rh/empleado/:id" element={<ExpedienteEmpleado />} />
+        <Route path="/estacionamiento" element={<Estacionamiento />} />
+        <Route path="/prospectos" element={<Prospectos />} />
+        <Route path="/reportes" element={<Reportes />} />
+        <Route path="/gastos-operativos" element={<GastosOperativos />} />
+        <Route path="/conciliacion" element={<Conciliacion />} />
+        <Route path="/agua" element={<Agua />} />
+        <Route path="/vending" element={<Vending />} />
+        <Route path="/edr" element={<EDR />} />
+        <Route path="/resumen-semanal" element={<ResumenSemanal />} />
+        <Route path="/bitacora" element={<Bitacora />} />
+        <Route path="/utilidades" element={<Utilidades />} />
+        <Route path="/catalogos" element={<Catalogos />} />
+        <Route path="/validacion" element={<Validacion />} />
+        <Route path="/calculos" element={<Calculos />} />
+        <Route path="/mapa-locales" element={<MapaLocales />} />
+        <Route path="/ingresos" element={<Ingresos />} />
+        <Route path="/despachos" element={<Despachos />} />
+        <Route path="/restaurante/gastos" element={<RestauranteGastos />} />
+        <Route path="/finanzas" element={<Finanzas />} />
+        <Route path="/facturacion" element={<Facturacion />} />
+        <Route path="/config" element={<Configuracion />} />
+        <Route path="/usuarios" element={<Usuarios />} />
+        <Route path="/entrega" element={<Entrega />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Marco>
   )
 }
 

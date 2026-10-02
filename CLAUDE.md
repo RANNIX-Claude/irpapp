@@ -345,6 +345,20 @@ Ejemplos: `V_260915_17_45`, `V_261023_09_02`
 
 ---
 
+## Versión móvil y PWA
+
+- **Todos los roles** tienen versión móvil (<768 px): `Marco` en `src/App.jsx` elige `MobileShell`
+  (`src/components/layout/MobileShell.jsx`, barra superior + menú inferior + hoja «Más») o el Header+Sidebar de escritorio.
+  El menú de cada rol vive en `src/lib/menusMovil.js`. El rol `asistente` conserva su propia app (`pages/asistente/`).
+- **Administrador (staff)**: la pestaña «Asistente» (`/`) es el chat operativo a pantalla completa (`ChatOperativo movil`: cámara,
+  voz, adjuntos → altas, cobros, contratos); el Dashboard pasó a `/tablero` en móvil (en escritorio `/` sigue siendo Dashboard).
+- **PWA por rol**: cada rol instala su app con ícono y color propios. `src/lib/pwa.js` cambia el manifiesto
+  (`public/manifests/<rol>.webmanifest`, `id` distinto por rol), `apple-touch-icon` y `theme-color` al conocerse el rol.
+  Íconos en `public/icons/` (se regeneran con `node scripts/generar-iconos-pwa.mjs`, usa Edge/Chrome headless).
+  `public/sw.js` es mínimo y sin caché a propósito (datos financieros en vivo).
+
+---
+
 ## Deploy
 
 - **URL producción**: (pendiente de configurar)
