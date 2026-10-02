@@ -90,10 +90,10 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
         updated_at: new Date().toISOString(),
       }).eq('id', c.id),
       supabase.from('arrendatarios').update({
-        nombre:   editForm.arrendatario_nombre   || null,
-        rfc:      editForm.arrendatario_rfc      || null,
-        telefono: editForm.arrendatario_telefono || null,
-        email:    editForm.arrendatario_email    || null,
+        locatario: editForm.arrendatario_nombre   || null,
+        rfc:       editForm.arrendatario_rfc      || null,
+        telefono:  editForm.arrendatario_telefono || null,
+        email:     editForm.arrendatario_email    || null,
       }).eq('id', c.arrendatario_id),
     ])
     setSaving(false)
