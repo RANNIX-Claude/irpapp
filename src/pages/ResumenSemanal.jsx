@@ -803,8 +803,11 @@ export default function ResumenSemanal() {
     jueves.setDate(jueves.getDate() - 1)
     const iniParking = isoDate(viernesAnterior)
     const finParking = isoDate(jueves)
+    // lt(día+1) captura todos los milisegundos del último día
+    const juevesMas1 = new Date(jueves.getTime()); juevesMas1.setDate(juevesMas1.getDate() + 1)
+    const finParkingExcl = isoDate(juevesMas1)
     fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=hora_salida_at,importe,estatus&hora_salida_at=gte.${iniParking}&hora_salida_at=lte.${finParking}T23%3A59%3A59&hora_salida_at=not.is.null&estatus=in.(cobrado,perdido)&limit=2000`,
+      `${PARKING_URL}/rest/v1/tickets?select=hora_salida_at,importe,estatus&hora_salida_at=gte.${iniParking}&hora_salida_at=lt.${finParkingExcl}&hora_salida_at=not.is.null&estatus=in.(cobrado,perdido)&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
     )
       .then(r => r.json())

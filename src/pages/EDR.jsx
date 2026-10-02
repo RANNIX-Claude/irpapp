@@ -12,12 +12,15 @@ const pct   = (real, proy) => (!proy || proy === 0) ? null : Math.round((real / 
 
 // Ingreso de tickets = cobrado + perdido (cuota por boleto extraviado, también es efectivo cobrado; el reporte del sistema de estacionamiento lo suma).
 // PostgREST del parking no tiene aggregate functions habilitado → paginar
+// Usa lt(día+1) en vez de lte(T23:59:59) para capturar todos los milisegundos del último día
 async function sumTicketsMes(client, fechaIni, fechaFin) {
+  const d = new Date(fechaFin + 'T00:00:00'); d.setDate(d.getDate() + 1)
+  const finExcl = d.toISOString().split('T')[0]
   let total = 0, offset = 0
   while (true) {
     const { data, error } = await client
       .from('tickets').select('importe')
-      .gte('hora_salida_at', fechaIni).lte('hora_salida_at', fechaFin + 'T23:59:59')
+      .gte('hora_salida_at', fechaIni).lt('hora_salida_at', finExcl)
       .not('hora_salida_at', 'is', null)
       .in('estatus', ['cobrado', 'perdido']).range(offset, offset + 999)
     if (error || !data || data.length === 0) break
