@@ -452,7 +452,6 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       return
     }
     setSaving(true); setErr(null)
-    const [fAnio, fMes] = form.fecha ? form.fecha.split('-').map(Number) : [form.anio, form.mes]
     // Tipo principal = el concepto con mayor distribución, o el seleccionado
     const tiposPrincipales = cargos.filter(c => parseFloat(dist[c.id]) > 0).map(c => c.concepto)
     const tipoPrincipal = tiposPrincipales[0] || form.tipo
@@ -489,8 +488,8 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
       fecha:           form.fecha || null,
       contrato_id:     form.contrato_id || null,
       tipo:            tipoPrincipal,
-      mes:             fMes || parseInt(form.mes),
-      anio:            fAnio || parseInt(form.anio),
+      mes:             parseInt(form.mes),
+      anio:            parseInt(form.anio),
       factura:         form.factura || null,
       importe:         parseFloat(form.importe),
       origen:          form.origen || null,
@@ -800,7 +799,33 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
             {/* Fecha */}
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Fecha pago</label>
-              <div style={{ marginTop:'4px' }}>{inp('fecha','date')}</div>
+              <div style={{ marginTop:'4px' }}>
+                <input type="date" value={form.fecha} onChange={e => {
+                  const v = e.target.value
+                  // Por default el período sigue a la fecha de pago (el caso común:
+                  // el depósito de julio paga julio) — pero son campos
+                  // independientes: cambiarlos abajo ya no se pisa al guardar.
+                  const [a, m] = v ? v.split('-').map(Number) : []
+                  setForm(f => ({ ...f, fecha: v, ...(v ? { anio: a, mes: m } : {}) }))
+                }} style={{ width:'100%', padding:'8px 10px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px', boxSizing:'border-box' }} />
+              </div>
+            </div>
+
+            {/* Período — a qué mes corresponde el cobro; puede no ser el de la fecha
+                de pago (ej. renta de julio que se cobra hasta octubre). */}
+            <div>
+              <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Período (a qué mes corresponde)</label>
+              <div style={{ display:'flex', gap:'6px', marginTop:'4px' }}>
+                <select value={form.mes} onChange={e => set('mes', parseInt(e.target.value))}
+                  style={{ flex:1, padding:'8px 6px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px' }}>
+                  {MESES.slice(1).map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                </select>
+                <select value={form.anio} onChange={e => set('anio', parseInt(e.target.value))}
+                  style={{ width:'90px', padding:'8px 6px', border:'1px solid #D1D5DB', borderRadius:'6px', fontSize:'13px' }}>
+                  {[...new Set([form.anio, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1])]
+                    .sort((a, b) => a - b).map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
             </div>
 
             {/* Factura */}
