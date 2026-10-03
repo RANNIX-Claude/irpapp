@@ -647,7 +647,7 @@ function generarHTML({ iniStr, finStr, pensiones, estac, parkingData, vending, g
           ` : ''}
 
           ${totParking > 0 && parkingData?.porDia ? `
-          <tr class="section-row"><td colspan="4" style="color:#7C3AED">Tickets Sistema Parking (Sáb–Vie)</td></tr>
+          <tr class="section-row"><td colspan="4" style="color:#7C3AED">Tickets Sistema Parking (Vie–Jue)</td></tr>
           ${parkingData.porDia.map(d => `<tr><td style="padding:3px 6px;font-size:11px;padding-left:16px">${labelFecha(d.fecha)}</td><td style="text-align:right;font-size:11px;padding:3px 6px;color:#6B7280">${d.tickets} tickets</td><td style="text-align:right;font-weight:600;padding:3px 6px;color:#7C3AED">${fmt(d.importe)}</td><td></td></tr>`).join('')}
           <tr><td colspan="2" style="padding:4px 8px;font-weight:700;color:#7C3AED">Total Parking</td><td style="text-align:right;font-weight:800;padding:4px 8px;color:#7C3AED">${fmt(totParking)}</td><td></td></tr>
           ` : ''}
@@ -796,11 +796,15 @@ export default function ResumenSemanal() {
     if (!PARKING_URL || !PARKING_KEY) return
     setParkingLoading(true)
     setParkingData(null)
-    // Rango parking = mismo rango que la semana IRP: Sáb → Vie
-    const iniParking = semSel.ini
-    // lt(día+1) captura todos los milisegundos del viernes
-    const viernesMas1 = new Date(semSel.fin + 'T00:00:00'); viernesMas1.setDate(viernesMas1.getDate() + 1)
-    const finParkingExcl = isoDate(viernesMas1)
+    // Ciclo parking: Viernes→Jueves (1 día antes del ciclo IRP Sáb→Vie)
+    const viernesAnterior = new Date(semSel.ini + 'T12:00:00')
+    viernesAnterior.setDate(viernesAnterior.getDate() - 1)
+    const jueves = new Date(semSel.fin + 'T12:00:00')
+    jueves.setDate(jueves.getDate() - 1)
+    const iniParking = isoDate(viernesAnterior)
+    // lt(día+1) captura todos los milisegundos del jueves
+    const juevesMas1 = new Date(jueves.getTime()); juevesMas1.setDate(juevesMas1.getDate() + 1)
+    const finParkingExcl = isoDate(juevesMas1)
     fetch(
       `${PARKING_URL}/rest/v1/tickets?select=hora_salida_at,importe,estatus&hora_salida_at=gte.${iniParking}&hora_salida_at=lt.${finParkingExcl}&hora_salida_at=not.is.null&estatus=in.(cobrado,perdido)&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
@@ -1029,7 +1033,7 @@ export default function ResumenSemanal() {
                 <span style={{ fontSize:11, fontWeight:800, color:'#065F46', textTransform:'uppercase', letterSpacing:.5 }}>
                   🎫 Tickets Sistema Parking
                   <span style={{ fontSize:9, fontWeight:600, color:'#6B7280', textTransform:'none', marginLeft:6, letterSpacing:0 }}>
-                    (Sáb–Vie)
+                    (Vie–Jue)
                   </span>
                 </span>
                 {parkingLoading && <span style={{ fontSize:10, color:'#6B7280' }}>Cargando…</span>}
