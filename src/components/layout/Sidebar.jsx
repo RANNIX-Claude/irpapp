@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Cobranza',      path: '/cobranza',      icon: CreditCard    },
       { label: 'Conciliación',  path: '/conciliacion',  icon: ArrowRightLeft, disabled: true },
-      { label: 'Ingresos',      path: '/ingresos',      icon: TrendingUp    },
+      { label: 'Pagos',         path: '/ingresos',      icon: TrendingUp    },
       { label: 'Finanzas',      path: '/finanzas',      icon: Landmark      },
       { label: 'Facturación',   path: '/facturacion',   icon: Stamp         },
     ]

@@ -1158,6 +1158,8 @@ export default function Cobranza() {
   const [tab, setTab] = useState('cartera')
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
+  // Clic en la tarjeta "Saldo pendiente": restringe a cargos con saldo > 0, sin pisar filtroEstado.
+  const [soloConSaldo, setSoloConSaldo] = useState(false)
   const [filtroConcepto, setFiltroConcepto] = useState('Todos')
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1)
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
@@ -1304,7 +1306,9 @@ export default function Cobranza() {
       }
     }
 
-    return matchQ && matchEst && matchMes && matchFechaAp
+    const matchSaldo = !soloConSaldo || parseFloat(c.saldo) > 0.01
+
+    return matchQ && matchEst && matchMes && matchFechaAp && matchSaldo
   }
 
   const carteraFiltrada = lista.filter(c =>
@@ -1375,7 +1379,7 @@ export default function Cobranza() {
           </button>
           <button onClick={() => setModalIngreso(true)} title="Registrar un pago recibido"
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-            <Plus size={15} /> Ingreso
+            <Plus size={15} /> Pago
           </button>
         </div>
       </div>
@@ -1384,7 +1388,7 @@ export default function Cobranza() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
         {/* Tabs Cartera/Ingresos */}
         <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', flexShrink: 0 }}>
-          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
+          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Pagos' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
               background: tab === t.key ? 'white' : 'transparent',
@@ -1483,6 +1487,7 @@ export default function Cobranza() {
               subtitle="suma de cobros en vista"
               icon={DollarSign}
               color="var(--color-primary)"
+              ayuda="Suma de cargos_programados.importe de todos los cargos que cumplen los filtros actuales (concepto, estado, período, búsqueda)."
             />
             <KPICard
               title="Cobrado"
@@ -1490,6 +1495,9 @@ export default function Cobranza() {
               subtitle={`${filtradoCargo > 0 ? ((filtradoPagado / filtradoCargo) * 100).toFixed(0) : 0}% del cargo total`}
               icon={CheckCircle}
               color="var(--color-success)"
+              onClick={() => { setFiltroEstado(f => f === 'PAGADO' ? 'Todos' : 'PAGADO'); setSoloConSaldo(false) }}
+              activo={filtroEstado === 'PAGADO'}
+              ayuda="Suma de aplicaciones_pago.importe_aplicado de los cargos en vista — lo que ya se pagó de esos cargos. Clic filtra a solo los cargos con estado PAGADO."
             />
             <KPICard
               title="Saldo pendiente"
@@ -1497,12 +1505,17 @@ export default function Cobranza() {
               subtitle="diferencia cargo − cobrado"
               icon={Clock}
               color={filtradoSaldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}
+              onClick={() => { setSoloConSaldo(s => !s); setFiltroEstado('Todos') }}
+              activo={soloConSaldo}
+              ayuda="Cargo total menos Cobrado: lo que falta por cobrar de los cargos en vista. Clic filtra a los cargos con saldo mayor a cero (PENDIENTE, PARCIAL o vencidos sin liquidar)."
             />
             <KPICard
               title="Cobros"
               value={carteraFiltrada.length}
               subtitle={carteraFiltrada.length !== lista.length ? `de ${lista.length} en cartera` : 'total en cartera'}
               icon={AlertTriangle}
+              onClick={() => { setFiltroEstado('Todos'); setSoloConSaldo(false) }}
+              ayuda={`Número de cargos que cumplen los filtros actuales, de un total de ${lista.length} en toda la cartera. Clic quita los filtros de Cobrado/Saldo pendiente.`}
               color="var(--color-secondary)"
             />
           </div>

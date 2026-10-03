@@ -8,7 +8,7 @@ import {
   Clock, TrendingUp, X, Upload, Paperclip, MessageSquare,
   Send, Download, Eye, ChevronRight, Wand2, Pencil, Save, Trash2,
   Grid, AlignJustify, Printer, FolderOpen, LayoutGrid,
-  ChevronUp, ChevronDown, ChevronsUpDown, Shield,
+  ChevronUp, ChevronDown, ChevronsUpDown, Shield, HelpCircle,
 } from 'lucide-react'
 import ElaborarContratoModal from '../components/ui/ElaborarContratoModal'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -1615,6 +1615,7 @@ export default function Contratos() {
   }, [refreshKey])
 
   const [diasAnticip, setDiasAnticip] = useState(60)
+  const [ayudaTile, setAyudaTile] = useState(null) // título de la tarjeta KPI con el popover de ayuda abierto
   const navigate = useNavigate()
   const [vistaAnual, setVistaAnual] = useState(false)
   const [anioAnual, setAnioAnual] = useState(String(new Date().getFullYear()))
@@ -1872,13 +1873,20 @@ export default function Contratos() {
       {/* KPIs — clickeables para filtrar — debajo de filtros */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { title: 'Todos activos',   value: cntActivos,    icon: FileText,     color: 'var(--color-primary)', filtro: 'ACTIVOS' },
-          { title: 'Vigentes',        value: cntVigentes,   icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE' },
-          { title: 'Vencidos',        value: cntVencidos,   icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO' },
-          { title: 'Por vencer',      value: cntPorVencer,  icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER' },
-          { title: 'Terminados',      value: cntTerminados, icon: FileText,     color: '#6B7280', filtro: null, accion: () => setFiltroProceso('TERMINADO') },
-          { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: '#7C3AED', filtro: null },
-          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,       icon: Paperclip,  color: 'var(--color-secondary)', filtro: null },
+          { title: 'Todos activos',   value: cntActivos,    icon: FileText,     color: 'var(--color-primary)', filtro: 'ACTIVOS',
+            ayuda: 'Contratos con estatus_proceso = EN_EJECUCION, sin importar si están VIGENTE o VENCIDO.' },
+          { title: 'Vigentes',        value: cntVigentes,   icon: CheckCircle,  color: 'var(--color-success)', filtro: 'VIGENTE',
+            ayuda: 'De los contratos activos: los que NO están vencidos (dias_restantes >= 0 o sin fecha de vencimiento calculada).' },
+          { title: 'Vencidos',        value: cntVencidos,   icon: AlertTriangle,color: 'var(--color-danger)',  filtro: 'VENCIDO',
+            ayuda: 'Contratos activos cuyos días restantes (dias_restantes) son negativos, o cuyo estado_id ya es VENCIDO.' },
+          { title: 'Por vencer',      value: cntPorVencer,  icon: Clock,        color: 'var(--color-warning)', filtro: 'POR_VENCER',
+            ayuda: `Contratos activos con días restantes entre 0 y ${diasAnticip} (el umbral de anticipación configurado arriba) — aún vigentes pero por vencer pronto.` },
+          { title: 'Terminados',      value: cntTerminados, icon: FileText,     color: '#6B7280', filtro: null, accion: () => setFiltroProceso('TERMINADO'),
+            ayuda: 'Contratos con estatus_proceso = TERMINADO — ya no cuentan como activos ni generan cargos.' },
+          { title: 'Renta total/mes', value: `$${(rentaTotal/1000).toFixed(0)}K`, icon: TrendingUp, color: '#7C3AED', filtro: null,
+            ayuda: 'Suma de renta_mensual de los contratos activos actualmente listados (respeta los filtros de arriba).' },
+          { title: 'Con PDF adjunto', value: `${conPDF}/${lista.length}`,       icon: Paperclip,  color: 'var(--color-secondary)', filtro: null,
+            ayuda: 'Cuántos de los contratos activos listados tienen un archivo PDF del contrato firmado adjunto (archivo_contrato_url), sobre el total.' },
         ].map(k => (
           <div key={k.title} onClick={() => {
             if (k.accion) { k.accion(); return }
@@ -1890,16 +1898,34 @@ export default function Contratos() {
               background: 'white', borderRadius: '10px', border: `2px solid ${filtroEst === k.filtro ? k.color : '#E5E7EB'}`,
               padding: '16px', cursor: (k.filtro || k.accion) ? 'pointer' : 'default',
               boxShadow: filtroEst === k.filtro ? `0 0 0 3px ${k.color}22` : 'none',
-              transition: 'all 0.15s',
+              transition: 'all 0.15s', position: 'relative',
             }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.title}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {k.title}
+                {k.ayuda && (
+                  <button type="button"
+                    onClick={e => { e.stopPropagation(); setAyudaTile(t => t === k.title ? null : k.title) }}
+                    title="Cómo se calcula"
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', color: '#9CA3AF', flexShrink: 0 }}>
+                    <HelpCircle size={12} />
+                  </button>
+                )}
+              </span>
               <k.icon size={16} color={k.color} />
             </div>
             <div style={{ fontSize: '26px', fontWeight: 800, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
             {k.filtro && <div style={{ fontSize: '10px', color: filtroEst === k.filtro ? k.color : '#9CA3AF', marginTop: '4px', fontWeight: 600 }}>
               {filtroEst === k.filtro ? '● Filtro activo' : 'Clic para filtrar'}
             </div>}
+            {ayudaTile === k.title && (
+              <div onClick={e => e.stopPropagation()}
+                style={{ position: 'absolute', top: '100%', left: 0, marginTop: 6, zIndex: 20, width: '220px', maxWidth: '80vw',
+                  background: '#1F2937', color: 'white', fontSize: '11px', lineHeight: 1.5, padding: '9px 11px',
+                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+                {k.ayuda}
+              </div>
+            )}
           </div>
         ))}
       </div>
