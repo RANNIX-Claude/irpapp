@@ -1,10 +1,11 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import toast from 'react-hot-toast'
+import ExcelJS from 'exceljs'
 import {
   DollarSign, Search, CheckCircle, Clock, AlertTriangle, TrendingUp,
   Plus, X, Upload, Image, FileText, AlertCircle, CreditCard, ChevronDown, ChevronUp, ChevronsUpDown, CalendarPlus,
-  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon, Banknote, ArrowLeftRight
+  Eye, Paperclip, Pencil, Trash2, Save, AlertOctagon, Banknote, ArrowLeftRight, FileSpreadsheet
 } from 'lucide-react'
 import KPICard from '../components/ui/KPICard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -18,6 +19,65 @@ import { supabase, llamarFuncion, urlFirmada } from '../lib/supabase'
 const MES_NOMBRES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 }) }
+
+function hoyISO() { return new Date().toISOString().split('T')[0] }
+
+// ─── Export Excel de la cartera (tab Cartera, respeta filtros/orden en pantalla) ──
+async function exportarCarteraExcel(cargos) {
+  if (!cargos.length) { toast.error('Sin cargos para exportar'); return }
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'IRP — RANNIX Consulting'
+  const ws = wb.addWorksheet('Cartera')
+
+  const cols = [
+    { header: 'Concepto',      key: 'concepto',      width: 14 },
+    { header: 'Descripción',   key: 'descripcion',   width: 34 },
+    { header: 'Arrendatario',  key: 'arrendatario',  width: 26 },
+    { header: 'Local',         key: 'local',         width: 16 },
+    { header: 'F/R',           key: 'factura',       width: 12 },
+    { header: 'FP',            key: 'formaPago',     width: 8  },
+    { header: 'Cargo',         key: 'cargo',         width: 13 },
+    { header: 'Aplicado',      key: 'aplicado',      width: 13 },
+    { header: 'Saldo',         key: 'saldo',         width: 13 },
+    { header: 'Fecha pago',    key: 'fechaPago',     width: 13 },
+    { header: 'Vencimiento',   key: 'vencimiento',   width: 13 },
+    { header: 'Estado',        key: 'estado',        width: 12 },
+  ]
+  ws.columns = cols
+  ws.getRow(1).font = { bold: true }
+  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+
+  cargos.forEach(c => {
+    const formaPago = c.tiene_pago_transferencia && c.tiene_pago_efectivo ? 'T+E'
+      : c.tiene_pago_transferencia ? 'T' : c.tiene_pago_efectivo ? 'E' : ''
+    ws.addRow({
+      concepto:     CONCEPTO_META[c.concepto]?.label || c.concepto || '',
+      descripcion:  c.descripcion || '',
+      arrendatario: c.arrendatario_nombre || '',
+      local:        c.locales_display || c.locales_referencia || '',
+      factura:      c.numero_factura || '',
+      formaPago,
+      cargo:        parseFloat(c.importe) || 0,
+      aplicado:     parseFloat(c.total_aplicado) || 0,
+      saldo:        parseFloat(c.saldo) || 0,
+      fechaPago:    c.fecha_max_aplicacion || '',
+      vencimiento:  c.fecha_vencimiento || '',
+      estado:       c.estado || '',
+    })
+  })
+  ;['cargo', 'aplicado', 'saldo'].forEach(key => {
+    ws.getColumn(key).numFmt = '$#,##0.00'
+  })
+
+  const buf = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `cartera_${hoyISO()}.xlsx`; a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Excel generado')
+}
 
 const CONCEPTO_META = {
   RENTA:        { label: 'Renta',        color: 'var(--color-primary)' },
@@ -1457,12 +1517,18 @@ export default function Cobranza() {
             <span><strong style={{ color: '#374151' }}>{carteraFiltrada.length}</strong>{carteraFiltrada.length !== lista.length ? ` de ${lista.length}` : ''} cargos</span>
             <span>Cargo <strong style={{ color: '#374151', fontVariantNumeric: 'tabular-nums' }}>${filtradoCargo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
             <span>Saldo <strong style={{ color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>${filtradoSaldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong></span>
-            {(filtroConcepto !== 'Todos' || filtroEstado !== 'Todos' || mesFiltro !== 0 || search) && (
-              <button onClick={() => { setFiltroConcepto('Todos'); setFiltroEstado('Todos'); setMesFiltro(0); setSearch('') }}
-                style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--color-primary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                Limpiar filtros
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <button onClick={() => exportarCarteraExcel(sortedCartera).catch(() => toast.error('Error al generar el Excel'))}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', color: '#057642', fontSize: '12px', fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                <FileSpreadsheet size={14} /> Exportar Excel
               </button>
-            )}
+              {(filtroConcepto !== 'Todos' || filtroEstado !== 'Todos' || mesFiltro !== 0 || search) && (
+                <button onClick={() => { setFiltroConcepto('Todos'); setFiltroEstado('Todos'); setMesFiltro(0); setSearch('') }}
+                  style={{ border: 'none', background: 'none', color: 'var(--color-primary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
