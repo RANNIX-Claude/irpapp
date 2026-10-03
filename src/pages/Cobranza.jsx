@@ -641,6 +641,7 @@ const lbl2 = { display: 'block', fontSize: 11, fontWeight: 700, color: '#6B7280'
 
 // ── Modal: Editar cargo ───────────────────────────────────────────────────────
 function EditarCargoModal({ cargo, onClose, onSaved }) {
+  const tieneAplicaciones = parseFloat(cargo.total_aplicado || 0) > 0
   const [form, setForm] = useState({
     concepto:          cargo.concepto || 'RENTA',
     descripcion:       cargo.descripcion || '',
@@ -648,6 +649,7 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
     periodo_anio:      cargo.periodo_anio || new Date().getFullYear(),
     importe:           String(parseFloat(cargo.importe) || ''),
     fecha_vencimiento: cargo.fecha_vencimiento || '',
+    fecha_pago:        cargo.fecha_max_aplicacion || '',
     estado:            cargo.estado || 'PENDIENTE',
     factura:           cargo.factura || '',
   })
@@ -655,6 +657,8 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [confirmarDesmarcar, setConfirmarDesmarcar] = useState(false)
+  // Pago ya aplicado más reciente (para poder corregir su fecha)
+  const [aplicacionReciente, setAplicacionReciente] = useState(null)
   // Archivos CFDI del cargo
   const [facturaPdfFile, setFacturaPdfFile] = useState(null)
   const [facturaXmlFile, setFacturaXmlFile] = useState(null)
@@ -669,6 +673,16 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
     urlFirmada('facturas-cfdi', cargo.factura_url).then(u => { if (u) setFacturaPdfUrl(u) })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!tieneAplicaciones) return
+    supabase.from('aplicaciones_pago')
+      .select('id, ingreso_id, fecha_aplicacion')
+      .eq('cargo_id', cargo.id)
+      .order('fecha_aplicacion', { ascending: false })
+      .limit(1)
+      .then(({ data }) => { if (data && data[0]) setAplicacionReciente(data[0]) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const guardar = async () => {
     if (!form.importe || parseFloat(form.importe) <= 0) { setErr('El importe debe ser mayor a cero'); return }
     if (!form.fecha_vencimiento) { setErr('La fecha de vencimiento es requerida'); return }
@@ -676,7 +690,6 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
     // El estado en prp_cartera es derivado de las aplicaciones_pago. Pasar a PENDIENTE
     // un cargo que ya tiene pagos requiere borrar esas aplicaciones primero; de lo
     // contrario la vista lo seguiría calculando como PAGADO/PARCIAL.
-    const tieneAplicaciones = parseFloat(cargo.total_aplicado || 0) > 0
     const quierePendiente = form.estado === 'PENDIENTE' && cargo.estado !== 'PENDIENTE' && tieneAplicaciones
     if (quierePendiente && !confirmarDesmarcar) { setConfirmarDesmarcar(true); return }
 
@@ -700,6 +713,16 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
       ...(quitarXml && !facturaXmlFile ? { factura_xml_url: null } : {}),
     }).eq('id', cargo.id)
     if (error) { setSaving(false); setErr(error.message); return }
+
+    // Corrige la fecha del pago ya aplicado (no crea un pago nuevo)
+    if (!quierePendiente && tieneAplicaciones && aplicacionReciente && form.fecha_pago && form.fecha_pago !== cargo.fecha_max_aplicacion) {
+      const { error: fechaErr } = await supabase.from('aplicaciones_pago')
+        .update({ fecha_aplicacion: form.fecha_pago }).eq('id', aplicacionReciente.id)
+      if (fechaErr) { setSaving(false); setErr('Cargo guardado, pero no se pudo corregir la fecha de pago: ' + fechaErr.message); return }
+      const { error: ingresoErr } = await supabase.from('ingresos')
+        .update({ fecha: form.fecha_pago }).eq('id', aplicacionReciente.ingreso_id)
+      if (ingresoErr) { setSaving(false); setErr('Cargo guardado, pero no se pudo corregir la fecha del ingreso: ' + ingresoErr.message); return }
+    }
 
     // Subir PDF de factura
     if (facturaPdfFile) {
@@ -808,6 +831,16 @@ function EditarCargoModal({ cargo, onClose, onSaved }) {
               <input type="date" value={form.fecha_vencimiento} onChange={e => set('fecha_vencimiento', e.target.value)} style={inp2} />
             </div>
           </div>
+
+          {tieneAplicaciones && (
+            <div>
+              <label style={lbl2}>Fecha de pago</label>
+              <input type="date" value={form.fecha_pago} onChange={e => set('fecha_pago', e.target.value)} style={inp2} />
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
+                Corrige la fecha del pago ya registrado para este cargo — no crea un pago nuevo.
+              </div>
+            </div>
+          )}
 
           <div>
             <label style={lbl2}>Descripción</label>
