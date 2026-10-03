@@ -1198,9 +1198,12 @@ export default function Cobranza() {
   const [tab, setTab] = useState('cartera')
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
+  // Clic en la tarjeta "Saldo pendiente": restringe a cargos con saldo > 0, sin pisar filtroEstado.
+  const [soloConSaldo, setSoloConSaldo] = useState(false)
   const [filtroConcepto, setFiltroConcepto] = useState('Todos')
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1)
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear())
+  const [filtroFechaAp, setFiltroFechaAp] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalCargo, setModalCargo] = useState(false)
@@ -1326,7 +1329,26 @@ export default function Cobranza() {
     const matchEst = filtroEstado === 'Todos' || c.estado === filtroEstado
       || (filtroEstado === 'VENCIDA' && c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy)
     const matchMes = mesFiltro === 0 || (c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro)
-    return matchQ && matchEst && matchMes
+
+    let matchFechaAp = true
+    if (filtroFechaAp) {
+      const fa = c.fecha_max_aplicacion
+      if (!fa) {
+        matchFechaAp = filtroFechaAp === 'sin_cobrar'
+      } else {
+        const [faY, faM] = fa.split('-').map(Number)
+        const diff = (faY - c.periodo_anio) * 12 + (faM - c.periodo_mes)
+        if (filtroFechaAp === 'mismo_mes')  matchFechaAp = diff === 0
+        else if (filtroFechaAp === 'siguiente') matchFechaAp = diff === 1
+        else if (filtroFechaAp === 'atraso') matchFechaAp = diff > 1
+        else if (filtroFechaAp === 'antes')  matchFechaAp = diff < 0
+        else if (filtroFechaAp === 'sin_cobrar') matchFechaAp = false
+      }
+    }
+
+    const matchSaldo = !soloConSaldo || parseFloat(c.saldo) > 0.01
+
+    return matchQ && matchEst && matchMes && matchFechaAp && matchSaldo
   }
 
   const carteraFiltrada = lista.filter(c =>
@@ -1396,7 +1418,7 @@ export default function Cobranza() {
           </button>
           <button onClick={() => setModalIngreso(true)} title="Registrar un pago recibido"
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-            <Plus size={15} /> Ingreso
+            <Plus size={15} /> Pago
           </button>
         </div>
       </div>
@@ -1405,7 +1427,7 @@ export default function Cobranza() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
         {/* Tabs Cartera/Ingresos */}
         <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '8px', padding: '3px', gap: '2px', flexShrink: 0 }}>
-          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Ingresos' }].map(t => (
+          {[{ key: 'cartera', label: 'Cartera' }, { key: 'ingresos', label: 'Pagos' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '7px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
               background: tab === t.key ? 'white' : 'transparent',
@@ -1477,6 +1499,23 @@ export default function Cobranza() {
                 </option>
               ))}
             </select>
+
+            <select value={filtroFechaAp} onChange={e => setFiltroFechaAp(e.target.value)}
+              title="Filtrar por cuándo se cobró (fecha de aplicación del pago)"
+              style={{
+                padding: '9px 12px', border: '1.5px solid', borderRadius: '8px', fontSize: '13px', minWidth: '170px',
+                borderColor: filtroFechaAp ? 'var(--color-secondary)' : '#E5E7EB',
+                color: filtroFechaAp ? 'var(--color-secondary)' : 'inherit',
+                fontWeight: filtroFechaAp ? 700 : 400,
+                background: 'white',
+              }}>
+              <option value="">Cualquier fecha de pago</option>
+              <option value="mismo_mes">Pagado en el mismo mes</option>
+              <option value="antes">Pagado antes del período</option>
+              <option value="siguiente">Pagado al mes siguiente</option>
+              <option value="atraso">Pagado con atraso (+2 meses)</option>
+              <option value="sin_cobrar">Sin pago registrado</option>
+            </select>
           </div>
 
           {/* KPIs — 100% reactivas al universo filtrado (carteraFiltrada) */}
@@ -1487,6 +1526,7 @@ export default function Cobranza() {
               subtitle="suma de cobros en vista"
               icon={DollarSign}
               color="var(--color-primary)"
+              ayuda="Suma de cargos_programados.importe de todos los cargos que cumplen los filtros actuales (concepto, estado, período, búsqueda)."
             />
             <KPICard
               title="Cobrado"
@@ -1494,6 +1534,9 @@ export default function Cobranza() {
               subtitle={`${filtradoCargo > 0 ? ((filtradoPagado / filtradoCargo) * 100).toFixed(0) : 0}% del cargo total`}
               icon={CheckCircle}
               color="var(--color-success)"
+              onClick={() => { setFiltroEstado(f => f === 'PAGADO' ? 'Todos' : 'PAGADO'); setSoloConSaldo(false) }}
+              activo={filtroEstado === 'PAGADO'}
+              ayuda="Suma de aplicaciones_pago.importe_aplicado de los cargos en vista — lo que ya se pagó de esos cargos. Clic filtra a solo los cargos con estado PAGADO."
             />
             <KPICard
               title="Saldo pendiente"
@@ -1501,12 +1544,17 @@ export default function Cobranza() {
               subtitle="diferencia cargo − cobrado"
               icon={Clock}
               color={filtradoSaldo > 0 ? 'var(--color-warning)' : 'var(--color-success)'}
+              onClick={() => { setSoloConSaldo(s => !s); setFiltroEstado('Todos') }}
+              activo={soloConSaldo}
+              ayuda="Cargo total menos Cobrado: lo que falta por cobrar de los cargos en vista. Clic filtra a los cargos con saldo mayor a cero (PENDIENTE, PARCIAL o vencidos sin liquidar)."
             />
             <KPICard
               title="Cobros"
               value={carteraFiltrada.length}
               subtitle={carteraFiltrada.length !== lista.length ? `de ${lista.length} en cartera` : 'total en cartera'}
               icon={AlertTriangle}
+              onClick={() => { setFiltroEstado('Todos'); setSoloConSaldo(false) }}
+              ayuda={`Número de cargos que cumplen los filtros actuales, de un total de ${lista.length} en toda la cartera. Clic quita los filtros de Cobrado/Saldo pendiente.`}
               color="var(--color-secondary)"
             />
           </div>

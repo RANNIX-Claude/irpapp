@@ -205,6 +205,8 @@ const localDe = r => (r.locales_display && r.locales_display !== '—' ? r.local
 const contratoDe = r => r.arrendatario_nombre || r.propietario || 'Sin contrato'
 const validacionDe = r => (VALIDACION[r.estatus_validacion] || VALIDACION[VALIDACION_DEFAULT]).label
 const numeroONulo = v => (v != null && v !== '' ? parseFloat(v) : null)
+const FORMA_PAGO_LABEL = { TRANSFERENCIA: 'Transferencia', DEPOSITO: 'Depósito', EFECTIVO: 'Efectivo', CHEQUE: 'Cheque' }
+const formaPagoDe = r => FORMA_PAGO_LABEL[r.forma_pago] || null
 
 const COLUMNAS_INGRESOS = [
   { key: 'fecha',      label: 'Fecha pago',    valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
@@ -213,6 +215,7 @@ const COLUMNAS_INGRESOS = [
   { key: 'contrato',   label: 'Contrato',      valor: contratoDe, orden: contratoDe },
   { key: 'clasif',     label: 'Clasificación', valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
   { key: 'docs',       label: 'Docs',          valor: docsDe, orden: docsDe },
+  { key: 'formaPago',  label: 'Forma pago',    valor: r => formaPagoDe(r) || '—', orden: r => formaPagoDe(r) || null },
   { key: 'cuadre',     label: 'Cuadre',        valor: cuadreDe, orden: cuadreDe, align: 'center' },
   { key: 'validacion', label: 'Validación',    valor: validacionDe, orden: validacionDe },
   { key: 'esperado',   label: 'Esperado',      valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
@@ -601,7 +604,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     const { error } = await supabase.from('ingresos').delete().eq('id', ingreso.id)
     setBorrando(false)
     if (error) { toast.error(error.message); return }
-    toast.success('Ingreso eliminado')
+    toast.success('Pago eliminado')
     onSaved()
     onClose()
   }
@@ -619,10 +622,10 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
         onClick={e => e.stopPropagation()}>
 
         <div style={{ padding:'18px 22px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontWeight:700, fontSize:'15px' }}>{ingreso ? 'Editar Ingreso' : 'Registrar Ingreso'}</div>
+          <div style={{ fontWeight:700, fontSize:'15px' }}>{ingreso ? 'Editar Pago' : 'Registrar Pago'}</div>
           <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
             {puedeEliminar && (
-              <button onClick={() => setConfirmarBorrado(true)} title="Eliminar este ingreso"
+              <button onClick={() => setConfirmarBorrado(true)} title="Eliminar este pago"
                 style={{ background:'none', border:'none', cursor:'pointer', color:'white', opacity:0.85, display:'flex', alignItems:'center', padding:'4px' }}>
                 <Trash2 size={16} />
               </button>
@@ -635,7 +638,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
           <div style={{ padding:'12px 22px', background:'#FEF2F2', borderBottom:'1px solid #FECACA', display:'flex', alignItems:'center', gap:'10px' }}>
             <AlertCircle size={16} color="var(--color-danger)" style={{ flexShrink:0 }} />
             <span style={{ fontSize:'12.5px', color:'#991B1B', flex:1 }}>
-              Esto borra el ingreso y su distribución aplicada a la cartera. No se puede deshacer.
+              Esto borra el pago y su distribución aplicada a la cartera. No se puede deshacer.
             </span>
             <button onClick={() => setConfirmarBorrado(false)} disabled={borrando}
               style={{ padding:'6px 12px', background:'white', border:'1px solid #FECACA', borderRadius:'6px', fontSize:'12px', fontWeight:600, cursor:'pointer', color:'#6B7280' }}>
@@ -1077,7 +1080,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
           <button onClick={guardar} disabled={saving || excede}
             title={excede ? `La distribución se pasa por ${fmt(Math.abs(saldoLibre))} del importe recibido` : undefined}
             style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 20px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor: excede ? 'not-allowed' : 'pointer', opacity:(saving || excede) ? 0.6 : 1 }}>
-            <Save size={14} /> {saving ? 'Guardando...' : ingreso ? 'Guardar cambios' : 'Registrar ingreso'}
+            <Save size={14} /> {saving ? 'Guardando...' : ingreso ? 'Guardar cambios' : 'Registrar pago'}
           </button>
         </div>
       </div>
@@ -1107,6 +1110,12 @@ export default function Ingresos() {
   const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear())
   const [filtroModo, setFiltroModo] = useState('periodo') // 'periodo' | 'fecha_pago'
   const [filtroAnexo, setFiltroAnexo] = useState('todos') // 'todos' | 'con_anexo' | 'sin_anexo'
+  // Métrica activa: clic en una tarjeta KPI restringe la tabla a esos registros.
+  const [metricaActiva, setMetricaActiva] = useState(null) // null|'rentas'|'sanciones'|'mes_turno'|'mes_anterior'
+  const activarMetrica = (clave) => {
+    setMetricaActiva(m => m === clave ? null : clave)
+    setFiltroTipo('Todos'); setFiltroValidacion('Todos'); setFiltroAnexo('todos'); setSearch('')
+  }
   const [modalData, setModalData] = useState(null)
   const [verDetalle, setVerDetalle] = useState(null)
   const [detalleAplicaciones, setDetalleAplicaciones] = useState([])
@@ -1181,7 +1190,19 @@ export default function Ingresos() {
           || (r.estatus_validacion || VALIDACION_DEFAULT) === filtroValidacion
         const matchA = filtroAnexo === 'todos'
           || (filtroAnexo === 'con_anexo' ? !!r.comprobante_url : !r.comprobante_url)
-        return matchQ && matchT && matchV && matchA && enPeriodo(r)
+        const matchM = (() => {
+          if (!metricaActiva) return true
+          if (!periodoIdx) return false
+          const esDelPeriodo = r.mes * 1 && r.anio * 12 + r.mes === periodoIdx
+          const esAnterior = r.mes * 1 && r.anio * 12 + r.mes < periodoIdx
+          const pagadoEnPeriodo = mesDeFechaPago(r) === periodoYYYYMM
+          if (metricaActiva === 'rentas')      return r.tipo === 'RENTA' && esValidado(r) && esDelPeriodo
+          if (metricaActiva === 'sanciones')   return r.tipo === 'SANCION' && esValidado(r) && esDelPeriodo
+          if (metricaActiva === 'mes_turno')   return r.tipo === 'RENTA' && esValidado(r) && pagadoEnPeriodo && esDelPeriodo
+          if (metricaActiva === 'mes_anterior')return r.tipo === 'RENTA' && esValidado(r) && pagadoEnPeriodo && esAnterior
+          return true
+        })()
+        return matchQ && matchT && matchV && matchA && matchM && enPeriodo(r)
       })
       .sort((a, b) => {
         // Orden default: por local (locales_display), luego por fecha
@@ -1190,7 +1211,7 @@ export default function Ingresos() {
         if (la !== lb) return la.localeCompare(lb, 'es', { numeric: true })
         return (a.fecha || '').localeCompare(b.fecha || '')
       })
-  }, [lista, search, filtroTipo, filtroValidacion, filtroAnexo, filtroMes, filtroAnio, filtroModo])
+  }, [lista, search, filtroTipo, filtroValidacion, filtroAnexo, filtroMes, filtroAnio, filtroModo, metricaActiva, periodoIdx, periodoYYYYMM])
 
   const tabla = useOrdenFiltro(COLUMNAS_INGRESOS)
   const ctxTabla = useMemo(() => ({ descuadres }), [descuadres])
@@ -1256,7 +1277,7 @@ export default function Ingresos() {
     const { error } = await supabase.from('ingresos').delete().eq('id', r.id)
     if (error) { toast.error(error.message); return }
     logAudit({ modulo: 'INGRESOS', accion: 'ELIMINAR', entidad: 'ingreso', entidad_id: r.id, descripcion: `Ingreso eliminado: ${r.arrendatario_nombre || ''} $${r.importe}` })
-    toast.success('Ingreso eliminado')
+    toast.success('Pago eliminado')
     setConfirmDel(null)
     setRefreshKey(k => k+1)
   }
@@ -1267,7 +1288,7 @@ export default function Ingresos() {
     <div style={{ padding:'24px', maxWidth:'1300px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
         <div>
-          <h1 style={{ fontSize:'22px', fontWeight:700, margin:'0 0 4px' }}>Ingresos</h1>
+          <h1 style={{ fontSize:'22px', fontWeight:700, margin:'0 0 4px' }}>Pagos</h1>
           <p style={{ fontSize:'13px', color:'var(--color-text-light)', margin:0 }}>
             {filtroModo === 'fecha_pago' ? 'Fecha de pago' : 'Período de renta'}: {filtroMes ? MESES[filtroMes] : 'Todos los meses'} {filtroAnio || 'todos los años'} · {filtrados.filter(r => r.es_principal).length} contratos con pago
           </p>
@@ -1277,7 +1298,7 @@ export default function Ingresos() {
           background:'var(--color-primary)', color:'white', border:'none',
           borderRadius:'8px', padding:'10px 20px', fontSize:'14px', fontWeight:600, cursor:'pointer',
         }}>
-          <Plus size={16} /> Registrar Ingreso
+          <Plus size={16} /> Registrar Pago
         </button>
       </div>
 
@@ -1364,39 +1385,66 @@ export default function Ingresos() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'24px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'14px' }}>
         <KPICard title="Por cobrar (período)"
           value={fmtK(totalProyectado)}
           subtitle={`${contratosConCargo} cobro${contratosConCargo !== 1 ? 's' : ''} de renta programados`}
-          icon={Target} color="var(--color-primary)" />
+          icon={Target} color="var(--color-primary)"
+          ayuda="Suma de cargos_programados.importe con concepto RENTA para el mes/año de período seleccionado, sin importar si ya se pagaron o no. Son los cobros de renta que el sistema generó para ese período." />
         <KPICard title="Rentas cobradas"
           value={fmtK(totalRenta)}
           subtitle={`${rentasCobradas.length} pagos de renta${notaSinValidar(rentasPeriodo)}`}
-          icon={DollarSign} color="var(--color-success)" />
+          icon={DollarSign} color="var(--color-success)"
+          onClick={() => activarMetrica('rentas')} activo={metricaActiva === 'rentas'}
+          ayuda="Suma de ingresos con tipo = RENTA y estatus_validacion = VALIDADO, cuyo período (mes/año) coincide con el filtro de arriba. Los pagos sin validar no cuentan aquí, aunque ya estén registrados." />
         <KPICard title="Sanciones"
           value={fmtK(totalSanciones)}
           subtitle={`${sancionesCobradas.length} sanciones por mora${notaSinValidar(sancionesPeriodo)}`}
-          icon={AlertCircle} color="var(--color-danger)" />
+          icon={AlertCircle} color="var(--color-danger)"
+          onClick={() => activarMetrica('sanciones')} activo={metricaActiva === 'sanciones'}
+          ayuda="Igual que Rentas cobradas, pero con tipo = SANCION: ingresos validados cuyo período coincide con el filtro." />
         <KPICard title="Del mes en turno"
           value={fmtK(suma(validadas(rentaDelMesEnTurno)))}
           subtitle={`${validadas(rentaDelMesEnTurno).length} pagos recibidos en ${MESES[filtroMes]} por ${MESES[filtroMes]}${notaSinValidar(rentaDelMesEnTurno)}`}
-          icon={CalendarCheck} color="var(--color-success)" />
+          icon={CalendarCheck} color="var(--color-success)"
+          onClick={() => activarMetrica('mes_turno')} activo={metricaActiva === 'mes_turno'}
+          ayuda="Pagos de RENTA validados cuya fecha de pago cae en el mes/año filtrado Y cuyo período de renta es ese mismo mes — es decir, renta pagada a tiempo, dentro de su propio mes." />
         <KPICard title="De meses anteriores"
           value={fmtK(suma(validadas(rentaDeMesesAnteriores)))}
           subtitle={`${validadas(rentaDeMesesAnteriores).length} pagos recibidos en ${MESES[filtroMes]} por meses atrasados${notaSinValidar(rentaDeMesesAnteriores)}`}
-          icon={History} color="var(--color-warning)" />
+          icon={History} color="var(--color-warning)"
+          onClick={() => activarMetrica('mes_anterior')} activo={metricaActiva === 'mes_anterior'}
+          ayuda="Pagos de RENTA validados cuya fecha de pago cae en el mes/año filtrado, pero cuyo período de renta es un mes ANTERIOR — rentas atrasadas que se cobraron este mes." />
         <KPICard title="Registros"
           value={delPeriodo.length}
-          subtitle={`Ingresos de todo tipo en el ${filtroModo === 'fecha_pago' ? 'mes de pago' : 'período de renta'}`}
-          icon={Calendar} color="var(--color-secondary)" />
+          subtitle={`Pagos de todo tipo en el ${filtroModo === 'fecha_pago' ? 'mes de pago' : 'período de renta'}`}
+          icon={Calendar} color="var(--color-secondary)"
+          onClick={() => activarMetrica(null)} activo={!metricaActiva}
+          ayuda="Todos los registros de la tabla ingresos (cualquier tipo y estatus de validación) cuyo período de renta — o fecha de pago, según el modo activo — cae en el mes/año seleccionado. Clic aquí quita cualquier filtro de métrica." />
       </div>
+
+      {metricaActiva && (
+        <div style={{ marginBottom:'14px', padding:'8px 14px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:'8px',
+          fontSize:'12.5px', color:'#1D4ED8', display:'flex', alignItems:'center', gap:'8px' }}>
+          <strong>
+            {metricaActiva === 'rentas' && `Rentas cobradas: ${rentasCobradas.length} pagos · ${fmt(totalRenta)}`}
+            {metricaActiva === 'sanciones' && `Sanciones: ${sancionesCobradas.length} pagos · ${fmt(totalSanciones)}`}
+            {metricaActiva === 'mes_turno' && `Del mes en turno: ${validadas(rentaDelMesEnTurno).length} pagos · ${fmt(suma(validadas(rentaDelMesEnTurno)))}`}
+            {metricaActiva === 'mes_anterior' && `De meses anteriores: ${validadas(rentaDeMesesAnteriores).length} pagos · ${fmt(suma(validadas(rentaDeMesesAnteriores)))}`}
+          </strong>
+          <span>— tabla filtrada a estos registros.</span>
+          <button onClick={() => setMetricaActiva(null)} style={{ marginLeft:'auto', border:'none', background:'none', color:'#1D4ED8', fontWeight:700, cursor:'pointer', fontSize:'12px' }}>
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
       {/* Tabla */}
       <div style={{ background:'white', borderRadius:'10px', border:'1px solid #E5E7EB', overflow:'hidden' }}>
         {loading
           ? <div style={{ display:'flex', justifyContent:'center', padding:'60px' }}><LoadingSpinner /></div>
           : baseFiltrados.length === 0
-            ? <EmptyState title="Sin ingresos" subtitle="Registra el primer ingreso del período" />
+            ? <EmptyState title="Sin pagos" subtitle="Registra el primer pago del período" />
             : (
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -1412,8 +1460,8 @@ export default function Ingresos() {
                   <tbody>
                     {filtrados.length === 0 && (
                       <tr>
-                        <td colSpan={12} style={{ padding:'32px', textAlign:'center', fontSize:'13px', color:'#6B7280' }}>
-                          Ningún ingreso coincide con los filtros de columna.{' '}
+                        <td colSpan={COLUMNAS_INGRESOS.length + 2} style={{ padding:'32px', textAlign:'center', fontSize:'13px', color:'#6B7280' }}>
+                          Ningún pago coincide con los filtros de columna.{' '}
                           <button onClick={tabla.limpiar} style={{ border:'none', background:'transparent', color:'#0A66C2', fontWeight:700, cursor:'pointer', fontSize:'13px' }}>Limpiar</button>
                         </td>
                       </tr>
@@ -1481,6 +1529,14 @@ export default function Ingresos() {
                             }
                           </div>
                         </td>
+                        {/* Forma de pago: efectivo / transferencia / depósito / cheque */}
+                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
+                          {formaPagoDe(r)
+                            ? <span style={{ fontSize:'10px', fontWeight:700, color: r.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: r.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding:'2px 7px', borderRadius:'8px' }}>
+                                {formaPagoDe(r)}
+                              </span>
+                            : <span style={{ color:'#D1D5DB', fontSize:'11px' }}>—</span>}
+                        </td>
                         {/* Cuadre: el depósito contra lo que se repartió en la cartera */}
                         <td style={{ padding:'6px 8px', textAlign:'center' }}>
                           <IconoCuadre d={descuadres[r.id]} />
@@ -1517,7 +1573,7 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={8} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
+                      <td colSpan={9} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
                       <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:600, fontSize:'12px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
@@ -1561,7 +1617,7 @@ export default function Ingresos() {
               {/* Header */}
               <div style={{ padding:'14px 20px', background:'var(--color-primary)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
                 <div>
-                  <div style={{ fontWeight:700, fontSize:'14px' }}>Ingreso registrado</div>
+                  <div style={{ fontWeight:700, fontSize:'14px' }}>Pago registrado</div>
                   <div style={{ fontSize:'11px', opacity:0.85 }}>
                     {verDetalle.locales_display ? `${verDetalle.locales_display} · ` : ''}{verDetalle.arrendatario_nombre || verDetalle.folio || ''}
                   </div>
@@ -1670,7 +1726,7 @@ export default function Ingresos() {
                     <div style={{ fontSize:'12px', color: verDetalle.estatus_validacion === 'VALIDADO' ? '#6B7280' : '#92400E' }}>
                       <div style={{ fontWeight:700, marginBottom:'2px' }}>Sin comprobante adjunto</div>
                       {(verDetalle.estatus_validacion || VALIDACION_DEFAULT) === 'POR_VALIDAR'
-                        ? <>Este ingreso está <strong>por validar</strong> y no tiene con qué: pide la ficha
+                        ? <>Este pago está <strong>por validar</strong> y no tiene con qué: pide la ficha
                             o la captura de la transferencia y adjúntala desde <strong>Editar</strong> antes de darlo por validado.</>
                         : 'Puedes adjuntarlo desde Editar.'}
                     </div>
@@ -1748,7 +1804,7 @@ export default function Ingresos() {
       {confirmDel && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setConfirmDel(null)}>
           <div style={{ background:'white', borderRadius:'14px', padding:'28px', maxWidth:'400px', width:'100%' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight:700, fontSize:'16px', marginBottom:'8px' }}>¿Eliminar ingreso?</div>
+            <div style={{ fontWeight:700, fontSize:'16px', marginBottom:'8px' }}>¿Eliminar pago?</div>
             <div style={{ fontSize:'13px', color:'var(--color-text-light)', marginBottom:'20px' }}>
               {confirmDel.local_id} · {MESES[confirmDel.mes]} {confirmDel.anio} · {fmt(confirmDel.importe)}
             </div>
