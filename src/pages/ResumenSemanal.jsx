@@ -802,11 +802,10 @@ export default function ResumenSemanal() {
     const jueves = new Date(semSel.fin + 'T12:00:00')
     jueves.setDate(jueves.getDate() - 1)
     const iniParking = isoDate(viernesAnterior)
-    // lt(día+1) captura todos los milisegundos del jueves
-    const juevesMas1 = new Date(jueves.getTime()); juevesMas1.setDate(juevesMas1.getDate() + 1)
-    const finParkingExcl = isoDate(juevesMas1)
+    // fecha_op es DATE → lte(jueves) es suficiente, sin necesidad de día+1
+    const finParking = isoDate(jueves)
     fetch(
-      `${PARKING_URL}/rest/v1/tickets?select=hora_salida_at,importe,estatus&hora_salida_at=gte.${iniParking}&hora_salida_at=lt.${finParkingExcl}&hora_salida_at=not.is.null&estatus=in.(cobrado,perdido)&limit=2000`,
+      `${PARKING_URL}/rest/v1/tickets?select=fecha_op,importe,estatus&fecha_op=gte.${iniParking}&fecha_op=lte.${finParking}&estatus=in.(cobrado,perdido)&limit=2000`,
       { headers: { apikey: PARKING_KEY, Authorization: `Bearer ${PARKING_KEY}` } }
     )
       .then(r => r.json())
@@ -814,7 +813,7 @@ export default function ResumenSemanal() {
         const byDay = {}
         let total = 0
         rows.forEach(t => {
-          const d = t.hora_salida_at ? t.hora_salida_at.split('T')[0] : null
+          const d = t.fecha_op || null
           if (!d) return
           if (!byDay[d]) byDay[d] = { fecha: d, tickets: 0, importe: 0 }
           byDay[d].tickets++

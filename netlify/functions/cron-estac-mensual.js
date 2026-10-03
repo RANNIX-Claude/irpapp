@@ -1,6 +1,6 @@
 // netlify/functions/cron-estac-mensual.js
 // Scheduled Function — actualiza er_mensual.real_estac_mes y real_pension_mes
-// usando hora_salida_at de la base de tickets de estacionamiento.
+// usando fecha_op (fecha contable) de la base de tickets de estacionamiento.
 // Corre diariamente a las 02:00 hora México (08:00 UTC invierno / 07:00 UTC verano)
 // Schedule conservador (CST): "0 8 * * *"
 
@@ -27,12 +27,10 @@ export const handler = async () => {
     const anio = ahora.getFullYear()
     const mes  = ahora.getMonth() + 1
 
-    // Rango del mes: [ini, finExcl) con lt para capturar todos los milisegundos
+    // Rango del mes: ini (día 1) hasta lastDay (último día del mes)
     const pad = n => String(n).padStart(2, '0')
-    const ini = `${anio}-${pad(mes)}-01`
-    const nextMes  = mes === 12 ? 1 : mes + 1
-    const nextAnio = mes === 12 ? anio + 1 : anio
-    const finExcl  = `${nextAnio}-${pad(nextMes)}-01`
+    const ini     = `${anio}-${pad(mes)}-01`
+    const lastDay = `${anio}-${pad(mes)}-${pad(new Date(anio, mes, 0).getDate())}`
 
     // ── Verificar que existe el renglón en er_mensual (no crea meses nuevos) ──
     const { data: fila } = await supabase
@@ -42,13 +40,12 @@ export const handler = async () => {
       return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: true }) }
     }
 
-    // ── Estacionamiento: tickets cobrados/perdidos con hora_salida_at en el mes ──
+    // ── Estacionamiento: tickets cobrados/perdidos con fecha_op en el mes ────────
     let totalEstac = 0, offset = 0
     while (true) {
       const { data, error } = await parking
         .from('tickets').select('importe')
-        .gte('hora_salida_at', ini).lt('hora_salida_at', finExcl)
-        .not('hora_salida_at', 'is', null)
+        .gte('fecha_op', ini).lte('fecha_op', lastDay)
         .in('estatus', ['cobrado', 'perdido'])
         .range(offset, offset + 999)
       if (error) { console.error('[cron-estac-mensual] tickets:', error.message); break }
