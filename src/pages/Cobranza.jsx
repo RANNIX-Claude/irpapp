@@ -1026,6 +1026,26 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
           </div>
         )}
       </td>
+      <td style={{ padding: '12px 14px' }}>
+        {c.fecha_max_aplicacion
+          ? (() => {
+              const [faY, faM] = c.fecha_max_aplicacion.split('-').map(Number)
+              const diff = (faY - c.periodo_anio) * 12 + (faM - c.periodo_mes)
+              const color = diff === 0 ? '#057642' : diff < 0 ? '#7C3AED' : diff === 1 ? '#D97706' : '#B91C1C'
+              const bg    = diff === 0 ? '#D1FAE5' : diff < 0 ? '#F5F3FF' : diff === 1 ? '#FEF3C7' : '#FEE2E2'
+              const tag   = diff === 0 ? 'En período' : diff < 0 ? `${-diff}m antes` : diff === 1 ? '1m tarde' : `${diff}m tarde`
+              return (
+                <div>
+                  <div style={{ fontSize: '12px', color: '#374151', fontWeight: 500 }}>{c.fecha_max_aplicacion}</div>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color, background: bg, padding: '1px 5px', borderRadius: 6 }}>
+                    {tag}
+                  </span>
+                </div>
+              )
+            })()
+          : <span style={{ fontSize: '11px', color: '#D1D5DB' }}>—</span>
+        }
+      </td>
       <td style={{ padding: '12px 16px', fontSize: '12px', color: vencida ? 'var(--color-danger)' : '#6B7280', fontWeight: vencida ? 700 : 400 }}>
         {c.fecha_vencimiento}
         {vencida && <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-danger)' }}>VENCIDA</div>}
@@ -1117,6 +1137,7 @@ export default function Cobranza() {
   const [ingresosRaw, setIngresosRaw] = useState([])
   const [loadingIng, setLoadingIng] = useState(false)
   const [contratos, setContratos] = useState([])
+  const [filtroFechaAp, setFiltroFechaAp] = useState('')
   const [sortCol, setSortCol] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const [verCargo, setVerCargo] = useState(null)
@@ -1233,7 +1254,24 @@ export default function Cobranza() {
     const matchEst = filtroEstado === 'Todos' || c.estado === filtroEstado
       || (filtroEstado === 'VENCIDA' && c.estado !== 'PAGADO' && c.estado !== 'CANCELADO' && new Date(c.fecha_vencimiento) < hoy)
     const matchMes = mesFiltro === 0 || (c.periodo_mes === mesFiltro && c.periodo_anio === anioFiltro)
-    return matchQ && matchEst && matchMes
+
+    let matchFechaAp = true
+    if (filtroFechaAp) {
+      const fa = c.fecha_max_aplicacion
+      if (!fa) {
+        matchFechaAp = filtroFechaAp === 'sin_cobrar'
+      } else {
+        const [faY, faM] = fa.split('-').map(Number)
+        const diff = (faY - c.periodo_anio) * 12 + (faM - c.periodo_mes)
+        if (filtroFechaAp === 'mismo_mes')  matchFechaAp = diff === 0
+        else if (filtroFechaAp === 'siguiente') matchFechaAp = diff === 1
+        else if (filtroFechaAp === 'atraso') matchFechaAp = diff > 1
+        else if (filtroFechaAp === 'antes')  matchFechaAp = diff < 0
+        else if (filtroFechaAp === 'sin_cobrar') matchFechaAp = false
+      }
+    }
+
+    return matchQ && matchEst && matchMes && matchFechaAp
   }
 
   const carteraFiltrada = lista.filter(c =>
@@ -1261,8 +1299,9 @@ export default function Cobranza() {
     { label: 'F/R',          field: 'numero_factura',     align: 'left',  num: false },
     { label: 'FP',           field: null,                 align: 'center',num: false },
     { label: 'Cargo',        field: 'importe',            align: 'right', num: true  },
-    { label: 'Aplicado',     field: 'total_aplicado',     align: 'right', num: true  },
-    { label: 'Vencimiento',  field: 'fecha_vencimiento',  align: 'left',  num: false },
+    { label: 'Aplicado',     field: 'total_aplicado',      align: 'right', num: true  },
+    { label: 'Fecha pago',   field: 'fecha_max_aplicacion',align: 'left',  num: false },
+    { label: 'Vencimiento',  field: 'fecha_vencimiento',   align: 'left',  num: false },
     { label: 'Estado',       field: 'estado',             align: 'left',  num: false },
     { label: 'Acciones',     field: null,                 align: 'left',  num: false },
   ]
@@ -1383,6 +1422,23 @@ export default function Cobranza() {
                   {m.label === 'Mant.' ? 'Mantenimiento' : m.label} ({conteoPorConcepto[clave] || 0})
                 </option>
               ))}
+            </select>
+
+            <select value={filtroFechaAp} onChange={e => setFiltroFechaAp(e.target.value)}
+              title="Filtrar por cuándo se cobró (fecha de aplicación del pago)"
+              style={{
+                padding: '9px 12px', border: '1.5px solid', borderRadius: '8px', fontSize: '13px', minWidth: '170px',
+                borderColor: filtroFechaAp ? 'var(--color-secondary)' : '#E5E7EB',
+                color: filtroFechaAp ? 'var(--color-secondary)' : 'inherit',
+                fontWeight: filtroFechaAp ? 700 : 400,
+                background: 'white',
+              }}>
+              <option value="">Cualquier fecha de pago</option>
+              <option value="mismo_mes">Pagado en el mismo mes</option>
+              <option value="antes">Pagado antes del período</option>
+              <option value="siguiente">Pagado al mes siguiente</option>
+              <option value="atraso">Pagado con atraso (+2 meses)</option>
+              <option value="sin_cobrar">Sin pago registrado</option>
             </select>
           </div>
 
