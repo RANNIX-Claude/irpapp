@@ -560,7 +560,7 @@ export default function InformePropietario() {
             {/* ── KPIs DE CONTRATOS ────────────────────────────── */}
             {kpis && (
               <TarjetaKPI
-                emoji="🏢" label="Contratos en Ejecución"
+                emoji="🏢" label="Contratos Vigentes"
                 valor={`${kpis.activos}`}
                 sub={kpis.locales
                   ? `contratos · ${kpis.locales} locales ocupados`
