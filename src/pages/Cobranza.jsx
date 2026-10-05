@@ -991,8 +991,8 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
         {c.generado_auto && <span style={{ marginLeft: '4px', fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>AUTO</span>}
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descripcion || `${c.concepto} ${MES_NOMBRES[c.periodo_mes] || ''} ${c.periodo_anio || ''}`}</span>
           <Paperclip size={11} title={c.tiene_comprobante ? 'Comprobante de pago adjunto' : 'Sin comprobante'}
             style={{ color: c.tiene_comprobante ? '#057642' : '#D1D5DB', flexShrink: 0 }} />
           <FileText size={11} title={c.tiene_factura ? 'Factura CFDI registrada' : 'Sin factura CFDI'}
@@ -1009,8 +1009,8 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
         <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600 }}>{c.arrendatario_nombre}</div>
-        <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.contrato_folio}</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.arrendatario_nombre}</div>
+        <div style={{ fontSize: '11px', color: '#9CA3AF', whiteSpace: 'nowrap' }}>{c.contrato_folio}</div>
       </td>
       <td style={{ padding: '12px 16px' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
@@ -1540,7 +1540,7 @@ export default function Cobranza() {
               : carteraFiltrada.length === 0
               ? <EmptyState title="Sin cargos" description="No hay cargos que coincidan con los filtros." />
               : <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 1400 }}>
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
                         {COLS_CARTERA.map(col => {
@@ -1594,7 +1594,7 @@ export default function Cobranza() {
             : ingresosRaw.length === 0
             ? <EmptyState title="Sin ingresos" description="Registra el primer depósito con el botón + Ingreso." />
             : <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 900 }}>
                   <thead>
                     <tr style={{ background: '#F9FAFB' }}>
                       {['Concepto','Fecha','Arrendatario','Monto','Nota','Acción',''].map(h => (
