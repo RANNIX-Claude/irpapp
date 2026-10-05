@@ -613,7 +613,7 @@ export default function Renovaciones() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F5F3FF' }}>
-                      {['Contrato', 'Local(es)', 'Arrendatario', 'Renta', 'Vencimiento original', 'Plazo', 'Proceso', 'Vigencia', 'Acciones'].map(h => (
+                      {['Acciones', 'Contrato', 'Local(es)', 'Arrendatario', 'Renta', 'Vencimiento original', 'Plazo', 'Proceso', 'Vigencia'].map(h => (
                         <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Renta' ? 'right' : 'left', fontWeight: 600, fontSize: '11px', color: '#5B21B6', borderBottom: '1px solid #DDD6FE', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
@@ -627,6 +627,22 @@ export default function Renovaciones() {
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                           style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
                           onClick={() => setSeleccionado(c)}>
+                          <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button title="Ver detalle" onClick={e => { e.stopPropagation(); setOpenInEdit(false); setSeleccionado(c) }}
+                                style={{ width: 30, height: 30, border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Eye size={14} />
+                              </button>
+                              <button title="Editar" onClick={e => { e.stopPropagation(); setOpenInEdit(true); setSeleccionado(c) }}
+                                style={{ width: 30, height: 30, border: '1px solid #DBEAFE', borderRadius: '6px', background: '#EFF6FF', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Pencil size={14} />
+                              </button>
+                              <button title="Eliminar" onClick={e => { e.stopPropagation(); setConfirmDelete(c) }}
+                                style={{ width: 30, height: 30, border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
                           <td style={{ padding: '13px 16px' }}>
                             <div style={{ fontWeight: 700, fontSize: '13px', color: '#7C3AED' }}>{c.folio}</div>
                             <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.tipo_contrato}</div>
@@ -668,22 +684,6 @@ export default function Renovaciones() {
                                 </span>
                               )
                             })()}
-                          </td>
-                          <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button title="Ver detalle" onClick={e => { e.stopPropagation(); setOpenInEdit(false); setSeleccionado(c) }}
-                                style={{ width: 30, height: 30, border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Eye size={14} />
-                              </button>
-                              <button title="Editar" onClick={e => { e.stopPropagation(); setOpenInEdit(true); setSeleccionado(c) }}
-                                style={{ width: 30, height: 30, border: '1px solid #DBEAFE', borderRadius: '6px', background: '#EFF6FF', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Pencil size={14} />
-                              </button>
-                              <button title="Eliminar" onClick={e => { e.stopPropagation(); setConfirmDelete(c) }}
-                                style={{ width: 30, height: 30, border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
                           </td>
                         </tr>
                       )

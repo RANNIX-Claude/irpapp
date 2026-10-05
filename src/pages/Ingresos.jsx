@@ -1385,7 +1385,7 @@ export default function Ingresos() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'14px', marginBottom:'14px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(6, minmax(0, 1fr))', gap:'10px', marginBottom:'14px' }}>
         <KPICard title="Por cobrar (período)"
           value={fmtK(totalProyectado)}
           subtitle={`${contratosConCargo} cobro${contratosConCargo !== 1 ? 's' : ''} de renta programados`}
@@ -1467,9 +1467,10 @@ export default function Ingresos() {
                       </tr>
                     )}
                     {filtrados.map(r => (
-                      <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6' }}
+                      <tr key={r.id} style={{ borderTop:'1px solid #F3F4F6', cursor:'pointer' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => setVerDetalle(r)}>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
                           <span style={{ fontWeight:600, color: filtroMes && filtroAnio && r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>

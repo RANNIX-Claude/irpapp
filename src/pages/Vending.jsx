@@ -1216,27 +1216,15 @@ export default function Vending() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
                 <thead>
                   <tr style={{ background:'#F9FAFB' }}>
-                    {['Fecha','Tipo','Producto','Cantidad','Precio/u','Importe','Proveedor','Nota',''].map(h => (
-                      <th key={h} style={{ padding:'8px 12px', textAlign: ['Cantidad','Precio/u','Importe'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
+                    {['','Fecha','Tipo','Producto','Cantidad','Precio/u','Importe','Proveedor','Nota'].map((h, i) => (
+                      <th key={i} style={{ padding:'8px 12px', textAlign: ['Cantidad','Precio/u','Importe'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {movs.map((m, i) => (
                     <tr key={m.id} style={{ background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
-                      <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.fecha}</td>
-                      <td style={{ padding:'8px 12px' }}>
-                        <span style={{ padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:800, background: m.tipo==='COMPRA'?'#EFF6FF':'#F0FDF4', color: m.tipo==='COMPRA'?'#1A3C5E':'#057642' }}>
-                          {m.tipo === 'COMPRA' ? '📦 COMPRA' : '🛒 VENTA'}
-                        </span>
-                      </td>
-                      <td style={{ padding:'8px 12px', fontWeight:600 }}>{m.vending_productos?.producto || '—'}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(m.cantidad)}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'right', color:'#6B7280' }}>{fmt(m.precio_unitario)}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, color: m.tipo==='VENTA'?'var(--color-success)':'#6B7280', fontVariantNumeric:'tabular-nums' }}>{fmt(m.importe)}</td>
-                      <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.proveedor || '—'}</td>
-                      <td style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'11px' }}>{m.nota || '—'}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'right', whiteSpace:'nowrap' }}>
+                      <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
                         {semanaDb?.estado === 'ABIERTA' && (
                           <span style={{ display:'inline-flex', gap:'2px' }}>
                             <button
@@ -1260,6 +1248,18 @@ export default function Vending() {
                           </span>
                         )}
                       </td>
+                      <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.fecha}</td>
+                      <td style={{ padding:'8px 12px' }}>
+                        <span style={{ padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:800, background: m.tipo==='COMPRA'?'#EFF6FF':'#F0FDF4', color: m.tipo==='COMPRA'?'#1A3C5E':'#057642' }}>
+                          {m.tipo === 'COMPRA' ? '📦 COMPRA' : '🛒 VENTA'}
+                        </span>
+                      </td>
+                      <td style={{ padding:'8px 12px', fontWeight:600 }}>{m.vending_productos?.producto || '—'}</td>
+                      <td style={{ padding:'8px 12px', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtN(m.cantidad)}</td>
+                      <td style={{ padding:'8px 12px', textAlign:'right', color:'#6B7280' }}>{fmt(m.precio_unitario)}</td>
+                      <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, color: m.tipo==='VENTA'?'var(--color-success)':'#6B7280', fontVariantNumeric:'tabular-nums' }}>{fmt(m.importe)}</td>
+                      <td style={{ padding:'8px 12px', color:'#6B7280', fontSize:'12px' }}>{m.proveedor || '—'}</td>
+                      <td style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'11px' }}>{m.nota || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1288,8 +1288,8 @@ export default function Vending() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
               <thead>
                 <tr style={{ background:'#F9FAFB' }}>
-                  {['Producto','Stock','Semanas','Proveedor','Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen','Activo',''].map(h => (
-                    <th key={h} style={{ padding:'9px 12px', textAlign: ['Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
+                  {['','Producto','Stock','Semanas','Proveedor','Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen','Activo'].map((h, i) => (
+                    <th key={i} style={{ padding:'9px 12px', textAlign: ['Costo/caja','Uds/caja','Costo/u','Precio Venta','Utilidad/u','Margen'].includes(h)?'right':'left', fontSize:'10px', fontWeight:800, color:'#6B7280', textTransform:'uppercase', borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1300,6 +1300,16 @@ export default function Vending() {
                   const margen = p.precio_venta && costoU ? ((utilU / parseFloat(p.precio_venta)) * 100).toFixed(0) : null
                   return (
                     <tr key={p.id} style={{ background: !p.activo ? '#FFF8F8' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
+                      <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
+                        <button onClick={() => { setEditProd(p); setModal('editProd') }}
+                          style={{ marginRight:'4px', padding:'4px 8px', background:'#F3F4F6', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => setConfirmDel(p)}
+                          style={{ padding:'4px 8px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
                       <td style={{ padding:'10px 12px', fontWeight:700, color: p.activo?'#374151':'#9CA3AF' }}>{p.producto}</td>
                       <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: (stockActual[p.id]?.qty_final||0)<=0 ? 'var(--color-danger)' : '#374151' }}>
                         {stockActual[p.id] != null ? fmtN(stockActual[p.id].qty_final) : '—'}
@@ -1324,16 +1334,6 @@ export default function Vending() {
                         <span style={{ padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background: p.activo?'#F0FDF4':'#FFF8F8', color: p.activo?'#057642':'#9CA3AF' }}>
                           {p.activo ? 'Activo' : 'Baja'}
                         </span>
-                      </td>
-                      <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                        <button onClick={() => { setEditProd(p); setModal('editProd') }}
-                          style={{ marginRight:'4px', padding:'4px 8px', background:'#F3F4F6', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                          <Pencil size={13} />
-                        </button>
-                        <button onClick={() => setConfirmDel(p)}
-                          style={{ padding:'4px 8px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                          <Trash2 size={13} />
-                        </button>
                       </td>
                     </tr>
                   )

@@ -400,7 +400,18 @@ function Fila({ a, onVerFicha, onEdit, onDelete }) {
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'white'}
       onClick={() => onVerFicha(a)}>
-
+      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+          <button onClick={() => onEdit(a)} title="Editar"
+            style={{ padding: '6px 8px', background: '#EEF2FF', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <Edit2 size={13} color="var(--color-primary)" />
+          </button>
+          <button onClick={() => onDelete(a)} title="Eliminar"
+            style={{ padding: '6px 8px', background: '#FEF2F2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <Trash2 size={13} color="#B91C1C" />
+          </button>
+        </div>
+      </td>
       <td style={{ padding: '12px 16px' }}>
         <div style={{ fontWeight: 600, fontSize: '14px' }}>{a.locatario || a.nombre_completo || a.nombre_razon_social}</div>
         {a.nombre_negocio && <div style={{ fontSize: '11px', color: '#6B7280' }}>{a.nombre_negocio}</div>}
@@ -433,19 +444,6 @@ function Fila({ a, onVerFicha, onEdit, onDelete }) {
       </td>
 
       <td style={{ padding: '12px 16px', textAlign: 'center' }}>{estadoBadge}</td>
-
-      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-          <button onClick={() => onEdit(a)} title="Editar"
-            style={{ padding: '6px 8px', background: '#EEF2FF', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <Edit2 size={13} color="var(--color-primary)" />
-          </button>
-          <button onClick={() => onDelete(a)} title="Eliminar"
-            style={{ padding: '6px 8px', background: '#FEF2F2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <Trash2 size={13} color="#B91C1C" />
-          </button>
-        </div>
-      </td>
     </tr>
   )
 }
@@ -623,12 +621,12 @@ export default function Arrendatarios() {
                   <thead>
                     <tr style={{ background: '#F9FAFB' }}>
                       {[
+                        { col: null,           label: '' },
                         { col: 'locatario',    label: 'Arrendatario' },
                         { col: 'numero_local', label: 'Local(es)' },
                         { col: null,           label: 'Contacto' },
                         { col: 'renta_mensual', label: 'Renta/mes' },
                         { col: null,           label: 'Estado' },
-                        { col: null,           label: '' },
                       ].map(({ col, label }) => (
                         <th key={label} style={thStyle(col)} onClick={() => col && toggleSort(col)}>{label}</th>
                       ))}

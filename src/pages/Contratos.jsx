@@ -166,6 +166,26 @@ function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh 
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       onClick={() => onView(c)}>
+      <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button title="Abrir expediente del contrato" onClick={e => { e.stopPropagation(); navigate(`/contratos/${c.id}`) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 9px', height: '30px', border: 'none', borderRadius: '6px', background: 'var(--color-primary)', cursor: 'pointer', color: 'white', fontSize: '11px', fontWeight: 700 }}>
+            <FolderOpen size={13} /> Expediente
+          </button>
+          <button title="Ver detalle" onClick={e => { e.stopPropagation(); onView(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-primary)' }}>
+            <Eye size={14} />
+          </button>
+          <button title="Editar contrato" onClick={e => { e.stopPropagation(); onEdit(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-secondary)' }}>
+            <Pencil size={14} />
+          </button>
+          <button title="Eliminar contrato" onClick={e => { e.stopPropagation(); onDelete(c) }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)' }}>
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </td>
       <td style={{ padding: '13px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-primary)' }}>{c.folio}</span>
@@ -198,26 +218,6 @@ function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh 
         </div>
         <div style={{ marginTop: '4px' }}>
           <OperacionBadge estatusOperacion={estatusOperacion} fechaFin={c.fecha_fin} />
-        </div>
-      </td>
-      <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-          <button title="Abrir expediente del contrato" onClick={e => { e.stopPropagation(); navigate(`/contratos/${c.id}`) }}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 9px', height: '30px', border: 'none', borderRadius: '6px', background: 'var(--color-primary)', cursor: 'pointer', color: 'white', fontSize: '11px', fontWeight: 700 }}>
-            <FolderOpen size={13} /> Expediente
-          </button>
-          <button title="Ver detalle" onClick={e => { e.stopPropagation(); onView(c) }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-primary)' }}>
-            <Eye size={14} />
-          </button>
-          <button title="Editar contrato" onClick={e => { e.stopPropagation(); onEdit(c) }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-secondary)' }}>
-            <Pencil size={14} />
-          </button>
-          <button title="Eliminar contrato" onClick={e => { e.stopPropagation(); onDelete(c) }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)' }}>
-            <Trash2 size={14} />
-          </button>
         </div>
       </td>
     </tr>
@@ -1959,6 +1959,7 @@ export default function Contratos() {
                     <thead>
                       <tr style={{ background: '#F9FAFB' }}>
                         {[
+                          { label: '',             field: null,                  align: 'left',  num: false },
                           { label: 'Contrato',     field: 'folio',               align: 'left',  num: false },
                           { label: 'Local',        field: 'unidad_numero',       align: 'left',  num: false },
                           { label: 'Arrendatario', field: 'arrendatario_nombre', align: 'left',  num: false },
@@ -1966,7 +1967,6 @@ export default function Contratos() {
                           { label: 'Vigencia',     field: 'fecha_inicio',        align: 'left',  num: false },
                           { label: 'Plazo',        field: 'dias_restantes',      align: 'left',  num: true  },
                           { label: 'Estado',       field: 'estado_id',           align: 'left',  num: false },
-                          { label: '',             field: null,                  align: 'left',  num: false },
                         ].map(col => {
                           const active = sortCol === col.field
                           const sortable = !!col.field

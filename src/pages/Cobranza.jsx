@@ -986,6 +986,22 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
     <tr style={{ borderBottom: '1px solid #F3F4F6' }}
       onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <td style={{ padding: '8px 12px' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => onVer(c)} title="Ver detalle"
+            style={{ padding: '5px 7px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Eye size={13} />
+          </button>
+          <button onClick={() => onEditar(c)} title="Editar cargo"
+            style={{ padding: '5px 7px', background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Pencil size={13} />
+          </button>
+          <button onClick={() => onBorrar(c)} title="Eliminar cargo"
+            style={{ padding: '5px 7px', background: '#FEF2F2', color: 'var(--color-danger)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </td>
       <td style={{ padding: '12px 16px' }}>
         <ConceptoBadge tipo={c.concepto} />
         {c.generado_auto && <span style={{ marginLeft: '4px', fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>AUTO</span>}
@@ -1085,22 +1101,6 @@ function CargoRow({ c, onVer, onEditar, onBorrar }) {
       </td>
       <td style={{ padding: '12px 16px' }}>
         <EstadoBadge estado={c.estado} />
-      </td>
-      <td style={{ padding: '8px 12px' }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={() => onVer(c)} title="Ver detalle"
-            style={{ padding: '5px 7px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-            <Eye size={13} />
-          </button>
-          <button onClick={() => onEditar(c)} title="Editar cargo"
-            style={{ padding: '5px 7px', background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => onBorrar(c)} title="Eliminar cargo"
-            style={{ padding: '5px 7px', background: '#FEF2F2', color: 'var(--color-danger)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-            <Trash2 size={13} />
-          </button>
-        </div>
       </td>
     </tr>
   )
@@ -1329,6 +1329,7 @@ export default function Cobranza() {
   }, {})
 
   const COLS_CARTERA = [
+    { label: 'Acciones',     field: null,                 align: 'left',  num: false },
     { label: 'Concepto',     field: 'concepto',           align: 'left',  num: false },
     { label: 'Descripción',  field: 'descripcion',        align: 'left',  num: false },
     { label: 'Arrendatario', field: 'arrendatario_nombre',align: 'left',  num: false },
@@ -1340,7 +1341,6 @@ export default function Cobranza() {
     { label: 'Fecha pago',   field: 'fecha_max_aplicacion',align: 'left',  num: false },
     { label: 'Vencimiento',  field: 'fecha_vencimiento',   align: 'left',  num: false },
     { label: 'Estado',       field: 'estado',             align: 'left',  num: false },
-    { label: 'Acciones',     field: null,                 align: 'left',  num: false },
   ]
 
   const toggleSort = (field) => {

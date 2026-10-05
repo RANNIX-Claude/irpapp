@@ -1238,7 +1238,7 @@ export default function Prospectos() {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#F8FAFC' }}>
-                {['Folio','Negocio / Local','Renta propuesta','Etapa','Fecha contacto','Acciones'].map(h => (
+                {['Acciones','Folio','Negocio / Local','Renta propuesta','Etapa','Fecha contacto'].map(h => (
                   <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'#374151', borderBottom:'1px solid #E5E7EB' }}>{h}</th>
                 ))}
               </tr>
@@ -1247,18 +1247,8 @@ export default function Prospectos() {
               {filtrados.map((p, i) => (
                 <tr key={p.id} style={{ borderBottom: i < filtrados.length-1 ? '1px solid #E5E7EB' : 'none', cursor:'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                  <td style={{ padding:'10px 14px', color:'#6B7280', fontFamily:'monospace', fontSize:11 }}>
-                    {`PROS-${p.id.substr(0,8)}`}
-                  </td>
-                  <td style={{ padding:'10px 14px', fontWeight:600 }}>{p.nombre_negocio || '—'}</td>
-                  <td style={{ padding:'10px 14px', color:'#057642', fontWeight:700 }}>
-                    {p.renta_propuesta ? `$${Number(p.renta_propuesta).toLocaleString('es-MX')}` : '—'}
-                  </td>
-                  <td style={{ padding:'10px 14px' }}><Badge etapa={p.etapa} /></td>
-                  <td style={{ padding:'10px 14px', color:'#6B7280' }}>
-                    {new Date(p.fecha_contacto).toLocaleDateString('es-MX')}
-                  </td>
+                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  onClick={() => setSeleccionado(p)}>
                   <td style={{ padding:'8px 14px' }}>
                     <div style={{ display:'flex', gap:4 }}>
                       <button onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
@@ -1273,6 +1263,17 @@ export default function Prospectos() {
                         title="Eliminar permanentemente"
                         style={{ ...btnMini, background:'#1F2937', color:'white', minWidth:28, padding:'0 7px' }}>🗑</button>
                     </div>
+                  </td>
+                  <td style={{ padding:'10px 14px', color:'#6B7280', fontFamily:'monospace', fontSize:11 }}>
+                    {`PROS-${p.id.substr(0,8)}`}
+                  </td>
+                  <td style={{ padding:'10px 14px', fontWeight:600 }}>{p.nombre_negocio || '—'}</td>
+                  <td style={{ padding:'10px 14px', color:'#057642', fontWeight:700 }}>
+                    {p.renta_propuesta ? `$${Number(p.renta_propuesta).toLocaleString('es-MX')}` : '—'}
+                  </td>
+                  <td style={{ padding:'10px 14px' }}><Badge etapa={p.etapa} /></td>
+                  <td style={{ padding:'10px 14px', color:'#6B7280' }}>
+                    {new Date(p.fecha_contacto).toLocaleDateString('es-MX')}
                   </td>
                 </tr>
               ))}

@@ -377,7 +377,7 @@ export default function Usuarios() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
-                {['Estado', 'Nombre', 'Email', 'Rol', 'Último acceso', 'Creado', 'Acciones'].map(h => (
+                {['Acciones', 'Estado', 'Nombre', 'Email', 'Rol', 'Último acceso', 'Creado'].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>{h}</th>
                 ))}
               </tr>
@@ -388,19 +388,6 @@ export default function Usuarios() {
               )}
               {filtrados.map((u, i) => (
                 <tr key={u.id} style={{ borderBottom: i < filtrados.length - 1 ? '1px solid var(--color-border)' : 'none', opacity: u.activo ? 1 : .55 }}>
-                  <td style={{ padding: '10px 12px' }}>
-                    <span style={{
-                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-                      background: u.activo ? 'var(--color-success)' : '#9CA3AF',
-                    }} />
-                  </td>
-                  <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                    {u.nombre || u.apellido ? `${u.nombre || ''} ${u.apellido || ''}`.trim() : <span style={{ color: 'var(--color-muted)' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{u.email}</td>
-                  <td style={{ padding: '10px 12px' }}><RolBadge rol_id={u.rol_id} /></td>
-                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{fmt(u.ultimo_acceso)}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{fmt(u.creado_en)}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
@@ -430,6 +417,19 @@ export default function Usuarios() {
                       </button>
                     </div>
                   </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <span style={{
+                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                      background: u.activo ? 'var(--color-success)' : '#9CA3AF',
+                    }} />
+                  </td>
+                  <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                    {u.nombre || u.apellido ? `${u.nombre || ''} ${u.apellido || ''}`.trim() : <span style={{ color: 'var(--color-muted)' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{u.email}</td>
+                  <td style={{ padding: '10px 12px' }}><RolBadge rol_id={u.rol_id} /></td>
+                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{fmt(u.ultimo_acceso)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)' }}>{fmt(u.creado_en)}</td>
                 </tr>
               ))}
             </tbody>

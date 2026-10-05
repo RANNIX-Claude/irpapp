@@ -905,8 +905,8 @@ export default function GastosOperativos() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
-                  {['', 'Fecha', 'Proveedor', 'Grupo', 'Descripción', 'Monto', 'TOTAL DÍA', 'Detalle', ''].map(h => (
-                    <th key={h} style={{ padding: '10px 12px', textAlign: h==='Monto'||h==='TOTAL DÍA'?'right':'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
+                  {['', '', 'Fecha', 'Proveedor', 'Grupo', 'Descripción', 'Monto', 'TOTAL DÍA', 'Detalle'].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 12px', textAlign: h==='Monto'||h==='TOTAL DÍA'?'right':'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -931,6 +931,15 @@ export default function GastosOperativos() {
                               {isOpen ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}
                             </button>
                           </td>
+                          <td style={{ padding:'10px 12px' }}>
+                            <div style={{ display:'flex', gap:5 }}>
+                              {g.ticket_url && (
+                                <EnlacePrivado bucket="tickets-gastos" valor={g.ticket_url} title="Ver ticket" style={{ display:'inline-flex', padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></EnlacePrivado>
+                              )}
+                              <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
+                              <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
+                            </div>
+                          </td>
                           <td style={{ padding:'10px 12px', fontSize:13, color: idx===0?'#374151':'#9CA3AF', fontWeight:idx===0?700:400, whiteSpace:'nowrap' }}>
                             {idx===0 ? labelF(fecha) : ''}
                           </td>
@@ -951,15 +960,6 @@ export default function GastosOperativos() {
                               : g.gasto_detalle?.[0]?.count > 0
                                 ? <span style={{ fontSize:12, color:'#6B7280', fontWeight:700 }}>{g.gasto_detalle[0].count} líneas</span>
                                 : <span style={{ fontSize:12, color:'#9CA3AF' }}>Sin detalle</span>}
-                          </td>
-                          <td style={{ padding:'10px 12px' }}>
-                            <div style={{ display:'flex', gap:5 }}>
-                              {g.ticket_url && (
-                                <EnlacePrivado bucket="tickets-gastos" valor={g.ticket_url} title="Ver ticket" style={{ display:'inline-flex', padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></EnlacePrivado>
-                              )}
-                              <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
-                              <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
-                            </div>
                           </td>
                         </tr>
                         {isOpen && (
