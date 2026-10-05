@@ -418,7 +418,7 @@ function TabNominaIWOL() {
           </div>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
+          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12,minWidth:1500 }}>
             <thead>
               <tr style={{ background:'#5A4080',color:'white' }}>
                 {['No.','Nombre del Trabajador','Horario','Descanso','Asistencia Lun–Dom','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (

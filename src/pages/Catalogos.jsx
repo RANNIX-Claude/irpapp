@@ -173,7 +173,7 @@ export default function Catalogos() {
             ) : !filtradas.length ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>Sin valores</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: Math.max(columnas.length * 140, 600) }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr style={{ background: '#F9FAFB' }}>
                     {columnas.map(c => (

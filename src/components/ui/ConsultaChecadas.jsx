@@ -304,7 +304,7 @@ export default function ConsultaChecadas({ empleados = [], onClose }) {
               </p>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 700 }}>
               <thead style={{ position: 'sticky', top: 0, background: 'white', boxShadow: '0 1px 0 #E5E7EB' }}>
                 <tr>
                   {['Fecha', 'Día', 'Trabajador', 'Marcajes del día'].map(h => (

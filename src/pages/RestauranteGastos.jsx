@@ -388,7 +388,7 @@ function TicketCard({ t, idx, setForm, quitar }) {
               </button>
               {showLineas && (
                 <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11, minWidth:800 }}>
                     <thead>
                       <tr style={{ background:'#F3F4F6' }}>
                         {['SKU','Descripción','Cant.','P/U','Subtotal','Imp.'].map((h,i) => (
@@ -934,7 +934,7 @@ export default function RestauranteGastos() {
       </div>
 
       {/* Tabla agrupada por día */}
-      <div style={{ flex:1, overflowY:'auto' }}>
+      <div style={{ flex:1, overflow:'auto' }}>
         {loading ? (
           <div style={{ textAlign:'center', padding:60, color:'#9CA3AF', fontSize:14 }}>Cargando…</div>
         ) : filtrados.length === 0 ? (
@@ -944,7 +944,7 @@ export default function RestauranteGastos() {
             <div style={{ fontSize:12, marginTop:4 }}>Usa "Ticket individual" o "Carga masiva" para agregar gastos</div>
           </div>
         ) : (
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:900 }}>
             <thead style={{ position:'sticky', top:0, zIndex:10 }}>
               <tr style={{ background:'#F9FAFB', borderBottom:'2px solid #E5E7EB' }}>
                 {['Fecha','Proveedor','Factura / Folio','Concepto / Grupo','Total','TOTAL DÍA','Ticket',''].map((h,i) => (
@@ -1022,7 +1022,7 @@ export default function RestauranteGastos() {
                               </div>
                               {detalle.lineas.length > 0 && (
                                 <div style={{ overflowX:'auto' }}>
-                                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11, minWidth:800 }}>
                                     <thead>
                                       <tr style={{ background:'#DCFCE7' }}>
                                         {['SKU','Descripción','Cant.','P/U','Subtotal','Imp.'].map((h,hx) => (

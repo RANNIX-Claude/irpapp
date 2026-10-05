@@ -382,7 +382,7 @@ export default function Productos() {
           </div>
         ) : (
           <div style={{ overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
               <thead>
                 <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
                   {['', 'Producto', 'Clasificación', 'Unidad', 'Compras', 'Total', 'Últ. precio', 'Última', ''].map((h, i) => (

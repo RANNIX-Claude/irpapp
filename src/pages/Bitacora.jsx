@@ -198,7 +198,7 @@ export default function Bitacora() {
     toolbar: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' },
     inp: { padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', outline: 'none' },
     btn: (bg, color) => ({ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, background: bg, color }),
-    table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 900 },
     th: { padding: '10px 12px', textAlign: 'left', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-light)', borderBottom: '2px solid #F3F4F6', background: '#F9FAFB' },
     td: { padding: '10px 12px', borderBottom: '1px solid #F3F4F6', verticalAlign: 'top' },
   }

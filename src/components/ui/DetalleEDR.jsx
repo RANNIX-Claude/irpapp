@@ -623,7 +623,7 @@ export default function DetalleEDR({ concepto, composicion, mes, anio, valorTabl
               Sin registros en este período.
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 1300 }}>
               <thead style={{ position: 'sticky', top: 0, background: 'white' }}>
                 <tr>
                   {fuente.columnas.map(([campo, titulo, , tipo]) => (

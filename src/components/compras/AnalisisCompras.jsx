@@ -23,7 +23,7 @@ function DetalleCompras({ fila, anio, ambito }) {
   if (!rows) return <div style={{ padding: 14, fontSize: 12, color: '#9CA3AF' }}>Cargando compras…</div>
   return (
     <div style={{ maxHeight: 320, overflow: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 700 }}>
         <thead>
           <tr style={{ background: '#F1F5F9' }}>
             {['Fecha', 'Ámbito', 'Grupo / proyecto', 'Concepto', 'Capturado como', 'Monto'].map(h => (

@@ -239,7 +239,7 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
             </div>
           ) : (
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+              <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:1100 }}>
                 <thead>
                   <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
                     {['','Empleado','RFC','Días trab.','Percepción','IMSS','ISR','Subsidio','Neto','CFDI'].map(h => (

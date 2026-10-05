@@ -1196,7 +1196,7 @@ export default function Utilidades() {
     sidebar: { width: '230px', flexShrink: 0, background: '#F9FAFB', borderRight: '1px solid #E5E7EB', overflowY: 'auto', padding: '12px 0' },
     main:    { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
     toolbar: { display: 'flex', gap: '8px', padding: '12px 16px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', flexWrap: 'wrap', background: 'white' },
-    table:   { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
+    table:   { width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: Math.max((cols?.length || 5) * 130, 900) },
     th:      { padding: '0', textAlign: 'left', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6B7280', borderBottom: '2px solid #E5E7EB', background: '#F9FAFB', whiteSpace: 'nowrap', userSelect: 'none', position: 'sticky', top: 0, zIndex: 10 },
     td:      { padding: '7px 10px', borderBottom: '1px solid #F3F4F6', maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' },
     inp:     { padding: '7px 10px', border: '1.5px solid #E5E7EB', borderRadius: '7px', fontSize: '13px', outline: 'none' },
