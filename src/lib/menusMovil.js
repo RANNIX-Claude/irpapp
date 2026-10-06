@@ -75,30 +75,27 @@ const MENUS = {
   },
   finanzas: {
     tabs: [
-      { label: 'Finanzas', path: '/finanzas', icon: Landmark },
-      { label: 'Cobranza', path: '/cobranza', icon: CreditCard },
-      { label: 'Contratos', path: '/contratos', icon: FileText },
+      { label: 'Validar Pago', path: '/finanzas', icon: Landmark },
+      { label: 'Pagos',        path: '/ingresos', icon: TrendingUp },
+      { label: 'Contratos',    path: '/contratos', icon: FileText },
     ],
     mas: [
       { label: 'Resumen', items: [
-        { label: 'Feed de la plaza', path: '/feed', icon: Rss },
-        { label: 'Resultados del mes', path: '/edr', icon: LayoutDashboard },
-        { label: 'Resumen semanal', path: '/resumen-semanal', icon: CalendarRange },
+        { label: 'Feed de la plaza',  path: '/feed',            icon: Rss           },
+        { label: 'Resultados del mes',path: '/edr',             icon: LayoutDashboard },
+        { label: 'Resumen semanal',   path: '/resumen-semanal', icon: CalendarRange },
       ] },
       { label: 'Locales', items: [
-        { label: 'Mapa de locales', path: '/mapa-locales', icon: Building2 },
-        { label: 'Arrendatarios', path: '/arrendatarios', icon: Users },
+        { label: 'Mapa de locales', path: '/mapa-locales',  icon: Building2 },
+        { label: 'Arrendatarios',   path: '/arrendatarios', icon: Users     },
       ] },
       { label: 'Dinero', items: [
-        { label: 'Ingresos / Pagos', path: '/ingresos', icon: TrendingUp },
-        { label: 'Facturación', path: '/facturacion', icon: Stamp },
-        { label: 'Gastos', path: '/gastos-operativos', icon: Receipt },
+        { label: 'Facturación', path: '/facturacion',   icon: Stamp   },
+        { label: 'Gastos',      path: '/gastos-operativos', icon: Receipt },
       ] },
       { label: 'Operación', items: [
-        { label: 'Mantenimiento', path: '/mantenimiento', icon: Wrench },
-        { label: 'Por autorizar', path: '/mantenimiento?vista=autorizacion', icon: ClipboardCheck },
-        { label: 'Proyectos', path: '/proyectos', icon: HardHat },
-        { label: 'Personal', path: '/rh', icon: UserCheck },
+        { label: 'Proyectos', path: '/proyectos', icon: HardHat  },
+        { label: 'Personal',  path: '/rh',        icon: UserCheck },
       ] },
     ],
   },

@@ -112,14 +112,42 @@ const NAV_SECTIONS = [
 // Rol restaurante: solo ve su sección
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
-// Rol finanzas: todas las secciones del admin excepto ANÁLISIS, UTILERÍAS,
-// RESTAURANTE y el grupo admin-only (Bitácora / Usuarios / Configuración)
-const NAV_SECTIONS_FINANZAS = NAV_SECTIONS.filter(s =>
-  s.label !== 'ANÁLISIS' &&
-  s.label !== 'UTILERÍAS' &&
-  s.label !== 'RESTAURANTE' &&
-  !(s.label === null && s.items.some(i => i.path === '/bitacora'))
-)
+// Rol finanzas: menú acotado. Validar Pago primero; sin Cobranza, Conciliación,
+// Estacionamiento, Foto del Día, Eventos, Solicitud ni Autorización.
+const NAV_SECTIONS_FINANZAS = [
+  { label: null, items: [
+    { label: 'Validar Pago',        path: '/finanzas', icon: Landmark      },
+    { label: 'Feed Ejecutivo',      path: '/feed',     icon: Rss           },
+    { label: 'Informe Propietario', path: '/informe',  icon: FileBarChart2 },
+    { label: 'Dashboard',           path: '/edr',      icon: LayoutDashboard },
+  ]},
+  { label: 'LOCALES', items: [
+    { label: 'Prospectos',   path: '/prospectos',   icon: UserPlus  },
+    { label: 'Contratos',    path: '/contratos',    icon: FileText  },
+    { label: 'Renovaciones', path: '/renovaciones', icon: RotateCcw },
+  ]},
+  { label: 'CARTERA', items: [
+    { label: 'Pagos',       path: '/ingresos',   icon: TrendingUp },
+    { label: 'Facturación', path: '/facturacion', icon: Stamp      },
+  ]},
+  { label: 'OPERACIÓN', items: [
+    { label: 'Resumen Semanal',   path: '/resumen-semanal',   icon: CalendarRange },
+    { label: 'Gastos Operativos', path: '/gastos-operativos', icon: Receipt       },
+    { label: 'Vending',           path: '/vending',           icon: ShoppingBag   },
+    { label: 'Proyectos',         path: '/proyectos',         icon: HardHat       },
+  ]},
+  { label: 'COMPRAS', items: [
+    { label: 'Proveedores', path: '/proveedores', icon: Truck   },
+    { label: 'Productos',   path: '/productos',   icon: Package },
+  ]},
+  { label: 'ARRENDATARIO', items: [
+    { label: 'Arrendatarios', path: '/arrendatarios', icon: Users      },
+    { label: 'Expedientes',   path: '/contratos',     icon: FolderOpen },
+  ]},
+  { label: 'RECURSOS HUMANOS', items: [
+    { label: 'RH / Nómina', path: '/rh', icon: UserCheck },
+  ]},
+]
 
 // Vista general (staff sin rol acotado): estos ya no se ofrecen desde aquí.
 // No se quitan de NAV_SECTIONS porque el rol restaurante sigue filtrando por
