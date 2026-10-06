@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { ArrowUp, ArrowDown, Filter, Search, X } from 'lucide-react'
+import { ArrowUp, ArrowDown, Filter, Search, X, HelpCircle } from 'lucide-react'
 
 /**
  * Orden y filtro por columna, al estilo Excel.
@@ -81,6 +81,38 @@ export function LimpiarTabla({ tabla }) {
 }
 
 const ANCHO_MENU = 264
+
+function PopoverAyuda({ texto, ancla, onCerrar }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const fuera = e => { if (ref.current && !ref.current.contains(e.target)) onCerrar() }
+    const tecla = e => { if (e.key === 'Escape') onCerrar() }
+    document.addEventListener('mousedown', fuera)
+    document.addEventListener('keydown', tecla)
+    return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla) }
+  }, [onCerrar])
+  const left = Math.max(8, Math.min(ancla.left - 80, window.innerWidth - 228 - 8))
+  return (
+    <div ref={ref} style={{ position:'fixed', top: ancla.bottom + 4, left, width:220, zIndex:302, background:'white', border:'1px solid #E5E7EB', borderRadius:'8px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)', padding:'10px 12px', fontSize:'12px', color:'#374151', lineHeight:'1.55', textTransform:'none', letterSpacing:0, fontWeight:400 }}>
+      {texto}
+    </div>
+  )
+}
+
+function BtnAyuda({ texto }) {
+  const [ancla, setAncla] = useState(null)
+  const cerrar = useCallback(() => setAncla(null), [])
+  return (
+    <>
+      <button onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setAncla(a => a ? null : { left: r.left, bottom: r.bottom }) }}
+        title="¿Qué es esta columna?" aria-label="Ayuda de columna"
+        style={{ display:'inline-flex', alignItems:'center', border:'none', cursor:'pointer', padding:'2px 3px', borderRadius:'4px', background:'transparent', color: ancla ? '#0A66C2' : '#C4C9D4', lineHeight:1 }}>
+        <HelpCircle size={11} />
+      </button>
+      {ancla && <PopoverAyuda texto={texto} ancla={ancla} onCerrar={cerrar} />}
+    </>
+  )
+}
 
 function MenuColumna({ col, tabla, filasBase, ctx, ancla, onCerrar }) {
   const ref = useRef(null)
@@ -230,6 +262,7 @@ export function ThOrdenable({ col, tabla, filasBase, ctx, style }) {
             background: filtrada ? '#DBEAFE' : 'transparent', color: filtrada ? '#0A66C2' : '#9CA3AF' }}>
           <Filter size={12} fill={filtrada ? 'currentColor' : 'none'} />
         </button>
+        {col.ayuda && <BtnAyuda texto={col.ayuda} />}
       </span>
       {ancla && <MenuColumna col={col} tabla={tabla} filasBase={filasBase} ctx={ctx} ancla={ancla} onCerrar={cerrar} />}
     </th>

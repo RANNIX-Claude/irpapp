@@ -202,24 +202,40 @@ const cuadreDe = (r, ctx) => {
   return !d ? 'OK' : d.problema === 'SOBRE_APLICADO' ? 'Aplicado de más' : 'Falta aplicar'
 }
 const localDe = r => (r.locales_display && r.locales_display !== '—' ? r.locales_display : null)
+// Abrevia "LOCAL 10, LOCAL 11" → "L10, L11"
+const localAbrev = r => { const v = localDe(r); return v ? v.replace(/LOCAL\s*/gi, 'L') : null }
 const contratoDe = r => r.arrendatario_nombre || r.propietario || 'Sin contrato'
 const validacionDe = r => (VALIDACION[r.estatus_validacion] || VALIDACION[VALIDACION_DEFAULT]).label
 const numeroONulo = v => (v != null && v !== '' ? parseFloat(v) : null)
-const FORMA_PAGO_LABEL = { TRANSFERENCIA: 'Transferencia', DEPOSITO: 'Depósito', EFECTIVO: 'Efectivo', CHEQUE: 'Cheque' }
-const formaPagoDe = r => FORMA_PAGO_LABEL[r.forma_pago] || null
+const FORMA_PAGO_FULL  = { TRANSFERENCIA: 'Transferencia', DEPOSITO: 'Depósito', EFECTIVO: 'Efectivo', CHEQUE: 'Cheque' }
+const FORMA_PAGO_ABREV = { TRANSFERENCIA: 'T', DEPOSITO: 'D', EFECTIVO: 'E', CHEQUE: 'Ch' }
+const formaPagoDe = r => FORMA_PAGO_FULL[r.forma_pago] || null
+
+const ROLES_ADMIN = ['super_admin', 'admin_inmobiliaria', 'gerente_plaza']
 
 const COLUMNAS_INGRESOS = [
-  { key: 'fecha',      label: 'Fecha pago',    valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
-  { key: 'periodo',    label: 'Período',       valor: r => (r.mes ? `${MESES[r.mes]}/${r.anio}` : '—'), orden: r => (r.mes ? r.anio * 12 + r.mes : null) },
-  { key: 'local',      label: 'Local',         valor: r => localDe(r) || '—', orden: localDe },
-  { key: 'contrato',   label: 'Contrato',      valor: contratoDe, orden: contratoDe },
-  { key: 'clasif',     label: 'Clasificación', valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
-  { key: 'docs',       label: 'Docs',          valor: docsDe, orden: docsDe },
-  { key: 'formaPago',  label: 'Forma pago',    valor: r => formaPagoDe(r) || '—', orden: r => formaPagoDe(r) || null },
-  { key: 'cuadre',     label: 'Cuadre',        valor: cuadreDe, orden: cuadreDe, align: 'center' },
-  { key: 'validacion', label: 'Validación',    valor: validacionDe, orden: validacionDe },
-  { key: 'esperado',   label: 'Esperado',      valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
-  { key: 'cobrado',    label: 'Cobrado',       valor: r => fmt(r.importe), orden: r => numeroONulo(r.importe), align: 'right' },
+  { key: 'fecha',      label: 'Fecha pago',  ayuda: 'Fecha en que se recibió el depósito o pago.',
+    valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
+  { key: 'periodo',    label: 'Período',     ayuda: 'Mes al que corresponde el cobro (puede diferir del mes de pago).',
+    valor: r => (r.mes ? `${MESES[r.mes]}/${r.anio}` : '—'), orden: r => (r.mes ? r.anio * 12 + r.mes : null) },
+  { key: 'local',      label: 'Local',       ayuda: 'Local(es) del contrato. Se muestra abreviado: L10 = LOCAL 10.',
+    valor: r => localDe(r) || '—', orden: localDe },
+  { key: 'contrato',   label: 'Contrato',    ayuda: 'Arrendatario y folio del contrato al que se aplicó el pago.',
+    valor: contratoDe, orden: contratoDe },
+  { key: 'clasif',     label: 'Concepto',    ayuda: 'Concepto al que se aplicó el depósito: RENTA · SANCION · AGUA · OTRO · MIXTO (más de un concepto).',
+    valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
+  { key: 'docs',       label: 'Docs',        ayuda: 'Documentos adjuntos: 📄 = factura CFDI · 📎 = comprobante de depósito. Ícono en color = adjunto; gris = sin documento.',
+    valor: docsDe, orden: docsDe },
+  { key: 'formaPago',  label: 'F. Pago',     ayuda: 'Forma en que se recibió el pago: T = Transferencia · D = Depósito · E = Efectivo · Ch = Cheque.',
+    valor: r => formaPagoDe(r) || '—', orden: r => formaPagoDe(r) || null },
+  { key: 'cuadre',     label: 'Cuadre',      ayuda: 'Cotejo entre el importe recibido y lo distribuido en cartera. OK = cuadrado · ⚠ = hay diferencia pendiente de resolver.',
+    valor: cuadreDe, orden: cuadreDe, align: 'center' },
+  { key: 'validacion', label: 'Validación',  ayuda: 'Estatus de verificación contra el estado de cuenta bancario: POR VALIDAR → VALIDADO → con o sin CFDI.',
+    valor: validacionDe, orden: validacionDe },
+  { key: 'esperado',   label: 'Esperado',    ayuda: 'Renta mensual del contrato. Referencia del cobro esperado para ese período.',
+    valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
+  { key: 'cobrado',    label: 'Cobrado',     ayuda: 'Importe real recibido y registrado en este pago.',
+    valor: r => fmt(r.importe), orden: r => numeroONulo(r.importe), align: 'right' },
 ]
 
 // `fecha` llega como ISO; se compara por texto para no depender de la zona horaria
@@ -1103,7 +1119,8 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
 
 export default function Ingresos() {
   useModuleAudit('INGRESOS')
-  const { soloLectura } = useApp()
+  const { soloLectura, perfil } = useApp()
+  const esAdmin = ROLES_ADMIN.includes(perfil?.rol_id)
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [filtroValidacion, setFiltroValidacion] = useState('Todos')
@@ -1451,10 +1468,10 @@ export default function Ingresos() {
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
+                      <th style={{ padding:'6px 8px' }} />
                       {COLUMNAS_INGRESOS.map(col => (
                         <ThOrdenable key={col.key} col={col} tabla={tabla} filasBase={baseFiltrados} ctx={ctxTabla} style={{ padding:'6px 8px' }} />
                       ))}
-                      <th style={{ padding:'6px 8px' }} />
                       <th style={{ padding:'6px 8px', fontSize:'10px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', letterSpacing:'0.04em' }}>Nota</th>
                     </tr>
                   </thead>
@@ -1472,6 +1489,22 @@ export default function Ingresos() {
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         onClick={() => setVerDetalle(r)}>
+                        <td style={{ padding:'5px 6px', whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', gap:'3px', alignItems:'center' }}>
+                            <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
+                              style={{ padding:'4px 7px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
+                              <Eye size={12} /> Ver
+                            </button>
+                            {esAdmin && <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
+                              style={{ padding:'4px 7px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
+                              <Pencil size={12} /> Editar
+                            </button>}
+                            {esAdmin && <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
+                              style={{ padding:'4px 6px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                              <Trash2 size={12} />
+                            </button>}
+                          </div>
+                        </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
                           <span style={{ fontWeight:600, color: filtroMes && filtroAnio && r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
@@ -1479,8 +1512,8 @@ export default function Ingresos() {
                           </span>
                         </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
-                          {localDe(r)
-                            ? <span style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'2px 6px', borderRadius:'8px' }}>{localDe(r)}</span>
+                          {localAbrev(r)
+                            ? <span title={localDe(r)} style={{ display:'inline-block', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'2px 6px', borderRadius:'8px' }}>{localAbrev(r)}</span>
                             : <span style={{ color:'#D1D5DB' }}>—</span>}
                         </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', minWidth:'140px' }}>
@@ -1509,33 +1542,27 @@ export default function Ingresos() {
                             )
                           })()}
                         </td>
-                        {/* Docs: factura + comprobante */}
+                        {/* Docs: solo íconos — color si tiene, gris si no */}
                         <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
-                          <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                          <div style={{ display:'inline-flex', gap:'5px', alignItems:'center' }}>
                             {r.factura
-                              ? <span title={`Factura: ${r.factura}`} style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700, color:'#0A66C2', background:'#EFF6FF', padding:'3px 8px', borderRadius:'10px', border:'1px solid #BFDBFE' }}>
-                                  <FileText size={11} /> {r.factura}
-                                </span>
-                              : <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#9CA3AF', background:'#F9FAFB', padding:'3px 8px', borderRadius:'10px', border:'1px dashed #E5E7EB' }} title="Sin factura">
-                                  <FileText size={11} /> Sin factura
-                                </span>
+                              ? <span title={`Factura: ${r.factura}`} style={{ color:'#0A66C2' }}><FileText size={14} /></span>
+                              : <span title="Sin factura" style={{ color:'#D1D5DB' }}><FileText size={14} /></span>
                             }
                             {r.comprobante_url
                               ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Abrir comprobante"
-                                  style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700, color:'#057642', background:'#DCFCE7', padding:'3px 8px', borderRadius:'10px', border:'1px solid #86EFAC', cursor:'pointer' }}>
-                                  <Paperclip size={11} /> Comprobante
+                                  style={{ color:'#057642', cursor:'pointer', display:'inline-flex' }}>
+                                  <Paperclip size={14} />
                                 </EnlacePrivado>
-                              : <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#9CA3AF', background:'#F9FAFB', padding:'3px 8px', borderRadius:'10px', border:'1px dashed #E5E7EB' }} title="Sin comprobante">
-                                  <Paperclip size={11} /> Sin doc.
-                                </span>
+                              : <span title="Sin comprobante" style={{ color:'#D1D5DB' }}><Paperclip size={14} /></span>
                             }
                           </div>
                         </td>
-                        {/* Forma de pago: efectivo / transferencia / depósito / cheque */}
+                        {/* Forma de pago: inicial (T/D/E/Ch) con nombre completo en tooltip */}
                         <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
-                          {formaPagoDe(r)
-                            ? <span style={{ fontSize:'10px', fontWeight:700, color: r.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: r.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding:'2px 7px', borderRadius:'8px' }}>
-                                {formaPagoDe(r)}
+                          {FORMA_PAGO_ABREV[r.forma_pago]
+                            ? <span title={FORMA_PAGO_FULL[r.forma_pago]} style={{ fontSize:'11px', fontWeight:700, color: r.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: r.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding:'2px 7px', borderRadius:'8px' }}>
+                                {FORMA_PAGO_ABREV[r.forma_pago]}
                               </span>
                             : <span style={{ color:'#D1D5DB', fontSize:'11px' }}>—</span>}
                         </td>
@@ -1553,34 +1580,18 @@ export default function Ingresos() {
                         <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:700, fontSize:'12px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
                           {fmt(r.importe)}
                         </td>
-                        <td style={{ padding:'5px 6px', whiteSpace:'nowrap' }}>
-                          <div style={{ display:'flex', gap:'3px', alignItems:'center' }}>
-                            <button onClick={e => { e.stopPropagation(); setVerDetalle(r) }} title="Ver detalle"
-                              style={{ padding:'4px 7px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
-                              <Eye size={12} /> Ver
-                            </button>
-                            {!soloLectura && <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
-                              style={{ padding:'4px 7px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
-                              <Pencil size={12} /> Editar
-                            </button>}
-                            {!soloLectura && <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
-                              style={{ padding:'4px 6px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                              <Trash2 size={12} />
-                            </button>}
-                          </div>
-                        </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'150px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={9} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
+                      <td colSpan={10} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
                       <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:600, fontSize:'12px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
                       <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:800, fontSize:'13px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
-                      <td /><td />
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
