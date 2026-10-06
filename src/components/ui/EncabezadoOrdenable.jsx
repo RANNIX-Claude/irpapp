@@ -93,7 +93,7 @@ function PopoverAyuda({ texto, ancla, onCerrar }) {
   }, [onCerrar])
   const left = Math.max(8, Math.min(ancla.left - 80, window.innerWidth - 228 - 8))
   return (
-    <div ref={ref} style={{ position:'fixed', top: ancla.bottom + 4, left, width:220, zIndex:302, background:'white', border:'1px solid #E5E7EB', borderRadius:'8px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)', padding:'10px 12px', fontSize:'12px', color:'#374151', lineHeight:'1.55', textTransform:'none', letterSpacing:0, fontWeight:400 }}>
+    <div ref={ref} style={{ position:'fixed', top: ancla.bottom + 4, left, width:260, zIndex:302, background:'#1F2937', color:'white', borderRadius:'8px', boxShadow:'0 8px 24px rgba(0,0,0,0.25)', padding:'10px 12px', fontSize:'11.5px', lineHeight:'1.55', textTransform:'none', letterSpacing:0, fontWeight:400 }}>
       {texto}
     </div>
   )
