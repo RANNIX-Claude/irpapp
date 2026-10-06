@@ -231,8 +231,6 @@ const COLUMNAS_INGRESOS = [
   { key: 'clasif',     label: 'Concepto',    ayuda: 'Concepto al que se aplicó el depósito: RENTA · SANCION · AGUA · OTRO · MIXTO (más de un concepto).',
     valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
   // Estado del pago
-  { key: 'cuadre',     label: 'Cuadre',      ayuda: 'Cotejo entre el importe recibido y lo distribuido en cartera. OK = cuadrado · ⚠ = hay diferencia pendiente de resolver.',
-    valor: cuadreDe, orden: cuadreDe, align: 'center' },
   { key: 'validacion', label: 'Validación',  ayuda: 'Estatus de verificación contra el estado de cuenta bancario: POR VALIDAR → VALIDADO → con o sin CFDI.',
     valor: validacionDe, orden: validacionDe },
   // Importes
@@ -1570,10 +1568,6 @@ export default function Ingresos() {
                             )
                           })()}
                         </td>
-                        {/* Cuadre: el depósito contra lo que se repartió en la cartera */}
-                        <td style={{ padding:'6px 8px', textAlign:'center' }}>
-                          <IconoCuadre d={descuadres[r.id]} />
-                        </td>
                         <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}
                           title={r.validado_por ? `Validó ${r.validado_por}${r.validado_en ? ` el ${r.validado_en.slice(0,10)}` : ''}` : undefined}>
                           <BadgeValidacion estatus={r.estatus_validacion} />
@@ -1590,7 +1584,7 @@ export default function Ingresos() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
-                      <td colSpan={10} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
+                      <td colSpan={9} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
                       <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:600, fontSize:'12px', color:'#6B7280' }}>
                         {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
                       </td>
