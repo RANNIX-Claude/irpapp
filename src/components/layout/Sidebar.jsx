@@ -125,7 +125,7 @@ const NAV_SECTIONS_FINANZAS = NAV_SECTIONS.filter(s =>
 // No se quitan de NAV_SECTIONS porque el rol restaurante sigue filtrando por
 // esa sección (SECTIONS_RESTAURANTE) — si se borrara de ahí, ese rol se
 // quedaría sin menú.
-const SECCIONES_OCULTAS_ADMIN = ['RESTAURANTE', 'ARRENDATARIO']
+const SECCIONES_OCULTAS_ADMIN = ['RESTAURANTE']
 const RUTAS_OCULTAS_ADMIN = ['/estacionamiento']
 
 // Roles con un menú propio y acotado: se define aparte (no filtrando
