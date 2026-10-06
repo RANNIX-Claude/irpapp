@@ -112,6 +112,15 @@ const NAV_SECTIONS = [
 // Rol restaurante: solo ve su sección
 const SECTIONS_RESTAURANTE = ['RESTAURANTE']
 
+// Rol finanzas: todas las secciones del admin excepto ANÁLISIS, UTILERÍAS,
+// RESTAURANTE y el grupo admin-only (Bitácora / Usuarios / Configuración)
+const NAV_SECTIONS_FINANZAS = NAV_SECTIONS.filter(s =>
+  s.label !== 'ANÁLISIS' &&
+  s.label !== 'UTILERÍAS' &&
+  s.label !== 'RESTAURANTE' &&
+  !(s.label === null && s.items.some(i => i.path === '/bitacora'))
+)
+
 // Vista general (staff sin rol acotado): estos ya no se ofrecen desde aquí.
 // No se quitan de NAV_SECTIONS porque el rol restaurante sigue filtrando por
 // esa sección (SECTIONS_RESTAURANTE) — si se borrara de ahí, ese rol se
@@ -152,9 +161,12 @@ export default function Sidebar() {
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const esRestaurante = rolId === 'restaurante'
   const esLocatario = rolId === 'locatario'
+  const esFinanzas = rolId === 'finanzas'
   const menuRol = MENUS_POR_ROL[rolId]
   const sections = esRestaurante
     ? NAV_SECTIONS.filter(s => SECTIONS_RESTAURANTE.includes(s.label))
+    : esFinanzas
+    ? NAV_SECTIONS_FINANZAS
     // Locatario: un solo ítem que va a SU contrato (perfil.contrato_id), no a
     // la ruta genérica /contratos — de ahí que no viva en MENUS_POR_ROL, que
     // asume rutas fijas.

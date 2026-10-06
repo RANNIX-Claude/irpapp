@@ -135,13 +135,41 @@ function AppLayout() {
     return <SinAcceso rol={perfil.rol_id} />
   }
 
-  // Rol finanzas (Jessie) → solo validación de depósitos
+  // Rol finanzas → acceso de lectura a todos los módulos excepto Análisis y Utilerías
   if (perfil?.rol_id === 'finanzas') {
     return (
-      <Marco sidebar={false}>
+      <Marco desktopExtras>
         <Routes>
-          <Route path="/finanzas" element={<Finanzas />} />
-          <Route path="*" element={<Navigate to="/finanzas" replace />} />
+          <Route path="/"                    element={<Navigate to="/finanzas" replace />} />
+          <Route path="/finanzas"            element={<Finanzas />} />
+          <Route path="/feed"                element={<FeedEjecutivo />} />
+          <Route path="/foto-del-dia"        element={<FotoDelDia />} />
+          <Route path="/eventos"             element={<Eventos />} />
+          <Route path="/informe"             element={<InformePropietario />} />
+          <Route path="/edr"                 element={<EDR />} />
+          <Route path="/resumen-semanal"     element={<ResumenSemanal />} />
+          <Route path="/prospectos"          element={<Prospectos />} />
+          <Route path="/contratos"           element={<Contratos />} />
+          <Route path="/contratos/:id"       element={<ExpedienteContrato />} />
+          <Route path="/renovaciones"        element={<Renovaciones />} />
+          <Route path="/arrendatarios"       element={<Arrendatarios />} />
+          <Route path="/cobranza"            element={<Cobranza />} />
+          <Route path="/conciliacion"        element={<Conciliacion />} />
+          <Route path="/ingresos"            element={<Ingresos />} />
+          <Route path="/facturacion"         element={<Facturacion />} />
+          <Route path="/gastos-operativos"   element={<GastosOperativos />} />
+          <Route path="/estacionamiento"     element={<Estacionamiento />} />
+          <Route path="/vending"             element={<Vending />} />
+          <Route path="/mantenimiento"       element={<Mantenimiento />} />
+          <Route path="/proyectos"           element={<Proyectos />} />
+          <Route path="/proveedores"         element={<Proveedores />} />
+          <Route path="/proveedores/:id"     element={<ExpedienteProveedor />} />
+          <Route path="/productos"           element={<Productos />} />
+          <Route path="/productos/:id"       element={<ExpedienteProducto />} />
+          <Route path="/rh"                  element={<RH />} />
+          <Route path="/rh/empleado/:id"     element={<ExpedienteEmpleado />} />
+          <Route path="/mapa-locales"        element={<MapaLocales />} />
+          <Route path="*"                    element={<Navigate to="/finanzas" replace />} />
         </Routes>
       </Marco>
     )
