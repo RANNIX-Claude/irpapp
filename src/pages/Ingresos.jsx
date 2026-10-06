@@ -234,8 +234,6 @@ const COLUMNAS_INGRESOS = [
   { key: 'validacion', label: 'Validación',  ayuda: 'Estatus de verificación contra el estado de cuenta bancario: POR VALIDAR → VALIDADO → con o sin CFDI.',
     valor: validacionDe, orden: validacionDe },
   // Importes
-  { key: 'esperado',   label: 'Esperado',    ayuda: 'Renta mensual del contrato. Referencia del cobro esperado para ese período.',
-    valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
   { key: 'cobrado',    label: 'Cobrado',     ayuda: 'Importe real recibido y registrado en este pago.',
     valor: r => fmt(r.importe), orden: r => numeroONulo(r.importe), align: 'right' },
 ]
@@ -1572,9 +1570,6 @@ export default function Ingresos() {
                           title={r.validado_por ? `Validó ${r.validado_por}${r.validado_en ? ` el ${r.validado_en.slice(0,10)}` : ''}` : undefined}>
                           <BadgeValidacion estatus={r.estatus_validacion} />
                         </td>
-                        <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:600, fontSize:'11px', color: r.renta_mensual ? '#374151' : '#D1D5DB' }}>
-                          {r.renta_mensual ? fmt(r.renta_mensual) : '—'}
-                        </td>
                         <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:700, fontSize:'12px', color: r.importe ? 'var(--color-success)' : '#9CA3AF' }}>
                           {fmt(r.importe)}
                         </td>
@@ -1585,9 +1580,6 @@ export default function Ingresos() {
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E5E7EB', background:'#F9FAFB' }}>
                       <td colSpan={9} style={{ padding:'7px 8px', fontSize:'11px', fontWeight:700, textAlign:'right' }}>TOTAL {filtroMes ? MESES[filtroMes].toUpperCase() : 'TODOS'} {filtroAnio || ''}</td>
-                      <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:600, fontSize:'12px', color:'#6B7280' }}>
-                        {fmt(soloImportes.reduce((a, b) => a + (parseFloat(b.renta_mensual) || 0), 0))}
-                      </td>
                       <td style={{ padding:'7px 8px', textAlign:'right', fontWeight:800, fontSize:'13px', color:'var(--color-primary)' }}>{fmt(totalMes)}</td>
                       <td />
                     </tr>
