@@ -735,36 +735,41 @@ export default function ExpedienteEmpleado() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, capacR, evalR, benefR, vacAnioR, vacDetR] = await Promise.all([
-      supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
-      // La vista no expone fecha_nacimiento, direccion, banco, cuenta_clabe ni
-      // los campos del expediente completo. Se traen de la tabla y se fusionan.
-      supabase.from('rh_empleados').select('*').eq('id', id).maybeSingle(),
-      supabase.from('rh_historial_sueldo').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      supabase.from('rh_historial_nombre').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      supabase.from('rh_historial_cambios').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      supabase.from('rh_expediente_documentos').select('*').eq('empleado_id', id).order('created_at', { ascending: false }),
-      supabase.from('prp_incidencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(50),
-      supabase.from('rh_capacitacion').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
-      supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
-      supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
-      supabase.from('prp_vacaciones_anio').select('*').eq('empleado_id', id).order('anio_numero', { ascending: true }),
-      supabase.from('prp_vacaciones_detalle').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
-    ])
-    // La fila de la tabla va debajo: la vista manda en lo que sí calcula
-    // (nombre_completo, antigüedad, semáforo, salario_mensual).
-    setEmp(empR.data ? { ...tablaR.data, ...empR.data } : tablaR.data)
-    setHistSueldo(sueldoR.data ?? [])
-    setHistNombre(nombreR.data ?? [])
-    setHistCambios(cambiosR.data ?? [])
-    setDocs(docsR.data ?? [])
-    setIncidencias(incR.data ?? [])
-    setCapacitacion(capacR.data ?? [])
-    setEvaluaciones(evalR.data ?? [])
-    setBeneficios(benefR.data ?? [])
-    setVacAnios(vacAnioR.data ?? [])
-    setVacDetalle(vacDetR.data ?? [])
-    setLoading(false)
+    try {
+      const [empR, tablaR, sueldoR, nombreR, cambiosR, docsR, incR, capacR, evalR, benefR, vacAnioR, vacDetR] = await Promise.all([
+        supabase.from('prp_empleados').select('*').eq('id', id).maybeSingle(),
+        // La vista no expone fecha_nacimiento, direccion, banco, cuenta_clabe ni
+        // los campos del expediente completo. Se traen de la tabla y se fusionan.
+        supabase.from('rh_empleados').select('*').eq('id', id).maybeSingle(),
+        supabase.from('rh_historial_sueldo').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
+        supabase.from('rh_historial_nombre').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
+        supabase.from('rh_historial_cambios').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
+        supabase.from('rh_expediente_documentos').select('*').eq('empleado_id', id).order('created_at', { ascending: false }),
+        supabase.from('prp_incidencias').select('*').eq('empleado_id', id).order('fecha', { ascending: false }).limit(50),
+        supabase.from('rh_capacitacion').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
+        supabase.from('rh_evaluaciones').select('*').eq('empleado_id', id).order('fecha', { ascending: false }),
+        supabase.from('rh_beneficios').select('*').eq('empleado_id', id).order('activo', { ascending: false }),
+        supabase.from('prp_vacaciones_anio').select('*').eq('empleado_id', id).order('anio_numero', { ascending: true }),
+        supabase.from('prp_vacaciones_detalle').select('*').eq('empleado_id', id).order('fecha_inicio', { ascending: false }),
+      ])
+      // La fila de la tabla va debajo: la vista manda en lo que sí calcula
+      // (nombre_completo, antigüedad, semáforo, salario_mensual).
+      setEmp(empR.data ? { ...tablaR.data, ...empR.data } : tablaR.data)
+      setHistSueldo(sueldoR.data ?? [])
+      setHistNombre(nombreR.data ?? [])
+      setHistCambios(cambiosR.data ?? [])
+      setDocs(docsR.data ?? [])
+      setIncidencias(incR.data ?? [])
+      setCapacitacion(capacR.data ?? [])
+      setEvaluaciones(evalR.data ?? [])
+      setBeneficios(benefR.data ?? [])
+      setVacAnios(vacAnioR.data ?? [])
+      setVacDetalle(vacDetR.data ?? [])
+    } catch (err) {
+      toast.error('Error al cargar expediente: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }, [id])
 
   useEffect(() => { loadData() }, [loadData, refreshKey])

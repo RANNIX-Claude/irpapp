@@ -81,3 +81,58 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.fn_generar_anios_vacaciones(uuid) TO authenticated, service_role;
 REVOKE EXECUTE ON FUNCTION public.fn_generar_anios_vacaciones(uuid) FROM PUBLIC;
+
+-- 5. Vistas: recrear con las columnas nuevas
+CREATE OR REPLACE VIEW public.prp_vacaciones_anio
+  WITH (security_invoker = true) AS
+SELECT
+  a.id,
+  a.empleado_id,
+  a.anio                           AS anio_numero,
+  a.fecha_inicio_anio,
+  a.fecha_fin_anio,
+  a.dias_derecho,
+  a.dias_tomados,
+  a.dias_disponibles,
+  a.prima_cubierta,
+  a.prima_fecha,
+  a.notas,
+  a.created_at,
+  e.numero_empleado,
+  e.nombre || ' ' || e.apellido_pat AS nombre_completo,
+  e.puesto,
+  e.area,
+  e.fecha_ingreso,
+  CASE WHEN a.fecha_fin_anio < CURRENT_DATE AND a.dias_disponibles > 0
+    THEN true ELSE false
+  END AS anio_vencido
+FROM public.rh_vacaciones_anio a
+JOIN public.rh_empleados        e ON e.id = a.empleado_id;
+
+GRANT SELECT ON public.prp_vacaciones_anio TO authenticated, service_role;
+
+CREATE OR REPLACE VIEW public.prp_vacaciones_detalle
+  WITH (security_invoker = true) AS
+SELECT
+  d.id,
+  d.empleado_id,
+  d.anio                           AS anio_numero,
+  d.fecha_inicio,
+  d.fecha_fin,
+  d.dias,
+  d.monto,
+  d.prima,
+  d.estado,
+  d.notas,
+  d.autorizado_por_nombre,
+  d.registrado_por,
+  d.registrado_en,
+  e.numero_empleado,
+  e.nombre || ' ' || e.apellido_pat AS nombre_completo,
+  e.puesto,
+  e.area,
+  (d.fecha_inicio <= CURRENT_DATE AND d.fecha_fin >= CURRENT_DATE) AS en_curso
+FROM public.rh_vacaciones_detalle d
+JOIN public.rh_empleados           e ON e.id = d.empleado_id;
+
+GRANT SELECT ON public.prp_vacaciones_detalle TO authenticated, service_role;
