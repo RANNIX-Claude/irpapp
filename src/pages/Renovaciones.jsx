@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useApp } from '../context/AppContext'
 import { RefreshCw, FileText, CheckCircle, Clock, AlertTriangle, Eye, Pencil, Trash2, X, Save, Paperclip, Wand2, Upload, ExternalLink, User, Shield } from 'lucide-react'
 import { usePRP } from '../hooks/usePRP'
 import { supabase, urlFirmada } from '../lib/supabase'
@@ -507,6 +508,7 @@ function PanelDetalle({ contrato: c, initialEditMode = false, onClose, onUpdated
 
 export default function Renovaciones() {
   useModuleAudit('RENOVACIONES')
+  const { soloLectura } = useApp()
   const [refreshKey, setRefreshKey] = useState(0)
   const [seleccionado, setSeleccionado] = useState(null)
   const [openInEdit, setOpenInEdit] = useState(false)
@@ -633,14 +635,14 @@ export default function Renovaciones() {
                                 style={{ width: 30, height: 30, border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Eye size={14} />
                               </button>
-                              <button title="Editar" onClick={e => { e.stopPropagation(); setOpenInEdit(true); setSeleccionado(c) }}
+                              {!soloLectura && <button title="Editar" onClick={e => { e.stopPropagation(); setOpenInEdit(true); setSeleccionado(c) }}
                                 style={{ width: 30, height: 30, border: '1px solid #DBEAFE', borderRadius: '6px', background: '#EFF6FF', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Pencil size={14} />
-                              </button>
-                              <button title="Eliminar" onClick={e => { e.stopPropagation(); setConfirmDelete(c) }}
+                              </button>}
+                              {!soloLectura && <button title="Eliminar" onClick={e => { e.stopPropagation(); setConfirmDelete(c) }}
                                 style={{ width: 30, height: 30, border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Trash2 size={14} />
-                              </button>
+                              </button>}
                             </div>
                           </td>
                           <td style={{ padding: '13px 16px' }}>

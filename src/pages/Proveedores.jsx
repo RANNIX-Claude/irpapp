@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback } from 'react'
 import { Truck, Plus, Search, X, Pencil, ChevronDown, LayoutGrid, AlignJustify, BarChart3 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -126,6 +127,7 @@ export function ModalProveedor({ proveedor, onClose, onSaved }) {
 
 // ─── Tarjeta de proveedor (vista mosaico) ────────────────────────────────────
 function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
+  const { soloLectura } = useApp()
   const info = catInfo(p.categoria)
   return (
     <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)', opacity: p.activo ? 1 : .55 }}>
@@ -151,7 +153,7 @@ function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
 
       <div style={{ display: 'flex', borderTop: '1px solid #F3F4F6' }}>
         <button onClick={() => onVer(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', borderRight: '1px solid #F3F4F6', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A66C2' }}>Expediente</button>
-        <button onClick={() => onEditar(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Editar</button>
+        {!soloLectura && <button onClick={() => onEditar(p)} style={{ flex: 1, padding: '9px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Editar</button>}
       </div>
     </div>
   )
@@ -159,6 +161,7 @@ function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
 
 export default function Proveedores() {
   useModuleAudit('PROVEEDORES')
+  const { soloLectura } = useApp()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -225,9 +228,11 @@ export default function Proveedores() {
               <LayoutGrid size={15} />
             </button>
           </div>
+          {!soloLectura && (
           <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             <Plus size={15} /> Nuevo proveedor
           </button>
+          )}
         </div>
       </div>
 
@@ -312,7 +317,7 @@ export default function Proveedores() {
                     <td style={{ padding: '12px 14px', fontSize: 13, color: '#374151' }}>{p.telefono || '—'}</td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}><Pencil size={13} /></button>
+                        {!soloLectura && <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}><Pencil size={13} /></button>}
                         <button onClick={() => toggleActivo(p)} title={p.activo ? 'Desactivar' : 'Activar'} style={{ padding: '5px 8px', background: p.activo ? '#FEF3C7' : '#D1FAE5', color: p.activo ? '#92400E' : '#065F46', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                           {p.activo ? 'Act' : 'Inact'}
                         </button>

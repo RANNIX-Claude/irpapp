@@ -62,8 +62,11 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Roles que solo pueden leer; sin botones de crear ni editar en toda la app
+  const soloLectura = perfil?.rol_id === 'finanzas'
+
   return (
-    <AppContext.Provider value={{ user, perfil, loading, sidebarOpen, setSidebarOpen, isMobile }}>
+    <AppContext.Provider value={{ user, perfil, loading, sidebarOpen, setSidebarOpen, isMobile, soloLectura }}>
       {children}
     </AppContext.Provider>
   )

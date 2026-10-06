@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Receipt, Plus, X, Search, Pencil, Trash2, ChevronDown, ChevronRight, AlertTriangle, Check, BookUser, ToggleLeft, ToggleRight, Images, Loader2, Eye } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -121,6 +122,7 @@ function FormProveedor({ inicial, onSaved, onCancel }) {
 }
 
 function DrawerProveedores({ onClose }) {
+  const { soloLectura } = useApp()
   const [lista, setLista]     = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
@@ -169,10 +171,12 @@ function DrawerProveedores({ onClose }) {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, clave, RFC…"
                 style={{ width: '100%', paddingLeft: 26, padding: '7px 8px 7px 26px', border: '1.5px solid #DBEAFE', borderRadius: 7, fontSize: 12, outline: 'none', boxSizing: 'border-box', background: 'white' }} />
             </div>
-            <button onClick={() => setEditando('nuevo')} disabled={editando === 'nuevo'}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <Plus size={13} /> Agregar
-            </button>
+            {!soloLectura && (
+              <button onClick={() => setEditando('nuevo')} disabled={editando === 'nuevo'}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <Plus size={13} /> Agregar
+              </button>
+            )}
           </div>
           {/* Filtro categoría */}
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -226,8 +230,10 @@ function DrawerProveedores({ onClose }) {
               </div>
               {/* Acciones */}
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                <button onClick={() => setEditando(p)} title="Editar"
-                  style={{ padding: '5px 7px', background: '#EFF6FF', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#0A66C2' }}><Pencil size={13} /></button>
+                {!soloLectura && (
+                  <button onClick={() => setEditando(p)} title="Editar"
+                    style={{ padding: '5px 7px', background: '#EFF6FF', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#0A66C2' }}><Pencil size={13} /></button>
+                )}
                 <button onClick={() => toggleActivo(p)} title={p.activo ? 'Desactivar' : 'Activar'}
                   style={{ padding: '5px 7px', background: p.activo ? '#FEF3C7' : '#F0FDF4', border: 'none', borderRadius: 6, cursor: 'pointer', color: p.activo ? '#D97706' : '#057642' }}>
                   {p.activo ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
@@ -741,6 +747,7 @@ const SEMANAS_SAB_VIE = generarSemanasGO()
 
 export default function GastosOperativos() {
   useModuleAudit('GASTOS_OPERATIVOS')
+  const { soloLectura } = useApp()
   const [gastos, setGastos]       = useState([])
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
@@ -823,12 +830,16 @@ export default function GastosOperativos() {
           <button onClick={() => setShowProveedores(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#EFF6FF', color: '#0A66C2', border: '1.5px solid #BFDBFE', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             <BookUser size={15} /> Proveedores
           </button>
-          <button onClick={() => setShowCargaGrupo(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#057642', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-            <Images size={15} /> Carga en Grupo
-          </button>
-          <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#E8A020', color: 'white', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-            <Plus size={15} /> Nuevo ticket
-          </button>
+          {!soloLectura && (
+            <button onClick={() => setShowCargaGrupo(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#057642', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              <Images size={15} /> Carga en Grupo
+            </button>
+          )}
+          {!soloLectura && (
+            <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#E8A020', color: 'white', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              <Plus size={15} /> Nuevo ticket
+            </button>
+          )}
         </div>
       </div>
 
@@ -936,8 +947,8 @@ export default function GastosOperativos() {
                               {g.ticket_url && (
                                 <EnlacePrivado bucket="tickets-gastos" valor={g.ticket_url} title="Ver ticket" style={{ display:'inline-flex', padding:'4px 8px', background:'#F0FDF4', color:'#057642', border:'none', borderRadius:5, cursor:'pointer' }}><Eye size={12}/></EnlacePrivado>
                               )}
-                              <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>
-                              <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>
+                              {!soloLectura && <button onClick={e => { e.stopPropagation(); setModal(g) }} style={{ padding:'4px 8px', background:'#EFF6FF', color:'#0A66C2', border:'none', borderRadius:5, cursor:'pointer' }}><Pencil size={12}/></button>}
+                              {!soloLectura && <button onClick={e => { e.stopPropagation(); eliminar(g) }} style={{ padding:'4px 8px', background:'#FEE2E2', color:'#B24020', border:'none', borderRadius:5, cursor:'pointer' }}><Trash2 size={12}/></button>}
                             </div>
                           </td>
                           <td style={{ padding:'10px 12px', fontSize:13, color: idx===0?'#374151':'#9CA3AF', fontWeight:idx===0?700:400, whiteSpace:'nowrap' }}>

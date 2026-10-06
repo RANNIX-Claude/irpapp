@@ -1,4 +1,5 @@
 import { useModuleAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, Plus, Save, BarChart2, FileText, Printer, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -365,6 +366,7 @@ function EditRow({ label, fieldP, fieldMes, fieldOtros, fieldR, form, setField,
    ════════════════════════════════════════════════════════════════════════════ */
 export default function EDR() {
   useModuleAudit('EDR')
+  const { soloLectura } = useApp()
 
   const now = new Date()
   const [anio, setAnio] = useState(now.getFullYear())
@@ -1030,7 +1032,7 @@ export default function EDR() {
               style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 16px', background:'#374151', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
               <Printer size={14} /> Imprimir PDF
             </button>
-            {!registro && (
+            {!registro && !soloLectura && (
               <button onClick={handleNuevo} disabled={saving}
                 style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 16px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
                 <Plus size={14} /> Nuevo
@@ -1080,10 +1082,12 @@ export default function EDR() {
                 <span style={{ fontSize:'12px', color:'#92400E' }}>
                   Datos calculados en tiempo real · sin snapshot guardado para {MESES[mes]} {anio}
                 </span>
+                {!soloLectura && (
                 <button onClick={handleNuevo} disabled={saving}
                   style={{ padding:'5px 14px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
                   + Crear snapshot
                 </button>
+                )}
               </div>
             )}
 

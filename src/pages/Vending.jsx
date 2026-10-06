@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback } from 'react'
 import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
   Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors } from 'lucide-react'
@@ -630,6 +631,7 @@ function ModalProducto({ producto, onClose, onSaved }) {
 // ── Página principal ───────────────────────────────────────────────────────
 export default function Vending() {
   useModuleAudit('Vending')
+  const { soloLectura } = useApp()
   const semanas    = generarSemanas()
   const sabActual  = sabadoDe(hoyLocal())
   const defaultIdx = semanas.findIndex(s => s.ini === sabActual)
@@ -887,12 +889,16 @@ export default function Vending() {
             style={{ padding:'9px 14px', border:'1.5px solid var(--color-primary)', borderRadius:'8px', background: semana.ini===sabActual?'var(--color-primary)':'white', cursor:'pointer', fontSize:'12px', fontWeight:700, color: semana.ini===sabActual?'white':'var(--color-primary)' }}>
             Hoy
           </button>
-          <button onClick={() => setModal('prod')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600 }}>
-            <Plus size={15} /> Producto
-          </button>
-          <button onClick={() => semanaDb && setModal('bloque')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #057642', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#057642' }}>
-            <Plus size={15} /> Carga en Bloque
-          </button>
+          {!soloLectura && (
+            <button onClick={() => setModal('prod')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #E5E7EB', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:600 }}>
+              <Plus size={15} /> Producto
+            </button>
+          )}
+          {!soloLectura && (
+            <button onClick={() => semanaDb && setModal('bloque')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #057642', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#057642' }}>
+              <Plus size={15} /> Carga en Bloque
+            </button>
+          )}
           <button onClick={() => abrirMov(null)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 16px', border:'none', borderRadius:'8px', background:'var(--color-primary)', color:'white', cursor:'pointer', fontSize:'13px', fontWeight:700 }}>
             <Plus size={15} /> Movimiento
           </button>
@@ -938,7 +944,7 @@ export default function Vending() {
                 {semanaDb.estado === 'CERRADA' ? '✅ Semana cerrada' : '🔓 Semana abierta — capturando movimientos'}
               </span>
               <div style={{ display:'flex', gap:'8px' }}>
-                {semanaDb.estado === 'ABIERTA' && (
+                {semanaDb.estado === 'ABIERTA' && !soloLectura && (
                   <button onClick={() => setModal('ajuste')}
                     style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'1.5px solid #0A66C2', borderRadius:'8px', background:'white', color:'#0A66C2', cursor:'pointer', fontSize:'12px', fontWeight:700 }}>
                     📦 Conteo físico
@@ -1051,7 +1057,7 @@ export default function Vending() {
                             {sem !== null ? sem : ventas===0 ? <span style={{ color:'#9CA3AF' }}>∞</span> : '—'}
                           </td>
                           <td style={{ padding:'8px 10px', textAlign:'center' }}>
-                            {semanaDb?.estado === 'ABIERTA' && (
+                            {semanaDb?.estado === 'ABIERTA' && !soloLectura && (
                               <button onClick={() => abrirMov(prod ? { ...prod, id: d.producto_id } : null)}
                                 style={{ padding:'4px 10px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'6px', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
                                 + Mov
@@ -1203,9 +1209,11 @@ export default function Vending() {
         <div style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'10px', overflow:'hidden' }}>
           <div style={{ padding:'12px 16px', background:'#1A3C5E', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <span style={{ color:'white', fontWeight:800, fontSize:'13px' }}>Movimientos — {semana.label}</span>
-            <button onClick={() => abrirMov(null)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'var(--color-secondary)', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer' }}>
-              <Plus size={13} /> Nuevo
-            </button>
+            {!soloLectura && (
+              <button onClick={() => abrirMov(null)} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'var(--color-secondary)', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer' }}>
+                <Plus size={13} /> Nuevo
+              </button>
+            )}
           </div>
           {loading ? (
             <div style={{ textAlign:'center', padding:'40px', color:'#9CA3AF' }}>Cargando…</div>
@@ -1225,7 +1233,7 @@ export default function Vending() {
                   {movs.map((m, i) => (
                     <tr key={m.id} style={{ background: i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                        {semanaDb?.estado === 'ABIERTA' && (
+                        {semanaDb?.estado === 'ABIERTA' && !soloLectura && (
                           <span style={{ display:'inline-flex', gap:'2px' }}>
                             <button
                               onClick={() => { setEditMovItem(m); setProdPresel(null); setModal('mov') }}
@@ -1280,9 +1288,11 @@ export default function Vending() {
         <div style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'10px', overflow:'hidden' }}>
           <div style={{ padding:'12px 16px', background:'#1A3C5E', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <span style={{ color:'white', fontWeight:800, fontSize:'13px' }}>Catálogo de Productos</span>
-            <button onClick={() => setModal('prod')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'var(--color-secondary)', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer' }}>
-              <Plus size={13} /> Nuevo Producto
-            </button>
+            {!soloLectura && (
+              <button onClick={() => setModal('prod')} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'var(--color-secondary)', color:'white', border:'none', borderRadius:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer' }}>
+                <Plus size={13} /> Nuevo Producto
+              </button>
+            )}
           </div>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
@@ -1301,14 +1311,18 @@ export default function Vending() {
                   return (
                     <tr key={p.id} style={{ background: !p.activo ? '#FFF8F8' : i%2===0?'white':'#FAFAFA', borderBottom:'1px solid #F3F4F6' }}>
                       <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
-                        <button onClick={() => { setEditProd(p); setModal('editProd') }}
-                          style={{ marginRight:'4px', padding:'4px 8px', background:'#F3F4F6', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                          <Pencil size={13} />
-                        </button>
-                        <button onClick={() => setConfirmDel(p)}
-                          style={{ padding:'4px 8px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
-                          <Trash2 size={13} />
-                        </button>
+                        {!soloLectura && (
+                          <button onClick={() => { setEditProd(p); setModal('editProd') }}
+                            style={{ marginRight:'4px', padding:'4px 8px', background:'#F3F4F6', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        {!soloLectura && (
+                          <button onClick={() => setConfirmDel(p)}
+                            style={{ padding:'4px 8px', background:'#FEF2F2', color:'#B91C1C', border:'none', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </td>
                       <td style={{ padding:'10px 12px', fontWeight:700, color: p.activo?'#374151':'#9CA3AF' }}>{p.producto}</td>
                       <td style={{ padding:'10px 12px', textAlign:'right', fontWeight:800, fontVariantNumeric:'tabular-nums', color: (stockActual[p.id]?.qty_final||0)<=0 ? 'var(--color-danger)' : '#374151' }}>

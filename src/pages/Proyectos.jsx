@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   HardHat, Plus, ArrowLeft, Save, Trash2, Upload, FileText, X,
@@ -143,6 +144,7 @@ function MosaicCard({ p, onClick }) {
 
 export default function Proyectos() {
   useModuleAudit('Proyectos')
+  const { soloLectura } = useApp()
 
   const [proyectos,   setProyectos]   = useState([])
   const [proveedores, setProveedores] = useState([])
@@ -223,12 +225,14 @@ export default function Proyectos() {
               </button>
             ))}
           </div>
-          <button onClick={() => setShowForm(true)}
-            style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
-              background:'var(--color-primary)', color:'white', border:'none',
-              borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
-            <Plus size={14} /> Nuevo Proyecto
-          </button>
+          {!soloLectura && (
+            <button onClick={() => setShowForm(true)}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
+                background:'var(--color-primary)', color:'white', border:'none',
+                borderRadius:'7px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
+              <Plus size={14} /> Nuevo Proyecto
+            </button>
+          )}
         </div>
       </div>
 
@@ -448,6 +452,7 @@ function ProyectoDetalle({ proyecto, proveedores, onBack, onReload }) {
 
 /* ── TAB RESUMEN ─────────────────────────────────────────────────────────── */
 function TabResumen({ proyecto: p, proveedores, onReload }) {
+  const { soloLectura } = useApp()
   const [editing,   setEditing]   = useState(false)
   const [form,      setForm]      = useState({ ...p })
   const [saving,    setSaving]    = useState(false)
@@ -505,7 +510,7 @@ function TabResumen({ proyecto: p, proveedores, onReload }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div style={{ fontWeight:700, fontSize:'14px', color:'#374151' }}>Información general</div>
         {!editing
-          ? <button onClick={() => setEditing(true)} style={{ padding:'6px 14px', border:'1.5px solid #E5E7EB', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer', background:'white' }}>Editar</button>
+          ? (!soloLectura && <button onClick={() => setEditing(true)} style={{ padding:'6px 14px', border:'1.5px solid #E5E7EB', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer', background:'white' }}>Editar</button>)
           : <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => setEditing(false)} style={{ padding:'6px 14px', border:'1.5px solid #E5E7EB', borderRadius:'7px', fontSize:'12px', cursor:'pointer', background:'white' }}>Cancelar</button>
               <button onClick={handleSave} disabled={saving} style={{ padding:'6px 14px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
@@ -590,6 +595,7 @@ function TabResumen({ proyecto: p, proveedores, onReload }) {
 
 /* ── TAB COTIZACIONES ────────────────────────────────────────────────────── */
 function TabCotizaciones({ proyecto }) {
+  const { soloLectura } = useApp()
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -623,12 +629,14 @@ function TabCotizaciones({ proyecto }) {
             · Se recomiendan al menos 3
           </span>}
         </div>
-        <button onClick={() => setShowAdd(true)}
-          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px',
-            background:'var(--color-primary)', color:'white', border:'none',
-            borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
-          <Plus size={13} /> Agregar cotización
-        </button>
+        {!soloLectura && (
+          <button onClick={() => setShowAdd(true)}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px',
+              background:'var(--color-primary)', color:'white', border:'none',
+              borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
+            <Plus size={13} /> Agregar cotización
+          </button>
+        )}
       </div>
 
       {loading ? <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>Cargando…</div>
@@ -750,6 +758,7 @@ function CotizacionForm({ proyectoId, onClose, onSaved }) {
 
 /* ── TAB CONTRATO ────────────────────────────────────────────────────────── */
 function TabContrato({ proyecto }) {
+  const { soloLectura } = useApp()
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -768,12 +777,14 @@ function TabContrato({ proyecto }) {
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
         <div style={{ fontSize:'13px', color:'#6B7280' }}>{items.length} contrato{items.length !== 1 ? 's' : ''} registrado{items.length !== 1 ? 's' : ''}</div>
-        <button onClick={() => setShowAdd(true)}
-          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px',
-            background:'var(--color-primary)', color:'white', border:'none',
-            borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
-          <Plus size={13} /> Agregar contrato
-        </button>
+        {!soloLectura && (
+          <button onClick={() => setShowAdd(true)}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 14px',
+              background:'var(--color-primary)', color:'white', border:'none',
+              borderRadius:'7px', fontSize:'12px', fontWeight:600, cursor:'pointer' }}>
+            <Plus size={13} /> Agregar contrato
+          </button>
+        )}
       </div>
 
       {loading ? <div style={{ textAlign:'center', padding:40, color:'#9CA3AF' }}>Cargando…</div>
@@ -1135,6 +1146,7 @@ function TabAvances({ proyecto }) {
 }
 
 function AvanceCard({ item, onDelete, onReload }) {
+  const { soloLectura } = useApp()
   const [fotos, setFotos] = useState([])
   const [open,  setOpen]  = useState(true)
   const fileRef = useRef()
@@ -1227,12 +1239,14 @@ function AvanceCard({ item, onDelete, onReload }) {
                 </button>
               </div>
             ))}
-            <button onClick={() => fileRef.current.click()}
-              style={{ width:100, height:100, borderRadius:8, border:'2px dashed #D1D5DB',
-                background:'white', cursor:'pointer', display:'flex', flexDirection:'column',
-                alignItems:'center', justifyContent:'center', gap:4, color:'#9CA3AF', fontSize:'11px' }}>
-              <Plus size={16} /> Agregar
-            </button>
+            {!soloLectura && (
+              <button onClick={() => fileRef.current.click()}
+                style={{ width:100, height:100, borderRadius:8, border:'2px dashed #D1D5DB',
+                  background:'white', cursor:'pointer', display:'flex', flexDirection:'column',
+                  alignItems:'center', justifyContent:'center', gap:4, color:'#9CA3AF', fontSize:'11px' }}>
+                <Plus size={16} /> Agregar
+              </button>
+            )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:'none' }}
             onChange={e => handleAddFotos(e.target.files)} />

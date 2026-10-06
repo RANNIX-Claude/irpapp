@@ -1,4 +1,5 @@
 ﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -160,6 +161,7 @@ function ProcesoBadge({ c, onChange }) {
 
 function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh }) {
   const navigate = useNavigate()
+  const { soloLectura } = useApp()
   const { texto, color } = diasLabel(c.dias_restantes, c.semaforo_vencimiento)
   return (
     <tr style={{ borderBottom: '1px solid #F3F4F6', cursor: 'pointer' }}
@@ -176,14 +178,14 @@ function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh 
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-primary)' }}>
             <Eye size={14} />
           </button>
-          <button title="Editar contrato" onClick={e => { e.stopPropagation(); onEdit(c) }}
+          {!soloLectura && <button title="Editar contrato" onClick={e => { e.stopPropagation(); onEdit(c) }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white', cursor: 'pointer', color: 'var(--color-secondary)' }}>
             <Pencil size={14} />
-          </button>
-          <button title="Eliminar contrato" onClick={e => { e.stopPropagation(); onDelete(c) }}
+          </button>}
+          {!soloLectura && <button title="Eliminar contrato" onClick={e => { e.stopPropagation(); onDelete(c) }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #FECACA', borderRadius: '6px', background: '#FFF5F5', cursor: 'pointer', color: 'var(--color-danger)' }}>
             <Trash2 size={14} />
-          </button>
+          </button>}
         </div>
       </td>
       <td style={{ padding: '13px 16px' }}>
@@ -379,6 +381,7 @@ function DocFilaModal({ item, url, uploadingKey, onSubir }) {
 // ─── Modal de detalle con tabs ───────────────────────────────────────────────
 
 export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60, initialEditMode = false }) {
+  const { soloLectura } = useApp()
   const [tab, setTab] = useState('datos')
   const [notas, setNotas] = useState([])
   const [notasLoading, setNotasLoading] = useState(false)
@@ -680,7 +683,7 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
                 <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text-light)' }}>
                   {c.arrendatario_nombre} · {c.inmueble_nombre} – {c.unidad_numero} · {c.tipo_unidad} {c.m2_totales ? `(${c.m2_totales}m²)` : ''}
                 </p>
-                {!editMode && (
+                {!editMode && !soloLectura && (
                   <button onClick={startEdit} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
                     <Pencil size={13} /> Editar
                   </button>
@@ -1531,6 +1534,7 @@ function VistaAnual({ lista, anio, onSelectContrato }) {
 
 export default function Contratos() {
   useModuleAudit('CONTRATOS')
+  const { soloLectura } = useApp()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [filtroEst, setFiltroEst] = useState('Todos')
@@ -1747,13 +1751,13 @@ export default function Contratos() {
           <button onClick={() => window.print()} title="Imprimir" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #E5E7EB', borderRadius: '8px', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
             <Printer size={15} /> Imprimir
           </button>
-          <button onClick={() => setShowNuevo(true)} style={{
+          {!soloLectura && <button onClick={() => setShowNuevo(true)} style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: 'var(--color-primary)', color: 'white', border: 'none',
             borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
           }}>
             <Plus size={16} /> Nuevo Contrato
-          </button>
+          </button>}
         </div>
       </div>
 

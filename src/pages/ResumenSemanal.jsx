@@ -1,4 +1,5 @@
 import { useModuleAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarRange, ChevronRight, Printer, CheckCircle, AlertCircle, Car, ShoppingBag, Home, Wallet, ExternalLink, Plus, X, Pencil, Trash2 } from 'lucide-react'
@@ -759,6 +760,7 @@ function BtnIr({ to, label, navigate }) {
 
 export default function ResumenSemanal() {
   useModuleAudit('RESUMEN_SEMANAL')
+  const { soloLectura } = useApp()
   const navigate = useNavigate()
 
   // Tabla de semanas: [{ ini, fin, iniEstac, label }, ...]  (más reciente primero)
@@ -964,7 +966,7 @@ export default function ResumenSemanal() {
                 <>
                   <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <span>Pensiones de estacionamiento</span>
-                    {!supabaseParking && (
+                    {!supabaseParking && !soloLectura && (
                       <button onClick={() => setModal('pension')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-primary)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
                         <Plus size={10}/> Nueva
                       </button>
@@ -1084,9 +1086,9 @@ export default function ResumenSemanal() {
             {/* ── RENTAS EN EFECTIVO ── */}
             <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span><Home size={12} style={{ marginRight:'6px', verticalAlign:'middle' }}/>Rentas cobradas en efectivo</span>
-              <button onClick={() => setModal('renta')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-success)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+              {!soloLectura && <button onClick={() => setModal('renta')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'var(--color-success)', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
                 <Plus size={10}/> Nueva
-              </button>
+              </button>}
             </div>
             {rentasEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin rentas esta semana</div>
@@ -1097,8 +1099,8 @@ export default function ResumenSemanal() {
                   onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Renta')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                   <span style={S.acciones} onClick={e => e.stopPropagation()}>
-                    <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
-                    <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Renta ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                    {!soloLectura && <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>}
+                    {!soloLectura && <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Renta ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>}
                   </span>
                   <span style={S.monto('var(--color-success)')}>{fmt(r.importe)}</span>
                 </div>
@@ -1114,9 +1116,9 @@ export default function ResumenSemanal() {
             {/* ── AGUA EN EFECTIVO ── */}
             <div style={{ ...S.sectionHeader, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span>💧 Agua cobrada en efectivo</span>
-              <button onClick={() => setModal('agua')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'#0284C7', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
+              {!soloLectura && <button onClick={() => setModal('agua')} style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', background:'#0284C7', border:'none', borderRadius:'5px', color:'white', fontSize:'10px', fontWeight:700, cursor:'pointer' }}>
                 <Plus size={10}/> Nueva
-              </button>
+              </button>}
             </div>
             {aguaEf.length === 0
               ? <div style={{ padding:'8px 12px', color:'#9CA3AF', fontSize:'12px' }}>Sin cobros de agua esta semana</div>
@@ -1127,8 +1129,8 @@ export default function ResumenSemanal() {
                   onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                   <span style={S.lbl}>{r.propietario ? `${r.propietario}${r.id_contrato?' · '+r.id_contrato:''}` : (r.concepto_origen||'Agua')} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                   <span style={S.acciones} onClick={e => e.stopPropagation()}>
-                    <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
-                    <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Agua ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                    {!soloLectura && <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>}
+                    {!soloLectura && <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `Agua ${r.propietario||r.concepto_origen||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>}
                   </span>
                   <span style={{ ...S.monto(), color:'#0284C7' }}>{fmt(r.importe)}</span>
                 </div>
@@ -1152,8 +1154,8 @@ export default function ResumenSemanal() {
                     onMouseLeave={e => e.currentTarget.style.background= i%2===0?'white':'#FAFAFA'}>
                     <span style={S.lbl}>{r.tipo} · {r.concepto_origen || r.propietario || '—'} <span style={{ color:'#9CA3AF', fontSize:'11px' }}>· {r.fecha}</span></span>
                     <span style={S.acciones} onClick={e => e.stopPropagation()}>
-                      <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>
-                      <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `${r.tipo} · ${r.concepto_origen||r.propietario||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>
+                      {!soloLectura && <button style={S.btnEdit} title="Editar" onClick={() => setEditRec({ tabla:'ingresos', row: r })}><Pencil size={12}/></button>}
+                      {!soloLectura && <button style={S.btnDel}  title="Eliminar" onClick={() => setDelRec({ tabla:'ingresos', id: r.id, label: `${r.tipo} · ${r.concepto_origen||r.propietario||'—'} · ${r.fecha}` })}><Trash2 size={12}/></button>}
                     </span>
                     <span style={S.monto('#374151')}>{fmt(r.importe)}</span>
                   </div>
@@ -1200,9 +1202,11 @@ export default function ResumenSemanal() {
           <div style={{ border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
             <div style={{ ...S.panelTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>🧾 Gastos a Comprobar — Fondo Revolvente</span>
+              {!soloLectura && (
               <button onClick={() => setModal('gasto')} style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'4px 10px', background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'6px', color:'white', fontSize:'11px', fontWeight:700, cursor:'pointer' }}>
                 <Plus size={12}/> Agregar Gasto
               </button>
+              )}
             </div>
 
             <div style={{ overflowX: 'auto' }}>

@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -44,6 +45,7 @@ import TabVacacionesRH from '../components/rrhh/TabVacacionesRH'
 // ── Página principal ────────────────────────────────────────────────────────
 export default function RH() {
   useModuleAudit('RH')
+  const { soloLectura } = useApp()
   const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Vacaciones', 'Nómina', 'Nómina IWOL']
   const [tab, setTab] = useState('Empleados')
   const [showNuevo, setShowNuevo] = useState(false)
@@ -58,7 +60,7 @@ export default function RH() {
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-light)' }}>Reclutamiento · Expediente · Asistencia · Nómina</p>
         </div>
-        {tab === 'Empleados' && (
+        {tab === 'Empleados' && !soloLectura && (
           <button onClick={() => setShowNuevo(true)} style={{ display:'flex',alignItems:'center',gap:8,padding:'10px 18px',background:'#7B5EA7',color:'white',border:'none',borderRadius:9,fontSize:14,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 8px rgba(123,94,167,.3)' }}>
             <Plus size={16} /> Nuevo Empleado
           </button>

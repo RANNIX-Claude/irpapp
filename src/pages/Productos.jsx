@@ -1,4 +1,5 @@
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Package, Plus, Search, X, Pencil, LayoutGrid, AlignJustify, Tags, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -228,6 +229,7 @@ function TarjetaProducto({ p, c, r, clasifs, onImagen, onVer, onClasificar }) {
 // ─── Página ──────────────────────────────────────────────────────────────────
 export default function Productos() {
   useModuleAudit('PRODUCTOS')
+  const { soloLectura } = useApp()
   const [lista, setLista] = useState([])
   const [clasifs, setClasifs] = useState([])
   const [resumen, setResumen] = useState({})
@@ -337,9 +339,11 @@ export default function Productos() {
               <LayoutGrid size={15} />
             </button>
           </div>
+          {!soloLectura && (
           <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#0A66C2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             <Plus size={15} /> Nuevo producto
           </button>
+          )}
         </div>
       </div>
 
@@ -413,9 +417,11 @@ export default function Productos() {
                       <td style={{ padding: '10px 12px', fontSize: 12.5, textAlign: 'right' }}>{r ? pesos2(r.ultimo_precio) : '—'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>{r ? fecha(r.ultima_fecha) : '—'}</td>
                       <td style={{ padding: '10px 12px' }}>
+                        {!soloLectura && (
                         <button onClick={() => setModal(p)} title="Editar" style={{ padding: '5px 8px', background: '#EFF6FF', color: '#0A66C2', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
                           <Pencil size={13} />
                         </button>
+                        )}
                       </td>
                     </tr>
                   )

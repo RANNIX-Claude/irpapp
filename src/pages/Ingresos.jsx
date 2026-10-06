@@ -280,7 +280,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   // Borrar el ingreso desde aquí mismo es una operación delicada (afecta
   // cartera y aplicaciones ya cuadradas): solo super_admin / admin_inmobiliaria
   // lo ven, y solo aplica editando uno ya existente (no al registrar uno nuevo).
-  const { perfil, user } = useApp()
+  const { perfil, user, soloLectura } = useApp()
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const puedeEliminar = !!ingreso && ['super_admin', 'admin_inmobiliaria'].includes(rolId)
   const [contratoSearch, setContratoSearch] = useState('')
@@ -981,11 +981,11 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
                         {excede ? `Se pasa por ${fmt(Math.abs(saldoLibre))}` : saldoLibre > 0.01 ? `Libre: ${fmt(saldoLibre)}` : '✓ Cuadrado'}
                       </span>
                     )}
-                    <button type="button" onClick={() => setModalNuevoCargo(true)}
+                    {!soloLectura && <button type="button" onClick={() => setModalNuevoCargo(true)}
                       title="Agregar un cargo que falte en la lista (p. ej. una sanción) para poder aplicarle este pago"
                       style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', border:'1px solid var(--color-primary)', borderRadius:'6px', background:'white', color:'var(--color-primary)', fontSize:'11px', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
                       <Plus size={13} /> Agregar cobro
-                    </button>
+                    </button>}
                   </div>
                 </div>
 
@@ -1103,6 +1103,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
 
 export default function Ingresos() {
   useModuleAudit('INGRESOS')
+  const { soloLectura } = useApp()
   const [search, setSearch] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [filtroValidacion, setFiltroValidacion] = useState('Todos')
@@ -1293,13 +1294,13 @@ export default function Ingresos() {
             {filtroModo === 'fecha_pago' ? 'Fecha de pago' : 'Período de renta'}: {filtroMes ? MESES[filtroMes] : 'Todos los meses'} {filtroAnio || 'todos los años'} · {filtrados.filter(r => r.es_principal).length} contratos con pago
           </p>
         </div>
-        <button onClick={() => setModalData('nuevo')} style={{
+        {!soloLectura && <button onClick={() => setModalData('nuevo')} style={{
           display:'flex', alignItems:'center', gap:'8px',
           background:'var(--color-primary)', color:'white', border:'none',
           borderRadius:'8px', padding:'10px 20px', fontSize:'14px', fontWeight:600, cursor:'pointer',
         }}>
           <Plus size={16} /> Registrar Pago
-        </button>
+        </button>}
       </div>
 
       {/* Filtros */}
@@ -1558,14 +1559,14 @@ export default function Ingresos() {
                               style={{ padding:'4px 7px', background:'#EFF6FF', color:'#0A66C2', border:'1px solid #BFDBFE', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
                               <Eye size={12} /> Ver
                             </button>
-                            <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
+                            {!soloLectura && <button onClick={e => { e.stopPropagation(); setModalData(r) }} title="Editar"
                               style={{ padding:'4px 7px', background:'#F3F4F6', color:'#374151', border:'1px solid #E5E7EB', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', fontWeight:700 }}>
                               <Pencil size={12} /> Editar
-                            </button>
-                            <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
+                            </button>}
+                            {!soloLectura && <button onClick={e => { e.stopPropagation(); setConfirmDel(r) }} title="Eliminar"
                               style={{ padding:'4px 6px', background:'#FEF2F2', color:'#B91C1C', border:'1px solid #FECACA', borderRadius:'6px', cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
                               <Trash2 size={12} />
-                            </button>
+                            </button>}
                           </div>
                         </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', color:'var(--color-text-light)', maxWidth:'150px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nota || ''}</td>
@@ -1769,10 +1770,10 @@ export default function Ingresos() {
 
               {/* Footer */}
               <div style={{ padding:'12px 20px', borderTop:'1px solid #E5E7EB', display:'flex', gap:'8px', justifyContent:'flex-end', flexShrink:0 }}>
-                <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]); setModalData(verDetalle) }}
+                {!soloLectura && <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]); setModalData(verDetalle) }}
                   style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', background:'#F3F4F6', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>
                   <Pencil size={13} /> Editar
-                </button>
+                </button>}
                 <button onClick={() => { setVerDetalle(null); setDetalleAplicaciones([]) }}
                   style={{ padding:'8px 18px', background:'var(--color-primary)', color:'white', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>
                   Cerrar

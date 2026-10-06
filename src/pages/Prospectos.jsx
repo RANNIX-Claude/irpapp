@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, urlFirmada } from '../lib/supabase'
 import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 import ModalSolicitudPersona from '../components/ui/ModalSolicitudPersona'
 
@@ -194,6 +195,7 @@ const MAPA_CAMPOS = {
 }
 
 function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
+  const { soloLectura } = useApp()
   const [personas, setPersonas] = useState([])
   const [docs, setDocs] = useState([])
   const [tab, setTab] = useState('personas')
@@ -350,7 +352,7 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
             <div>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
                 <h4 style={{ margin:0, fontSize:15, fontWeight:700 }}>Personas del expediente</h4>
-                <button onClick={() => setModalPersona(true)} style={btnPrimario}>+ Agregar persona</button>
+                {!soloLectura && <button onClick={() => setModalPersona(true)} style={btnPrimario}>+ Agregar persona</button>}
               </div>
               {personas.length === 0 && <p style={{ color:'#9CA3AF', textAlign:'center', marginTop:40 }}>Sin personas registradas</p>}
               {personas.map(p => {
@@ -511,7 +513,7 @@ function PanelDetalle({ prospecto, onClose, onRefresh, onMagicLink }) {
             )}
           </div>
           {/* CTA especial cuando el candidato es APROBADO → abre modal inline */}
-          {prospecto.etapa === 'APROBADO' && (
+          {!soloLectura && prospecto.etapa === 'APROBADO' && (
             <button
               onClick={() => setModalContrato(true)}
               style={{
@@ -1145,6 +1147,7 @@ function ModalEditarProspecto({ prospecto, onClose, onSaved }) {
 
 export default function Prospectos() {
   useModuleAudit('PROSPECTOS')
+  const { soloLectura } = useApp()
   const [prospectos, setProspectos] = useState([])
   const [loading, setLoading]       = useState(true)
   const [filtroEtapa, setFiltroEtapa] = useState('ALL')
@@ -1193,7 +1196,7 @@ export default function Prospectos() {
             Pipeline de arrendamiento — {prospectos.length} prospectos
           </p>
         </div>
-        <button onClick={() => setModalNuevo(true)} style={btnPrimario}>+ Nuevo Prospecto</button>
+        {!soloLectura && <button onClick={() => setModalNuevo(true)} style={btnPrimario}>+ Nuevo Prospecto</button>}
       </div>
 
       {/* KPIs por etapa */}
@@ -1231,7 +1234,7 @@ export default function Prospectos() {
         <div style={{ textAlign:'center', padding:60, color:'#9CA3AF' }}>
           <div style={{ fontSize:36, marginBottom:12 }}>🏢</div>
           <p>Sin prospectos{filtroEtapa !== 'ALL' ? ' en esta etapa' : ''}.</p>
-          <button onClick={() => setModalNuevo(true)} style={btnPrimario}>+ Crear el primero</button>
+          {!soloLectura && <button onClick={() => setModalNuevo(true)} style={btnPrimario}>+ Crear el primero</button>}
         </div>
       ) : (
         <div style={{ border:'1px solid #E5E7EB', borderRadius:10, overflow:'hidden' }}>
@@ -1253,15 +1256,15 @@ export default function Prospectos() {
                     <div style={{ display:'flex', gap:4 }}>
                       <button onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
                         style={{ ...btnMini, background:'#EFF6FF', color:'#0A66C2' }}>Ver</button>
-                      <button onClick={e => { e.stopPropagation(); setModalEditar(p) }}
-                        style={{ ...btnMini, background:'#F3F4F6', color:'#374151' }}>Editar</button>
+                      {!soloLectura && <button onClick={e => { e.stopPropagation(); setModalEditar(p) }}
+                        style={{ ...btnMini, background:'#F3F4F6', color:'#374151' }}>Editar</button>}
                       {!ETAPAS_INACTIVAS.includes(p.etapa) && (
                         <button onClick={e => { e.stopPropagation(); setModalEditar({ ...p, _cancelar: true }) }}
                           style={{ ...btnMini, background:'#FEE2E2', color:'#B24020' }}>Cancelar</button>
                       )}
-                      <button onClick={e => { e.stopPropagation(); setConfirmEliminar(p) }}
+                      {!soloLectura && <button onClick={e => { e.stopPropagation(); setConfirmEliminar(p) }}
                         title="Eliminar permanentemente"
-                        style={{ ...btnMini, background:'#1F2937', color:'white', minWidth:28, padding:'0 7px' }}>🗑</button>
+                        style={{ ...btnMini, background:'#1F2937', color:'white', minWidth:28, padding:'0 7px' }}>🗑</button>}
                     </div>
                   </td>
                   <td style={{ padding:'10px 14px', color:'#6B7280', fontFamily:'monospace', fontSize:11 }}>

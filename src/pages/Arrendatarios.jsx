@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useApp } from '../context/AppContext'
 import {
   Users, Search, Plus, AlertTriangle, CheckCircle,
   Edit2, Trash2, Building2, Phone, Mail, X, Save,
@@ -142,6 +143,7 @@ function ArrendatarioModal({ initial, onClose, onSaved }) {
 
 // ── Ficha Arrendatario (panel lateral) ───────────────────────────────────────
 function FichaArrendatario({ arrendatario, onClose, onEdit, onNuevoContrato }) {
+  const { soloLectura } = useApp()
   const [contratos, setContratos] = useState([])
   const [loading, setLoading]     = useState(true)
 
@@ -201,9 +203,11 @@ function FichaArrendatario({ arrendatario, onClose, onEdit, onNuevoContrato }) {
               )}
             </div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {!soloLectura && (
               <button onClick={() => onEdit(a)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '7px', padding: '7px 12px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Edit2 size={12} /> Editar
               </button>
+              )}
               <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#93C5FD', cursor: 'pointer' }}><X size={20} /></button>
             </div>
           </div>
@@ -256,10 +260,12 @@ function FichaArrendatario({ arrendatario, onClose, onEdit, onNuevoContrato }) {
             <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Historial de contratos ({contratos.length})
             </h3>
+            {!soloLectura && (
             <button onClick={() => onNuevoContrato(arrendatario)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
               <Plus size={13} /> Nuevo contrato
             </button>
+            )}
           </div>
 
           {loading
@@ -377,6 +383,7 @@ function FichaArrendatario({ arrendatario, onClose, onEdit, onNuevoContrato }) {
 
 // ── Fila de tabla ────────────────────────────────────────────────────────────
 function Fila({ a, onVerFicha, onEdit, onDelete }) {
+  const { soloLectura } = useApp()
   const mora      = parseFloat(a.total_mora) || 0
   const pendiente = parseFloat(a.total_pendiente) || 0
   const enMora    = mora > 0
@@ -402,14 +409,18 @@ function Fila({ a, onVerFicha, onEdit, onDelete }) {
       onClick={() => onVerFicha(a)}>
       <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+          {!soloLectura && (
           <button onClick={() => onEdit(a)} title="Editar"
             style={{ padding: '6px 8px', background: '#EEF2FF', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <Edit2 size={13} color="var(--color-primary)" />
           </button>
+          )}
+          {!soloLectura && (
           <button onClick={() => onDelete(a)} title="Eliminar"
             style={{ padding: '6px 8px', background: '#FEF2F2', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <Trash2 size={13} color="#B91C1C" />
           </button>
+          )}
         </div>
       </td>
       <td style={{ padding: '12px 16px' }}>
@@ -457,6 +468,7 @@ const SORTS = [
 
 export default function Arrendatarios() {
   useModuleAudit('ARRENDATARIOS')
+  const { soloLectura } = useApp()
 
   const [search, setSearch]   = useState('')
   const [filtro, setFiltro]   = useState('Todos')
@@ -563,12 +575,16 @@ export default function Arrendatarios() {
           <p style={{ fontSize: '13px', color: 'var(--color-text-light)', margin: 0 }}>{total} registrados · {filtrados.length} en vista</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          {!soloLectura && (
           <button onClick={() => setNuevoContratoArr({})} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
             <FileText size={15} /> Nuevo contrato
           </button>
+          )}
+          {!soloLectura && (
           <button onClick={() => setModal('nuevo')} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
             <Plus size={15} /> Nuevo arrendatario
           </button>
+          )}
         </div>
       </div>
 
