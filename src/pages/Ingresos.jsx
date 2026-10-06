@@ -214,6 +214,12 @@ const formaPagoDe = r => FORMA_PAGO_FULL[r.forma_pago] || null
 const ROLES_ADMIN = ['super_admin', 'admin_inmobiliaria', 'gerente_plaza']
 
 const COLUMNAS_INGRESOS = [
+  // Columnas de íconos primero — compactas, permiten escanear el estado de un vistazo
+  { key: 'docs',       label: 'Docs',        ayuda: 'Documentos adjuntos: 📄 = factura CFDI · 📎 = comprobante de depósito. Ícono en color = adjunto; gris = sin documento.',
+    valor: docsDe, orden: docsDe },
+  { key: 'formaPago',  label: 'F. Pago',     ayuda: 'Forma en que se recibió el pago: T = Transferencia · D = Depósito · E = Efectivo · Ch = Cheque.',
+    valor: r => formaPagoDe(r) || '—', orden: r => formaPagoDe(r) || null },
+  // Datos identificadores
   { key: 'fecha',      label: 'Fecha pago',  ayuda: 'Fecha en que se recibió el depósito o pago.',
     valor: r => (r.fecha ? r.fecha.slice(0, 10) : '—'), orden: r => (r.fecha ? r.fecha.slice(0, 10) : null) },
   { key: 'periodo',    label: 'Período',     ayuda: 'Mes al que corresponde el cobro (puede diferir del mes de pago).',
@@ -224,14 +230,12 @@ const COLUMNAS_INGRESOS = [
     valor: contratoDe, orden: contratoDe },
   { key: 'clasif',     label: 'Concepto',    ayuda: 'Concepto al que se aplicó el depósito: RENTA · SANCION · AGUA · OTRO · MIXTO (más de un concepto).',
     valor: r => clasifDe(r) || '—', orden: r => clasifDe(r) || null },
-  { key: 'docs',       label: 'Docs',        ayuda: 'Documentos adjuntos: 📄 = factura CFDI · 📎 = comprobante de depósito. Ícono en color = adjunto; gris = sin documento.',
-    valor: docsDe, orden: docsDe },
-  { key: 'formaPago',  label: 'F. Pago',     ayuda: 'Forma en que se recibió el pago: T = Transferencia · D = Depósito · E = Efectivo · Ch = Cheque.',
-    valor: r => formaPagoDe(r) || '—', orden: r => formaPagoDe(r) || null },
+  // Estado del pago
   { key: 'cuadre',     label: 'Cuadre',      ayuda: 'Cotejo entre el importe recibido y lo distribuido en cartera. OK = cuadrado · ⚠ = hay diferencia pendiente de resolver.',
     valor: cuadreDe, orden: cuadreDe, align: 'center' },
   { key: 'validacion', label: 'Validación',  ayuda: 'Estatus de verificación contra el estado de cuenta bancario: POR VALIDAR → VALIDADO → con o sin CFDI.',
     valor: validacionDe, orden: validacionDe },
+  // Importes
   { key: 'esperado',   label: 'Esperado',    ayuda: 'Renta mensual del contrato. Referencia del cobro esperado para ese período.',
     valor: r => (r.renta_mensual ? fmt(r.renta_mensual) : '—'), orden: r => numeroONulo(r.renta_mensual), align: 'right' },
   { key: 'cobrado',    label: 'Cobrado',     ayuda: 'Importe real recibido y registrado en este pago.',
@@ -1505,6 +1509,30 @@ export default function Ingresos() {
                             </button>}
                           </div>
                         </td>
+                        {/* Docs: solo íconos — color si tiene, gris si no */}
+                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
+                          <div style={{ display:'inline-flex', gap:'5px', alignItems:'center' }}>
+                            {r.factura
+                              ? <span title={`Factura: ${r.factura}`} style={{ color:'#0A66C2' }}><FileText size={14} /></span>
+                              : <span title="Sin factura" style={{ color:'#D1D5DB' }}><FileText size={14} /></span>
+                            }
+                            {r.comprobante_url
+                              ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Abrir comprobante"
+                                  style={{ color:'#057642', cursor:'pointer', display:'inline-flex' }}>
+                                  <Paperclip size={14} />
+                                </EnlacePrivado>
+                              : <span title="Sin comprobante" style={{ color:'#D1D5DB' }}><Paperclip size={14} /></span>
+                            }
+                          </div>
+                        </td>
+                        {/* Forma de pago: inicial (T/D/E/Ch) con nombre completo en tooltip */}
+                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
+                          {FORMA_PAGO_ABREV[r.forma_pago]
+                            ? <span title={FORMA_PAGO_FULL[r.forma_pago]} style={{ fontSize:'11px', fontWeight:700, color: r.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: r.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding:'2px 7px', borderRadius:'8px' }}>
+                                {FORMA_PAGO_ABREV[r.forma_pago]}
+                              </span>
+                            : <span style={{ color:'#D1D5DB', fontSize:'11px' }}>—</span>}
+                        </td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>{r.fecha ? r.fecha.slice(0,10) : '—'}</td>
                         <td style={{ padding:'6px 8px', fontSize:'11px', whiteSpace:'nowrap' }}>
                           <span style={{ fontWeight:600, color: filtroMes && filtroAnio && r.mes === filtroMes && r.anio === filtroAnio ? '#057642' : '#6B7280' }}>
@@ -1541,30 +1569,6 @@ export default function Ingresos() {
                               </span>
                             )
                           })()}
-                        </td>
-                        {/* Docs: solo íconos — color si tiene, gris si no */}
-                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
-                          <div style={{ display:'inline-flex', gap:'5px', alignItems:'center' }}>
-                            {r.factura
-                              ? <span title={`Factura: ${r.factura}`} style={{ color:'#0A66C2' }}><FileText size={14} /></span>
-                              : <span title="Sin factura" style={{ color:'#D1D5DB' }}><FileText size={14} /></span>
-                            }
-                            {r.comprobante_url
-                              ? <EnlacePrivado bucket="facturas-cfdi" valor={r.comprobante_url} title="Abrir comprobante"
-                                  style={{ color:'#057642', cursor:'pointer', display:'inline-flex' }}>
-                                  <Paperclip size={14} />
-                                </EnlacePrivado>
-                              : <span title="Sin comprobante" style={{ color:'#D1D5DB' }}><Paperclip size={14} /></span>
-                            }
-                          </div>
-                        </td>
-                        {/* Forma de pago: inicial (T/D/E/Ch) con nombre completo en tooltip */}
-                        <td style={{ padding:'6px 8px', whiteSpace:'nowrap' }}>
-                          {FORMA_PAGO_ABREV[r.forma_pago]
-                            ? <span title={FORMA_PAGO_FULL[r.forma_pago]} style={{ fontSize:'11px', fontWeight:700, color: r.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: r.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding:'2px 7px', borderRadius:'8px' }}>
-                                {FORMA_PAGO_ABREV[r.forma_pago]}
-                              </span>
-                            : <span style={{ color:'#D1D5DB', fontSize:'11px' }}>—</span>}
                         </td>
                         {/* Cuadre: el depósito contra lo que se repartió en la cartera */}
                         <td style={{ padding:'6px 8px', textAlign:'center' }}>

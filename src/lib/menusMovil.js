@@ -75,9 +75,10 @@ const MENUS = {
   },
   finanzas: {
     tabs: [
-      { label: 'Validar Pago', path: '/finanzas', icon: Landmark },
-      { label: 'Pagos',        path: '/ingresos', icon: TrendingUp },
-      { label: 'Contratos',    path: '/contratos', icon: FileText },
+      { label: 'Validar Pago', path: '/finanzas',  icon: Landmark   },
+      { label: 'Cobros',       path: '/cobranza',  icon: CreditCard },
+      { label: 'Pagos',        path: '/ingresos',  icon: TrendingUp },
+      { label: 'Contratos',    path: '/contratos', icon: FileText   },
     ],
     mas: [
       { label: 'Resumen', items: [

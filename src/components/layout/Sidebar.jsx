@@ -126,8 +126,9 @@ const NAV_SECTIONS_FINANZAS = [
     { label: 'Contratos',    path: '/contratos',    icon: FileText  },
     { label: 'Renovaciones', path: '/renovaciones', icon: RotateCcw },
   ]},
-  { label: 'CARTERA', items: [
-    { label: 'Pagos',       path: '/ingresos',   icon: TrendingUp },
+  { label: null, items: [
+    { label: 'Cobros',      path: '/cobranza',    icon: CreditCard },
+    { label: 'Pagos',       path: '/ingresos',    icon: TrendingUp },
     { label: 'Facturación', path: '/facturacion', icon: Stamp      },
   ]},
   { label: 'OPERACIÓN', items: [
