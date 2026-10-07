@@ -1170,6 +1170,7 @@ export default function ExpedienteEmpleado() {
           {/* ── NÓMINA ── */}
           {tab === 'nomina' && (
             <Card>
+              <GuiaNomina />
               <Section title="Recibos de nómina" icon={CreditCard}>
                 {recibos.length === 0 ? (
                   <Empty icon={CreditCard} msg={numEmpleado ? 'Sin recibos de nómina calculados' : 'El empleado no tiene número de empleado asignado'} />
@@ -1533,6 +1534,180 @@ export default function ExpedienteEmpleado() {
 // ── Tab Vacaciones ────────────────────────────────────────────────────────────
 const ESTADO_VAC_COLOR = { TOMADA: C.success, AUTORIZADA: C.primary, CANCELADA: C.muted, SOLICITADA: C.warning }
 
+// ── Guía rápida de nómina ────────────────────────────────────────────────────
+function GuiaNomina() {
+  const [abierta, setAbierta] = useState(false)
+  const CONCEPTOS = [
+    { term: 'Percepción / Salario período', def: 'Lo que gana el empleado en el período calculado. Se obtiene multiplicando salario diario × días trabajados.' },
+    { term: 'Días trabajados', def: 'Días efectivamente laborados en el período. Se descuentan las faltas injustificadas. El formato X/Y indica "trabajados de los que debía trabajar".' },
+    { term: 'IMSS obrero', def: 'Cuota del seguro social que corresponde pagar al empleado (no al patrón). Se descuenta del salario. Las tasas las fija el IMSS anualmente.' },
+    { term: 'ISR retenido', def: 'Impuesto Sobre la Renta que la empresa retiene y entera al SAT en nombre del empleado. El monto depende del rango de ingreso mensual.' },
+    { term: 'Subsidio al empleo', def: 'Beneficio fiscal del SAT para trabajadores de bajos ingresos. Reduce o elimina el ISR a pagar. Se aplica automáticamente según tablas del SAT.' },
+    { term: 'Neto a pagar', def: 'Lo que el empleado recibe en mano: Percepción − IMSS obrero − ISR + Subsidio al empleo − otras deducciones.' },
+    { term: 'CFDI de nómina', def: 'Comprobante Fiscal Digital por Internet (recibo de nómina electrónico). Obligatorio por el SAT desde 2014. Debe timbrar antes de pagarse.' },
+    { term: 'Timbrado', def: 'El proceso de sellar electrónicamente el CFDI ante el SAT a través de un PAC (Proveedor Autorizado de Certificación). Sin timbre el recibo no es válido.' },
+    { term: 'UUID', def: 'Folio único asignado por el SAT al momento del timbrado. Identifica de forma irrepetible cada recibo de nómina ante el SAT.' },
+  ]
+  const FLUJO = [
+    { n: '1', titulo: 'Captura de asistencia', desc: 'El biométrico registra entradas y salidas. El sistema calcula días trabajados, faltas y retardos por período.' },
+    { n: '2', titulo: 'Cálculo de nómina', desc: 'Desde el módulo RH → Nómina se genera el período: días trabajados × salario diario, se aplican deducciones IMSS e ISR según tablas vigentes.' },
+    { n: '3', titulo: 'Revisión y ajustes', desc: 'El administrador revisa los cálculos. Puede corregir incidencias antes de cerrar el período.' },
+    { n: '4', titulo: 'Timbrado CFDI', desc: 'Al cerrar el período se genera y timbra el CFDI de nómina ante el SAT. Queda el UUID como evidencia.' },
+    { n: '5', titulo: 'Pago al empleado', desc: 'El empleado recibe su neto por transferencia o efectivo. El recibo aparece en este historial.' },
+  ]
+  return (
+    <div style={{ border: '1.5px solid #BFDBFE', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <button onClick={() => setAbierta(v => !v)}
+        style={{ width: '100%', padding: '12px 18px', background: '#EFF6FF', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>💰</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#1D4ED8' }}>Guía de nómina — ¿Cómo se calcula el recibo?</span>
+          <span style={{ fontSize: 10, background: '#1D4ED8', color: 'white', borderRadius: 20, padding: '1px 8px', fontWeight: 700 }}>SAT · IMSS · ISR</span>
+        </div>
+        <ChevronDown size={15} color="#1D4ED8" style={{ transform: abierta ? 'rotate(180deg)' : 'none', transition: '.2s' }} />
+      </button>
+      {abierta && (
+        <div style={{ padding: '18px 20px', background: '#F8FBFF', display: 'grid', gap: 20 }}>
+          {/* Flujo */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 12 }}>Flujo de pago de nómina</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {FLUJO.map(p => (
+                <div key={p.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#1D4ED8', color: 'white', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{p.n}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>{p.titulo}</div>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{p.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Fórmula visual */}
+          <div style={{ background: '#DBEAFE', borderRadius: 10, padding: '12px 16px', fontSize: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 8 }}>Fórmula del neto a pagar</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, fontFamily: 'monospace', fontWeight: 700, fontSize: 13 }}>
+              <span style={{ color: '#059669' }}>Salario período</span>
+              <span style={{ color: C.muted }}>−</span>
+              <span style={{ color: '#DC2626' }}>IMSS obrero</span>
+              <span style={{ color: C.muted }}>−</span>
+              <span style={{ color: '#DC2626' }}>ISR retenido</span>
+              <span style={{ color: C.muted }}>+</span>
+              <span style={{ color: '#059669' }}>Subsidio empleo</span>
+              <span style={{ color: C.muted }}>=</span>
+              <span style={{ color: '#1D4ED8', fontSize: 15 }}>NETO</span>
+            </div>
+          </div>
+          {/* Conceptos */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 10 }}>Conceptos del recibo</div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {CONCEPTOS.map(c => (
+                <div key={c.term} style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10, borderBottom: `1px solid ${C.border}`, paddingBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#1D4ED8' }}>{c.term}</span>
+                  <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{c.def}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: '#FFF8E1', border: '1px solid #F59E0B', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
+            ⚠️ <strong>Importante:</strong> El CFDI de nómina debe timbrar <em>antes</em> de realizar el pago. Un recibo sin UUID no tiene validez fiscal ante el SAT y puede generar multas al patrón.
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Guía rápida de vacaciones (LFT) ──────────────────────────────────────────
+function GuiaVacaciones() {
+  const [abierta, setAbierta] = useState(false)
+  const FLUJO = [
+    { n: '1', titulo: 'Fecha de ingreso', desc: 'El sistema parte de la fecha en que el empleado entró a trabajar para calcular cuántos años laborales ha cumplido.' },
+    { n: '2', titulo: 'Años laborales', desc: 'Cada año que el empleado cumple dentro de la empresa se llama "año laboral". Al presionar "Generar años" el sistema crea automáticamente los registros de cada año completado.' },
+    { n: '3', titulo: 'Días que le corresponden (LFT)', desc: 'La Ley Federal del Trabajo (Art. 76, reforma 2023) establece los días mínimos: 12 días el primer año, 14 el segundo, 16 el tercero, 18 el cuarto, y a partir del quinto 20 días. A partir del año 10 se suman 2 días por cada 5 años adicionales de servicio.' },
+    { n: '4', titulo: 'Registro del período', desc: 'Cuando el empleado toma vacaciones (de forma verbal con su jefe), la administración registra el período: fecha de inicio, fecha de fin y quién lo autorizó. El sistema descuenta los días del año laboral correspondiente.' },
+    { n: '5', titulo: 'Prima vacacional', desc: 'Por ley (LFT Art. 80) el empleado tiene derecho a recibir un pago adicional del 25% sobre el salario de los días de vacaciones. El sistema lo calcula automáticamente al registrar el período.' },
+  ]
+  const CONCEPTOS = [
+    { term: 'Año laboral', def: 'Período de 12 meses que comienza en la fecha de ingreso del empleado (o en cada aniversario). No es el año calendario.' },
+    { term: 'Días de derecho', def: 'Número de días de vacaciones que le corresponden al empleado en ese año laboral según la ley.' },
+    { term: 'Días disponibles', def: 'Días de derecho que aún no se han tomado. Se actualiza automáticamente al registrar un período.' },
+    { term: 'Año vencido', def: 'Un año laboral cuya fecha de fin ya pasó y el empleado aún tiene días disponibles. La ley no permite acumular vacaciones indefinidamente.' },
+    { term: 'Prima vacacional', def: '25% adicional sobre el salario de los días de vacaciones, obligatorio por LFT Art. 80. Se paga al momento de iniciar las vacaciones.' },
+    { term: 'Monto de vacaciones', def: 'Salario diario × días de vacaciones tomados. Es el pago base (sin contar la prima).' },
+  ]
+  return (
+    <div style={{ border: `1.5px solid #C4B5E8`, borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <button onClick={() => setAbierta(v => !v)}
+        style={{ width: '100%', padding: '12px 18px', background: '#F5F0FF', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📋</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>Guía de vacaciones — ¿Cómo funciona? (LFT México)</span>
+          <span style={{ fontSize: 10, background: C.primary, color: 'white', borderRadius: 20, padding: '1px 8px', fontWeight: 700 }}>LFT Art. 76 y 80</span>
+        </div>
+        <ChevronDown size={15} color={C.primary} style={{ transform: abierta ? 'rotate(180deg)' : 'none', transition: '.2s' }} />
+      </button>
+
+      {abierta && (
+        <div style={{ padding: '18px 20px', background: '#FDFBFF', display: 'grid', gap: 20 }}>
+
+          {/* Flujo paso a paso */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 12 }}>Flujo de registro</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {FLUJO.map(p => (
+                <div key={p.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.primary, color: 'white', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{p.n}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>{p.titulo}</div>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{p.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tabla LFT días por año */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 10 }}>Días mínimos por ley (LFT reforma 2023)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6 }}>
+              {[
+                ['1° año', '12 días'], ['2° año', '14 días'], ['3° año', '16 días'], ['4° año', '18 días'],
+                ['5°–9° año', '20 días'], ['10°–14° año', '22 días'], ['15°–19° año', '24 días'],
+                ['20°–24° año', '26 días'], ['25°–29° año', '28 días'], ['30° año +', '30 días'],
+              ].map(([a, d]) => (
+                <div key={a} style={{ background: '#F0EBF8', borderRadius: 8, padding: '7px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{a}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.primary }}>{d}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Conceptos clave */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 10 }}>Conceptos clave</div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {CONCEPTOS.map(c => (
+                <div key={c.term} style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 10, borderBottom: `1px solid ${C.border}`, paddingBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{c.term}</span>
+                  <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{c.def}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Aviso legal */}
+          <div style={{ background: '#FFF8E1', border: '1px solid #F59E0B', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
+            ⚠️ <strong>Importante:</strong> Los días mostrados son el <em>mínimo legal</em>. La empresa puede otorgar más días por contrato colectivo o política interna. Si la ley cambia, se actualiza el catálogo en Configuración sin afectar el historial ya registrado.
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios }) {
   const totalAnios = vacAnios.length
   const diasDisp = vacAnios.reduce((s, a) => s + (parseFloat(a.dias_disponibles) || 0), 0)
@@ -1549,6 +1724,9 @@ function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios 
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      {/* Guía LFT expandible */}
+      <GuiaVacaciones />
+
       {/* Encabezado con resumen y acciones */}
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
@@ -1716,9 +1894,17 @@ function ModalRegistrarVacacion({ empleadoId, salarioDiario, vacAnios, onClose, 
 
   return (
     <Modal title="Registrar período de vacaciones" icon={Umbrella} onClose={onClose}>
+      {/* Nota introductoria */}
+      <div style={{ background: '#F5F0FF', border: `1px solid #C4B5E8`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#5A4080', lineHeight: 1.6 }}>
+        📌 <strong>¿Cómo registrar?</strong> El empleado pide vacaciones verbalmente a su jefe. Una vez autorizadas, captura aquí el período. El sistema descuenta los días del año laboral correspondiente y calcula la prima vacacional (25% del pago) que establece la LFT Art. 80.
+      </div>
+
       <FormGrid>
         <div>
-          <label style={labelStyle}>Año laboral</label>
+          <label style={labelStyle}>
+            Año laboral
+            <span style={{ fontSize: 10, color: C.muted, fontWeight: 400, marginLeft: 6 }}>¿De qué año se toman?</span>
+          </label>
           <select value={form.anio_numero} onChange={e => sf('anio_numero', e.target.value)}
             style={{ ...inputStyle, background: C.surface, cursor: 'pointer' }}>
             <option value="">— Selecciona —</option>
@@ -1731,6 +1917,7 @@ function ModalRegistrarVacacion({ empleadoId, salarioDiario, vacAnios, onClose, 
               ))
             }
           </select>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>Cada año laboral inicia en la fecha de aniversario del empleado, no en enero.</div>
         </div>
         <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Días a descontar</div>
@@ -1740,16 +1927,36 @@ function ModalRegistrarVacacion({ empleadoId, salarioDiario, vacAnios, onClose, 
               {dias > dispSel ? `⚠ Excede saldo (${dispSel} disp.)` : `✓ Quedan ${dispSel - dias} días`}
             </div>
           )}
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Se cuentan lunes a sábado — los domingos no se descuentan.</div>
         </div>
-        <FI label="Fecha inicio" type="date" value={form.fecha_inicio} onChange={v => sf('fecha_inicio', v)} />
-        <FI label="Fecha fin" type="date" value={form.fecha_fin} onChange={v => sf('fecha_fin', v)} />
-        <FI label="Autorizado por" value={form.autorizado_por_nombre} onChange={v => sf('autorizado_por_nombre', v)} />
-        <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>Prima vacacional (25%)</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.success }}>{prima > 0 ? fmt$(prima) : '—'}</div>
-          <div style={{ fontSize: 11, color: C.muted }}>Pago: {monto > 0 ? fmt$(monto) : '—'}</div>
+        <div>
+          <label style={labelStyle}>Fecha inicio</label>
+          <input type="date" value={form.fecha_inicio} onChange={e => sf('fecha_inicio', e.target.value)} style={inputStyle} />
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>Primer día de vacaciones del empleado.</div>
         </div>
-        <FI label="Notas" value={form.notas} onChange={v => sf('notas', v)} span />
+        <div>
+          <label style={labelStyle}>Fecha fin</label>
+          <input type="date" value={form.fecha_fin} onChange={e => sf('fecha_fin', e.target.value)} style={inputStyle} />
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>Último día de vacaciones. El sistema calcula los días hábiles entre ambas fechas.</div>
+        </div>
+        <div>
+          <label style={labelStyle}>
+            Autorizado por
+            <span style={{ fontSize: 10, color: C.muted, fontWeight: 400, marginLeft: 6 }}>nombre del jefe que aprobó</span>
+          </label>
+          <input type="text" value={form.autorizado_por_nombre} onChange={e => sf('autorizado_por_nombre', e.target.value)} style={inputStyle} placeholder="Ej. Gerente de turno" />
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>Queda registrado como evidencia de la autorización verbal.</div>
+        </div>
+        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.success, textTransform: 'uppercase', marginBottom: 4 }}>Prima vacacional (LFT Art. 80)</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.success }}>{prima > 0 ? fmt$(prima) : '—'}</div>
+          <div style={{ fontSize: 11, color: C.muted }}>Pago base: {monto > 0 ? fmt$(monto) : '—'}</div>
+          <div style={{ fontSize: 10, color: '#059669', marginTop: 4 }}>La prima es el 25% del salario de los días de vacaciones. Es obligatoria por ley.</div>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={labelStyle}>Notas <span style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>opcional</span></label>
+          <input type="text" value={form.notas} onChange={e => sf('notas', e.target.value)} style={inputStyle} placeholder="Ej. Vacaciones de verano, regresa lunes 15" />
+        </div>
       </FormGrid>
       <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} label="Registrar" />
     </Modal>

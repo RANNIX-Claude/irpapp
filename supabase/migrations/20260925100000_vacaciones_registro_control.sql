@@ -48,9 +48,13 @@ INSERT INTO public.cat_vacaciones_dias (anio_numero, dias, notas) VALUES
 ON CONFLICT DO NOTHING;
 
 ALTER TABLE public.cat_vacaciones_dias ENABLE ROW LEVEL SECURITY;
-CREATE POLICY auth_lee   ON public.cat_vacaciones_dias FOR SELECT TO authenticated USING (true);
-CREATE POLICY staff_escr ON public.cat_vacaciones_dias FOR ALL    TO authenticated
-  USING (es_staff()) WITH CHECK (es_staff());
+DO $$ BEGIN
+  CREATE POLICY auth_lee ON public.cat_vacaciones_dias FOR SELECT TO authenticated USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY staff_escr ON public.cat_vacaciones_dias FOR ALL TO authenticated
+    USING (es_staff()) WITH CHECK (es_staff());
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 2. Extender rh_vacaciones_anio
