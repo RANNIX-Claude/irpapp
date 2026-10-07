@@ -10,7 +10,7 @@ import {
   Users, Download, Upload, Star, BookOpen, Heart,
   History, Settings, Printer, Shield, Activity,
   ChevronDown, MoreVertical, Eye, Home, Sparkles,
-  Umbrella, RefreshCw
+  Umbrella, RefreshCw, Trash2
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { urlFirmada } from '../lib/supabase'
@@ -1136,7 +1136,7 @@ export default function ExpedienteEmpleado() {
           {tab === 'incidencias' && (
             <Card>
               <Section title="Historial de incidencias" icon={AlertCircle} action={<BtnPrimary onClick={() => setModal('incid')} small><Plus size={13} /> Registrar</BtnPrimary>}>
-                {incidencias.length === 0 ? <Empty icon={CheckCircle} msg="Sin incidencias" color={C.success} /> : <IncidenciasTable rows={incidencias} />}
+                {incidencias.length === 0 ? <Empty icon={CheckCircle} msg="Sin incidencias" color={C.success} /> : <IncidenciasTable rows={incidencias} onDelete={reload} />}
               </Section>
             </Card>
           )}
@@ -1972,11 +1972,24 @@ function Td({ children, mono, blue, bold, small }) {
 }
 function Card({ children, padding = '20px' }) { return <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding }}>{children}</div> }
 
-function IncidenciasTable({ rows }) {
+function IncidenciasTable({ rows, onDelete }) {
+  const [confirmId, setConfirmId] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (id) => {
+    setDeleting(true)
+    const { error } = await supabase.from('rh_incidencias').delete().eq('id', id)
+    setDeleting(false)
+    setConfirmId(null)
+    if (error) { toast.error('Error al eliminar: ' + error.message); return }
+    toast.success('Incidencia eliminada')
+    onDelete?.()
+  }
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead><tr style={{ background: C.light }}>{['Fecha','Tipo','Hora afectada','Duración','Estatus','Justificación'].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
+        <thead><tr style={{ background: C.light }}>{['Fecha','Tipo','Hora afectada','Duración','Estatus','Justificación',''].map(h => <Th key={h}>{h}</Th>)}</tr></thead>
         <tbody>
           {rows.map(inc => (
             <tr key={inc.id} style={{ borderTop: `1px solid ${C.border}` }}>
@@ -1986,6 +1999,27 @@ function IncidenciasTable({ rows }) {
               <Td mono small>{inc.horas_afectadas ? `${inc.horas_afectadas}h` : '—'}</Td>
               <td style={{ padding: '10px 12px' }}><Badge label={inc.estatus || '—'} color={inc.estatus === 'AUTORIZADA' ? C.success : inc.estatus === 'PENDIENTE' ? C.warning : C.danger} /></td>
               <Td small>{inc.justificacion || '—'}</Td>
+              <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                {onDelete && (
+                  confirmId === inc.id
+                    ? <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: C.danger }}>¿Eliminar?</span>
+                        <button onClick={() => handleDelete(inc.id)} disabled={deleting}
+                          style={{ padding: '3px 8px', background: C.danger, color: 'white', border: 'none', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          {deleting ? '…' : 'Sí'}
+                        </button>
+                        <button onClick={() => setConfirmId(null)}
+                          style={{ padding: '3px 8px', background: C.light, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
+                          No
+                        </button>
+                      </div>
+                    : <button onClick={() => setConfirmId(inc.id)}
+                        title="Eliminar incidencia"
+                        style={{ padding: '4px 6px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center' }}>
+                        <Trash2 size={13} />
+                      </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
