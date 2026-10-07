@@ -25,7 +25,6 @@ SELECT
   cp.origen_cargo_id,
   COALESCE(SUM(ap.importe_aplicado), 0) AS total_aplicado,
   cp.importe - COALESCE(SUM(ap.importe_aplicado), 0) AS saldo,
-  MAX(ap.fecha_aplicacion) AS fecha_max_aplicacion,
   con.folio AS contrato_folio,
   con.arrendatario_nombre,
   con.renta_mensual,
@@ -50,7 +49,8 @@ SELECT
     WHERE ap2.cargo_id = cp.id AND i.forma_pago <> 'EFECTIVO') AS tiene_pago_transferencia,
   EXISTS (SELECT 1 FROM aplicaciones_pago ap2 JOIN ingresos i ON i.id = ap2.ingreso_id
     WHERE ap2.cargo_id = cp.id AND i.forma_pago = 'EFECTIVO') AS tiene_pago_efectivo,
-  con.estatus_proceso
+  con.estatus_proceso,
+  MAX(ap.fecha_aplicacion) AS fecha_max_aplicacion
 FROM cargos_programados cp
 LEFT JOIN aplicaciones_pago ap ON ap.cargo_id = cp.id
 LEFT JOIN prp_contratos con ON con.id = cp.contrato_id
