@@ -439,8 +439,10 @@ export default function EDR() {
       const rentasMes   = rentas.filter(esMes)
       const rentasOtros = rentas.filter(r => !esMes(r))
       setRealRentas({
-        factura:        sum(rentasMes, r => !isEfectivo(r)),
-        rsfMes:         sum(rentasMes, r =>  isEfectivo(r)),
+        factura:        sum(rentasMes,   r => !isEfectivo(r)),
+        rsfMes:         sum(rentasMes,   r =>  isEfectivo(r)),
+        factura_otros:  sum(rentasOtros, r => !isEfectivo(r)),
+        rsf_otros:      sum(rentasOtros, r =>  isEfectivo(r)),
         total:          sum(rentas),
         rentas_mes:     sum(rentasMes),
         otros_periodos: sum(rentasOtros),
@@ -548,9 +550,9 @@ export default function EDR() {
     setForm(f => ({
       ...f,
       real_rentas_factura_mes:   realRentas.factura                || 0,
-      real_rentas_factura_otros: realRentas.otros_periodos         || 0,
+      real_rentas_factura_otros: realRentas.factura_otros          || 0,
       real_rsf_mes:              realRentas.rsfMes                 || 0,
-      real_rsf_otros:            0,
+      real_rsf_otros:            realRentas.rsf_otros              || 0,
       // Sanciones: cf=con factura (transferencia), sf=sin factura (efectivo)
       real_penaliz_cf_mes:       realIngByTipo.SANCION?.cf_mes     || 0,
       real_penaliz_sf_mes:       realIngByTipo.SANCION?.sf_mes     || 0,

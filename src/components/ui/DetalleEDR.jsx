@@ -293,10 +293,11 @@ async function cobrosViaCargoDesgloso(mes, anio, { concepto, efectivo } = {}) {
 
   const { data, error } = await supabase
     .from('ingresos')
-    .select(`id, fecha, origen, importe, contrato_id,
+    .select(`id, fecha, origen, importe, contrato_id, estatus_validacion,
              aplicaciones_pago(importe_aplicado,
                cargo:cargos_programados(concepto, periodo_mes, periodo_anio))`)
     .gte('fecha', ini).lte('fecha', fin)
+    .neq('estatus_validacion', 'POR_VALIDAR')
   if (error) throw error
 
   // Expande igual que loadRealRentas: un ingreso → una fila por cargo cubierto
@@ -377,7 +378,8 @@ async function aplicadoDelMesPorConcepto(mes, anio, conceptos, { efectivo } = {}
   const [base, vista] = await Promise.all([
     supabase.from('ingresos')
       .select('id, fecha, mes, anio, clasificacion, importe, origen, nota, aplicaciones_pago(importe_aplicado, cargo:cargos_programados(concepto, periodo_mes, periodo_anio))')
-      .gte('fecha', ini).lte('fecha', fin),
+      .gte('fecha', ini).lte('fecha', fin)
+      .neq('estatus_validacion', 'POR_VALIDAR'),
     supabase.from('prp_ingresos')
       .select('id, folio, factura, arrendatario_nombre, locales_display')
       .gte('fecha', ini).lte('fecha', fin),
