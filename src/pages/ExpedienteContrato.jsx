@@ -332,7 +332,7 @@ export default function ExpedienteContrato() {
   useModuleAudit('EXPEDIENTE_CONTRATO')
   const { id } = useParams()
   const navigate = useNavigate()
-  const { perfil, user } = useApp()
+  const { perfil, user, soloLectura } = useApp()
   const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
   const esLocatario = rolId === 'locatario'
   const [exp, setExp] = useState(null)
@@ -584,7 +584,7 @@ export default function ExpedienteContrato() {
               tabla="contratos" columna="logo_url"
               registroId={id} url={logoUrl}
               nombre={exp.nombre_completo} size={72} redondo={false}
-              onSubido={setLogoUrl} soloLectura={esLocatario}
+              onSubido={setLogoUrl} soloLectura={soloLectura || esLocatario}
             />
             <div style={{ flex: 1, paddingBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: -20, marginBottom: 6 }}>
@@ -931,8 +931,10 @@ export default function ExpedienteContrato() {
                     {item.req && !item.url && <div style={{ fontSize: 10, color: C.danger, marginTop: 1 }}>Requerido — no cargado</div>}
                     {item.url && <div style={{ fontSize: 10, color: C.success, marginTop: 1 }}>✓ Cargado</div>}
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
-                    onChange={e => { if (e.target.files[0]) subirDocContrato(item.key, e.target.files[0]); e.target.value = '' }} />
+                  {!soloLectura && (
+                    <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                      onChange={e => { if (e.target.files[0]) subirDocContrato(item.key, e.target.files[0]); e.target.value = '' }} />
+                  )}
                   <div style={{ display: 'flex', gap: 6 }}>
                     {item.url && (
                       <a href={item.url} target="_blank" rel="noreferrer"
@@ -940,11 +942,13 @@ export default function ExpedienteContrato() {
                         <Eye size={12} /> Ver
                       </a>
                     )}
-                    <button onClick={() => fileRef.current?.click()} disabled={subiendo}
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, fontSize: 11, color: C.dark, cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
-                      {subiendo ? <Clock size={12} /> : <Upload size={12} />}
-                      {subiendo ? 'Subiendo…' : item.url ? 'Cambiar' : 'Subir'}
-                    </button>
+                    {!soloLectura && (
+                      <button onClick={() => fileRef.current?.click()} disabled={subiendo}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, fontSize: 11, color: C.dark, cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                        {subiendo ? <Clock size={12} /> : <Upload size={12} />}
+                        {subiendo ? 'Subiendo…' : item.url ? 'Cambiar' : 'Subir'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -1051,10 +1055,12 @@ export default function ExpedienteContrato() {
                     <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
                       Vence {fmtD(c.fecha_limite_pago)}{enMora(c) ? ' · vencido' : ''}
                     </div>
-                    <button onClick={() => setModalCobro(c)}
-                      style={{ marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px', border: 'none', borderRadius: 6, background: C.primary, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      <Upload size={12} /> Subir comprobante
-                    </button>
+                    {!soloLectura && (
+                      <button onClick={() => setModalCobro(c)}
+                        style={{ marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px', border: 'none', borderRadius: 6, background: C.primary, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        <Upload size={12} /> Subir comprobante
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

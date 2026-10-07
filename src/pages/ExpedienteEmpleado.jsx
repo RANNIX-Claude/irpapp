@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useModuleAudit } from '../hooks/useAudit'
+import { useApp } from '../context/AppContext'
 import {
   ArrowLeft, User, Briefcase, FileText, AlertCircle, Clock,
   DollarSign, BarChart2, Phone, Mail, Calendar, Hash,
@@ -241,6 +242,7 @@ function ModalNombre({ empleadoId, nombreActual, onClose, onSaved }) {
 
 // ── Modal: agregar documento ────────────────────────────────────────────────
 function ModalDocumento({ empleadoId, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const [form, setForm] = useState({ tipo: 'CONTRATO', nombre: '', fecha_doc: '', vence: '', notas: '' })
   const [file, setFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -314,12 +316,14 @@ function ModalDocumento({ empleadoId, onClose, onSaved }) {
               Este documento no caduca
             </div>
         }
-        <div style={{ gridColumn: '1/-1' }}>
-          <label style={labelStyle}>Archivo (PDF, DOCX, XLSX, imagen)</label>
-          <input type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-            onChange={e => setFile(e.target.files[0])}
-            style={{ display: 'block', width: '100%', padding: '8px', border: `1.5px dashed ${C.border}`, borderRadius: 7, fontSize: 13, boxSizing: 'border-box', cursor: 'pointer' }} />
-        </div>
+        {!soloLectura && (
+          <div style={{ gridColumn: '1/-1' }}>
+            <label style={labelStyle}>Archivo (PDF, DOCX, XLSX, imagen)</label>
+            <input type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+              onChange={e => setFile(e.target.files[0])}
+              style={{ display: 'block', width: '100%', padding: '8px', border: `1.5px dashed ${C.border}`, borderRadius: 7, fontSize: 13, boxSizing: 'border-box', cursor: 'pointer' }} />
+          </div>
+        )}
 
         {/* Mismo importador que el formulario de Modificar; aquí sí escribe
             directo en la ficha porque el flujo ya es "estoy subiendo este
@@ -638,37 +642,39 @@ const TABS = [
 ]
 
 // ── Avatar con upload ────────────────────────────────────────────────────────
-function AvatarUpload({ nombre, foto, size = 72, uploading, inputRef, onChange }) {
+function AvatarUpload({ nombre, foto, size = 72, uploading, inputRef, onChange, soloLectura = false }) {
   const [hovered, setHovered] = useState(false)
   const ini = (nombre || 'NN').split(' ').slice(0,2).map(w => w[0]||'').join('').toUpperCase()
   const col = AVATAR_COLORS[(nombre||'').charCodeAt(0) % AVATAR_COLORS.length]
-  const showOverlay = hovered || uploading
+  const showOverlay = !soloLectura && (hovered || uploading)
   return (
     <div
-      style={{ position: 'relative', cursor: 'pointer', flexShrink: 0, width: size, height: size }}
-      onClick={() => inputRef.current?.click()}
-      onMouseEnter={() => setHovered(true)}
+      style={{ position: 'relative', cursor: soloLectura ? 'default' : 'pointer', flexShrink: 0, width: size, height: size }}
+      onClick={() => !soloLectura && inputRef.current?.click()}
+      onMouseEnter={() => !soloLectura && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title="Cambiar foto de perfil"
+      title={soloLectura ? undefined : 'Cambiar foto de perfil'}
     >
       {foto
         ? <img src={foto} alt={nombre} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.15)', display: 'block' }} />
         : <div style={{ width: size, height: size, borderRadius: '50%', background: col+'18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size*0.35, fontWeight: 800, color: col, border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,.15)' }}>{ini}</div>
       }
       {/* Overlay hover/uploading */}
-      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, opacity: showOverlay ? 1 : 0, transition: 'opacity .18s', pointerEvents: 'none' }}>
-        {uploading
-          ? <div style={{ width: 22, height: 22, border: '2.5px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          : <><Upload size={18} color="white" /><span style={{ fontSize: 9, color: 'white', fontWeight: 700, letterSpacing: '.3px' }}>CAMBIAR</span></>
-        }
-      </div>
+      {!soloLectura && (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, opacity: showOverlay ? 1 : 0, transition: 'opacity .18s', pointerEvents: 'none' }}>
+          {uploading
+            ? <div style={{ width: 22, height: 22, border: '2.5px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            : <><Upload size={18} color="white" /><span style={{ fontSize: 9, color: 'white', fontWeight: 700, letterSpacing: '.3px' }}>CAMBIAR</span></>
+          }
+        </div>
+      )}
       {/* Badge cámara */}
-      {!uploading && (
+      {!soloLectura && !uploading && (
         <div style={{ position: 'absolute', bottom: 2, right: 2, width: 20, height: 20, borderRadius: '50%', background: C.primary, border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <Upload size={9} color="white" />
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={onChange} />
+      {!soloLectura && <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={onChange} />}
     </div>
   )
 }
@@ -676,6 +682,7 @@ function AvatarUpload({ nombre, foto, size = 72, uploading, inputRef, onChange }
 // ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function ExpedienteEmpleado() {
   useModuleAudit('EXPEDIENTE_EMPLEADO')
+  const { soloLectura } = useApp()
   const { id } = useParams()
   const navigate = useNavigate()
   const [emp, setEmp]               = useState(null)
@@ -873,6 +880,7 @@ export default function ExpedienteEmpleado() {
               uploading={uploadingFoto}
               inputRef={fotoInputRef}
               onChange={handleFotoChange}
+              soloLectura={soloLectura}
             />
             <div style={{ flex: 1, paddingBottom: 4 }}>
               {/* El nombre va sobre la banda azul: blanco y subido para que no

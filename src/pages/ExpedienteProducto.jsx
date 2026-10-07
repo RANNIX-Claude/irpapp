@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import {
   BarChart2, Info, Receipt, Truck, Hash, Tag, Box, ShoppingCart, TrendingDown, TrendingUp,
   DollarSign, Edit2, Merge, X, Package, Award,
@@ -73,6 +74,7 @@ function ModalFusion({ p, onClose, onHecho }) {
 
 export default function ExpedienteProducto() {
   useModuleAudit('PRODUCTOS')
+  const { soloLectura } = useApp()
   const { id } = useParams()
   const navigate = useNavigate()
   const [sp, setSp] = useSearchParams()
@@ -153,7 +155,7 @@ export default function ExpedienteProducto() {
     <PaginaExpediente
       migas={[{ label: 'Productos', onClick: () => navigate('/productos') }, { label: p.nombre }]}
       estado={<Badge label={c ? c.nombre : 'Sin clasificar'} color={c?.color || C.warning} />}
-      avatar={<LogoEditable prefijo="productos" tabla="cat_productos" columna="imagen_url" registroId={p.id} url={p.imagen_url} nombre={p.nombre} size={72} onSubido={url => setP(x => ({ ...x, imagen_url: url }))} />}
+      avatar={<LogoEditable prefijo="productos" tabla="cat_productos" columna="imagen_url" registroId={p.id} url={p.imagen_url} nombre={p.nombre} size={72} onSubido={url => setP(x => ({ ...x, imagen_url: url }))} soloLectura={soloLectura} />}
       titulo={p.nombre}
       badge={<Badge label={p.activo ? 'Activo' : 'Inactivo'} color={p.activo ? C.success : C.danger} bg={C.surface} />}
       subtitulo={c ? c.nombre : 'Sin clasificar'}

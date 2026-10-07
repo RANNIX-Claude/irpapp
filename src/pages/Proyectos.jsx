@@ -715,6 +715,7 @@ function CotizacionCard({ item, onToggle, onDelete, onReload }) {
 }
 
 function CotizacionForm({ proyectoId, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const [form, setForm] = useState({})
   const [file, setFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -747,10 +748,12 @@ function CotizacionForm({ proyectoId, onClose, onSaved }) {
         <Field lbl="Fecha"><input style={inp} type="date" value={form.fecha||''} onChange={e => f('fecha', e.target.value)} /></Field>
       </div>
       <Field lbl="Notas"><textarea style={{ ...inp, minHeight:60, fontFamily:'inherit', resize:'vertical' }} value={form.notas||''} onChange={e => f('notas', e.target.value)} /></Field>
-      <Field lbl="Archivo (PDF/DOC)">
-        <input type="file" accept=".pdf,.doc,.docx" onChange={e => setFile(e.target.files[0])}
-          style={{ fontSize:'12px' }} />
-      </Field>
+      {!soloLectura && (
+        <Field lbl="Archivo (PDF/DOC)">
+          <input type="file" accept=".pdf,.doc,.docx" onChange={e => setFile(e.target.files[0])}
+            style={{ fontSize:'12px' }} />
+        </Field>
+      )}
       <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} />
     </SimpleModal>
   )
@@ -850,6 +853,7 @@ function ContratoCard({ item, onDelete, onReload }) {
 }
 
 function ContratoForm({ proyectoId, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const [form, setForm]         = useState({})
   const [fileC, setFileC]       = useState(null)
   const [fileA, setFileA]       = useState(null)
@@ -882,8 +886,8 @@ function ContratoForm({ proyectoId, onClose, onSaved }) {
         <Field lbl="Fecha de firma"><input style={inp} type="date" value={form.fecha_firma||''} onChange={e => f('fecha_firma', e.target.value)} /></Field>
         <Field lbl="Monto contratado"><input style={inp} type="number" value={form.monto_contratado||''} onChange={e => f('monto_contratado', e.target.value)} /></Field>
       </div>
-      <Field lbl="Contrato (PDF)"><input type="file" accept=".pdf,.doc,.docx" onChange={e => setFileC(e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
-      <Field lbl="Anexo (PDF)"><input type="file" accept=".pdf,.doc,.docx" onChange={e => setFileA(e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
+      {!soloLectura && <Field lbl="Contrato (PDF)"><input type="file" accept=".pdf,.doc,.docx" onChange={e => setFileC(e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
+      {!soloLectura && <Field lbl="Anexo (PDF)"><input type="file" accept=".pdf,.doc,.docx" onChange={e => setFileA(e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
       <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} />
     </SimpleModal>
   )
@@ -1017,6 +1021,7 @@ function PagoCard({ item, onDelete, onReload }) {
 }
 
 function PagoForm({ proyectoId, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const [form,  setForm]  = useState({ tipo:'FACTURA', incluye_iva: true })
   const [files, setFiles] = useState({})
   const [saving, setSaving] = useState(false)
@@ -1081,10 +1086,10 @@ function PagoForm({ proyectoId, onClose, onSaved }) {
           value={form.alcance||''} onChange={e => f('alcance', e.target.value)} placeholder="Descripción del alcance cubierto en este pago" />
       </Field>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <Field lbl="Factura PDF"><input type="file" accept=".pdf" onChange={e => ffile('pdf', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
-        <Field lbl="Factura XML"><input type="file" accept=".xml" onChange={e => ffile('xml', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
-        <Field lbl="Factura ZIP"><input type="file" accept=".zip,.rar" onChange={e => ffile('zip', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
-        <Field lbl="Imagen transferencia"><input type="file" accept="image/*,.pdf" onChange={e => ffile('trans', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>
+        {!soloLectura && <Field lbl="Factura PDF"><input type="file" accept=".pdf" onChange={e => ffile('pdf', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
+        {!soloLectura && <Field lbl="Factura XML"><input type="file" accept=".xml" onChange={e => ffile('xml', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
+        {!soloLectura && <Field lbl="Factura ZIP"><input type="file" accept=".zip,.rar" onChange={e => ffile('zip', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
+        {!soloLectura && <Field lbl="Imagen transferencia"><input type="file" accept="image/*,.pdf" onChange={e => ffile('trans', e.target.files[0])} style={{ fontSize:'12px' }} /></Field>}
       </div>
       <Field lbl="Notas">
         <textarea style={{ ...inp, minHeight:50, fontFamily:'inherit', resize:'vertical' }} value={form.notas||''} onChange={e => f('notas', e.target.value)} />
@@ -1257,6 +1262,7 @@ function AvanceCard({ item, onDelete, onReload }) {
 }
 
 function AvanceForm({ proyectoId, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const [form,  setForm]  = useState({ porcentaje_avance: '' })
   const [fotos, setFotos] = useState([])
   const [saving, setSaving] = useState(false)
@@ -1303,11 +1309,13 @@ function AvanceForm({ proyectoId, onClose, onSaved }) {
           value={form.descripcion_larga||''} onChange={e => f('descripcion_larga', e.target.value)}
           placeholder="Descripción extensa del estado actual de la obra…" />
       </Field>
-      <Field lbl="Fotografías del avance">
-        <input type="file" accept="image/*" multiple style={{ fontSize:'12px' }}
-          onChange={e => setFotos(Array.from(e.target.files))} />
-        {fotos.length > 0 && <div style={{ fontSize:'11px', color:'#6B7280', marginTop:4 }}>{fotos.length} foto{fotos.length !== 1 ? 's' : ''} seleccionada{fotos.length !== 1 ? 's' : ''}</div>}
-      </Field>
+      {!soloLectura && (
+        <Field lbl="Fotografías del avance">
+          <input type="file" accept="image/*" multiple style={{ fontSize:'12px' }}
+            onChange={e => setFotos(Array.from(e.target.files))} />
+          {fotos.length > 0 && <div style={{ fontSize:'11px', color:'#6B7280', marginTop:4 }}>{fotos.length} foto{fotos.length !== 1 ? 's' : ''} seleccionada{fotos.length !== 1 ? 's' : ''}</div>}
+        </Field>
+      )}
       <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} saveLbl="Guardar avance" />
     </SimpleModal>
   )

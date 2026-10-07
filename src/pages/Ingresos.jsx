@@ -672,10 +672,12 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
           {/* ── 1. Comprobante con OCR ── */}
           <div style={{ marginBottom:'14px' }}>
             <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase', display:'block', marginBottom:'6px' }}>1. Comprobante de pago (OCR automático)</label>
-            <input type="file" ref={fileRef} accept="image/*,application/pdf" capture="environment" style={{ display:'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
+            {!soloLectura && (
+              <input type="file" ref={fileRef} accept="image/*,application/pdf" capture="environment" style={{ display:'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) adjuntarYOCR(f); e.target.value = '' }} />
+            )}
             {!compFile ? (
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={leyendoOCR}
+              !soloLectura && <button type="button" onClick={() => fileRef.current?.click()} disabled={leyendoOCR}
                 style={{ display:'flex', alignItems:'center', gap:'8px', padding:'12px', background:'#EFF6FF', border:'2px dashed #0A66C2', borderRadius:'10px', fontSize:'13px', color:'#0A66C2', cursor:'pointer', fontWeight:700, width:'100%', justifyContent:'center' }}>
                 <Image size={16} /> {leyendoOCR ? 'Leyendo con IA…' : 'Adjuntar ficha o transferencia — IA extrae los datos'}
               </button>
@@ -862,8 +864,10 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
                 {/* PDF */}
                 <div>
                   <div style={{ fontSize:'10px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'4px' }}>PDF (visualizar)</div>
-                  <input type="file" ref={facturaPdfRef} accept=".pdf,application/pdf" style={{ display:'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaPdfFile(f); setFacturaPdfPreview(URL.createObjectURL(f)); setQuitarFacturaPdf(false) }; e.target.value = '' }} />
+                  {!soloLectura && (
+                    <input type="file" ref={facturaPdfRef} accept=".pdf,application/pdf" style={{ display:'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaPdfFile(f); setFacturaPdfPreview(URL.createObjectURL(f)); setQuitarFacturaPdf(false) }; e.target.value = '' }} />
+                  )}
                   {facturaPdfFile ? (
                     <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#F0FDF4', borderRadius:'7px', border:'1.5px solid #BBF7D0' }}>
                       <FileText size={13} style={{ color:'#15803D', flexShrink:0 }} />
@@ -879,18 +883,22 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
                         style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => facturaPdfRef.current?.click()}
-                      style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
-                      <Upload size={13} /> Adjuntar PDF
-                    </button>
+                    !soloLectura && (
+                      <button type="button" onClick={() => facturaPdfRef.current?.click()}
+                        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                        <Upload size={13} /> Adjuntar PDF
+                      </button>
+                    )
                   )}
                 </div>
 
                 {/* XML / ZIP */}
                 <div>
                   <div style={{ fontSize:'10px', fontWeight:700, color:'#6B7280', textTransform:'uppercase', marginBottom:'4px' }}>XML / ZIP</div>
-                  <input type="file" ref={facturaXmlRef} accept=".xml,.zip,application/xml,text/xml,application/zip" style={{ display:'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaXmlFile(f); setQuitarFacturaXml(false) }; e.target.value = '' }} />
+                  {!soloLectura && (
+                    <input type="file" ref={facturaXmlRef} accept=".xml,.zip,application/xml,text/xml,application/zip" style={{ display:'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { setFacturaXmlFile(f); setQuitarFacturaXml(false) }; e.target.value = '' }} />
+                  )}
                   {facturaXmlFile ? (
                     <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 10px', background:'#F0FDF4', borderRadius:'7px', border:'1.5px solid #BBF7D0' }}>
                       <FileText size={13} style={{ color:'#15803D', flexShrink:0 }} />
@@ -906,10 +914,12 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
                         style={{ fontSize:'11px', color:'var(--color-danger)', background:'none', border:'none', cursor:'pointer', fontWeight:700, flexShrink:0 }}>✕</button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => facturaXmlRef.current?.click()}
-                      style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
-                      <Upload size={13} /> Adjuntar XML/ZIP
-                    </button>
+                    !soloLectura && (
+                      <button type="button" onClick={() => facturaXmlRef.current?.click()}
+                        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 10px', background:'#F9FAFB', border:'2px dashed #D1D5DB', borderRadius:'7px', fontSize:'12px', color:'#6B7280', cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                        <Upload size={13} /> Adjuntar XML/ZIP
+                      </button>
+                    )
                   )}
                 </div>
               </div>

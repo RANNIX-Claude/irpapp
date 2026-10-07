@@ -139,6 +139,7 @@ function TarjetaProveedor({ p, onLogo, onVer, onEditar }) {
             prefijo="proveedores" tabla="cat_proveedores" columna="logo_url"
             registroId={p.id} url={p.logo_url} nombre={p.nombre} size={58}
             onSubido={url => onLogo(p.id, url)}
+            soloLectura={soloLectura}
           />
         </div>
       </div>

@@ -35,6 +35,7 @@ function SelectClasif({ valor, clasifs, onChange, style }) {
 
 // ─── Alta / edición ──────────────────────────────────────────────────────────
 export function ProductoModal({ producto, clasifs, onClose, onSaved }) {
+  const { soloLectura } = useApp()
   const esNuevo = producto === 'nuevo'
   const [form, setForm] = useState(esNuevo
     ? { clave: '', nombre: '', categoria: '', unidad: 'PZA', activo: true }
@@ -85,7 +86,7 @@ export function ProductoModal({ producto, clasifs, onClose, onSaved }) {
               <LogoEditable
                 prefijo="productos" tabla="cat_productos" columna="imagen_url"
                 registroId={producto.id} url={producto.imagen_url} nombre={producto.nombre}
-                size={64} redondo={false} onSubido={onSaved}
+                size={64} redondo={false} onSubido={onSaved} soloLectura={soloLectura}
               />
               <div style={{ fontSize: 12, color: '#6B7280' }}>
                 Clic en la imagen para {producto.imagen_url ? 'cambiarla' : 'agregarla'}.<br />
@@ -192,6 +193,7 @@ function ClasificacionesModal({ clasifs, conteo, onClose, onSaved }) {
 
 // ─── Tarjeta ─────────────────────────────────────────────────────────────────
 function TarjetaProducto({ p, c, r, clasifs, onImagen, onVer, onClasificar }) {
+  const { soloLectura } = useApp()
   return (
     <div style={{ background: 'white', border: `1px solid ${p.categoria ? '#E5E7EB' : '#FCD34D'}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,.06)', opacity: p.activo ? 1 : .55 }}>
       {/* La imagen manda en la tarjeta: es lo que permite reconocer el producto */}
@@ -200,6 +202,7 @@ function TarjetaProducto({ p, c, r, clasifs, onImagen, onVer, onClasificar }) {
           prefijo="productos" tabla="cat_productos" columna="imagen_url"
           registroId={p.id} url={p.imagen_url} nombre={p.nombre}
           size={96} redondo={false} onSubido={url => onImagen(p.id, url)}
+          soloLectura={soloLectura}
         />
         {p.unidad && (
           <span style={{ position: 'absolute', top: 8, right: 8, background: '#0A66C2', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 5 }}>{p.unidad}</span>
@@ -404,6 +407,7 @@ export default function Productos() {
                           prefijo="productos" tabla="cat_productos" columna="imagen_url"
                           registroId={p.id} url={p.imagen_url} nombre={p.nombre}
                           size={38} redondo={false} onSubido={url => aplicarImagen(p.id, url)}
+                          soloLectura={soloLectura}
                         />
                       </td>
                       <td onClick={() => navigate(`/productos/${p.id}`)} style={{ padding: '10px 12px', cursor: 'pointer' }}>

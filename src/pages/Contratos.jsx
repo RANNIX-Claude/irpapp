@@ -231,6 +231,7 @@ function ContratoRow({ c, estatusOperacion, onView, onEdit, onDelete, onRefresh 
 // Misma idea que las tarjetas de empleados en RH, pero con el logo del negocio
 // en lugar de la foto. Si el arrendatario no tiene logo se pintan sus iniciales.
 function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
+  const { soloLectura } = useApp()
   const vigente = c.estatus === 'VIGENTE'
   const dias = c.dias_restantes
   const nombre = c.nombre_negocio || c.arrendatario_nombre || 'Sin nombre'
@@ -262,6 +263,7 @@ function TarjetaContrato({ c, logo, onView, onExpediente, onLogo }) {
             tabla="contratos" columna="logo_url"
             registroId={c.id} url={logo} nombre={nombre} size={62}
             onSubido={url => onLogo(c.id, url)}
+            soloLectura={soloLectura}
           />
         </div>
       </div>
@@ -349,6 +351,7 @@ const CAMPOS_FIADOR_EXP = [
 
 // Fila de documento reutilizable para el modal (se define aquí, fuera del render, para no recrearla)
 function DocFilaModal({ item, url, uploadingKey, onSubir }) {
+  const { soloLectura } = useApp()
   const fileRef = useRef(null)
   const subiendo = uploadingKey === item.key
   return (
@@ -359,8 +362,10 @@ function DocFilaModal({ item, url, uploadingKey, onSubir }) {
         {item.req && !url && <div style={{ fontSize: 10, color: '#B24020', marginTop: 1 }}>Requerido</div>}
         {url && <div style={{ fontSize: 10, color: '#057642', marginTop: 1 }}>✓ Cargado</div>}
       </div>
-      <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
-        onChange={e => { if (e.target.files[0]) onSubir(item.key, e.target.files[0]); e.target.value = '' }} />
+      {!soloLectura && (
+        <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+          onChange={e => { if (e.target.files[0]) onSubir(item.key, e.target.files[0]); e.target.value = '' }} />
+      )}
       <div style={{ display: 'flex', gap: 5 }}>
         {url && (
           <a href={url} target="_blank" rel="noreferrer"
@@ -368,11 +373,13 @@ function DocFilaModal({ item, url, uploadingKey, onSubir }) {
             <Eye size={11} /> Ver
           </a>
         )}
-        <button onClick={() => fileRef.current?.click()} disabled={subiendo}
-          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white', fontSize: 11, color: '#374151', cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
-          {subiendo ? <Clock size={11} /> : <Upload size={11} />}
-          {subiendo ? 'Subiendo…' : url ? 'Cambiar' : 'Subir'}
-        </button>
+        {!soloLectura && (
+          <button onClick={() => fileRef.current?.click()} disabled={subiendo}
+            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white', fontSize: 11, color: '#374151', cursor: subiendo ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+            {subiendo ? <Clock size={11} /> : <Upload size={11} />}
+            {subiendo ? 'Subiendo…' : url ? 'Cambiar' : 'Subir'}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1008,39 +1015,45 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
                       </a>
                     </div>
                   </div>
-                  <div style={{ color: 'var(--color-text-light)', fontSize: '12px' }}>¿Deseas reemplazar el archivo?</div>
-                  <button onClick={() => pdfRef.current?.click()} disabled={uploadingPDF} style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '10px 20px', background: '#F3F4F6', border: '1.5px dashed #D1D5DB',
-                    borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  }}>
-                    <Upload size={15} /> {uploadingPDF ? 'Subiendo...' : 'Reemplazar PDF'}
-                  </button>
+                  {!soloLectura && (
+                    <>
+                      <div style={{ color: 'var(--color-text-light)', fontSize: '12px' }}>¿Deseas reemplazar el archivo?</div>
+                      <button onClick={() => pdfRef.current?.click()} disabled={uploadingPDF} style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '10px 20px', background: '#F3F4F6', border: '1.5px dashed #D1D5DB',
+                        borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                      }}>
+                        <Upload size={15} /> {uploadingPDF ? 'Subiendo...' : 'Reemplazar PDF'}
+                      </button>
+                    </>
+                  )}
                 </>
               ) : (
-                <div
-                  onClick={() => pdfRef.current?.click()}
-                  style={{
-                    width: '100%', minHeight: '240px', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: '12px',
-                    border: '2px dashed #D1D5DB', borderRadius: '14px', cursor: 'pointer',
-                    background: '#FAFAFA', transition: 'border-color 0.2s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}
-                >
-                  <Upload size={36} color="#9CA3AF" />
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                      {uploadingPDF ? 'Subiendo archivo...' : 'Adjuntar contrato firmado'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>
-                      {uploadingPDF ? 'Por favor espera...' : 'Haz clic o arrastra el PDF aquí'}
+                !soloLectura && (
+                  <div
+                    onClick={() => pdfRef.current?.click()}
+                    style={{
+                      width: '100%', minHeight: '240px', display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center', gap: '12px',
+                      border: '2px dashed #D1D5DB', borderRadius: '14px', cursor: 'pointer',
+                      background: '#FAFAFA', transition: 'border-color 0.2s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}
+                  >
+                    <Upload size={36} color="#9CA3AF" />
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
+                        {uploadingPDF ? 'Subiendo archivo...' : 'Adjuntar contrato firmado'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>
+                        {uploadingPDF ? 'Por favor espera...' : 'Haz clic o arrastra el PDF aquí'}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
-              <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={subirPDF} />
+              {!soloLectura && <input ref={pdfRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={subirPDF} />}
 
               {/* ── Adéndum ── */}
               <div style={{ marginTop: '24px', borderTop: '1px solid #E5E7EB', paddingTop: '20px' }}>
@@ -1056,26 +1069,32 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#057642', color: 'white', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                         <Eye size={13} /> Ver
                       </a>
-                      <button onClick={() => adenumRef.current?.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                        <Upload size={13} /> Reemplazar
-                      </button>
+                      {!soloLectura && (
+                        <button onClick={() => adenumRef.current?.click()}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          <Upload size={13} /> Reemplazar
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <div onClick={() => adenumRef.current?.click()}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
-                    {uploadingDocContrato === 'adenum' ? (
-                      <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo adéndum…</span></>
-                    ) : (
-                      <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar adéndum (PDF o imagen)</span></>
-                    )}
-                  </div>
+                  !soloLectura && (
+                    <div onClick={() => adenumRef.current?.click()}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
+                      {uploadingDocContrato === 'adenum' ? (
+                        <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo adéndum…</span></>
+                      ) : (
+                        <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar adéndum (PDF o imagen)</span></>
+                      )}
+                    </div>
+                  )
                 )}
-                <input ref={adenumRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-                  onChange={e => { if (e.target.files?.[0]) subirDocContrato('adenum', e.target.files[0]); e.target.value = '' }} />
+                {!soloLectura && (
+                  <input ref={adenumRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                    onChange={e => { if (e.target.files?.[0]) subirDocContrato('adenum', e.target.files[0]); e.target.value = '' }} />
+                )}
               </div>
 
               {/* ── Anexo ── */}
@@ -1092,26 +1111,32 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#057642', color: 'white', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                         <Eye size={13} /> Ver
                       </a>
-                      <button onClick={() => anexoRef.current?.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                        <Upload size={13} /> Reemplazar
-                      </button>
+                      {!soloLectura && (
+                        <button onClick={() => anexoRef.current?.click()}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#F3F4F6', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          <Upload size={13} /> Reemplazar
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <div onClick={() => anexoRef.current?.click()}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
-                    {uploadingDocContrato === 'anexo' ? (
-                      <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo anexo…</span></>
-                    ) : (
-                      <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar anexo (PDF o imagen)</span></>
-                    )}
-                  </div>
+                  !soloLectura && (
+                    <div onClick={() => anexoRef.current?.click()}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, border: '2px dashed #D1D5DB', borderRadius: 10, cursor: 'pointer', background: '#FAFAFA' }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = '#D1D5DB'}>
+                      {uploadingDocContrato === 'anexo' ? (
+                        <><Clock size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Subiendo anexo…</span></>
+                      ) : (
+                        <><Upload size={22} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Adjuntar anexo (PDF o imagen)</span></>
+                      )}
+                    </div>
+                  )
                 )}
-                <input ref={anexoRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-                  onChange={e => { if (e.target.files?.[0]) subirDocContrato('anexo', e.target.files[0]); e.target.value = '' }} />
+                {!soloLectura && (
+                  <input ref={anexoRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                    onChange={e => { if (e.target.files?.[0]) subirDocContrato('anexo', e.target.files[0]); e.target.value = '' }} />
+                )}
               </div>
             </div>
           )}

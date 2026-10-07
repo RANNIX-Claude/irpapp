@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import {
   BarChart2, Info, Receipt, Package, HardHat, Hash, FileText, Phone, Mail, Calendar,
   ShoppingCart, TrendingUp, Camera, Plus, Edit2, Power,
@@ -22,6 +23,7 @@ const catLabel = (id) => CATEGORIAS.find(c => c.id === id)?.label || id
 
 export default function ExpedienteProveedor() {
   useModuleAudit('PROVEEDORES')
+  const { soloLectura } = useApp()
   const { id } = useParams()
   const navigate = useNavigate()
   const [sp, setSp] = useSearchParams()
@@ -86,7 +88,7 @@ export default function ExpedienteProveedor() {
     <PaginaExpediente
       migas={[{ label: 'Proveedores', onClick: () => navigate('/proveedores') }, { label: p.nombre }]}
       estado={<Badge label={p.activo ? 'Activo' : 'Inactivo'} color={p.activo ? C.success : C.danger} />}
-      avatar={<LogoEditable prefijo="proveedores" tabla="cat_proveedores" columna="logo_url" registroId={p.id} url={p.logo_url} nombre={p.nombre} size={72} onSubido={url => setP(x => ({ ...x, logo_url: url }))} />}
+      avatar={<LogoEditable prefijo="proveedores" tabla="cat_proveedores" columna="logo_url" registroId={p.id} url={p.logo_url} nombre={p.nombre} size={72} onSubido={url => setP(x => ({ ...x, logo_url: url }))} soloLectura={soloLectura} />}
       titulo={p.nombre}
       badge={<Badge label={p.activo ? 'Activo' : 'Inactivo'} color={p.activo ? C.success : C.danger} bg={C.surface} />}
       subtitulo={[p.categoria ? catLabel(p.categoria) : 'Proveedor', p.razon_social].filter(Boolean).join(' · ')}
