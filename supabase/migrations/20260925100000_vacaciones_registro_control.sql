@@ -105,8 +105,8 @@ BEGIN
   v_anios := FLOOR(EXTRACT(EPOCH FROM AGE(CURRENT_DATE, v_fi)) / (365.25 * 86400))::integer;
 
   FOR v_i IN 1..GREATEST(v_anios, 1) LOOP
-    v_inicio := v_fi + ((v_i - 1) * interval '1 year');
-    v_fin    := v_fi + (v_i      * interval '1 year') - 1;
+    v_inicio := (v_fi + ((v_i - 1) * interval '1 year'))::date;
+    v_fin    := (v_fi + (v_i      * interval '1 year'))::date - 1;
 
     -- Días de la ley (máximo disponible en el catálogo)
     SELECT dias INTO v_dias FROM cat_vacaciones_dias
