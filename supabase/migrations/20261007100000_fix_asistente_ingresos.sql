@@ -5,6 +5,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DROP VIEW IF EXISTS public.asistente_ingresos;
+DROP FUNCTION IF EXISTS public.fn_asistente_ingresos();
 
 CREATE OR REPLACE FUNCTION public.fn_asistente_ingresos()
 RETURNS TABLE (
