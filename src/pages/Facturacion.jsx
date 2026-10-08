@@ -244,8 +244,9 @@ function CargoFactura({ cargo: c, onActualizar }) {
       const b64 = await new Promise((res, rej) => {
         const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file)
       })
-      const ext  = file.name.split('.').pop() || (campo === 'factura_url' ? 'pdf' : 'xml')
-      const mime = file.type || (ext === 'zip' ? 'application/zip' : campo === 'factura_url' ? 'application/pdf' : 'application/xml')
+      const ext  = file.name.split('.').pop()?.toLowerCase() || (campo === 'factura_url' ? 'pdf' : 'xml')
+      const rawMime = file.type || (ext === 'zip' ? 'application/zip' : campo === 'factura_url' ? 'application/pdf' : 'application/xml')
+      const mime = rawMime === 'text/xml' || rawMime === 'text/plain' ? 'application/xml' : rawMime
       const nombre = campo === 'factura_url' ? `factura.${ext}` : `cfdi.${ext}`
       const resp = await llamarFuncion('subir-comprobante', {
         bucket: 'facturas-cfdi',
