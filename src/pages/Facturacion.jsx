@@ -13,6 +13,8 @@ const fmtDT = iso => {
 }
 
 const MESES_LARGOS = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+const FORMA_PAGO_LABEL = { TRANSFERENCIA: 'Transferencia', DEPOSITO: 'Depósito', EFECTIVO: 'Efectivo', CHEQUE: 'Cheque' }
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 function exportarCSV(lista) {
@@ -310,6 +312,14 @@ function CargoFactura({ cargo: c, onActualizar }) {
               <div>
                 <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>MONTO APLICADO</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{fmt(pago?.importe_aplicado || pago?.importe_total)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>FORMA DE PAGO</div>
+                {FORMA_PAGO_LABEL[pago?.forma_pago]
+                  ? <span style={{ display: 'inline-block', marginTop: 1, fontSize: 11, fontWeight: 700, color: pago.forma_pago === 'EFECTIVO' ? '#057642' : '#0A66C2', background: pago.forma_pago === 'EFECTIVO' ? '#DCFCE7' : '#EFF6FF', padding: '2px 7px', borderRadius: 8 }}>
+                      {FORMA_PAGO_LABEL[pago.forma_pago]}
+                    </span>
+                  : <div style={{ fontSize: 12, color: '#D1D5DB' }}>—</div>}
               </div>
               {pago?.referencia_banco && (
                 <div style={{ gridColumn: '1/-1' }}>
