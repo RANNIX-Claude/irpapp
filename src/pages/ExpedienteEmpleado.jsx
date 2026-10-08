@@ -1075,6 +1075,7 @@ export default function ExpedienteEmpleado() {
                 toast.success('Años laborales generados')
                 reload()
               }}
+              onReload={reload}
             />
           )}
 
@@ -1708,10 +1709,23 @@ function GuiaVacaciones() {
   )
 }
 
-function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios }) {
+function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios, onReload }) {
   const totalAnios = vacAnios.length
   const diasDisp = vacAnios.reduce((s, a) => s + (parseFloat(a.dias_disponibles) || 0), 0)
   const [generando, setGenerando] = useState(false)
+  const [editando, setEditando] = useState(null)   // fila de vacDetalle a editar
+  const [confirmDel, setConfirmDel] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (id) => {
+    setDeleting(true)
+    const { error } = await supabase.from('rh_vacaciones_detalle').delete().eq('id', id)
+    setDeleting(false)
+    setConfirmDel(null)
+    if (error) { toast.error('Error al eliminar: ' + error.message); return }
+    toast.success('Período eliminado')
+    onReload?.()
+  }
 
   // Auto-generar años al entrar al tab si no hay ninguno y el empleado tiene fecha de ingreso
   useEffect(() => {
@@ -1797,7 +1811,7 @@ function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios 
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: C.light }}>
-                      {['Año','Período','Días','Monto','Prima','Estado','Autorizado por','Registrado'].map(h => (
+                      {['Año','Período','Días','Monto','Prima','Estado','Autorizado por','Registrado',''].map(h => (
                         <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.5px', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -1822,6 +1836,31 @@ function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios 
                         </td>
                         <td style={{ padding: '10px 12px', fontSize: 12, color: C.muted }}>{d.autorizado_por_nombre || '—'}</td>
                         <td style={{ padding: '10px 12px', fontSize: 11, color: C.muted }}>{d.registrado_en ? fmtD(d.registrado_en.slice(0,10)) : '—'}</td>
+                        <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                          {confirmDel === d.id
+                            ? <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: C.danger }}>¿Eliminar?</span>
+                                <button onClick={() => handleDelete(d.id)} disabled={deleting}
+                                  style={{ padding: '3px 8px', background: C.danger, color: 'white', border: 'none', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                  {deleting ? '…' : 'Sí'}
+                                </button>
+                                <button onClick={() => setConfirmDel(null)}
+                                  style={{ padding: '3px 8px', background: C.light, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
+                                  No
+                                </button>
+                              </div>
+                            : <div style={{ display: 'flex', gap: 4 }}>
+                                <button onClick={() => setEditando(d)} title="Editar período"
+                                  style={{ padding: '4px 7px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer', color: '#1D4ED8', display: 'flex', alignItems: 'center' }}>
+                                  <Edit2 size={12} />
+                                </button>
+                                <button onClick={() => setConfirmDel(d.id)} title="Eliminar período"
+                                  style={{ padding: '4px 7px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center' }}>
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                          }
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1831,7 +1870,128 @@ function TabVacaciones({ emp, vacAnios, vacDetalle, onRegistrar, onGenerarAnios 
           }
         </Section>
       </Card>
+
+      {editando && (
+        <ModalEditarVacacion
+          registro={editando}
+          vacAnios={vacAnios}
+          salarioDiario={emp.salario_diario}
+          onClose={() => setEditando(null)}
+          onSaved={() => { setEditando(null); onReload?.() }}
+        />
+      )}
     </div>
+  )
+}
+
+function ModalEditarVacacion({ registro, vacAnios, salarioDiario, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    anio_numero: registro.anio_numero ?? '',
+    fecha_inicio: registro.fecha_inicio ?? '',
+    fecha_fin: registro.fecha_fin ?? '',
+    autorizado_por_nombre: registro.autorizado_por_nombre ?? '',
+    notas: registro.notas ?? '',
+  })
+  const [saving, setSaving] = useState(false)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const calcDias = (fi, ff) => {
+    if (!fi || !ff) return 0
+    let d = 0, cur = new Date(fi + 'T12:00:00'), end = new Date(ff + 'T12:00:00')
+    while (cur <= end) { if (cur.getDay() !== 0) d++; cur.setDate(cur.getDate() + 1) }
+    return d
+  }
+
+  const dias = calcDias(form.fecha_inicio, form.fecha_fin)
+  const salDia = parseFloat(salarioDiario) || 0
+  const monto = dias * salDia
+  const prima = monto * 0.25
+
+  const anioSel = vacAnios.find(a => a.anio_numero === parseInt(form.anio_numero))
+  const dispSel = anioSel
+    ? parseFloat(anioSel.dias_disponibles) + (registro.dias || 0)
+    : null
+
+  const handleSave = async () => {
+    if (!form.anio_numero || !form.fecha_inicio || !form.fecha_fin) {
+      toast.error('Año laboral, fecha inicio y fecha fin son requeridos'); return
+    }
+    if (dias <= 0) { toast.error('El período no contiene días válidos'); return }
+    if (dispSel !== null && dias > dispSel) {
+      toast.error(`Solo hay ${dispSel} días disponibles en el año ${form.anio_numero}`); return
+    }
+    setSaving(true)
+    const { error } = await supabase.from('rh_vacaciones_detalle').update({
+      anio: parseInt(form.anio_numero),
+      fecha_inicio: form.fecha_inicio,
+      fecha_fin: form.fecha_fin,
+      dias,
+      monto: monto || null,
+      prima: prima || null,
+      autorizado_por_nombre: form.autorizado_por_nombre || null,
+      notas: form.notas || null,
+    }).eq('id', registro.id)
+    setSaving(false)
+    if (error) { toast.error('Error: ' + error.message); return }
+    toast.success('Período actualizado')
+    onSaved()
+  }
+
+  return (
+    <Modal title="Editar período de vacaciones" icon={Edit2} onClose={onClose}>
+      <FormGrid>
+        <div>
+          <label style={labelStyle}>Año laboral</label>
+          <select value={form.anio_numero} onChange={e => sf('anio_numero', e.target.value)}
+            style={{ ...inputStyle, background: C.surface, cursor: 'pointer' }}>
+            <option value="">— Selecciona —</option>
+            {vacAnios.map(a => (
+              <option key={a.id} value={a.anio_numero}>
+                Año {a.anio_numero} ({a.fecha_inicio_anio?.slice(0,4) ?? '?'}–{a.fecha_fin_anio?.slice(0,4) ?? '?'}) — {a.dias_disponibles ?? 0} días disp. / {a.dias_derecho}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ background: C.light, borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' }}>Días calculados</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: dias > 0 ? C.primary : C.muted }}>{dias}</div>
+          {dias > 0 && dispSel !== null && (
+            <div style={{ fontSize: 11, color: dias > dispSel ? C.danger : C.success }}>
+              {dias > dispSel ? `⚠ Excede saldo (${dispSel} disp.)` : `✓ Quedan ${dispSel - dias} días`}
+            </div>
+          )}
+        </div>
+        <div>
+          <label style={labelStyle}>Fecha inicio</label>
+          <input type="date" value={form.fecha_inicio} onChange={e => sf('fecha_inicio', e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Fecha fin</label>
+          <input type="date" value={form.fecha_fin} onChange={e => sf('fecha_fin', e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Autorizado por</label>
+          <input type="text" value={form.autorizado_por_nombre} onChange={e => sf('autorizado_por_nombre', e.target.value)} style={inputStyle} placeholder="Nombre del jefe que aprobó" />
+        </div>
+        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.success, textTransform: 'uppercase', marginBottom: 4 }}>Prima vacacional (LFT Art. 80)</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.success }}>{prima > 0 ? fmt$(prima) : '—'}</div>
+          <div style={{ fontSize: 11, color: C.muted }}>Pago base: {monto > 0 ? fmt$(monto) : '—'}</div>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={labelStyle}>Notas <span style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>opcional</span></label>
+          <textarea value={form.notas} onChange={e => sf('notas', e.target.value)} rows={2}
+            style={{ ...inputStyle, resize: 'vertical' }} placeholder="Observaciones adicionales..." />
+        </div>
+      </FormGrid>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+        <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: C.primary, color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .7 : 1 }}>
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 
