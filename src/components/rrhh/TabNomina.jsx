@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { Plus, AlertTriangle, CheckCircle, Clock, Download, X, FileText, RefreshCw, ChevronDown, DollarSign, Send, Eye, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, AlertTriangle, CheckCircle, Clock, Download, X, FileText, RefreshCw, ChevronDown, DollarSign, Send, Eye, ChevronUp, Upload, Image } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
-import { supabase } from '../../lib/supabase'
+import { supabase, urlFirmada } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 
 // ── Modal: Crear Período de Nómina ─────────────────────────────────────────
@@ -124,6 +124,68 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
   const [autorizando, setAutorizando] = useState(false)
   const [expandido, setExpandido] = useState(null)
 
+  // Recibos firmados { [empleadoId]: ruta }
+  const [recibos, setRecibos] = useState({})
+  const [subiendo, setSubiendo] = useState({})
+  const fileRefs = useRef({})
+
+  const cargarRecibos = async () => {
+    const { data } = await supabase
+      .from('nomina_recibos_firmados')
+      .select('empleado_id, recibo_url')
+      .eq('semana_inicio', periodo.fecha_inicio)
+    if (data) {
+      const m = {}
+      data.forEach(r => { m[r.empleado_id] = r.recibo_url })
+      setRecibos(m)
+    }
+  }
+
+  useEffect(() => { cargarRecibos() }, [periodo.id])
+
+  const subirRecibo = async (r, file) => {
+    if (!file) return
+    setSubiendo(s => ({ ...s, [r.empleado_id]: true }))
+    try {
+      const ext  = file.name.split('.').pop().toLowerCase() || 'pdf'
+      const path = `recibos-nomina/${periodo.fecha_inicio}/${r.empleado_id}.${ext}`
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { toast.error('Sin sesión activa'); return }
+      const base = import.meta.env.VITE_SUPABASE_URL
+      const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${base}/storage/v1/object/expedientes-docs/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+      if (!res.ok) { const t = await res.text(); toast.error('Error al subir: ' + t); return }
+      const { error } = await supabase.from('nomina_recibos_firmados').upsert({
+        empleado_id: r.empleado_id,
+        semana_inicio: periodo.fecha_inicio,
+        recibo_url: path,
+      }, { onConflict: 'empleado_id,semana_inicio' })
+      if (error) { toast.error(error.message); return }
+      setRecibos(prev => ({ ...prev, [r.empleado_id]: path }))
+      toast.success(`Recibo firmado de ${r.nombre_completo} guardado`)
+    } catch (e) {
+      toast.error('Error: ' + e.message)
+    } finally {
+      setSubiendo(s => ({ ...s, [r.empleado_id]: false }))
+    }
+  }
+
+  const verRecibo = async (empleadoId) => {
+    const path = recibos[empleadoId]
+    if (!path) return
+    try {
+      const url = await urlFirmada('expedientes-docs', path)
+      window.open(url, '_blank')
+    } catch (e) {
+      toast.error('No se pudo abrir el recibo')
+    }
+  }
+
   const lista = renglones ?? []
   const totalNeto = lista.reduce((s, r) => s + parseFloat(r.neto_pagar || 0), 0)
   const totalPerc = lista.reduce((s, r) => s + parseFloat(r.salario_periodo || 0), 0)
@@ -245,6 +307,12 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
                     {['','Empleado','RFC','Días trab.','Percepción','IMSS','ISR','Subsidio','Neto','CFDI'].map(h => (
                       <th key={h} style={{ padding:'10px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
                     ))}
+                    <th style={{ padding:'10px 14px',textAlign:'center',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>
+                      Recibo&nbsp;
+                      <span style={{ fontSize:10,fontWeight:400,opacity:.75 }}>
+                        {Object.keys(recibos).length}/{lista.length} firmados
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,10 +335,40 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
                         <td style={{ padding:'10px 14px' }}>
                           <span style={{ padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:700,background:chipBg,color:chipFg }}>{r.estatus_cfdi}</span>
                         </td>
+                        <td style={{ padding:'8px 10px',textAlign:'center' }} onClick={e => e.stopPropagation()}>
+                          <input
+                            ref={el => { fileRefs.current[r.empleado_id] = el }}
+                            type="file"
+                            accept="image/*,application/pdf"
+                            style={{ display:'none' }}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) subirRecibo(r, f); e.target.value='' }}
+                          />
+                          {recibos[r.empleado_id] ? (
+                            <div style={{ display:'inline-flex',alignItems:'center',gap:4 }}>
+                              <button onClick={() => verRecibo(r.empleado_id)}
+                                style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 8px',border:'1.5px solid #057642',borderRadius:6,background:'#E6F7EF',color:'#057642',fontSize:10,fontWeight:700,cursor:'pointer' }}>
+                                <CheckCircle size={11} /> Firmado
+                              </button>
+                              <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
+                                disabled={subiendo[r.empleado_id]}
+                                style={{ padding:'4px 6px',border:'1.5px solid #D1D5DB',borderRadius:6,background:'white',cursor:'pointer',color:'#9CA3AF',display:'inline-flex',alignItems:'center' }}>
+                                <Upload size={10} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
+                              disabled={subiendo[r.empleado_id]}
+                              style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 9px',border:'1.5px dashed #D1D5DB',borderRadius:6,background:'white',color:'#9CA3AF',fontSize:10,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap' }}>
+                              {subiendo[r.empleado_id]
+                                ? <><div style={{ width:10,height:10,border:'2px solid #9CA3AF',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite' }} /> Subiendo…</>
+                                : <><Image size={11} /> Subir firmado</>}
+                            </button>
+                          )}
+                        </td>
                       </tr>,
                       isOpen && (
                         <tr key={r.id+'_exp'} style={{ borderBottom:'1px solid #F3F4F6',background:'#F9FAFB' }}>
-                          <td colSpan={10} style={{ padding:'10px 48px 16px' }}>
+                          <td colSpan={11} style={{ padding:'10px 48px 16px' }}>
                             <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:12 }}>
                               <div>
                                 <span style={{ color:'var(--color-text-light)' }}>Días del período:</span> <strong>{r.dias_periodo}</strong><br/>
