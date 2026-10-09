@@ -696,8 +696,8 @@ export default function ExpedienteEmpleado() {
   const [asistencia, setAsistencia] = useState([])
   const [recibos, setRecibos]       = useState([])
   const [reciboAbierto, setReciboAbierto] = useState(null)
-  const [recibosNomFirmados, setRecibosNomFirmados] = useState({}) // { [fecha_inicio]: recibo_url }
-  const [thumbsNomFirmados, setThumbsNomFirmados]   = useState({}) // { [fecha_inicio]: signed url }
+  const [recibosNomFirmados, setRecibosNomFirmados] = useState([]) // [{ semana_inicio, recibo_url }]
+  const [thumbsNomFirmados, setThumbsNomFirmados]   = useState({}) // { [recibo_url]: signed url }
   const [capacitacion, setCapacitacion] = useState([])
   const [evaluaciones, setEvaluaciones] = useState([])
   const [beneficios, setBeneficios] = useState([])
@@ -827,16 +827,14 @@ export default function ExpedienteEmpleado() {
           .select('semana_inicio, recibo_url')
           .eq('empleado_id', emp.id)
         if (!cancelado && firmados) {
-          const mFirmados = {}
-          firmados.forEach(f => { mFirmados[f.semana_inicio] = f.recibo_url })
-          setRecibosNomFirmados(mFirmados)
-          // Precargar thumbnails para imágenes
+          setRecibosNomFirmados(firmados)
+          // Precargar thumbnails para imágenes (keyed by recibo_url)
           firmados.forEach(async f => {
             const ext = f.recibo_url?.split('.').pop()?.toLowerCase()
             if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
               try {
                 const url = await urlFirmada('expedientes-docs', f.recibo_url, 300)
-                if (!cancelado) setThumbsNomFirmados(t => ({ ...t, [f.semana_inicio]: url }))
+                if (!cancelado) setThumbsNomFirmados(t => ({ ...t, [f.recibo_url]: url }))
               } catch { /* sin thumbnail */ }
             }
           })
@@ -1271,11 +1269,15 @@ export default function ExpedienteEmpleado() {
                                       {/* Recibo firmado */}
                                       {(() => {
                                         const fechaIni = r.periodo?.fecha_inicio
-                                        const path     = fechaIni ? recibosNomFirmados[fechaIni] : null
-                                        const thumb    = fechaIni ? thumbsNomFirmados[fechaIni]  : null
+                                        const fechaFin = r.periodo?.fecha_fin
+                                        const rec      = (fechaIni && fechaFin)
+                                          ? recibosNomFirmados.find(f => f.semana_inicio >= fechaIni && f.semana_inicio <= fechaFin)
+                                          : null
+                                        const path     = rec?.recibo_url ?? null
+                                        const thumb    = path ? thumbsNomFirmados[path] : null
                                         const ext      = path?.split('.').pop()?.toLowerCase()
                                         const esImg    = ['jpg','jpeg','png','webp','gif'].includes(ext)
-                                        if (!fechaIni) return null
+                                        if (!fechaIni || !fechaFin) return null
                                         return (
                                           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
                                             <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>Recibo firmado:</span>
