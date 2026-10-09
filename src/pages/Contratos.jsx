@@ -1757,10 +1757,6 @@ export default function Contratos() {
               {['2025','2026','2027','2028','2029','2030'].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
-          <button onClick={generarFolios} disabled={generandoFolios} title="Genera folio IWOL-LXX-YYYY para contratos sin folio"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', border: '1.5px solid #7C3AED', borderRadius: '8px', background: generandoFolios ? '#F5F3FF' : 'white', color: '#7C3AED', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-            <Wand2 size={15} /> {generandoFolios ? 'Generando...' : 'Generar Folios'}
-          </button>
           <button onClick={() => {
             const cols = ['folio','arrendatario_nombre','inmueble_nombre','locales_display','fecha_inicio','fecha_fin','renta_mensual','estado_id']
             const head = ['Folio','Arrendatario','Inmueble','Locales','Inicio','Fin','Renta','Estatus']
