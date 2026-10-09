@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { Download, X, FileText, Calendar, RefreshCw, Printer, Upload, CheckCircle, Image } from 'lucide-react'
+import { Download, X, FileText, Calendar, RefreshCw, Printer, Upload, CheckCircle, Image, Trash2 } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
 import { supabase } from '../../lib/supabase'
 import { urlFirmada } from '../../lib/supabase'
@@ -89,6 +89,18 @@ function TabNominaIWOL() {
     } catch (e) {
       toast.error('No se pudo abrir el recibo')
     }
+  }
+
+  const borrarReciboFirmado = async (r) => {
+    if (!window.confirm(`¿Eliminar el recibo firmado de ${r.nombre}?`)) return
+    const { error } = await supabase
+      .from('nomina_recibos_firmados')
+      .delete()
+      .eq('empleado_id', r.empleado_id)
+      .eq('semana_inicio', semana.lunes)
+    if (error) { toast.error(error.message); return }
+    setRecibos(prev => { const n = { ...prev }; delete n[r.empleado_id]; return n })
+    toast.success('Recibo eliminado')
   }
 
   const activos = (empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
@@ -571,11 +583,10 @@ function TabNominaIWOL() {
                             style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 8px',border:'1.5px solid #057642',borderRadius:6,background:'#E6F7EF',color:'#057642',fontSize:10,fontWeight:700,cursor:'pointer' }}>
                             <CheckCircle size={11} /> Firmado
                           </button>
-                          <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
-                            title="Reemplazar recibo firmado"
-                            disabled={subiendo[r.empleado_id]}
-                            style={{ padding:'4px 6px',border:'1.5px solid #D1D5DB',borderRadius:6,background:'white',cursor:'pointer',color:'#9CA3AF',display:'inline-flex',alignItems:'center' }}>
-                            <Upload size={10} />
+                          <button onClick={() => borrarReciboFirmado(r)}
+                            title="Eliminar recibo firmado"
+                            style={{ padding:'4px 6px',border:'1.5px solid #FCA5A5',borderRadius:6,background:'white',cursor:'pointer',color:'#EF4444',display:'inline-flex',alignItems:'center' }}>
+                            <Trash2 size={10} />
                           </button>
                         </div>
                       ) : (

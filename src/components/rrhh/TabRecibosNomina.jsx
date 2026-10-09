@@ -11,10 +11,10 @@ export default function TabRecibosNomina() {
   const [recibos, setRecibos] = useState({})   // { [empleadoId]: recibo_url }
   const [abriendo, setAbriendo] = useState(null)
 
-  const { data: empleados } = usePRP('prp_empleados', {
-    filters: [['activo', 'eq', true]],
+  const { data: _empleados } = usePRP('prp_empleados', {
     order: { col: 'nombre_completo' },
   })
+  const empleados = (_empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
 
   // Carga períodos recientes (últimos 20)
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function TabRecibosNomina() {
     }
   }
 
-  const lista = empleados ?? []
+  const lista = empleados
   const conRecibo = lista.filter(e => recibos[e.id])
   const sinRecibo = lista.filter(e => !recibos[e.id])
   const pct = lista.length ? Math.round((conRecibo.length / lista.length) * 100) : 0

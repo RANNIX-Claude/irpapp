@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, AlertTriangle, CheckCircle, Clock, Download, X, FileText, RefreshCw, ChevronDown, DollarSign, Send, Eye, ChevronUp, Upload, Image } from 'lucide-react'
+import { Plus, AlertTriangle, CheckCircle, Clock, Download, X, FileText, RefreshCw, ChevronDown, DollarSign, Send, Eye, ChevronUp, Upload, Image, Trash2 } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
 import { supabase, urlFirmada } from '../../lib/supabase'
 import toast from 'react-hot-toast'
@@ -186,6 +186,18 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
     }
   }
 
+  const borrarRecibo = async (r) => {
+    if (!window.confirm(`¿Eliminar el recibo firmado de ${r.nombre_completo}?`)) return
+    const { error } = await supabase
+      .from('nomina_recibos_firmados')
+      .delete()
+      .eq('empleado_id', r.empleado_id)
+      .eq('semana_inicio', periodo.fecha_inicio)
+    if (error) { toast.error(error.message); return }
+    setRecibos(prev => { const n = { ...prev }; delete n[r.empleado_id]; return n })
+    toast.success('Recibo eliminado')
+  }
+
   const lista = renglones ?? []
   const totalNeto = lista.reduce((s, r) => s + parseFloat(r.neto_pagar || 0), 0)
   const totalPerc = lista.reduce((s, r) => s + parseFloat(r.salario_periodo || 0), 0)
@@ -349,10 +361,10 @@ function PreNominaModal({ periodo, onClose, onRecalcular }) {
                                 style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 8px',border:'1.5px solid #057642',borderRadius:6,background:'#E6F7EF',color:'#057642',fontSize:10,fontWeight:700,cursor:'pointer' }}>
                                 <CheckCircle size={11} /> Firmado
                               </button>
-                              <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
-                                disabled={subiendo[r.empleado_id]}
-                                style={{ padding:'4px 6px',border:'1.5px solid #D1D5DB',borderRadius:6,background:'white',cursor:'pointer',color:'#9CA3AF',display:'inline-flex',alignItems:'center' }}>
-                                <Upload size={10} />
+                              <button onClick={() => borrarRecibo(r)}
+                                title="Eliminar recibo firmado"
+                                style={{ padding:'4px 6px',border:'1.5px solid #FCA5A5',borderRadius:6,background:'white',cursor:'pointer',color:'#EF4444',display:'inline-flex',alignItems:'center' }}>
+                                <Trash2 size={10} />
                               </button>
                             </div>
                           ) : (
