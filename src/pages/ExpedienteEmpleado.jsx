@@ -1219,7 +1219,7 @@ export default function ExpedienteEmpleado() {
 
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead><tr style={{ background: C.light }}>{['Folio','Período','Días','Percepción','Deducciones','Neto','CFDI',''].map((h, i) => <Th key={i}>{h}</Th>)}</tr></thead>
+                        <thead><tr style={{ background: C.light }}>{['Folio','Período','Días','Percepción','Deducciones','Neto','CFDI','Recibo',''].map((h, i) => <Th key={i}>{h}</Th>)}</tr></thead>
                         <tbody>
                           {recibos.map(r => {
                             const abierto = reciboAbierto === r.id
@@ -1244,13 +1244,36 @@ export default function ExpedienteEmpleado() {
                                       color={r.estatus_cfdi === 'TIMBRADO' ? C.success : r.estatus_cfdi === 'ERROR' ? C.danger : C.muted}
                                     />
                                   </td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                    {(() => {
+                                      const fi = r.periodo?.fecha_inicio
+                                      const ff = r.periodo?.fecha_fin
+                                      const rec = (fi && ff) ? recibosNomFirmados.find(f => f.semana_inicio >= fi && f.semana_inicio <= ff) : null
+                                      if (!rec) return <span style={{ color: C.muted, fontSize: 11 }}>—</span>
+                                      const ext   = rec.recibo_url?.split('.').pop()?.toLowerCase()
+                                      const esImg = ['jpg','jpeg','png','webp','gif'].includes(ext)
+                                      const thumb = thumbsNomFirmados[rec.recibo_url]
+                                      const abrir = async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }
+                                      return (
+                                        <div style={{ display:'inline-flex',alignItems:'center',gap:6 }}>
+                                          {esImg && thumb && (
+                                            <img src={thumb} alt="" onClick={abrir} style={{ width:34,height:34,objectFit:'cover',borderRadius:5,border:`1px solid ${C.border}`,cursor:'pointer' }} />
+                                          )}
+                                          <button onClick={abrir} title="Ver recibo firmado"
+                                            style={{ background:'none',border:`1.5px solid ${C.primary}`,borderRadius:7,padding:'4px 7px',cursor:'pointer',color:C.primary,display:'inline-flex',alignItems:'center' }}>
+                                            <Eye size={14} />
+                                          </button>
+                                        </div>
+                                      )
+                                    })()}
+                                  </td>
                                   <td style={{ padding: '10px 12px', color: C.muted }}>
                                     <ChevronDown size={14} style={{ transform: abierto ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }} />
                                   </td>
                                 </tr>
                                 {abierto && (
                                   <tr style={{ background: C.light }}>
-                                    <td colSpan={8} style={{ padding: '4px 12px 16px' }}>
+                                    <td colSpan={9} style={{ padding: '4px 12px 16px' }}>
                                       <Grid4>
                                         <Campo label="Salario diario"   value={fmt$(r.salario_diario)} mono />
                                         <Campo label="IMSS obrero"      value={fmt$(r.imss_obrero)} mono />
@@ -1267,36 +1290,6 @@ export default function ExpedienteEmpleado() {
                                           <div style={{ fontSize: 12, color: '#991B1B' }}>{r.error_timbrado}</div>
                                         </div>
                                       )}
-                                      {/* Recibo firmado */}
-                                      {(() => {
-                                        const fechaIni = r.periodo?.fecha_inicio
-                                        const fechaFin = r.periodo?.fecha_fin
-                                        const rec      = (fechaIni && fechaFin)
-                                          ? recibosNomFirmados.find(f => f.semana_inicio >= fechaIni && f.semana_inicio <= fechaFin)
-                                          : null
-                                        const path     = rec?.recibo_url ?? null
-                                        const thumb    = path ? thumbsNomFirmados[path] : null
-                                        const ext      = path?.split('.').pop()?.toLowerCase()
-                                        const esImg    = ['jpg','jpeg','png','webp','gif'].includes(ext)
-                                        if (!fechaIni || !fechaFin) return null
-                                        return (
-                                          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>Recibo firmado:</span>
-                                            {path ? (
-                                              <button
-                                                onClick={async () => { const u = await urlFirmada('expedientes-docs', path); window.open(u,'_blank') }}
-                                                style={{ display:'inline-flex',alignItems:'center',gap:8,padding:'6px 12px',border:`1.5px solid ${C.success}`,borderRadius:8,background:'#F0FDF4',cursor:'pointer',color:C.success,fontSize:12,fontWeight:700 }}>
-                                                {esImg && thumb
-                                                  ? <img src={thumb} alt="" style={{ width:36,height:36,objectFit:'cover',borderRadius:4,border:`1px solid ${C.border}` }} />
-                                                  : <FileText size={18} />}
-                                                Ver recibo firmado
-                                              </button>
-                                            ) : (
-                                              <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>Sin recibo firmado</span>
-                                            )}
-                                          </div>
-                                        )
-                                      })()}
                                     </td>
                                   </tr>
                                 )}
@@ -1309,60 +1302,6 @@ export default function ExpedienteEmpleado() {
                   </>
                 )}
 
-                {/* ── Historial de recibos firmados ── */}
-                {recibosNomFirmados.length > 0 && (
-                  <div style={{ marginTop: 28, borderTop: `1.5px solid ${C.border}`, paddingTop: 20 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FileText size={15} color={C.primary} />
-                      Recibos firmados ({recibosNomFirmados.length})
-                    </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: C.light }}>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>SEMANA</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>SUBIDO</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>VISTA PREVIA</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>VER</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recibosNomFirmados.map((rec, i) => {
-                          const ext   = rec.recibo_url?.split('.').pop()?.toLowerCase()
-                          const esImg = ['jpg','jpeg','png','webp','gif'].includes(ext)
-                          const thumb = thumbsNomFirmados[rec.recibo_url]
-                          const [y, m, d] = rec.semana_inicio?.split('-') ?? []
-                          const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-                          const semana = d ? `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}` : ''
-                          const subido = rec.subido_en
-                            ? new Date(rec.subido_en).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})
-                            : '—'
-                          return (
-                            <tr key={rec.semana_inicio} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? 'white' : C.light }}>
-                              <td style={{ padding: '10px 12px', fontWeight: 600, color: C.text }}>
-                                Sem. {semana}
-                              </td>
-                              <td style={{ padding: '10px 12px', color: C.muted, fontSize: 12 }}>{subido}</td>
-                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                {esImg && thumb
-                                  ? <img src={thumb} alt="" style={{ height: 44, width: 44, objectFit: 'cover', borderRadius: 6, border: `1px solid ${C.border}`, cursor: 'pointer' }}
-                                      onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }} />
-                                  : <FileText size={28} color="#D1D5DB" />}
-                              </td>
-                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                <button
-                                  onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }}
-                                  title="Ver recibo"
-                                  style={{ background: 'none', border: `1.5px solid ${C.primary}`, borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: C.primary, display: 'inline-flex', alignItems: 'center' }}>
-                                  <Eye size={15} />
-                                </button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </Section>
             </Card>
           )}
