@@ -6,50 +6,30 @@ import toast from 'react-hot-toast'
 
 // ── Tab Recibos de Nómina ───────────────────────────────────────────────────
 export default function TabRecibosNomina() {
-  const [periodos, setPeriodos]     = useState([])
-  const [periodoSel, setPeriodoSel] = useState(null)
-  const [recibos, setRecibos]       = useState({})   // { [empleadoId]: { recibo_url, subido_en } }
-  const [empleadoSel, setEmpleadoSel] = useState(null) // drill-down
-  const [historial, setHistorial]   = useState([])   // recibos del empleado seleccionado
-  const [thumbs, setThumbs]         = useState({})   // { [semana_inicio]: url firmada }
-  const [abriendo, setAbriendo]     = useState(null)
+  const [recibos, setRecibos]         = useState({})   // { [empleadoId]: { recibo_url, subido_en, semana_inicio } }
+  const [empleadoSel, setEmpleadoSel] = useState(null)
+  const [historial, setHistorial]     = useState([])
+  const [thumbs, setThumbs]           = useState({})
+  const [abriendo, setAbriendo]       = useState(null)
 
   const { data: _empleados } = usePRP('prp_empleados', { order: { col: 'nombre_completo' } })
   const empleados = (_empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
 
-  // Carga períodos recientes
+  // Carga el recibo más reciente de cada empleado
   useEffect(() => {
-    supabase
-      .from('nomina_periodos')
-      .select('id, folio, fecha_inicio, fecha_fin, periodicidad')
-      .order('fecha_inicio', { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        if (data?.length) { setPeriodos(data); setPeriodoSel(data[0]) }
-      })
-  }, [])
-
-  // Recibos del período seleccionado (vista general)
-  // Busca por rango para capturar tanto recibos del período base (fecha_inicio exacta)
-  // como recibos de semana IWOL (lunes dentro del rango del período).
-  useEffect(() => {
-    if (!periodoSel) return
     supabase
       .from('nomina_recibos_firmados')
-      .select('empleado_id, recibo_url, subido_en')
-      .gte('semana_inicio', periodoSel.fecha_inicio)
-      .lte('semana_inicio', periodoSel.fecha_fin)
+      .select('empleado_id, recibo_url, subido_en, semana_inicio')
+      .order('semana_inicio', { ascending: false })
       .then(({ data }) => {
         const m = {}
-        // Si hay varios por empleado (semanas dentro del período), toma el más reciente
         data?.forEach(r => {
-          if (!m[r.empleado_id] || r.subido_en > m[r.empleado_id].subido_en) {
-            m[r.empleado_id] = r
-          }
+          // Queda el más reciente (orden desc → el primero que llega por empleado)
+          if (!m[r.empleado_id]) m[r.empleado_id] = r
         })
         setRecibos(m)
       })
-  }, [periodoSel?.id])
+  }, [])
 
   // Historial de un empleado (drill-down)
   const abrirEmpleado = async (emp) => {
@@ -105,10 +85,11 @@ export default function TabRecibosNomina() {
     return `${parseInt(day)} ${meses[parseInt(m)-1]} ${y}`
   }
 
-  const lista = empleados
-  const conRecibo = lista.filter(e => recibos[e.id])
-  const sinRecibo = lista.filter(e => !recibos[e.id])
-  const pct = lista.length ? Math.round((conRecibo.length / lista.length) * 100) : 0
+  const conRecibo = empleados.filter(e => recibos[e.id])
+    .sort((a, b) => (recibos[b.id]?.semana_inicio ?? '') > (recibos[a.id]?.semana_inicio ?? '') ? 1 : -1)
+  const sinRecibo = empleados.filter(e => !recibos[e.id])
+  const lista = [...conRecibo, ...sinRecibo]
+  const pct = empleados.length ? Math.round((conRecibo.length / empleados.length) * 100) : 0
 
   // ── Vista de historial de un empleado ────────────────────────────────────
   if (empleadoSel) {
@@ -197,83 +178,58 @@ export default function TabRecibosNomina() {
     )
   }
 
-  // ── Vista general (grid por período) ─────────────────────────────────────
+  // ── Vista general ─────────────────────────────────────────────────────────
   return (
     <div>
-      {/* Selector de período */}
-      <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20,flexWrap:'wrap' }}>
-        <label style={{ fontSize:13,fontWeight:600,color:'var(--color-text-light)' }}>Período:</label>
-        <select
-          value={periodoSel?.id || ''}
-          onChange={e => setPeriodoSel(periodos.find(p => p.id === e.target.value))}
-          style={{ padding:'8px 14px',border:'1.5px solid #E5E7EB',borderRadius:8,fontSize:14,fontWeight:600,minWidth:280 }}>
-          {periodos.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.folio} — {fmtFecha(p.fecha_inicio)} al {fmtFecha(p.fecha_fin)}
-            </option>
-          ))}
-        </select>
-        {lista.length > 0 && (
-          <div style={{ display:'flex',alignItems:'center',gap:8,marginLeft:'auto' }}>
-            <div style={{ height:8,width:160,background:'#E5E7EB',borderRadius:4,overflow:'hidden' }}>
-              <div style={{ height:'100%',width:`${pct}%`,background:'#057642',borderRadius:4,transition:'.4s' }} />
-            </div>
-            <span style={{ fontSize:13,fontWeight:700,color:'#057642' }}>{conRecibo.length}/{lista.length}</span>
-            <span style={{ fontSize:12,color:'var(--color-text-light)' }}>recibos firmados</span>
+      {/* Resumen */}
+      {empleados.length > 0 && (
+        <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:20 }}>
+          <div style={{ height:8,width:180,background:'#E5E7EB',borderRadius:4,overflow:'hidden' }}>
+            <div style={{ height:'100%',width:`${pct}%`,background:'#057642',borderRadius:4,transition:'.4s' }} />
           </div>
-        )}
-      </div>
+          <span style={{ fontSize:13,fontWeight:700,color:'#057642' }}>{conRecibo.length}/{empleados.length}</span>
+          <span style={{ fontSize:12,color:'var(--color-text-light)' }}>con recibo · ordenado más reciente primero</span>
+        </div>
+      )}
 
-      {/* Grid */}
-      {!periodoSel ? (
-        <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>Sin períodos de nómina</div>
-      ) : (
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12 }}>
-          {lista.map(emp => {
-            const rec   = recibos[emp.id]
-            const tiene = !!rec
-            return (
-              <div key={emp.id}
-                onClick={() => abrirEmpleado(emp)}
-                style={{ border:`1.5px solid ${tiene ? '#BBF7D0' : '#F3F4F6'}`,borderRadius:10,padding:'14px 14px 12px',background:tiene ? '#F0FDF4' : 'white',display:'flex',flexDirection:'column',alignItems:'center',gap:8,textAlign:'center',cursor:'pointer',transition:'.15s' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
-                <div style={{ width:52,height:52,borderRadius:'50%',overflow:'hidden',border:`2px solid ${tiene ? '#057642' : '#E5E7EB'}`,flexShrink:0 }}>
-                  {emp.foto_url
-                    ? <img src={emp.foto_url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                    : <div style={{ width:'100%',height:'100%',background:'#E5E7EB',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700,color:'#9CA3AF' }}>
-                        {emp.nombre_completo?.charAt(0) || '?'}
-                      </div>
-                  }
-                </div>
-                <div style={{ fontSize:12,fontWeight:700,color:'#111827',lineHeight:1.3 }}>{emp.nombre_completo}</div>
-                {tiene ? (
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12 }}>
+        {lista.map(emp => {
+          const rec   = recibos[emp.id]
+          const tiene = !!rec
+          return (
+            <div key={emp.id}
+              onClick={() => abrirEmpleado(emp)}
+              style={{ border:`1.5px solid ${tiene ? '#BBF7D0' : '#F3F4F6'}`,borderRadius:10,padding:'14px 14px 12px',background:tiene ? '#F0FDF4' : 'white',display:'flex',flexDirection:'column',alignItems:'center',gap:8,textAlign:'center',cursor:'pointer',transition:'.15s' }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
+              <div style={{ width:52,height:52,borderRadius:'50%',overflow:'hidden',border:`2px solid ${tiene ? '#057642' : '#E5E7EB'}`,flexShrink:0 }}>
+                {emp.foto_url
+                  ? <img src={emp.foto_url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+                  : <div style={{ width:'100%',height:'100%',background:'#E5E7EB',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700,color:'#9CA3AF' }}>
+                      {emp.nombre_completo?.charAt(0) || '?'}
+                    </div>
+                }
+              </div>
+              <div style={{ fontSize:12,fontWeight:700,color:'#111827',lineHeight:1.3 }}>{emp.nombre_completo}</div>
+              {tiene ? (
+                <>
                   <div style={{ display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,color:'#057642' }}>
                     <CheckCircle size={12} /> Firmado
                   </div>
-                ) : (
-                  <div style={{ display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,color:'#9CA3AF' }}>
-                    <Clock size={11} /> Pendiente
+                  <div style={{ fontSize:10,color:'#6B7280' }}>
+                    Últ. semana {fmtFecha(rec.semana_inicio)}
                   </div>
-                )}
-                <div style={{ fontSize:10,color:'#9CA3AF' }}>Ver recibos →</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {sinRecibo.length > 0 && periodoSel && (
-        <div style={{ marginTop:24,padding:'14px 18px',background:'#FEF9EC',border:'1.5px solid #F59E0B',borderRadius:10 }}>
-          <div style={{ fontSize:12,fontWeight:700,color:'#92400E',marginBottom:4 }}>
-            <Clock size={13} style={{ verticalAlign:'middle',marginRight:4 }} />
-            Sin recibo aún ({sinRecibo.length}):
-          </div>
-          <div style={{ fontSize:12,color:'#92400E',fontWeight:400 }}>
-            {sinRecibo.map(e => e.nombre_completo).join(' · ')}
-          </div>
-        </div>
-      )}
+                </>
+              ) : (
+                <div style={{ display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,color:'#9CA3AF' }}>
+                  <Clock size={11} /> Sin recibos
+                </div>
+              )}
+              <div style={{ fontSize:10,color:'#9CA3AF' }}>Ver recibos →</div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
