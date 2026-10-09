@@ -1316,33 +1316,51 @@ export default function ExpedienteEmpleado() {
                       <FileText size={15} color={C.primary} />
                       Recibos firmados ({recibosNomFirmados.length})
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
-                      {recibosNomFirmados.map(rec => {
-                        const ext   = rec.recibo_url?.split('.').pop()?.toLowerCase()
-                        const esImg = ['jpg','jpeg','png','webp','gif'].includes(ext)
-                        const thumb = thumbsNomFirmados[rec.recibo_url]
-                        const [y, m, d] = rec.semana_inicio?.split('-') ?? []
-                        const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-                        const fecha = d ? `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}` : ''
-                        return (
-                          <div key={rec.semana_inicio}
-                            onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }}
-                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', background: 'white', cursor: 'pointer' }}>
-                            <div style={{ height: 110, background: C.light, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid ${C.border}` }}>
-                              {esImg && thumb
-                                ? <img src={thumb} alt="recibo" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
-                                : <FileText size={36} color="#D1D5DB" />}
-                            </div>
-                            <div style={{ padding: '8px 10px' }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Semana {fecha}</div>
-                              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
-                                {rec.subido_en ? new Date(rec.subido_en).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}) : ''}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: C.light }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>SEMANA</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>SUBIDO</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>VISTA PREVIA</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>VER</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recibosNomFirmados.map((rec, i) => {
+                          const ext   = rec.recibo_url?.split('.').pop()?.toLowerCase()
+                          const esImg = ['jpg','jpeg','png','webp','gif'].includes(ext)
+                          const thumb = thumbsNomFirmados[rec.recibo_url]
+                          const [y, m, d] = rec.semana_inicio?.split('-') ?? []
+                          const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+                          const semana = d ? `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}` : ''
+                          const subido = rec.subido_en
+                            ? new Date(rec.subido_en).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})
+                            : '—'
+                          return (
+                            <tr key={rec.semana_inicio} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? 'white' : C.light }}>
+                              <td style={{ padding: '10px 12px', fontWeight: 600, color: C.text }}>
+                                Sem. {semana}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: C.muted, fontSize: 12 }}>{subido}</td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                {esImg && thumb
+                                  ? <img src={thumb} alt="" style={{ height: 44, width: 44, objectFit: 'cover', borderRadius: 6, border: `1px solid ${C.border}`, cursor: 'pointer' }}
+                                      onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }} />
+                                  : <FileText size={28} color="#D1D5DB" />}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                <button
+                                  onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }}
+                                  title="Ver recibo"
+                                  style={{ background: 'none', border: `1.5px solid ${C.primary}`, borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: C.primary, display: 'inline-flex', alignItems: 'center' }}>
+                                  <Eye size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </Section>
