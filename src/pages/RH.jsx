@@ -41,12 +41,13 @@ import TabNomina from '../components/rrhh/TabNomina'
 import TabIncidencias from '../components/rrhh/TabIncidencias'
 import TabNominaIWOL from '../components/rrhh/TabNominaIWOL'
 import TabVacacionesRH from '../components/rrhh/TabVacacionesRH'
+import TabRecibosNomina from '../components/rrhh/TabRecibosNomina'
 
 // ── Página principal ────────────────────────────────────────────────────────
 export default function RH() {
   useModuleAudit('RH')
   const { soloLectura } = useApp()
-  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Vacaciones', 'Nómina', 'Nómina IWOL']
+  const TABS = ['Empleados', 'Reclutamiento', 'Asistencia', 'Horarios de Guardia', 'Incidencias', 'Vacaciones', 'Nómina', 'Nómina IWOL', 'Recibos Firmados']
   const [tab, setTab] = useState('Empleados')
   const [showNuevo, setShowNuevo] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -85,6 +86,7 @@ export default function RH() {
       {tab === 'Vacaciones'    && <TabVacacionesRH />}
       {tab === 'Nómina'        && <TabNomina />}
       {tab === 'Nómina IWOL'   && <TabNominaIWOL />}
+      {tab === 'Recibos Firmados' && <TabRecibosNomina />}
 
       {showNuevo && (
         <NuevoEmpleadoModal onClose={() => setShowNuevo(false)} onCreated={() => setRefreshKey(k => k+1)} />
