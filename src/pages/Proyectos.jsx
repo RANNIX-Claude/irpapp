@@ -5,7 +5,7 @@ import {
   HardHat, Plus, ArrowLeft, Save, Trash2, Upload, FileText, X,
   Receipt, Camera, ChevronDown, ChevronUp, CheckCircle, Clock,
   AlertTriangle, Ban, Paperclip, Image, FilePlus, Download,
-  LayoutGrid, List,
+  LayoutGrid, List, Pencil,
 } from 'lucide-react'
 import { supabase, urlFirmada } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -104,7 +104,7 @@ function FileCell({ bucket, path, onUploaded, accept = '*', label: lbl }) {
    COMPONENTE PRINCIPAL
    ════════════════════════════════════════════════════════════════════════════ */
 /* ── Tarjeta Mosaico ─────────────────────────────────────────────────────── */
-function MosaicCard({ p, onClick }) {
+function MosaicCard({ p, onClick, onEdit, onDelete }) {
   const [fotoUrl, setFotoUrl] = useState(null)
   useEffect(() => {
     if (p.foto_portada_url) firmarUrl('proyectos-avances', p.foto_portada_url).then(setFotoUrl)
@@ -136,6 +136,20 @@ function MosaicCard({ p, onClick }) {
             {p.presupuesto_total ? fmt(p.presupuesto_total) : <span style={{color:'#D1D5DB'}}>Sin presupuesto</span>}
           </div>
           <EstadoBadge estado={p.estado} />
+        </div>
+        {/* Acciones */}
+        <div style={{ display:'flex', gap:6, justifyContent:'flex-end', marginTop:4 }}
+          onClick={e => e.stopPropagation()}>
+          <button onClick={onEdit} title="Editar"
+            style={{ padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px',
+              background:'white', cursor:'pointer', color:'#374151', display:'flex', alignItems:'center' }}>
+            <Pencil size={13} />
+          </button>
+          <button onClick={onDelete} title="Eliminar"
+            style={{ padding:'5px 8px', border:'1.5px solid #FEE2E2', borderRadius:'6px',
+              background:'white', cursor:'pointer', color:'#B91C1C', display:'flex', alignItems:'center' }}>
+            <Trash2 size={13} />
+          </button>
         </div>
       </div>
     </div>
@@ -176,6 +190,16 @@ export default function Proyectos() {
     const { data } = await supabase.from('proyectos').select('*').eq('id', id).single()
     if (data) setSelected(data)
   }, [])
+
+  /* ── Eliminar proyecto ───────────────────────────────────────────────────── */
+  const handleDeleteProyecto = useCallback(async (p, e) => {
+    e.stopPropagation()
+    if (!window.confirm(`¿Eliminar el proyecto "${p.nombre}"? Esta acción no se puede deshacer.`)) return
+    await supabase.from('proyectos').delete().eq('id', p.id)
+    logAudit({ modulo: 'PROYECTOS', accion: 'ELIMINAR', entidad: 'proyecto', entidad_id: p.id, descripcion: { nombre: p.nombre } })
+    toast.success('Proyecto eliminado')
+    loadProyectos()
+  }, [loadProyectos])
 
   /* ── KPIs de lista ──────────────────────────────────────────────────────── */
   const kpiTotal    = proyectos.length
@@ -263,7 +287,10 @@ export default function Proyectos() {
       ) : viewMode === 'mosaic' ? (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:14 }}>
           {proyectos.map(p => (
-            <MosaicCard key={p.id} p={p} onClick={() => { setSelected(p); setTab('resumen') }} />
+            <MosaicCard key={p.id} p={p}
+              onClick={() => { setSelected(p); setTab('resumen') }}
+              onEdit={e => { e.stopPropagation(); setSelected(p); setTab('resumen') }}
+              onDelete={e => handleDeleteProyecto(p, e)} />
           ))}
         </div>
       ) : (
@@ -271,8 +298,8 @@ export default function Proyectos() {
           {proyectos.map(p => (
             <div key={p.id} onClick={() => { setSelected(p); setTab('resumen') }}
               style={{ background:'white', border:'1px solid #E5E7EB', borderRadius:'10px',
-                padding:'16px 20px', cursor:'pointer', transition:'box-shadow .15s',
-                display:'grid', gridTemplateColumns:'1fr auto', gap:12, alignItems:'center' }}
+                padding:'14px 20px', cursor:'pointer', transition:'box-shadow .15s',
+                display:'grid', gridTemplateColumns:'1fr auto auto', gap:12, alignItems:'center' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
               <div>
@@ -285,6 +312,18 @@ export default function Proyectos() {
                 </div>
               </div>
               <EstadoBadge estado={p.estado} />
+              <div style={{ display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => { setSelected(p); setTab('resumen') }} title="Editar"
+                  style={{ padding:'5px 8px', border:'1.5px solid #E5E7EB', borderRadius:'6px',
+                    background:'white', cursor:'pointer', color:'#374151', display:'flex', alignItems:'center' }}>
+                  <Pencil size={13} />
+                </button>
+                <button onClick={e => handleDeleteProyecto(p, e)} title="Eliminar"
+                  style={{ padding:'5px 8px', border:'1.5px solid #FEE2E2', borderRadius:'6px',
+                    background:'white', cursor:'pointer', color:'#B91C1C', display:'flex', alignItems:'center' }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
