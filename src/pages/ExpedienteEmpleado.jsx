@@ -696,6 +696,8 @@ export default function ExpedienteEmpleado() {
   const [asistencia, setAsistencia] = useState([])
   const [recibos, setRecibos]       = useState([])
   const [reciboAbierto, setReciboAbierto] = useState(null)
+  const [recibosNomFirmados, setRecibosNomFirmados] = useState({}) // { [fecha_inicio]: recibo_url }
+  const [thumbsNomFirmados, setThumbsNomFirmados]   = useState({}) // { [fecha_inicio]: signed url }
   const [capacitacion, setCapacitacion] = useState([])
   const [evaluaciones, setEvaluaciones] = useState([])
   const [beneficios, setBeneficios] = useState([])
@@ -817,6 +819,29 @@ export default function ExpedienteEmpleado() {
           .map(r => ({ ...r, periodo: porId[r.periodo_id] ?? null }))
           .sort((a, b) => (b.periodo?.fecha_inicio ?? '').localeCompare(a.periodo?.fecha_inicio ?? ''))
       )
+
+      // Recibos firmados del empleado (por empleado_id UUID)
+      if (emp?.id) {
+        const { data: firmados } = await supabase
+          .from('nomina_recibos_firmados')
+          .select('semana_inicio, recibo_url')
+          .eq('empleado_id', emp.id)
+        if (!cancelado && firmados) {
+          const mFirmados = {}
+          firmados.forEach(f => { mFirmados[f.semana_inicio] = f.recibo_url })
+          setRecibosNomFirmados(mFirmados)
+          // Precargar thumbnails para imágenes
+          firmados.forEach(async f => {
+            const ext = f.recibo_url?.split('.').pop()?.toLowerCase()
+            if (['jpg','jpeg','png','webp','gif'].includes(ext)) {
+              try {
+                const url = await urlFirmada('expedientes-docs', f.recibo_url, 300)
+                if (!cancelado) setThumbsNomFirmados(t => ({ ...t, [f.semana_inicio]: url }))
+              } catch { /* sin thumbnail */ }
+            }
+          })
+        }
+      }
     })()
     return () => { cancelado = true }
   }, [numEmpleado, refreshKey])
@@ -1243,6 +1268,32 @@ export default function ExpedienteEmpleado() {
                                           <div style={{ fontSize: 12, color: '#991B1B' }}>{r.error_timbrado}</div>
                                         </div>
                                       )}
+                                      {/* Recibo firmado */}
+                                      {(() => {
+                                        const fechaIni = r.periodo?.fecha_inicio
+                                        const path     = fechaIni ? recibosNomFirmados[fechaIni] : null
+                                        const thumb    = fechaIni ? thumbsNomFirmados[fechaIni]  : null
+                                        const ext      = path?.split('.').pop()?.toLowerCase()
+                                        const esImg    = ['jpg','jpeg','png','webp','gif'].includes(ext)
+                                        if (!fechaIni) return null
+                                        return (
+                                          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>Recibo firmado:</span>
+                                            {path ? (
+                                              <button
+                                                onClick={async () => { const u = await urlFirmada('expedientes-docs', path); window.open(u,'_blank') }}
+                                                style={{ display:'inline-flex',alignItems:'center',gap:8,padding:'6px 12px',border:`1.5px solid ${C.success}`,borderRadius:8,background:'#F0FDF4',cursor:'pointer',color:C.success,fontSize:12,fontWeight:700 }}>
+                                                {esImg && thumb
+                                                  ? <img src={thumb} alt="" style={{ width:36,height:36,objectFit:'cover',borderRadius:4,border:`1px solid ${C.border}` }} />
+                                                  : <FileText size={18} />}
+                                                Ver recibo firmado
+                                              </button>
+                                            ) : (
+                                              <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>Sin recibo firmado</span>
+                                            )}
+                                          </div>
+                                        )
+                                      })()}
                                     </td>
                                   </tr>
                                 )}

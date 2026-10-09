@@ -248,7 +248,7 @@ export default function TabRecibosNomina() {
                     <Clock size={11} /> Pendiente
                   </div>
                 )}
-                <div style={{ fontSize:10,color:'#9CA3AF' }}>Ver historial →</div>
+                <div style={{ fontSize:10,color:'#9CA3AF' }}>Ver recibos →</div>
               </div>
             )
           })}
