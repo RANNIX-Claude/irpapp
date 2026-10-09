@@ -30,15 +30,23 @@ export default function TabRecibosNomina() {
   }, [])
 
   // Recibos del período seleccionado (vista general)
+  // Busca por rango para capturar tanto recibos del período base (fecha_inicio exacta)
+  // como recibos de semana IWOL (lunes dentro del rango del período).
   useEffect(() => {
     if (!periodoSel) return
     supabase
       .from('nomina_recibos_firmados')
       .select('empleado_id, recibo_url, subido_en')
-      .eq('semana_inicio', periodoSel.fecha_inicio)
+      .gte('semana_inicio', periodoSel.fecha_inicio)
+      .lte('semana_inicio', periodoSel.fecha_fin)
       .then(({ data }) => {
         const m = {}
-        data?.forEach(r => { m[r.empleado_id] = r })
+        // Si hay varios por empleado (semanas dentro del período), toma el más reciente
+        data?.forEach(r => {
+          if (!m[r.empleado_id] || r.subido_en > m[r.empleado_id].subido_en) {
+            m[r.empleado_id] = r
+          }
+        })
         setRecibos(m)
       })
   }, [periodoSel?.id])
