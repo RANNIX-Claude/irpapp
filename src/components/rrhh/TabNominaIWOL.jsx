@@ -1,6 +1,8 @@
-import { useState, useEffect, Fragment } from 'react'
-import { Download, X, FileText, Calendar, RefreshCw, Printer } from 'lucide-react'
+import { useState, useEffect, useRef, Fragment } from 'react'
+import { Download, X, FileText, Calendar, RefreshCw, Printer, Upload, CheckCircle, Image } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
+import { supabase } from '../../lib/supabase'
+import { urlFirmada } from '../../lib/supabase'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
 import { NominaInput } from './rh-helpers'
@@ -24,6 +26,70 @@ function TabNominaIWOL() {
   // Ajustes manuales: { [empleadoId]: { complemento, vacaciones, prima_vac, dia_festivo, transferencia } }
   const [ajustes, setAjustes] = useState({})
   const semana = SEMANAS[semanaIdx]
+
+  // Recibos firmados: { [empleadoId]: recibo_url }
+  const [recibos, setRecibos] = useState({})
+  const [subiendo, setSubiendo] = useState({}) // { [empleadoId]: true }
+  const fileRefs = useRef({})
+
+  const cargarRecibos = async (lunes) => {
+    const { data } = await supabase
+      .from('nomina_recibos_firmados')
+      .select('empleado_id, recibo_url')
+      .eq('semana_inicio', lunes)
+    if (data) {
+      const m = {}
+      data.forEach(r => { m[r.empleado_id] = r.recibo_url })
+      setRecibos(m)
+    }
+  }
+
+  useEffect(() => { cargarRecibos(semana.lunes) }, [semana.lunes])
+
+  const subirReciboFirmado = async (r, file) => {
+    if (!file) return
+    setSubiendo(s => ({ ...s, [r.empleado_id]: true }))
+    try {
+      const ext  = file.name.split('.').pop().toLowerCase() || 'pdf'
+      const path = `recibos-nomina/${semana.lunes}/${r.empleado_id}.${ext}`
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { toast.error('Sin sesión activa'); return }
+      const base = import.meta.env.VITE_SUPABASE_URL
+      const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+      // Subir al bucket expedientes-docs (privado, autenticado)
+      const res = await fetch(`${base}/storage/v1/object/expedientes-docs/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, apikey: anon, 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+      if (!res.ok) { const t = await res.text(); toast.error('Error al subir: ' + t); return }
+      // Guardar referencia en BD (upsert por empleado+semana)
+      const { error } = await supabase.from('nomina_recibos_firmados').upsert({
+        empleado_id: r.empleado_id,
+        semana_inicio: semana.lunes,
+        recibo_url: path,
+      }, { onConflict: 'empleado_id,semana_inicio' })
+      if (error) { toast.error(error.message); return }
+      setRecibos(prev => ({ ...prev, [r.empleado_id]: path }))
+      toast.success(`Recibo firmado de ${r.nombre} guardado`)
+    } catch (e) {
+      toast.error('Error: ' + e.message)
+    } finally {
+      setSubiendo(s => ({ ...s, [r.empleado_id]: false }))
+    }
+  }
+
+  const verReciboFirmado = async (empleadoId) => {
+    const path = recibos[empleadoId]
+    if (!path) return
+    try {
+      const url = await urlFirmada('expedientes-docs', path, 60)
+      window.open(url, '_blank')
+    } catch (e) {
+      toast.error('No se pudo abrir el recibo')
+    }
+  }
 
   const activos = (empleados ?? []).filter(e => e.estado_id === 'ACTIVO')
   const incs = incidencias ?? []
@@ -383,6 +449,7 @@ function TabNominaIWOL() {
           }
         }
         .print-val { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       {/* Totales rápidos */}
@@ -424,7 +491,12 @@ function TabNominaIWOL() {
                 {['No.','Nombre del Trabajador','Horario','Descanso','Asistencia Lun–Dom','Faltas','Percepción','Complem.','Vacaciones','Prima Vac.','Día Festivo','Total Perc.','Transferencia','Efectivo'].map(h => (
                   <th key={h} style={{ padding:'10px 12px',textAlign:'left',fontWeight:600,fontSize:11,whiteSpace:'nowrap' }}>{h}</th>
                 ))}
-                <th className="no-print" style={{ padding:'10px 12px',textAlign:'center',fontWeight:600,fontSize:11 }}>Recibo</th>
+                <th className="no-print" style={{ padding:'10px 12px',textAlign:'center',fontWeight:600,fontSize:11,whiteSpace:'nowrap' }}>
+                  Recibo &nbsp;
+                  <span style={{ fontSize:10,fontWeight:400,opacity:.75 }}>
+                    {Object.keys(recibos).length}/{activos.length} firmados
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -472,17 +544,50 @@ function TabNominaIWOL() {
                     {r.efectivo ? '$'+r.efectivo.toLocaleString('es-MX',{minimumFractionDigits:2}) : '—'}
                   </td>
                   <td className="no-print" style={{ padding:'8px 10px',textAlign:'center' }}>
-                    {/* Word para archivar o corregir; impresora para el caso de
-                        cada semana: imprimir, firmar y entregar. */}
-                    <div style={{ display:'inline-flex',border:'1.5px solid #E5E7EB',borderRadius:7,overflow:'hidden' }}>
-                      <button onClick={() => generarRecibo(r)} title={`Recibo de ${r.nombre} en Word`}
-                        style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'none',background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#5A4080',whiteSpace:'nowrap' }}>
-                        <FileText size={12} /> Recibo
-                      </button>
-                      <button onClick={() => imprimirReciboDe(r)} title={`Imprimir el recibo de ${r.nombre}`}
-                        style={{ display:'inline-flex',alignItems:'center',padding:'5px 8px',border:'none',borderLeft:'1.5px solid #E5E7EB',background:'white',cursor:'pointer',color:'#6B7280' }}>
-                        <Printer size={12} />
-                      </button>
+                    <div style={{ display:'flex',flexDirection:'column',gap:5,alignItems:'center' }}>
+                      {/* Generar + imprimir recibo */}
+                      <div style={{ display:'inline-flex',border:'1.5px solid #E5E7EB',borderRadius:7,overflow:'hidden' }}>
+                        <button onClick={() => generarRecibo(r)} title={`Recibo de ${r.nombre} en Word`}
+                          style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 9px',border:'none',background:'white',cursor:'pointer',fontSize:11,fontWeight:600,color:'#5A4080',whiteSpace:'nowrap' }}>
+                          <FileText size={12} /> Recibo
+                        </button>
+                        <button onClick={() => imprimirReciboDe(r)} title={`Imprimir el recibo de ${r.nombre}`}
+                          style={{ display:'inline-flex',alignItems:'center',padding:'5px 8px',border:'none',borderLeft:'1.5px solid #E5E7EB',background:'white',cursor:'pointer',color:'#6B7280' }}>
+                          <Printer size={12} />
+                        </button>
+                      </div>
+                      {/* Subir recibo firmado */}
+                      <input
+                        ref={el => { fileRefs.current[r.empleado_id] = el }}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        style={{ display:'none' }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) subirReciboFirmado(r, f); e.target.value='' }}
+                      />
+                      {recibos[r.empleado_id] ? (
+                        <div style={{ display:'inline-flex',alignItems:'center',gap:4 }}>
+                          <button onClick={() => verReciboFirmado(r.empleado_id)}
+                            title="Ver recibo firmado"
+                            style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 8px',border:'1.5px solid #057642',borderRadius:6,background:'#E6F7EF',color:'#057642',fontSize:10,fontWeight:700,cursor:'pointer' }}>
+                            <CheckCircle size={11} /> Firmado
+                          </button>
+                          <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
+                            title="Reemplazar recibo firmado"
+                            disabled={subiendo[r.empleado_id]}
+                            style={{ padding:'4px 6px',border:'1.5px solid #D1D5DB',borderRadius:6,background:'white',cursor:'pointer',color:'#9CA3AF',display:'inline-flex',alignItems:'center' }}>
+                            <Upload size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => fileRefs.current[r.empleado_id]?.click()}
+                          disabled={subiendo[r.empleado_id]}
+                          title="Subir recibo firmado por el trabajador"
+                          style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'4px 9px',border:'1.5px dashed #D1D5DB',borderRadius:6,background:'white',color:'#9CA3AF',fontSize:10,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap' }}>
+                          {subiendo[r.empleado_id]
+                            ? <><div style={{ width:10,height:10,border:'2px solid #9CA3AF',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite' }} /> Subiendo…</>
+                            : <><Image size={11} /> Subir firmado</>}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
