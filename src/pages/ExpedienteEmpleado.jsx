@@ -824,8 +824,9 @@ export default function ExpedienteEmpleado() {
       if (emp?.id) {
         const { data: firmados } = await supabase
           .from('nomina_recibos_firmados')
-          .select('semana_inicio, recibo_url')
+          .select('semana_inicio, recibo_url, subido_en')
           .eq('empleado_id', emp.id)
+          .order('semana_inicio', { ascending: false })
         if (!cancelado && firmados) {
           setRecibosNomFirmados(firmados)
           // Precargar thumbnails para imágenes (keyed by recibo_url)
@@ -1306,6 +1307,43 @@ export default function ExpedienteEmpleado() {
                       </table>
                     </div>
                   </>
+                )}
+
+                {/* ── Historial de recibos firmados ── */}
+                {recibosNomFirmados.length > 0 && (
+                  <div style={{ marginTop: 28, borderTop: `1.5px solid ${C.border}`, paddingTop: 20 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={15} color={C.primary} />
+                      Recibos firmados ({recibosNomFirmados.length})
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
+                      {recibosNomFirmados.map(rec => {
+                        const ext   = rec.recibo_url?.split('.').pop()?.toLowerCase()
+                        const esImg = ['jpg','jpeg','png','webp','gif'].includes(ext)
+                        const thumb = thumbsNomFirmados[rec.recibo_url]
+                        const [y, m, d] = rec.semana_inicio?.split('-') ?? []
+                        const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+                        const fecha = d ? `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}` : ''
+                        return (
+                          <div key={rec.semana_inicio}
+                            onClick={async () => { const u = await urlFirmada('expedientes-docs', rec.recibo_url); window.open(u,'_blank') }}
+                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', background: 'white', cursor: 'pointer' }}>
+                            <div style={{ height: 110, background: C.light, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid ${C.border}` }}>
+                              {esImg && thumb
+                                ? <img src={thumb} alt="recibo" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                                : <FileText size={36} color="#D1D5DB" />}
+                            </div>
+                            <div style={{ padding: '8px 10px' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Semana {fecha}</div>
+                              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                                {rec.subido_en ? new Date(rec.subido_en).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}) : ''}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )}
               </Section>
             </Card>
