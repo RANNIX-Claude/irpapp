@@ -2,7 +2,10 @@
 // Extraído de src/pages/RH.jsx — sin cambios de lógica
 
 export function getLunes(d) {
-  const dt = new Date(d)
+  // Cuando d es string ISO ('2026-10-05') new Date() lo interpreta UTC midnight;
+  // en zonas UTC-N eso retrocede un día y rompe el cálculo del lunes.
+  // Añadir T12:00:00 fuerza hora local y evita el desfase.
+  const dt = typeof d === 'string' ? new Date(d + 'T12:00:00') : new Date(d)
   const day = dt.getDay() // 0=dom
   const diff = (day === 0 ? -6 : 1 - day)
   dt.setDate(dt.getDate() + diff)
