@@ -79,8 +79,10 @@ function SinAcceso({ rol }) {
 // Marco de la aplicación según el dispositivo: en celular, menú inferior (MobileShell, para
 // todos los roles); en escritorio, Header + Sidebar. `sidebar={false}` para roles de una sola
 // pantalla; `desktopExtras` suma pie y chat flotante (en celular el chat es la pestaña Asistente).
+const ROLES_CON_CHAT = ['superadmin', 'admin']
+
 function Marco({ children, sidebar = true, desktopExtras = false }) {
-  const { sidebarOpen, isMobile } = useApp()
+  const { sidebarOpen, isMobile, perfil } = useApp()
   // En celular NO se usan las páginas de escritorio (children): MobileShell trae las suyas, de src/mobile/.
   if (isMobile) return <MobileShell />
   return (
@@ -96,7 +98,7 @@ function Marco({ children, sidebar = true, desktopExtras = false }) {
         {children}
         {desktopExtras && <Footer />}
       </main>
-      {desktopExtras && <AgenteOperativo />}
+      {desktopExtras && ROLES_CON_CHAT.includes(perfil?.rol_id) && <AgenteOperativo />}
       <Toaster position="top-right" />
     </div>
   )
