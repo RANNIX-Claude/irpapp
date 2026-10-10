@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, AlertTriangle, CheckCircle, X, Calendar, Save, AlertCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, AlertTriangle, CheckCircle, X, Calendar, AlertCircle, List, Search } from 'lucide-react'
 import { usePRP } from '../../hooks/usePRP'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
@@ -24,7 +24,6 @@ function NuevaIncidenciaModal({ empleados, onClose, onSaved }) {
   const guardar = async () => {
     if (!form.empleado_id || !form.fecha || !form.tipo) return toast.error('Empleado, fecha y tipo son obligatorios')
     const tipo = TIPOS.find(t => t.id === form.tipo)
-    // Calcular lunes de la semana
     const lunes = fmtDate(getLunes(form.fecha))
     setSaving(true)
     const { error } = await supabase.from('rh_incidencias').insert({
@@ -38,7 +37,7 @@ function NuevaIncidenciaModal({ empleados, onClose, onSaved }) {
     })
     setSaving(false)
     if (error) {
-      if (error.code === '23505') return toast.error('Ya existe esa incidencia para este empleado y fecha')
+      if (error.code === '23505') return toast.error('Ya existe una incidencia de ese tipo para este empleado en esa fecha')
       return toast.error(error.message)
     }
     toast.success('Incidencia registrada')
@@ -104,18 +103,30 @@ function NuevaIncidenciaModal({ empleados, onClose, onSaved }) {
 function TabIncidencias() {
   const SEMANAS = generarSemanas(16)
   const [semanaIdx, setSemanaIdx] = useState(0)
+  const [modoTodas, setModoTodas] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+
   const { data: empleados } = usePRP('prp_empleados', { order: { col: 'apellido_pat' } })
+
+  // Una sola query; cambia filtros/orden según el modo
+  const filters = modoTodas ? [] : [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]]
   const { data: incidencias, loading } = usePRP('prp_incidencias', {
-    filters: [['semana_inicio', 'eq', SEMANAS[semanaIdx].lunes]],
-    order: { col: 'fecha' },
+    filters,
+    order: { col: 'fecha', asc: !modoTodas },
+    limit: modoTodas ? 500 : undefined,
     refreshKey,
   })
 
   const semana = SEMANAS[semanaIdx]
-  const lista = incidencias ?? []
-  const total_inasistencias = lista.filter(i => i.afecta_nomina).length
+
+  const lista = useMemo(() => {
+    const base = incidencias ?? []
+    if (!modoTodas || !busqueda.trim()) return base
+    const q = busqueda.toLowerCase()
+    return base.filter(i => (i.nombre_completo || '').toLowerCase().includes(q))
+  }, [incidencias, modoTodas, busqueda])
 
   const TIPO_COLOR = {
     INASISTENCIA:      ['#FEE2E2','#991B1B'],
@@ -143,22 +154,65 @@ function TabIncidencias() {
 
   return (
     <div>
-      {/* Selector de semana */}
+      {/* Barra de controles */}
       <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20,flexWrap:'wrap' }}>
-        <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'4px 4px 4px 12px' }}>
-          <Calendar size={14} color="var(--color-primary)" />
-          <span style={{ fontSize:13,fontWeight:600 }}>Semana:</span>
-          <select value={semanaIdx} onChange={e => setSemanaIdx(+e.target.value)}
-            style={{ border:'none',background:'transparent',fontSize:13,fontWeight:600,color:'var(--color-primary)',cursor:'pointer',padding:'6px 8px',outline:'none' }}>
-            {SEMANAS.map((s, i) => (
-              <option key={s.lunes} value={i}>{labelSemana(s.lunes, s.domingo)}</option>
-            ))}
-          </select>
-        </div>
-        <div style={{ fontSize:12,color:'var(--color-text-light)' }}>
-          {semana.lunes} → {semana.domingo}
-        </div>
-        <div style={{ marginLeft:'auto' }}>
+
+        {/* Selector de semana — solo visible en modo semana */}
+        {!modoTodas && (
+          <>
+            <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'4px 4px 4px 12px' }}>
+              <Calendar size={14} color="var(--color-primary)" />
+              <span style={{ fontSize:13,fontWeight:600 }}>Semana:</span>
+              <select value={semanaIdx} onChange={e => setSemanaIdx(+e.target.value)}
+                style={{ border:'none',background:'transparent',fontSize:13,fontWeight:600,color:'var(--color-primary)',cursor:'pointer',padding:'6px 8px',outline:'none' }}>
+                {SEMANAS.map((s, i) => (
+                  <option key={s.lunes} value={i}>{labelSemana(s.lunes, s.domingo)}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ fontSize:12,color:'var(--color-text-light)' }}>
+              {semana.lunes} → {semana.domingo}
+            </div>
+          </>
+        )}
+
+        {/* Buscador — solo en modo todas */}
+        {modoTodas && (
+          <div style={{ display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:8,border:'1.5px solid #E5E7EB',padding:'6px 12px',flex:1,maxWidth:320 }}>
+            <Search size={14} color="#9CA3AF" />
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por empleado…"
+              style={{ border:'none',outline:'none',fontSize:13,width:'100%',background:'transparent' }}
+            />
+            {busqueda && (
+              <button onClick={() => setBusqueda('')} style={{ background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1 }}>
+                <X size={13} color="#9CA3AF" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Toggle modo */}
+        <button
+          onClick={() => { setModoTodas(m => !m); setBusqueda('') }}
+          style={{
+            display:'flex',alignItems:'center',gap:6,
+            padding:'8px 14px',
+            border:'1.5px solid',
+            borderColor: modoTodas ? 'var(--color-primary)' : '#E5E7EB',
+            borderRadius:8,
+            background: modoTodas ? 'var(--color-primary)' : 'white',
+            color: modoTodas ? 'white' : 'var(--color-text-light)',
+            cursor:'pointer',fontSize:13,fontWeight:600,
+          }}>
+          <List size={14} />
+          {modoTodas ? 'Por semana' : 'Ver todas'}
+        </button>
+
+        {/* Nueva incidencia */}
+        <div style={{ marginLeft: modoTodas ? 0 : 'auto' }}>
           <button onClick={() => setShowModal(true)}
             style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 14px',background:'var(--color-warning)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer' }}>
             <Plus size={14} /> Nueva Incidencia
@@ -169,9 +223,9 @@ function TabIncidencias() {
       {/* KPIs */}
       <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:20 }}>
         {[
-          [lista.length, 'Total incidencias', '#6B7280'],
-          [total_inasistencias, 'Afectan nómina', '#B24020'],
-          [lista.filter(i=>!i.afecta_nomina).length, 'Sin descuento', '#057642'],
+          [lista.length, modoTodas ? 'Total (todas)' : 'Total incidencias', '#6B7280'],
+          [lista.filter(i => i.afecta_nomina).length, 'Afectan nómina', '#B24020'],
+          [lista.filter(i => !i.afecta_nomina).length, 'Sin descuento', '#057642'],
         ].map(([v,t,c]) => (
           <div key={t} style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',padding:'14px 16px' }}>
             <div style={{ fontSize:11,fontWeight:600,color:'var(--color-text-light)',textTransform:'uppercase',marginBottom:4 }}>{t}</div>
@@ -180,54 +234,66 @@ function TabIncidencias() {
         ))}
       </div>
 
+      {/* Tabla */}
       {loading ? (
         <div style={{ textAlign:'center',padding:60,color:'#9CA3AF' }}>Cargando…</div>
       ) : lista.length === 0 ? (
         <div style={{ textAlign:'center',padding:60,background:'white',borderRadius:10,border:'1px solid #E5E7EB' }}>
           <CheckCircle size={36} color="#057642" style={{ display:'block',margin:'0 auto 12px',opacity:.4 }} />
-          <p style={{ margin:0,fontWeight:600,color:'#374151' }}>Sin incidencias esta semana</p>
-          <p style={{ margin:'6px 0 0',fontSize:12,color:'#9CA3AF' }}>Registra inasistencias o incidencias con el botón de arriba</p>
+          <p style={{ margin:0,fontWeight:600,color:'#374151' }}>
+            {modoTodas ? (busqueda ? 'Sin resultados para esa búsqueda' : 'No hay incidencias registradas') : 'Sin incidencias esta semana'}
+          </p>
+          {!modoTodas && (
+            <p style={{ margin:'6px 0 0',fontSize:12,color:'#9CA3AF' }}>Registra inasistencias o incidencias con el botón de arriba</p>
+          )}
         </div>
       ) : (
         <div style={{ background:'white',borderRadius:10,border:'1px solid #E5E7EB',overflow:'hidden' }}>
-          <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
-            <thead>
-              <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
-                {['Fecha','Empleado','Puesto','Tipo','Descripción','Descuenta',''].map(h => (
-                  <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map(inc => {
-                const [bg, fg] = TIPO_COLOR[inc.tipo] || ['#F3F4F6','#374151']
-                return (
-                  <tr key={inc.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
-                    <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12 }}>{inc.fecha}</td>
-                    <td style={{ padding:'11px 14px',fontWeight:600 }}>{inc.nombre_completo}</td>
-                    <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{inc.puesto}</td>
-                    <td style={{ padding:'11px 14px' }}>
-                      <span style={{ padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:700,background:bg,color:fg }}>
-                        {TIPO_LABEL[inc.tipo] || inc.tipo}
-                      </span>
-                    </td>
-                    <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)' }}>{inc.descripcion || '—'}</td>
-                    <td style={{ padding:'11px 14px' }}>
-                      {inc.afecta_nomina
-                        ? <span style={{ color:'#991B1B',fontWeight:700,fontSize:12 }}>Sí</span>
-                        : <span style={{ color:'#057642',fontSize:12 }}>No</span>}
-                    </td>
-                    <td style={{ padding:'11px 14px' }}>
-                      <button onClick={() => eliminar(inc.id)}
-                        style={{ padding:'3px 8px',border:'1.5px solid #FEE2E2',borderRadius:6,background:'white',color:'#B24020',cursor:'pointer',fontSize:11,fontWeight:600 }}>
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {modoTodas && (
+            <div style={{ padding:'10px 14px',background:'#F0F7FF',borderBottom:'1px solid #E5E7EB',fontSize:12,color:'var(--color-primary)',fontWeight:600 }}>
+              Mostrando {lista.length} incidencia{lista.length !== 1 ? 's' : ''}{(incidencias ?? []).length >= 500 ? ' (máx. 500 — usa el buscador para filtrar)' : ''}
+            </div>
+          )}
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'#F9FAFB',borderBottom:'1px solid #E5E7EB' }}>
+                  {['Fecha','Empleado','Puesto','Tipo','Descripción','Descuenta',''].map(h => (
+                    <th key={h} style={{ padding:'11px 14px',textAlign:'left',fontWeight:600,fontSize:11,color:'var(--color-text-light)',whiteSpace:'nowrap',textTransform:'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lista.map(inc => {
+                  const [bg, fg] = TIPO_COLOR[inc.tipo] || ['#F3F4F6','#374151']
+                  return (
+                    <tr key={inc.id} style={{ borderBottom:'1px solid #F3F4F6' }}>
+                      <td style={{ padding:'11px 14px',fontFamily:'monospace',fontSize:12,whiteSpace:'nowrap' }}>{inc.fecha}</td>
+                      <td style={{ padding:'11px 14px',fontWeight:600,whiteSpace:'nowrap' }}>{inc.nombre_completo}</td>
+                      <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)',whiteSpace:'nowrap' }}>{inc.puesto}</td>
+                      <td style={{ padding:'11px 14px' }}>
+                        <span style={{ padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:700,background:bg,color:fg,whiteSpace:'nowrap' }}>
+                          {TIPO_LABEL[inc.tipo] || inc.tipo}
+                        </span>
+                      </td>
+                      <td style={{ padding:'11px 14px',fontSize:12,color:'var(--color-text-light)',maxWidth:200 }}>{inc.descripcion || '—'}</td>
+                      <td style={{ padding:'11px 14px' }}>
+                        {inc.afecta_nomina
+                          ? <span style={{ color:'#991B1B',fontWeight:700,fontSize:12 }}>Sí</span>
+                          : <span style={{ color:'#057642',fontSize:12 }}>No</span>}
+                      </td>
+                      <td style={{ padding:'11px 14px' }}>
+                        <button onClick={() => eliminar(inc.id)}
+                          style={{ padding:'3px 8px',border:'1.5px solid #FEE2E2',borderRadius:6,background:'white',color:'#B24020',cursor:'pointer',fontSize:11,fontWeight:600,whiteSpace:'nowrap' }}>
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
