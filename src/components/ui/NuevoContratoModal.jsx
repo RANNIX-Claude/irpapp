@@ -227,7 +227,7 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'grid', gap: '16px' }}>
+          <form onSubmit={handleSubmit} noValidate style={{ padding: '24px', display: 'grid', gap: '16px' }}>
             {error && <div style={{ padding: '10px 14px', background: '#FEE2E2', color: '#B24020', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
 

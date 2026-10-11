@@ -54,7 +54,7 @@
 - Prueba de regresión propuesta: `tests/regresion/contrato_validacion_campos.spec.ts` — vaciar Renta mensual, pulsar enviar, y verificar que el DOM muestre el texto exacto "Completa los campos obligatorios (arrendatario, local, renta)." (no el globo nativo) y que no se dispare ninguna petición de red hacia Supabase.
 - Decisión: Aprobado — bug cosmético claro (no requiere juicio de negocio, solo confirmación de desarrollo); quitar `required` o agregar `noValidate` al `<form>`.
 - Aprobó: Roberto Aguilar Cota · Fecha: 2026-10-11
-- Estado: Aprobado — pendiente de Fase 5
+- Estado: **Corregido** (Fase 5, 2026-10-11) — se agregó `noValidate` al `<form>` de `src/components/ui/NuevoContratoModal.jsx` (línea ~230), dejando el `if` de `handleSubmit` como único mecanismo de validación. Prueba de regresión: `tests/regresion/contrato_validacion_campos.spec.ts` (Playwright) — creada, pero **no se pudo ejecutar en este entorno**: el repo no tiene `@playwright/test` instalado ni `playwright.config.*`. No se simula un resultado de corrida. Commit: `fix(QA-Escenario01-H02): quitar validacion nativa del navegador en NuevoContratoModal`.
 
 ---
 
