@@ -80,6 +80,12 @@ export default function NuevoContratoModal({ onClose, onCreated, fromProspecto =
       })
       if (e2) throw e2
 
+      // 2b. Marcar el local como OCUPADO (mismo patrón que renovar_contrato/guardarEdit)
+      const { error: e3 } = await supabase.from('cat_locales')
+        .update({ contrato_activo_id: nuevo.id, estatus: 'OCUPADO' })
+        .eq('id_local', form.local_id)
+      if (e3) throw e3
+
       const dep = parseFloat(form.deposito_garantia) || parseFloat(form.renta_mensual || 0) * 2
       setContratoCreado({ id: nuevo.id, folio, deposito: dep, fecha_inicio: form.fecha_inicio })
       setDepositoForm(f => ({ ...f, fecha: form.fecha_inicio }))

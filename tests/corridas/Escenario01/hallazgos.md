@@ -85,7 +85,7 @@
 - Prueba de regresión propuesta: `tests/regresion/contrato_local_estatus.spec.ts` — tras alta completa, verificar `cat_locales.estatus` del local usado (si negocio confirma que debe ser `OCUPADO`), y verificar que ese local ya no aparece en el select de "Local disponible" al abrir un segundo "Nuevo Contrato".
 - **Decisión de negocio (PN-02): sí debe pasar a OCUPADO al alta**, igual que ya hacen `renovar_contrato` y `guardarEdit`. Se corrige agregando el `update` correspondiente en `NuevoContratoModal.jsx` (`handleSubmit`, justo después del insert en `contratos_locales`).
 - Aprobó: Roberto Aguilar Cota · Fecha: 2026-10-11
-- Estado: Aprobado — pendiente de Fase 5
+- Estado: **Corregido** (Fase 5, 2026-10-11) — se agregó en `src/components/ui/NuevoContratoModal.jsx` (`handleSubmit`, justo después del insert en `contratos_locales`) `supabase.from('cat_locales').update({ contrato_activo_id: nuevo.id, estatus: 'OCUPADO' }).eq('id_local', form.local_id)`, replicando exactamente el patrón ya usado por `guardarEdit` en `src/pages/Contratos.jsx` (línea 547: `.update({ contrato_activo_id: c.id, estatus: 'OCUPADO' }).in('id_local', localesSel)`). Prueba de regresión: `tests/regresion/contrato_local_estatus.spec.ts` (Playwright) — creada, pero **no se pudo ejecutar en este entorno**: el repo no tiene `@playwright/test` instalado ni `playwright.config.*`. No se simula un resultado de corrida. Commit: `fix(QA-Escenario01-H04): actualizar cat_locales a OCUPADO al dar de alta un contrato`.
 
 ---
 
