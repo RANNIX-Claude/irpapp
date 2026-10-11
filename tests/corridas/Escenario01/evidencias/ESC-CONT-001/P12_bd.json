@@ -1,0 +1,15 @@
+[
+  {
+    "id": "db01effd-3e95-4e69-98da-4c3ac19da55b",
+    "numero_contrato": "CA-2026-2138",
+    "arrendatario_id": "3f4c67f7-274c-44a5-908b-46d7094985b5",
+    "fecha_inicio": "2026-10-11T06:00:00.000Z",
+    "fecha_fin": "2027-10-10T06:00:00.000Z",
+    "renta_mensual": "15000.00",
+    "deposito_garantia": "30000.00",
+    "dia_pago": 5,
+    "penalizacion_pct": "5.00",
+    "incremento_anual_pct": "10.00",
+    "estatus": "VIGENTE"
+  }
+]

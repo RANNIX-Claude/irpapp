@@ -1,8 +1,12 @@
 id: ESC-CONT-001
 nombre: Alta de contrato completo con depósito cobrado al momento
 modulo: Contratos de Arrendamiento
-version: 1
+version: 2
 fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+historial_version:
+  - version: 2
+    fecha: 2026-10-11
+    cambio: "Paso 2 reescrito tras decisión de negocio PN-01 (corrida Escenario01, ver tests/corridas/Escenario01/hallazgos.md): el modal de una sola pantalla es la UX deseada, no un wizard rotulado 'Paso 1/Paso 2'. Autorizó: Roberto Aguilar Cota."
 rol_prueba: staff (admin/superadmin)
 pantallas: [Contratos.jsx, NuevoContratoModal.jsx]
 
@@ -24,9 +28,9 @@ pasos:
 
   - n: 2
     descripcion: Pulsar botón "Nuevo Contrato"
-    esperado: "Se abre NuevoContratoModal en Paso 1 — Datos del contrato"
+    esperado: "Se abre NuevoContratoModal como formulario de una sola pantalla con los datos del contrato; al completarlo y crear el contrato, el mismo modal avanza internamente a la pantalla de Depósito en Garantía. No se espera ningún rótulo visible de 'Paso 1/Paso 2' (decisión de negocio PN-01, corrida Escenario01, 2026-10-11)."
     accion: "Click en botón 'Nuevo Contrato'"
-    verificar_ui: "Modal abierto, título 'Paso 1' o equivalente, selects de Arrendatario y Local visibles"
+    verificar_ui: "Modal abierto, selects de Arrendatario y Local visibles"
     verificar_bd: null
 
   - n: 3
@@ -164,9 +168,13 @@ pasos:
         JOIN contratos c ON c.id = cl.contrato_id
         WHERE c.notas LIKE 'QA-{corrida}-CONT001%' LIMIT 1
       );
-    esperado_bd: "NOTA: en el código revisado, cat_locales.estatus/contrato_activo_id solo se actualiza explícitamente en renovar_contrato y en guardarEdit (DetalleModal), no en el alta de NuevoContratoModal. Si este paso resulta en estatus seguir DISPONIBLE, clasificar como hallazgo a revisar con qa-analista (posible GAP), no asumir que es correcto ni incorrecto sin confirmación de negocio."
+    esperado_bd: { estatus: "OCUPADO" }
 
 ambiguedades:
   - id: AMB-CONT-001
     descripcion: "¿NuevoContratoModal debe actualizar cat_locales.estatus a OCUPADO al dar de alta el contrato, igual que lo hace renovar_contrato? El código no lo hace explícitamente en el alta inicial."
     tipo_esperado: DISCREPANCIA_NEGOCIO o GAP, a decidir en Fase 4
+    resuelto:
+      decision: "Sí debe actualizarse a OCUPADO al alta. Reclasificado como BUG (QA-Escenario01-H04, severidad Alta) en la corrida Escenario01."
+      autorizo: Roberto Aguilar Cota
+      fecha: 2026-10-11

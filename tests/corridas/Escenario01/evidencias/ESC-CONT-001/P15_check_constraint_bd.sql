@@ -1,0 +1,1 @@
+SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'cargos_programados_concepto_check';

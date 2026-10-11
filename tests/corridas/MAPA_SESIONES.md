@@ -18,7 +18,7 @@ docs/METODOLOGIA_QA.md. Usa /qa-correr. El id de corrida es "EscenarioNN"
 
 | Sesión | Escenario | Archivo | Estado | Carpeta de corrida |
 |---|---|---|---|---|
-| IRP_QA_Escenario01 | ESC-CONT-001 | [alta_contrato_completo](../escenarios/ESC-CONT-001_alta_contrato_completo.yaml) | PENDIENTE | `tests/corridas/Escenario01/` |
+| IRP_QA_Escenario01 | ESC-CONT-001 | [alta_contrato_completo](../escenarios/ESC-CONT-001_alta_contrato_completo.yaml) | EJECUTADO | `tests/corridas/Escenario01/` |
 | IRP_QA_Escenario02 | ESC-CONT-002 | [alta_arrendatario_y_expediente](../escenarios/ESC-CONT-002_alta_arrendatario_y_expediente.yaml) | PENDIENTE | `tests/corridas/Escenario02/` |
 | IRP_QA_Escenario03 | ESC-CONT-003 | [renovacion_contrato](../escenarios/ESC-CONT-003_renovacion_contrato.yaml) | PENDIENTE | `tests/corridas/Escenario03/` |
 | IRP_QA_Escenario04 | ESC-CONT-004 | [cancelacion_rescision](../escenarios/ESC-CONT-004_cancelacion_rescision.yaml) | PENDIENTE | `tests/corridas/Escenario04/` |

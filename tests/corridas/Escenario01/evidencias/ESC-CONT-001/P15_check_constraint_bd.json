@@ -1,0 +1,6 @@
+[
+  {
+    "conname": "cargos_programados_concepto_check",
+    "def": "CHECK ((concepto = ANY (ARRAY['RENTA'::text, 'SANCION'::text, 'MANTENIMIENTO'::text, 'AGUA'::text, 'OTRO'::text])))"
+  }
+]

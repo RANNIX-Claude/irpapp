@@ -1,0 +1,1 @@
+SELECT id_local, estatus FROM cat_locales WHERE estatus = 'DISPONIBLE';

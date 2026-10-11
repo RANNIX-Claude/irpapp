@@ -1,0 +1,40 @@
+{
+  "id_corrida": "Escenario01",
+  "sesion": "IRP_QA_Escenario01",
+  "fecha": "2026-10-11",
+  "commit": "4212723da20d97fe383d700807574a4738e8924c",
+  "ambiente": {
+    "nombre": "QA",
+    "sitio_netlify": "irpapp-qa",
+    "url": "https://irpapp-qa.netlify.app",
+    "supabase_project_id": "wijcjdbmdbxzmwpdxoal"
+  },
+  "usuario_prueba": "staff (admin/superadmin) - por asignar en Fase 2",
+  "escenarios": [
+    {
+      "id": "ESC-CONT-001",
+      "archivo": "tests/escenarios/ESC-CONT-001_alta_contrato_completo.yaml",
+      "nombre": "Alta de contrato completo con depósito cobrado al momento"
+    }
+  ],
+  "fase0_validacion": {
+    "nota": "No existe tests/datos/semilla.sql en el repo; no se restauró BD, se validó el estado actual de QA directamente contra las precondiciones del escenario.",
+    "precondiciones_verificadas": [
+      {
+        "check": "Existe al menos 1 arrendatario con estatus = 'ACTIVO'",
+        "resultado": "OK",
+        "muestra_ids": ["3f4c67f7-274c-44a5-908b-46d7094985b5", "4993c787-095d-459d-88de-135e4d6739f6"]
+      },
+      {
+        "check": "Existe al menos 1 local en cat_locales con estatus = 'DISPONIBLE'",
+        "resultado": "OK",
+        "muestra_ids": ["L091", "L20", "L11", "L12", "L24"]
+      },
+      {
+        "check": "No existen registros previos con prefijo QA-Escenario01-CONT001 en contratos (ambiente limpio para esta corrida)",
+        "resultado": "OK",
+        "count": 0
+      }
+    ]
+  }
+}
