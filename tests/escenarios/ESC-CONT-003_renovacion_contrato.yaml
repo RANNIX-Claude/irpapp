@@ -1,0 +1,126 @@
+id: ESC-CONT-003
+nombre: Renovación completa de contrato (habilitación del botón, RPC renovar_contrato, flujo en Renovaciones, marcar en ejecución)
+modulo: Contratos de Arrendamiento (Renovaciones)
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [Contratos.jsx DetalleModal, ModalRenovacion, Renovaciones.jsx, PanelDetalle]
+
+precondiciones:
+  - Existe un contrato de prueba (QA-{corrida}-CONT003) con fecha_fin dentro de los próximos 30 días, estatus VIGENTE, estatus_proceso EN_EJECUCION
+  - cat_parametros.dias_anticip_renovacion está configurado (default 60) — se usa para el KPI "Por vencer", no para habilitar el botón Renovar
+
+pasos:
+  - n: 1
+    descripcion: Crear un contrato de prueba con fecha_fin = hoy + 45 días (fuera del umbral de 30 días del botón Renovar, pero dentro del umbral de 60 días de la regla de negocio de CLAUDE.md)
+    esperado: "El contrato se crea correctamente"
+    accion: "Dar de alta un contrato vía NuevoContratoModal con fecha_fin manual = hoy+45"
+    verificar_ui: "Contrato visible en listado"
+    verificar_bd: |
+      SELECT id, fecha_fin, estatus FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%';
+    esperado_bd: null
+
+  - n: 2
+    descripcion: Abrir el detalle de este contrato y verificar si el botón "Renovar contrato" está habilitado o deshabilitado
+    esperado: "Según el código revisado, el botón se habilita solo si dias_restantes <= 30 o ya está VENCIDO. Con 45 días restantes, el botón debería estar DESHABILITADO con tooltip explicando la razón"
+    accion: "Abrir DetalleModal del contrato, pasar el mouse sobre el botón Renovar"
+    verificar_ui: "Botón deshabilitado, tooltip visible con la razón"
+    verificar_bd: null
+    nota: "AMBIGUO/DISCREPANCIA_NEGOCIO: CLAUDE.md regla de negocio #7 dice 'opción renovación anticipada 60 días antes', pero el código usa 30 días como umbral. Registrar este resultado tal cual se observa (botón deshabilitado a 45 días) y marcarlo DISCREPANCIA_NEGOCIO para que negocio decida si el código debe ajustarse a 60 días o si la documentación debe actualizarse a 30."
+
+  - n: 3
+    descripcion: Editar el contrato de prueba para que su fecha_fin quede a 20 días (dentro del umbral de 30 días) y reabrir el detalle
+    esperado: "Ahora el botón 'Renovar contrato' debe estar HABILITADO"
+    accion: "Editar fecha_fin desde DetalleModal (tab Datos, modo edición), guardar, reabrir detalle"
+    verificar_ui: "Botón Renovar habilitado (sin tooltip de bloqueo)"
+    verificar_bd: |
+      SELECT fecha_fin, estatus_proceso FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%';
+    esperado_bd: null
+
+  - n: 4
+    descripcion: Pulsar "Renovar contrato"
+    esperado: "Se abre ModalRenovacion con Fecha inicio default = día siguiente a fecha_fin actual, Fecha vencimiento default = +1 año -1 día"
+    accion: "Click en 'Renovar contrato'"
+    verificar_ui: "Modal abierto con fechas precalculadas correctas"
+    verificar_bd: null
+
+  - n: 5
+    descripcion: Dejar Renta mensual vacía y pulsar confirmar (prueba de validación negativa)
+    esperado: "Mensaje: 'Fecha inicio y renta son obligatorios.'"
+    accion: "Vaciar Renta mensual, pulsar confirmar"
+    verificar_ui: "Mensaje de error, modal no se cierra"
+    verificar_bd: null
+
+  - n: 6
+    descripcion: "Capturar Renta mensual = 16500.00 (incremento sobre la renta original), Depósito = 33000.00, Día pago = 10, Mora % = 5 (default), Incremento anual = 10, Fiador: Nombre='Fiador QA CONT003', RFC='FQAT800101AAA', Domicilio='Calle Fiador 456', Notas='QA-{corrida}-CONT003 renovación'"
+    esperado: ""
+    accion: "Capturar todos los campos"
+    verificar_ui: "Valores reflejados correctamente"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: Pulsar "Confirmar renovación"
+    esperado: "Se invoca la RPC renovar_contrato; el contrato original pasa a estatus RENOVADO; se crea un nuevo contrato con estatus VIGENTE y estatus_proceso EN_RENOVACION, folio = {folio_original}-R{año de 2 dígitos}, contrato_anterior_id apuntando al original"
+    accion: "Click en Confirmar renovación"
+    verificar_ui: "Modal se cierra sin error"
+    verificar_bd: |
+      SELECT id, numero_contrato, estatus, estatus_proceso, contrato_anterior_id, renta_mensual, deposito_garantia
+      FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%' ORDER BY id DESC;
+    esperado_bd: "Dos filas: la original con estatus=RENOVADO, y la nueva con estatus=VIGENTE, estatus_proceso=EN_RENOVACION, contrato_anterior_id = id de la original, renta_mensual=16500.00"
+    precondicion_critica: true
+
+  - n: 8
+    descripcion: Validar que contratos_locales se copió del contrato original al nuevo
+    esperado: "El nuevo contrato tiene las mismas filas de contratos_locales (mismo local_id) que el original"
+    accion: "Solo verificación BD"
+    verificar_ui: null
+    verificar_bd: |
+      SELECT contrato_id, local_id, renta_asignada FROM contratos_locales
+      WHERE contrato_id IN (SELECT id FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%');
+    esperado_bd: null
+
+  - n: 9
+    descripcion: Validar que cat_locales.contrato_activo_id y estatus del local quedaron apuntando al nuevo contrato con estatus OCUPADO
+    esperado: "El local del nuevo contrato tiene contrato_activo_id = id del contrato nuevo y estatus = OCUPADO"
+    accion: "Solo verificación BD"
+    verificar_ui: null
+    verificar_bd: |
+      SELECT id, contrato_activo_id, estatus FROM cat_locales
+      WHERE contrato_activo_id = (SELECT id FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%' ORDER BY id DESC LIMIT 1);
+    esperado_bd: { estatus: "OCUPADO" }
+
+  - n: 10
+    descripcion: Navegar a /renovaciones y buscar el nuevo contrato
+    esperado: "El nuevo contrato aparece en el panel de Renovaciones (porque estatus_proceso = EN_RENOVACION), con Proceso = 'EN RENOVACIÓN'"
+    accion: "Navegar a /renovaciones, usar el buscador con el folio nuevo"
+    verificar_ui: "Contrato visible en la lista de Renovaciones"
+    verificar_bd: null
+
+  - n: 11
+    descripcion: Abrir el PanelDetalle del contrato en Renovaciones, tab "PDF firmado", e intentar "Marcar como en ejecución" sin subir PDF
+    esperado: "Se muestra advertencia '⚠️ Se recomienda adjuntar el PDF firmado antes de marcar el contrato como en ejecución', pero permite continuar igualmente"
+    accion: "Click en 'Marcar como en ejecución' sin haber subido PDF"
+    verificar_ui: "Diálogo de confirmación '¿Confirmas que {folio} ya fue firmado y está vigente?' con la advertencia de PDF faltante"
+    verificar_bd: null
+
+  - n: 12
+    descripcion: Confirmar "Marcar como en ejecución"
+    esperado: "estatus_proceso cambia a EN_EJECUCION; el contrato desaparece de /renovaciones y aparece en /contratos como activo"
+    accion: "Confirmar el diálogo"
+    verificar_ui: "El contrato ya no aparece en Renovaciones"
+    verificar_bd: |
+      SELECT estatus_proceso FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT003%' ORDER BY id DESC LIMIT 1;
+    esperado_bd: { estatus_proceso: "EN_EJECUCION" }
+    precondicion_critica: true
+
+  - n: 13
+    descripcion: Confirmar que el contrato ahora aparece en /contratos (listado principal) con badge Proceso = EN EJECUCIÓN
+    esperado: "Visible en el listado principal de Contratos"
+    accion: "Navegar a /contratos, buscar por folio"
+    verificar_ui: "Badge Proceso = EN EJECUCIÓN, badge Estatus = VIGENTE"
+    verificar_bd: null
+
+ambiguedades:
+  - id: AMB-CONT-002
+    descripcion: "Umbral del botón 'Renovar contrato' es 30 días en código vs 60 días en regla de negocio documentada en CLAUDE.md. Pedir decisión de negocio: ¿ajustar código a 60 o documentación a 30?"
+    tipo_esperado: DISCREPANCIA_NEGOCIO

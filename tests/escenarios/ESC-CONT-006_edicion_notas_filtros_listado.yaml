@@ -1,0 +1,123 @@
+id: ESC-CONT-006
+nombre: Edición de contrato, notas y comentarios, filtros/KPIs del listado, eliminación en cascada
+modulo: Contratos de Arrendamiento
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [Contratos.jsx DetalleModal tabs Datos/Notas, listado principal]
+
+precondiciones:
+  - Existe un contrato de prueba QA-{corrida}-CONT006 con estatus VIGENTE
+
+pasos:
+  - n: 1
+    descripcion: Crear contrato de prueba QA-{corrida}-CONT006 (renta 9000.00)
+    esperado: "Contrato creado"
+    accion: "Alta vía NuevoContratoModal"
+    verificar_ui: "Visible en listado"
+    verificar_bd: null
+
+  - n: 2
+    descripcion: Abrir detalle, tab Datos, pulsar "Editar" y cambiar Renta mensual a 9500.00, agregar Fiador (Nombre='Fiador Edición QA', RFC='FEQA800101AAA')
+    esperado: "Al guardar, se actualiza contratos.renta_mensual y los campos de fiador"
+    accion: "Editar y guardar"
+    verificar_ui: "Modal refleja los nuevos valores en modo lectura"
+    verificar_bd: |
+      SELECT renta_mensual, fiador_nombre, fiador_rfc FROM contratos WHERE notas LIKE '%QA-{corrida}-CONT006%';
+    esperado_bd: { renta_mensual: 9500.00, fiador_nombre: "Fiador Edición QA" }
+    precondicion_critica: true
+
+  - n: 3
+    descripcion: En el mismo modo edición, cambiar el selector de locales asignados agregando un segundo local (si hay disponible)
+    esperado: "El chip multi-select permite agregar otro local; al guardar, contratos_locales se sincroniza (delete+insert) reflejando la nueva selección"
+    accion: "Agregar segundo local, guardar"
+    verificar_ui: "Conteo de locales seleccionados actualizado"
+    verificar_bd: |
+      SELECT local_id FROM contratos_locales cl JOIN contratos c ON c.id = cl.contrato_id
+      WHERE c.notas LIKE '%QA-{corrida}-CONT006%';
+    esperado_bd: "Debe reflejar exactamente los locales seleccionados en UI, ni más ni menos"
+
+  - n: 4
+    descripcion: Ir al tab "Notas y comentarios" y escribir una nota, enviar con Enter (sin Shift)
+    esperado: "La nota se guarda en la tabla notas_contrato con tipo='NOTA', autor_nombre='Administrador', y aparece en la lista ordenada descendente por fecha"
+    accion: "Escribir 'QA-{corrida}-CONT006 nota de prueba 1' y presionar Enter"
+    verificar_ui: "Nota aparece al tope de la lista inmediatamente"
+    verificar_bd: |
+      SELECT contrato_id, texto, tipo, autor_nombre FROM notas_contrato
+      WHERE texto LIKE 'QA-{corrida}-CONT006%' ORDER BY created_at DESC LIMIT 1;
+    esperado_bd: { tipo: "NOTA", autor_nombre: "Administrador" }
+
+  - n: 5
+    descripcion: Escribir una segunda nota usando Shift+Enter para salto de línea, y verificar que NO se envía
+    esperado: "Shift+Enter inserta salto de línea en el textarea sin enviar la nota"
+    accion: "Escribir texto, presionar Shift+Enter, escribir más texto, luego Enter solo para enviar"
+    verificar_ui: "La nota final contiene el salto de línea intermedio"
+    verificar_bd: |
+      SELECT texto FROM notas_contrato WHERE texto LIKE '%QA-{corrida}-CONT006%' ORDER BY created_at DESC LIMIT 1;
+    esperado_bd: "El texto debe contener un salto de línea (\\n) en medio"
+
+  - n: 6
+    descripcion: Validar los 7 KPIs del listado principal de Contratos tras las operaciones anteriores (Todos activos, Vigentes, Vencidos, Por vencer, Terminados, Renta total/mes, Con PDF)
+    esperado: "Cada KPI es clicable y al hacer click filtra el listado consistentemente con su definición"
+    accion: "Click en cada uno de los 7 KPIs, uno por uno"
+    verificar_ui: "El listado se filtra según el KPI seleccionado sin errores de consola"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: Usar el buscador del listado con el folio del contrato de prueba
+    esperado: "Solo se muestra el contrato buscado"
+    accion: "Escribir el folio en el buscador"
+    verificar_ui: "Un solo resultado"
+    verificar_bd: null
+
+  - n: 8
+    descripcion: Usar el filtro "VENCE EN" (Año/Mes) seleccionando el año y mes de fecha_fin del contrato de prueba
+    esperado: "El contrato aparece en el resultado filtrado"
+    accion: "Seleccionar Año y Mes correspondientes"
+    verificar_ui: "Contrato visible en el filtro"
+    verificar_bd: null
+
+  - n: 9
+    descripcion: Cambiar el ordenamiento (chips) a cada una de las 5 opciones: Urgencia, Local A-Z, Arrendatario A-Z, Renta, Fecha inicio
+    esperado: "El listado reordena sin errores en cada opción"
+    accion: "Click en cada chip de orden"
+    verificar_ui: "Orden visual cambia coherentemente con cada criterio"
+    verificar_bd: null
+
+  - n: 10
+    descripcion: Cambiar a vista anual de vencimientos y seleccionar el año correspondiente a fecha_fin del contrato
+    esperado: "El contrato aparece como chip en el mes de su vencimiento, coloreado según urgencia (vencido=rojo, ≤30d=naranja, ≤60d=ámbar, resto=verde)"
+    accion: "Cambiar a vista anual (ícono Grid), seleccionar año"
+    verificar_ui: "Chip visible en el mes correcto con el color esperado según los días restantes reales"
+    verificar_bd: null
+
+  - n: 11
+    descripcion: Exportar a Excel (CSV) desde el botón "Excel" del header
+    esperado: "Se descarga un CSV con columnas folio, arrendatario_nombre, inmueble_nombre, locales_display, fecha_inicio, fecha_fin, renta_mensual, estado_id, incluyendo el contrato de prueba"
+    accion: "Click en botón Excel"
+    verificar_ui: "Archivo CSV descargado, contiene la fila del contrato de prueba con los valores correctos"
+    verificar_bd: null
+
+  - n: 12
+    descripcion: Pulsar el botón "Generar folios IWOL"
+    esperado: "Genera folios con formato IWOL-L{locales}-{año} únicamente para contratos sin folio IWOL; no debe duplicar folios ya generados ni afectar contratos que ya tienen folio"
+    accion: "Click en 'Generar folios IWOL'"
+    verificar_ui: "Mensaje de confirmación con cantidad de folios generados"
+    verificar_bd: |
+      SELECT numero_contrato FROM contratos WHERE numero_contrato LIKE 'IWOL-%';
+    esperado_bd: "Todos los folios IWOL deben ser únicos (sin duplicados)"
+
+  - n: 13
+    descripcion: Eliminar el contrato de prueba QA-{corrida}-CONT006 desde el listado (botón Eliminar, con confirmación)
+    esperado: "El modal de confirmación advierte que la eliminación es irreversible y en cascada; al confirmar, se eliminan en orden: aplicaciones_pago, ingresos del contrato, cargos_programados, contratos_locales, y finalmente el contrato"
+    accion: "Click en Eliminar, confirmar"
+    verificar_ui: "El contrato desaparece del listado"
+    verificar_bd: |
+      SELECT
+        (SELECT count(*) FROM contratos WHERE notas LIKE '%QA-{corrida}-CONT006%') AS contratos,
+        (SELECT count(*) FROM contratos_locales cl WHERE cl.contrato_id NOT IN (SELECT id FROM contratos)) AS huerfanos_locales,
+        (SELECT count(*) FROM cargos_programados cp WHERE cp.contrato_id NOT IN (SELECT id FROM contratos)) AS huerfanos_cargos;
+    esperado_bd: { contratos: 0, huerfanos_locales: 0, huerfanos_cargos: 0 }
+    precondicion_critica: true
+
+ambiguedades: []

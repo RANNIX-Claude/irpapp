@@ -458,6 +458,14 @@ Estos siete scripts no dependen de `pg_dump`/`psql`/Docker (ninguno está instal
 
 ---
 
+## Pruebas de Calidad (QA)
+
+Para cualquier tarea de pruebas, seguir estrictamente [`docs/METODOLOGIA_QA.md`](docs/METODOLOGIA_QA.md).
+
+Escenarios en `tests/escenarios/`, corridas en `tests/corridas/`, regresión Playwright en `tests/regresion/`. Subagentes `qa-arquitecto`, `qa-tester`, `qa-analista`, `qa-corrector` en `.claude/agents/`; comandos `/qa-convertir`, `/qa-correr`, `/qa-analizar`, `/qa-corregir`, `/qa-cerrar` en `.claude/commands/`. El ambiente de pruebas es siempre QA (`irpapp-qa`), nunca producción.
+
+---
+
 ## Convenciones de Código
 
 - **Leer por vista, escribir por tabla**: consultas desde `prp_*`, mutaciones a la tabla base

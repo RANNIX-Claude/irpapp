@@ -1,0 +1,98 @@
+id: ESC-CONT-005
+nombre: Elaborar Contrato — wizard de 4 pasos, generación de documento y pagarés
+modulo: Contratos de Arrendamiento
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [ElaborarContratoModal.jsx]
+
+precondiciones:
+  - Existe un contrato de prueba QA-{corrida}-CONT005 con arrendatario tipo persona física
+  - La función Netlify /.netlify/functions/generar-documentos está desplegada y accesible en el ambiente QA
+
+pasos:
+  - n: 1
+    descripcion: Abrir el detalle de un contrato de prueba y pulsar "Elaborar Contrato"
+    esperado: "Se abre ElaborarContratoModal en Step 0 — Arrendatario, con los datos del arrendatario precargados si el contrato ya existía"
+    accion: "Click en 'Elaborar Contrato'"
+    verificar_ui: "Wizard abierto en Step 0, campos de arrendatario con datos precargados"
+    verificar_bd: null
+
+  - n: 2
+    descripcion: Validar que Tipo de persona = Física mantiene ocultos los campos exclusivos de persona moral (Representante Legal, Instrumento Notarial)
+    esperado: "Campos de persona moral no visibles"
+    accion: "Revisar el formulario del Step 0"
+    verificar_ui: "Solo aparecen campos de persona física: Nombre, RFC, Teléfono, Domicilio"
+    verificar_bd: null
+
+  - n: 3
+    descripcion: En la sección "Expediente del arrendatario" del Step 0, subir el documento de INE
+    esperado: "El archivo se sube al bucket contratos-firmados, ruta contratos/{id}/docs/{key}"
+    accion: "Subir un PDF de prueba al campo INE/identificación"
+    verificar_ui: "Ícono de documento subido visible"
+    verificar_bd: "Confirmar existencia del archivo en el bucket (Storage, no SQL)"
+
+  - n: 4
+    descripcion: Avanzar a Step 1 — Contrato. Capturar Número de local, Duración = 12 meses, Fecha de inicio = hoy
+    esperado: "La Fecha de término se calcula automáticamente (readonly) a partir de la duración"
+    accion: "Capturar Número de local y Fecha de inicio, seleccionar Duración=12"
+    verificar_ui: "Fecha de término readonly muestra hoy+12 meses (aprox.)"
+    verificar_bd: null
+
+  - n: 5
+    descripcion: "Capturar Renta mensual = 12000.00, Día de pago = 5, Interés moratorio = 'diez' (10% mensual), Depósito en garantía = 2 meses, Giro/destino del local = 'Comercio al menudeo'"
+    esperado: ""
+    accion: "Capturar todos los campos"
+    verificar_ui: "Valores reflejados; el combo de interés moratorio internamente usa valores 'cinco'/'diez'/'quince' — confirmar que la etiqueta visible en UI (10%) corresponde al valor interno correcto"
+    verificar_bd: null
+
+  - n: 6
+    descripcion: Avanzar a Step 2 — Fiador. Capturar Nombre completo, No. INE, RFC, Teléfono, Domicilio del fiador
+    esperado: ""
+    accion: "Capturar todos los campos del fiador"
+    verificar_ui: "Valores reflejados"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: En la sección "Configuración de Pagarés", capturar Día de vencimiento de cada pagaré = 5
+    esperado: "Se muestra una vista previa de los primeros 3 pagarés calculados con sus fechas"
+    accion: "Capturar el día de vencimiento"
+    verificar_ui: "Vista previa de 3 pagarés con fechas correctas (mensuales, día 5)"
+    verificar_bd: null
+
+  - n: 8
+    descripcion: Avanzar a Step 3 — Generar, con el expediente del arrendatario incompleto (faltan documentos requeridos)
+    esperado: "El resumen muestra estado de documentación 'Incompleta — puede continuar pero valide antes de firmar', sin bloquear los botones de generación"
+    accion: "Revisar el resumen"
+    verificar_ui: "Mensaje de documentación incompleta visible, botones de generar siguen habilitados"
+    verificar_bd: null
+
+  - n: 9
+    descripcion: Vaciar temporalmente Fecha de inicio o Renta mensual (volviendo al Step 1) y regresar al Step 3 (prueba de validación negativa)
+    esperado: "Los 3 botones de generación (Contrato+Pagarés, Solo Contrato, Solo Pagarés) deben quedar deshabilitados"
+    accion: "Vaciar Renta mensual en Step 1, volver a Step 3, luego restaurar el valor"
+    verificar_ui: "Botones deshabilitados mientras falta el dato obligatorio"
+    verificar_bd: null
+
+  - n: 10
+    descripcion: Con todos los datos obligatorios completos, pulsar "Elaborar Contrato + N Pagarés"
+    esperado: "El sistema descarga 2 archivos .docx (contrato y pagarés) y registra un log de auditoría GENERAR_CONTRATO y GENERAR_PAGARES"
+    accion: "Click en el botón de generación combinada"
+    verificar_ui: "Descarga de 2 archivos .docx iniciada sin errores en consola"
+    verificar_bd: "Consultar la tabla de auditoría/bitácora del sistema (prp_bitacora o equivalente) y confirmar las entradas GENERAR_CONTRATO y GENERAR_PAGARES asociadas al contrato de prueba"
+
+  - n: 11
+    descripcion: Abrir el archivo .docx del contrato descargado y validar que contiene los datos capturados (nombre arrendatario, renta, fechas, fiador)
+    esperado: "El documento Word generado refleja fielmente los datos capturados en el wizard"
+    accion: "Abrir el .docx descargado"
+    verificar_ui: "Datos coinciden con lo capturado"
+    verificar_bd: null
+
+  - n: 12
+    descripcion: Repetir la generación usando únicamente "Solo Pagarés"
+    esperado: "Se descarga solo el archivo de pagarés (blob binario directo), sin el contrato"
+    accion: "Click en 'Solo Pagarés'"
+    verificar_ui: "Un solo archivo descargado"
+    verificar_bd: null
+
+ambiguedades: []

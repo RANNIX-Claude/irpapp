@@ -1,0 +1,75 @@
+id: ESC-CONT-004
+nombre: Cancelación (rescisión) de contrato y verificación del estatus real guardado
+modulo: Contratos de Arrendamiento
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [Contratos.jsx DetalleModal, ModalCancelar]
+
+precondiciones:
+  - Existe un contrato de prueba QA-{corrida}-CONT004 con estatus VIGENTE (no CANCELADO ni RESCISION)
+
+pasos:
+  - n: 1
+    descripcion: Crear contrato de prueba QA-{corrida}-CONT004 (reutilizar flujo de ESC-CONT-001, renta 10000.00)
+    esperado: "Contrato creado con estatus VIGENTE"
+    accion: "Dar de alta vía NuevoContratoModal"
+    verificar_ui: "Contrato visible en listado"
+    verificar_bd: |
+      SELECT id, estatus FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT004%';
+    esperado_bd: { estatus: "VIGENTE" }
+
+  - n: 2
+    descripcion: Abrir el detalle del contrato y pulsar "Cancelar"
+    esperado: "Se abre ModalCancelar con un campo obligatorio de Motivo de cancelación y el texto de advertencia: 'Esta acción marcará el contrato... como CANCELADO. No se puede deshacer desde el sistema.'"
+    accion: "Click en 'Cancelar' dentro del detalle del contrato"
+    verificar_ui: "Modal abierto, advertencia visible tal cual se describe"
+    verificar_bd: null
+
+  - n: 3
+    descripcion: Pulsar "Confirmar" sin capturar motivo (prueba de validación negativa)
+    esperado: "Mensaje: 'El motivo de cancelación es requerido.'"
+    accion: "Click en Confirmar sin texto"
+    verificar_ui: "Mensaje de error visible, modal no se cierra"
+    verificar_bd: null
+
+  - n: 4
+    descripcion: "Capturar Motivo de cancelación = 'QA-{corrida}-CONT004 motivo de prueba: incumplimiento de pago' y confirmar"
+    esperado: "El sistema actualiza el contrato"
+    accion: "Capturar motivo, pulsar Confirmar"
+    verificar_ui: "Modal se cierra, el contrato ya no aparece en los filtros 'Vigentes' del listado principal"
+    verificar_bd: |
+      SELECT estatus, notas FROM contratos WHERE notas LIKE '%QA-{corrida}-CONT004%' ORDER BY id DESC LIMIT 1;
+    esperado_bd: "estatus debe ser 'RESCISION' (NO 'CANCELADO' — el texto del modal dice CANCELADO pero el valor real guardado en la columna estatus es RESCISION, según el código). notas debe contener '[RESCISION {fecha}] QA-{corrida}-CONT004 motivo de prueba...'"
+    precondicion_critica: true
+    nota: "Este paso es la verificación central de la discrepancia AMB-CONT-003: documentar el valor real observado, no asumir que coincide con el texto del modal."
+
+  - n: 5
+    descripcion: Validar en el listado principal de Contratos que el contrato aparece bajo el chip de filtro "Rescisión" (o "Cancelados", según cuál de los dos chips duplicados se esté usando)
+    esperado: "El contrato debe aparecer al filtrar por el chip correspondiente a estatus_id === 'RESCISION'"
+    accion: "Click en cada uno de los dos chips que dicen 'Rescisión' en la UI y observar si ambos muestran el mismo contrato o si hay diferencia en el conteo"
+    verificar_ui: "Registrar el comportamiento observado de AMBOS chips (nombres visibles, conteos, si filtran igual o distinto)"
+    verificar_bd: null
+    nota: "Verificación de la discrepancia AMB-CONT-004: el código tiene dos entradas de filtro con el mismo id RESCISION pero contadores calculados por variables distintas (cntRescision y cntCancelados), ambas con la misma condición. Registrar tal cual se observa en UI sin asumir bug ni corregirlo."
+
+  - n: 6
+    descripcion: Intentar pulsar "Cancelar" de nuevo sobre el mismo contrato ya cancelado
+    esperado: "El botón 'Cancelar' ya no debe estar visible (la condición de visibilidad es: estatus no sea CANCELADO ni RESCISION)"
+    accion: "Reabrir el detalle del contrato ya cancelado"
+    verificar_ui: "Botón 'Cancelar' no visible"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: Validar que el botón "Renovar contrato" tampoco está disponible para un contrato en estatus RESCISION
+    esperado: "Botón Renovar no visible o deshabilitado (la condición excluye CANCELADO/RESCISION)"
+    accion: "Revisar en el mismo detalle"
+    verificar_ui: "Botón Renovar no disponible"
+    verificar_bd: null
+
+ambiguedades:
+  - id: AMB-CONT-003
+    descripcion: "El modal de cancelación dice textualmente que el contrato quedará 'CANCELADO', pero el valor real guardado en contratos.estatus es 'RESCISION'. No existe un estatus literal 'CANCELADO' para este flujo. Decidir si es solo un texto a corregir en la UI o si se requiere un estatus distinto."
+    tipo_esperado: CAMBIO_NOMENCLATURA o BUG de UI (severidad Baja/Media), a decidir en Fase 4
+  - id: AMB-CONT-004
+    descripcion: "Dos chips de filtro con el mismo id 'RESCISION' pero contadores de variables distintas (cntRescision vs cntCancelados), calculados con la misma condición de datos. Confirmar si es intencional (dos conceptos de negocio distintos que hoy comparten el mismo dato) o un defecto de implementación."
+    tipo_esperado: BUG o GAP_CATALOGO, a decidir en Fase 4

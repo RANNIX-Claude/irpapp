@@ -1,0 +1,172 @@
+id: ESC-CONT-001
+nombre: Alta de contrato completo con depósito cobrado al momento
+modulo: Contratos de Arrendamiento
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [Contratos.jsx, NuevoContratoModal.jsx]
+
+precondiciones:
+  - Existe al menos 1 arrendatario con estatus = 'ACTIVO' en la tabla arrendatarios
+  - Existe al menos 1 local en cat_locales con estatus = 'DISPONIBLE'
+  - El usuario de prueba tiene rol staff (no soloLectura)
+
+datos_creados:
+  contrato: { numero_contrato_prefijo: "QA-{corrida}-CONT001" }
+
+pasos:
+  - n: 1
+    descripcion: Entrar al módulo Contratos (/contratos) e iniciar sesión como staff
+    esperado: "Se muestra el listado de contratos en vista mosaico o lista, con los 7 KPIs en la parte superior"
+    accion: "Login como staff, navegar a /contratos"
+    verificar_ui: "KPIs visibles: Todos activos, Vigentes, Vencidos, Por vencer, Terminados, Renta total/mes, Con PDF"
+    verificar_bd: null
+
+  - n: 2
+    descripcion: Pulsar botón "Nuevo Contrato"
+    esperado: "Se abre NuevoContratoModal en Paso 1 — Datos del contrato"
+    accion: "Click en botón 'Nuevo Contrato'"
+    verificar_ui: "Modal abierto, título 'Paso 1' o equivalente, selects de Arrendatario y Local visibles"
+    verificar_bd: null
+
+  - n: 3
+    descripcion: Seleccionar Arrendatario en el select (solo debe listar arrendatarios con estatus ACTIVO)
+    esperado: "El combo de arrendatario solo muestra arrendatarios activos"
+    accion: "Abrir select Arrendatario y elegir uno de prueba"
+    verificar_ui: "Ningún arrendatario inactivo aparece en la lista"
+    verificar_bd: |
+      SELECT id, estatus FROM arrendatarios WHERE estatus <> 'ACTIVO' LIMIT 20;
+    esperado_bd: "Ninguno de los ids retornados debe coincidir con una opción visible del select (verificación cruzada manual)"
+
+  - n: 4
+    descripcion: Seleccionar Local disponible en el select (solo debe listar cat_locales con estatus DISPONIBLE)
+    esperado: "El combo de local solo muestra locales con estatus DISPONIBLE; si no hay ninguno, se muestra advertencia '⚠ Sin locales disponibles actualmente'"
+    accion: "Abrir select Local disponible"
+    verificar_ui: "Lista de locales coincide con los disponibles; advertencia solo si la lista está vacía"
+    verificar_bd: |
+      SELECT id, estatus FROM cat_locales WHERE estatus = 'DISPONIBLE';
+    esperado_bd: "El local elegido en UI existe en este resultado"
+
+  - n: 5
+    descripcion: Seleccionar Tipo de contrato = Anual
+    esperado: ""
+    accion: "Seleccionar 'Anual' en el combo Tipo de contrato"
+    verificar_ui: "Combo muestra 'Anual' seleccionado"
+    verificar_bd: null
+
+  - n: 6
+    descripcion: Capturar Renta mensual = 15000.00
+    esperado: "Campo numérico acepta decimales (step 0.01), mínimo 1"
+    accion: "Escribir 15000.00 en Renta mensual"
+    verificar_ui: "Valor 15000.00 reflejado en el campo"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: Dejar Depósito en garantía vacío (debe sugerir 2x renta como placeholder)
+    esperado: "El placeholder muestra sugerencia de 2× renta (30000.00); si se deja vacío, el backend debe calcularlo como renta×2 al guardar"
+    accion: "No capturar nada en Depósito en garantía"
+    verificar_ui: "Placeholder visible sugiriendo 30000.00 o similar"
+    verificar_bd: null
+
+  - n: 8
+    descripcion: Capturar Día de cobro = 5, % mora mensual = 5 (default), % incremento anual = 10
+    esperado: ""
+    accion: "Capturar Día de cobro=5, dejar Mora en 5 (default), Incremento anual=10"
+    verificar_ui: "Valores reflejados en los campos"
+    verificar_bd: null
+
+  - n: 9
+    descripcion: Fecha inicio = hoy (default), Fecha fin = hoy +1 año -1 día (default, calculado automáticamente)
+    esperado: "Fecha fin se autocompleta y respeta min=fecha_inicio"
+    accion: "Confirmar fechas default sin modificar"
+    verificar_ui: "Fecha fin > fecha inicio, exactamente 1 año menos 1 día"
+    verificar_bd: null
+
+  - n: 10
+    descripcion: Capturar Notas = "QA-{corrida}-CONT001 caso de prueba"
+    esperado: ""
+    accion: "Escribir el texto de notas con el prefijo de la corrida para poder rastrear el registro"
+    verificar_ui: "Texto reflejado en textarea"
+    verificar_bd: null
+
+  - n: 11
+    descripcion: Pulsar "Siguiente" / continuar sin llenar Arrendatario, Local o Renta (prueba de validación negativa)
+    esperado: "Mensaje de validación: 'Completa los campos obligatorios (arrendatario, local, renta).'"
+    accion: "Vaciar temporalmente el campo Renta y pulsar continuar, luego restaurar el valor"
+    verificar_ui: "Mensaje de error visible, el modal no avanza de paso"
+    verificar_bd: null
+    precondicion_critica: false
+
+  - n: 12
+    descripcion: Con todos los campos obligatorios completos, pulsar continuar para crear el contrato
+    esperado: "El sistema inserta el contrato y avanza a Paso 2 — Depósito en Garantía"
+    accion: "Click en continuar/crear contrato"
+    verificar_ui: "Modal muestra Paso 2 con el monto del depósito calculado"
+    verificar_bd: |
+      SELECT id, numero_contrato, arrendatario_id, fecha_inicio, fecha_fin, renta_mensual,
+             deposito_garantia, dia_pago, penalizacion_pct, incremento_anual_pct, estatus
+      FROM contratos WHERE notas LIKE 'QA-{corrida}-CONT001%' ORDER BY id DESC LIMIT 1;
+    esperado_bd:
+      estatus: "VIGENTE"
+      renta_mensual: 15000.00
+      deposito_garantia: 30000.00
+      dia_pago: 5
+      penalizacion_pct: 5
+    precondicion_critica: true
+
+  - n: 13
+    descripcion: Validar que se creó el registro en contratos_locales con el local seleccionado
+    esperado: "Existe una fila en contratos_locales vinculando el contrato nuevo con el local elegido en el paso 4, con renta_asignada = 15000.00"
+    accion: "Solo verificación en BD, sin acción en UI"
+    verificar_ui: null
+    verificar_bd: |
+      SELECT cl.contrato_id, cl.local_id, cl.renta_asignada
+      FROM contratos_locales cl
+      JOIN contratos c ON c.id = cl.contrato_id
+      WHERE c.notas LIKE 'QA-{corrida}-CONT001%';
+    esperado_bd: { renta_asignada: 15000.00 }
+
+  - n: 14
+    descripcion: "Paso 2: capturar Fecha del depósito = hoy, Forma de cobro = TRANSFERENCIA, marcar checkbox 'Ya fue cobrado'"
+    esperado: ""
+    accion: "Llenar fecha, seleccionar TRANSFERENCIA, marcar el checkbox con click real"
+    verificar_ui: "Checkbox marcado visualmente"
+    verificar_bd: null
+
+  - n: 15
+    descripcion: Pulsar "Registrar depósito"
+    esperado: "El sistema crea el cargo programado del depósito, el ingreso correspondiente y la aplicación de pago, y cierra el modal"
+    accion: "Click en 'Registrar depósito'"
+    verificar_ui: "Modal se cierra, el contrato aparece en el listado principal de Contratos"
+    verificar_bd: |
+      SELECT cp.id AS cargo_id, cp.concepto, cp.importe, i.id AS ingreso_id, i.tipo, i.importe AS ingreso_importe,
+             ap.importe_aplicado
+      FROM cargos_programados cp
+      JOIN contratos c ON c.id = cp.contrato_id
+      LEFT JOIN ingresos i ON i.contrato_id = c.id AND i.tipo = 'DEPOSITO_GARANTIA'
+      LEFT JOIN aplicaciones_pago ap ON ap.cargo_id = cp.id AND ap.ingreso_id = i.id
+      WHERE c.notas LIKE 'QA-{corrida}-CONT001%' AND cp.concepto = 'DEPOSITO_GARANTIA';
+    esperado_bd:
+      concepto: "DEPOSITO_GARANTIA"
+      importe: 30000.00
+      ingreso_importe: 30000.00
+      importe_aplicado: 30000.00
+    precondicion_critica: true
+
+  - n: 16
+    descripcion: Validar en el listado de Contratos que el nuevo contrato aparece con estatus VIGENTE y el local pasó a estatus OCUPADO
+    esperado: "El contrato es visible en la vista lista/mosaico con badge VIGENTE; el local usado ya no aparece como DISPONIBLE en una nueva alta"
+    accion: "Buscar por el folio del contrato en el buscador del listado"
+    verificar_ui: "Badge Estatus = VIGENTE, badge Proceso visible"
+    verificar_bd: |
+      SELECT estatus FROM cat_locales WHERE id = (
+        SELECT local_id FROM contratos_locales cl
+        JOIN contratos c ON c.id = cl.contrato_id
+        WHERE c.notas LIKE 'QA-{corrida}-CONT001%' LIMIT 1
+      );
+    esperado_bd: "NOTA: en el código revisado, cat_locales.estatus/contrato_activo_id solo se actualiza explícitamente en renovar_contrato y en guardarEdit (DetalleModal), no en el alta de NuevoContratoModal. Si este paso resulta en estatus seguir DISPONIBLE, clasificar como hallazgo a revisar con qa-analista (posible GAP), no asumir que es correcto ni incorrecto sin confirmación de negocio."
+
+ambiguedades:
+  - id: AMB-CONT-001
+    descripcion: "¿NuevoContratoModal debe actualizar cat_locales.estatus a OCUPADO al dar de alta el contrato, igual que lo hace renovar_contrato? El código no lo hace explícitamente en el alta inicial."
+    tipo_esperado: DISCREPANCIA_NEGOCIO o GAP, a decidir en Fase 4

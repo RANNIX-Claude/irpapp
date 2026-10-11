@@ -1,0 +1,130 @@
+id: ESC-CONT-002
+nombre: Alta de arrendatario persona física y captura de expediente documental
+modulo: Contratos de Arrendamiento (Arrendatarios)
+version: 1
+fuente: Nuevo (metodología QA RANNIX aplicada a IRP, sesión 2026-10-11)
+rol_prueba: staff (admin/superadmin)
+pantallas: [Arrendatarios.jsx, ArrendatarioModal, FichaArrendatario, DetalleModal tab Documentos]
+
+precondiciones:
+  - El usuario de prueba tiene rol staff (no soloLectura)
+  - Existe al menos un contrato de prueba al que se pueda asociar este arrendatario (puede crearse en este mismo escenario o reutilizar ESC-CONT-001)
+
+pasos:
+  - n: 1
+    descripcion: Entrar a /arrendatarios
+    esperado: "Se muestra el listado con KPIs: Total, Activos, Al corriente, Con mora"
+    accion: "Navegar a /arrendatarios"
+    verificar_ui: "KPIs visibles"
+    verificar_bd: null
+
+  - n: 2
+    descripcion: Pulsar "Nuevo arrendatario"
+    esperado: "Se abre ArrendatarioModal"
+    accion: "Click en botón 'Nuevo arrendatario'"
+    verificar_ui: "Modal abierto con campo Tipo de persona visible"
+    verificar_bd: null
+
+  - n: 3
+    descripcion: Seleccionar Tipo de persona = Persona Física
+    esperado: "La etiqueta del campo nombre cambia a 'Nombre Completo'"
+    accion: "Seleccionar Persona Física en el combo"
+    verificar_ui: "Label dice 'Nombre Completo'"
+    verificar_bd: null
+
+  - n: 4
+    descripcion: Dejar el campo Nombre vacío y pulsar Guardar (prueba de validación negativa)
+    esperado: "Mensaje de validación: 'El nombre es obligatorio'"
+    accion: "Pulsar Guardar sin capturar nombre"
+    verificar_ui: "Mensaje de error visible, modal no se cierra"
+    verificar_bd: null
+
+  - n: 5
+    descripcion: "Capturar Nombre Completo = 'QA-{corrida}-CONT002 Arrendatario Prueba', RFC en minúsculas = 'abcd900101xxx'"
+    esperado: "El RFC debe normalizarse a mayúsculas al guardar, sin importar cómo se capturó"
+    accion: "Capturar nombre y RFC en minúsculas"
+    verificar_ui: "Campo RFC muestra el texto tal cual se escribió (normalización ocurre al guardar, no mientras se escribe, salvo que el campo fuerce mayúsculas visualmente)"
+    verificar_bd: null
+
+  - n: 6
+    descripcion: "Capturar Email en mayúsculas = 'PRUEBA@EJEMPLO.COM', Teléfono = '6621234567', Domicilio fiscal = 'Calle Prueba 123, Hermosillo, Son.'"
+    esperado: ""
+    accion: "Capturar los campos"
+    verificar_ui: "Valores reflejados"
+    verificar_bd: null
+
+  - n: 7
+    descripcion: Dejar Estatus en su valor default (Activo) y pulsar Guardar
+    esperado: "Se crea el arrendatario; el RFC se guarda en MAYÚSCULAS y el email en minúsculas"
+    accion: "Click en Guardar"
+    verificar_ui: "Modal se cierra, el nuevo arrendatario aparece en el listado"
+    verificar_bd: |
+      SELECT id, tipo_persona, locatario, rfc, email, estatus
+      FROM arrendatarios
+      WHERE locatario LIKE 'QA-{corrida}-CONT002%' ORDER BY id DESC LIMIT 1;
+    esperado_bd:
+      rfc: "ABCD900101XXX"
+      email: "prueba@ejemplo.com"
+      estatus: "ACTIVO"
+    precondicion_critica: true
+
+  - n: 8
+    descripcion: Abrir la ficha del arrendatario recién creado (FichaArrendatario) y validar historial de contratos vacío
+    esperado: "El panel lateral muestra los datos de contacto capturados y 'Sin contratos' o historial vacío, ya que aún no tiene contrato"
+    accion: "Click en el renglón del arrendatario"
+    verificar_ui: "Ficha abierta con datos correctos, sección historial de contratos vacía"
+    verificar_bd: null
+
+  - n: 9
+    descripcion: Desde la ficha, pulsar "Nuevo contrato" para este arrendatario
+    esperado: "Se abre NuevoContratoModal con el arrendatario ya preseleccionado y fijo (no editable)"
+    accion: "Click en 'Nuevo contrato' dentro de la ficha"
+    verificar_ui: "Campo Arrendatario muestra el nombre fijo, sin combo para cambiarlo"
+    verificar_bd: null
+
+  - n: 10
+    descripcion: Completar el alta de contrato con un local disponible y renta 8000.00 (seguir pasos 4-13 de ESC-CONT-001, omitiendo el depósito con botón "Omitir")
+    esperado: "Se crea el contrato asociado al arrendatario; al pulsar 'Omitir' en Paso 2, el modal se cierra sin crear cargo de depósito"
+    accion: "Completar flujo, pulsar Omitir en Paso 2"
+    verificar_ui: "Modal cerrado, contrato visible en /contratos"
+    verificar_bd: |
+      SELECT c.id, c.estatus FROM contratos c
+      JOIN arrendatarios a ON a.id = c.arrendatario_id
+      WHERE a.locatario LIKE 'QA-{corrida}-CONT002%';
+    esperado_bd: { estatus: "VIGENTE" }
+    precondicion_critica: true
+
+  - n: 11
+    descripcion: Validar que NO se creó ningún cargo_programado de tipo DEPOSITO_GARANTIA para este contrato (por haber omitido)
+    esperado: "No existe fila en cargos_programados con concepto DEPOSITO_GARANTIA para este contrato"
+    accion: "Solo verificación BD"
+    verificar_ui: null
+    verificar_bd: |
+      SELECT count(*) FROM cargos_programados cp
+      JOIN contratos c ON c.id = cp.contrato_id
+      JOIN arrendatarios a ON a.id = c.arrendatario_id
+      WHERE a.locatario LIKE 'QA-{corrida}-CONT002%' AND cp.concepto = 'DEPOSITO_GARANTIA';
+    esperado_bd: { count: 0 }
+
+  - n: 12
+    descripcion: Abrir el detalle del contrato creado y entrar a la pestaña "Documentos" (expediente)
+    esperado: "Se muestra el checklist de documentos para persona física: INE/Pasaporte/Cédula (req), Comprobante domicilio ≤3 meses (req), Comprobante ingresos mes 1/2/3 (req c/u), CURP (opc), Acta nacimiento (opc). Barra de progreso en 0%"
+    accion: "Click en 'Expediente' del contrato, luego tab 'Documentos'"
+    verificar_ui: "Checklist completo visible, barra de progreso en 0/7 (o el total de requeridos)"
+    verificar_bd: null
+
+  - n: 13
+    descripcion: Subir un archivo PDF de prueba al documento "INE/Pasaporte/Cédula"
+    esperado: "El archivo se sube al bucket privado contratos-firmados, ruta contratos/{id}/docs/{key}.pdf; la barra de progreso avanza"
+    accion: "Click en subir, seleccionar un PDF de prueba"
+    verificar_ui: "Ícono de 'ver' (ojo) aparece junto al documento, barra de progreso incrementa"
+    verificar_bd: "Revisar en Supabase Storage (bucket contratos-firmados) que existe el archivo en la ruta contratos/{id}/docs/ine.pdf (o key correspondiente); el bucket debe ser privado (public=false) y el enlace debe abrir vía URL firmada, nunca pública directa"
+
+  - n: 14
+    descripcion: Click en el ícono "ver" del documento recién subido
+    esperado: "Se firma la URL al momento del click (no al pintar la fila) y se abre el PDF en una pestaña nueva"
+    accion: "Click en el ícono de ver (ojo)"
+    verificar_ui: "El documento se visualiza correctamente"
+    verificar_bd: null
+
+ambiguedades: []
