@@ -54,6 +54,7 @@ import Finanzas from './pages/Finanzas.jsx'
 import Facturacion from './pages/Facturacion.jsx'
 import Entrega from './pages/Entrega.jsx'
 import Usuarios from './pages/Usuarios.jsx'
+import Utilerias from './pages/Utilerias.jsx'
 import AsistenteApp from './pages/asistente/AsistenteApp.jsx'
 import './styles/theme.css'
 
@@ -319,6 +320,7 @@ function AppLayout() {
         <Route path="/config" element={<Configuracion />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/entrega" element={<Entrega />} />
+        <Route path="/utilerias" element={<Utilerias />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Marco>

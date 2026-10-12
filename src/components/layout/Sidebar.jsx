@@ -6,7 +6,7 @@ import {
   ShoppingBag, TrendingUp, CalendarRange, Receipt, ClipboardList, Database,
   UserPlus, ArrowRightLeft, RotateCcw, UtensilsCrossed, FolderOpen,
   ClipboardCheck, Calculator, Sun, Rss, HardHat, CalendarDays, FileBarChart2, Truck,
-  Package, BookOpen, Wrench, PackageOpen, Landmark, Stamp,
+  Package, BookOpen, Wrench, PackageOpen, Landmark, Stamp, MessageSquare,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
@@ -105,6 +105,7 @@ const NAV_SECTIONS = [
       { label: 'Catálogos', path: '/catalogos', icon: BookOpen },
       { label: 'Consulta a Base de Datos', path: '/utilidades', icon: Database },
       { label: 'Entrega', path: '/entrega', icon: PackageOpen },
+      { label: 'Conversaciones IA', path: '/utilerias', icon: MessageSquare, soloSuperadmin: true },
     ]
   },
 ]
@@ -242,7 +243,7 @@ export default function Sidebar() {
             {section.label && !sidebarOpen && si > 0 && (
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '6px 8px' }} />
             )}
-            {section.items.map(({ label, path, icon: Icon, disabled }) => {
+            {section.items.filter(i => !i.soloSuperadmin || rolId === 'superadmin').map(({ label, path, icon: Icon, disabled }) => {
               const [basePath, qs] = path.split('?')
               const isActive = qs
                 ? location.pathname === basePath && location.search.includes(qs.split('=')[1])
