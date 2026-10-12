@@ -48,8 +48,8 @@ export default function Utilerias() {
     const [convRes, usrRes] = await Promise.all([
       supabase
         .from('agente_conversaciones')
-        .select('id, titulo, rol, canal, turnos, created_at, actualizada_en, usuario_id')
-        .order('created_at', { ascending: false })
+        .select('id, titulo, rol, canal, turnos, creada_en, actualizada_en, usuario_id')
+        .order('creada_en', { ascending: false })
         .limit(500),
       supabase
         .from('irp_usuarios')
@@ -74,7 +74,7 @@ export default function Utilerias() {
     setLoadingMsg(conv.id)
     const { data } = await supabase
       .from('agente_mensajes')
-      .select('id, turno, pregunta, respuesta, herramientas, propuestas, modelo, duracion_ms, created_at, error')
+      .select('id, turno, pregunta, respuesta, herramientas, propuestas, modelo, duracion_ms, creada_en, error')
       .eq('conversacion_id', conv.id)
       .order('turno')
     setMensajes(m => ({ ...m, [conv.id]: data || [] }))
@@ -83,7 +83,7 @@ export default function Utilerias() {
 
   // Meses disponibles (de todas las convs)
   const meses = useMemo(() =>
-    [...new Set(todasConvs.map(c => (c.created_at || '').slice(0, 7)))]
+    [...new Set(todasConvs.map(c => (c.creada_en || '').slice(0, 7)))]
       .filter(Boolean).sort((a, b) => b.localeCompare(a)),
   [todasConvs])
 
@@ -101,7 +101,7 @@ export default function Utilerias() {
       const [y, m] = mesFiltro.split('-').map(Number)
       const desde = new Date(y, m - 1, 1).getTime()
       const hasta = new Date(y, m, 1).getTime()
-      list = list.filter(c => { const t = new Date(c.created_at).getTime(); return t >= desde && t < hasta })
+      list = list.filter(c => { const t = new Date(c.creada_en).getTime(); return t >= desde && t < hasta })
     }
     if (canalFiltro) list = list.filter(c => c.canal === canalFiltro)
     if (usuarioFiltro) list = list.filter(c => c.usuario_id === usuarioFiltro)
@@ -116,7 +116,7 @@ export default function Utilerias() {
   const porDia = useMemo(() => {
     const m = {}
     for (const c of conversaciones) {
-      const dia = (c.created_at || '').slice(0, 10)
+      const dia = (c.creada_en || '').slice(0, 10)
       if (!m[dia]) m[dia] = []
       m[dia].push(c)
     }
@@ -255,7 +255,7 @@ export default function Utilerias() {
                         </span>
                       )}
                       <span style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Clock size={11} /> {fmtHora(conv.created_at)}
+                        <Clock size={11} /> {fmtHora(conv.creada_en)}
                       </span>
                     </div>
                   </div>

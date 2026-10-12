@@ -105,7 +105,7 @@ const NAV_SECTIONS = [
       { label: 'Catálogos', path: '/catalogos', icon: BookOpen },
       { label: 'Consulta a Base de Datos', path: '/utilidades', icon: Database },
       { label: 'Entrega', path: '/entrega', icon: PackageOpen },
-      { label: 'Conversaciones IA', path: '/utilerias', icon: MessageSquare, soloSuperadmin: true },
+      { label: 'Consulta Asistente', path: '/utilerias', icon: MessageSquare, soloSuperadmin: true },
     ]
   },
 ]
