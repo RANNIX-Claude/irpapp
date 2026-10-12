@@ -2,7 +2,8 @@ import { useModuleAudit, logAudit } from '../hooks/useAudit'
 import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback } from 'react'
 import { ShoppingBag, Plus, ChevronLeft, ChevronRight, X, Save, AlertTriangle,
-  Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors } from 'lucide-react'
+  Pencil, Trash2, TrendingUp, Package, ShoppingCart, BarChart2, Scissors, FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import DatalistProveedores from '../components/compras/DatalistProveedores'
 import GuiaVending from '../components/ui/GuiaVending'
@@ -865,6 +866,54 @@ export default function Vending() {
   const utilidadReal = detalle.reduce((t, r) => t + (parseFloat(r.utilidad_semana) || 0), 0)
   const utilidad = utilidadReal
 
+  const exportarExcel = () => {
+    const wb = XLSX.utils.book_new()
+
+    // Hoja 1: Control Semanal
+    const filasSemanal = detalle.map(r => ({
+      Producto: r.producto || '',
+      'Cant. Inicial': parseFloat(r.qty_inicial) || 0,
+      'Compras (un)': parseFloat(r.qty_compras) || 0,
+      'Ventas (un)': parseFloat(r.qty_ventas) || 0,
+      'Cant. Final': parseFloat(r.qty_final) || 0,
+      'Ventas ($)': parseFloat(r.importe_ventas) || 0,
+      'Compras ($)': parseFloat(r.importe_compras) || 0,
+      'Utilidad ($)': parseFloat(r.utilidad_semana) || 0,
+      'Precio Venta': parseFloat(r.precio_venta) || 0,
+      'Costo Prom': parseFloat(r.costo_promedio) || 0,
+    }))
+    const ws1 = XLSX.utils.json_to_sheet(filasSemanal)
+    XLSX.utils.book_append_sheet(wb, ws1, 'Control Semanal')
+
+    // Hoja 2: Movimientos
+    const filasMov = movs.map(m => ({
+      Fecha: m.fecha || '',
+      Tipo: m.tipo || '',
+      Producto: m.producto || '',
+      Cantidad: parseFloat(m.cantidad) || 0,
+      'Importe ($)': parseFloat(m.importe) || 0,
+      Proveedor: m.proveedor || '',
+      Notas: m.notas || '',
+    }))
+    const ws2 = XLSX.utils.json_to_sheet(filasMov)
+    XLSX.utils.book_append_sheet(wb, ws2, 'Movimientos')
+
+    // Hoja 3: Resumen
+    const resumen = [
+      { Concepto: 'Semana', Valor: `${semana.ini} al ${semana.fin}` },
+      { Concepto: 'Total Ventas', Valor: totVentas },
+      { Concepto: 'Total Compras (mov)', Valor: totComprasMov },
+      { Concepto: 'Total Compras (incl. gastos)', Valor: totCompras },
+      { Concepto: 'Utilidad Real', Valor: utilidad },
+      { Concepto: 'Unidades Vendidas', Valor: totUnidVentas },
+      { Concepto: 'Unidades Compradas', Valor: totUnidCompras },
+    ]
+    const ws3 = XLSX.utils.json_to_sheet(resumen)
+    XLSX.utils.book_append_sheet(wb, ws3, 'Resumen')
+
+    XLSX.writeFile(wb, `Vending_${semana.ini}_${semana.fin}.xlsx`)
+  }
+
   const tabStyle = k => ({
     padding:'10px 18px', fontSize:'13px', fontWeight:600, cursor:'pointer',
     color: tab===k ? 'var(--color-primary)' : '#6B7280',
@@ -885,6 +934,10 @@ export default function Vending() {
           <p style={{ margin:0, fontSize:'13px', color:'#6B7280' }}>Inventario semanal · {productos.filter(p=>p.activo).length} productos activos</p>
         </div>
         <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+          <button onClick={exportarExcel}
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 14px', border:'1.5px solid #057642', borderRadius:'8px', background:'white', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#057642' }}>
+            <FileDown size={15} /> Exportar
+          </button>
           <button onClick={() => { const i = semanas.findIndex(s=>s.ini===sabActual); setSelIdx(i>=0?i:0) }}
             style={{ padding:'9px 14px', border:'1.5px solid var(--color-primary)', borderRadius:'8px', background: semana.ini===sabActual?'var(--color-primary)':'white', cursor:'pointer', fontSize:'12px', fontWeight:700, color: semana.ini===sabActual?'white':'var(--color-primary)' }}>
             Hoy

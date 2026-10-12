@@ -8,6 +8,7 @@ import MobileShell from './components/layout/MobileShell'
 import { aplicarIdentidadPWA } from './lib/pwa'
 import Footer from './components/layout/Footer'
 import AgenteOperativo from './components/agents/AgenteOperativo.jsx'
+import FABPublicar from './components/ui/FABPublicar.jsx'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -105,6 +106,7 @@ function Marco({ children, sidebar = true, desktopExtras = false }) {
         {desktopExtras && <Footer />}
       </main>
       {desktopExtras && rolEfectivo && !ROLES_SIN_CHAT.includes(rolEfectivo) && <AgenteOperativo />}
+      {desktopExtras && rolEfectivo && !ROLES_SIN_CHAT.includes(rolEfectivo) && <FABPublicar />}
       <Toaster position="top-right" />
     </div>
   )

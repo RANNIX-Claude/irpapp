@@ -564,7 +564,6 @@ export default function FeedEjecutivo() {
   const [actividades, setActivs]    = useState([])
   const [loading, setLoading]       = useState(true)
   const [actualizado, setAct]       = useState(null)
-  const [nuevaAct, setNuevaAct]     = useState(false)
   const navigate = useNavigate()
 
   const cargar = useCallback(async () => {
@@ -653,22 +652,7 @@ export default function FeedEjecutivo() {
         )}
       </div>
 
-      {/* FAB — publicar actividad */}
-      <button onClick={() => setNuevaAct(true)}
-        style={{ position:'fixed', bottom:24, right:20, width:60, height:60,
-          background:'linear-gradient(135deg,#5A4080,#7B5EA7)',
-          border:'none', borderRadius:'50%', cursor:'pointer',
-          boxShadow:'0 6px 24px rgba(91,64,128,.5)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:50 }}>
-        <Plus size={28} color="white" strokeWidth={2.5}/>
-      </button>
-
-      {nuevaAct && (
-        <ModalNuevaActividad
-          onClose={() => setNuevaAct(false)}
-          onCreada={() => { setNuevaAct(false); cargar() }}
-        />
-      )}
+      {/* El FAB "+" y ModalNuevaPublicacion son globales en Marco (App.jsx) */}
     </div>
   )
 }
