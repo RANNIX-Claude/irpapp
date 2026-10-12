@@ -80,10 +80,15 @@ function SinAcceso({ rol }) {
 // Marco de la aplicación según el dispositivo: en celular, menú inferior (MobileShell, para
 // todos los roles); en escritorio, Header + Sidebar. `sidebar={false}` para roles de una sola
 // pantalla; `desktopExtras` suma pie y chat flotante (en celular el chat es la pestaña Asistente).
-const ROLES_CON_CHAT = ['superadmin', 'admin']
+// Exclusión en vez de lista blanca: cualquier rol que llegue al layout principal ve el agente,
+// salvo los roles que tienen su propio shell restringido (locatario, restaurante, etc. — nunca
+// llegan a Marco, pero se defiende igual).
+const ROLES_SIN_CHAT = ['locatario', 'restaurante', 'prospecto', 'arrendatario', 'asistente']
 
 function Marco({ children, sidebar = true, desktopExtras = false }) {
-  const { sidebarOpen, isMobile, perfil } = useApp()
+  const { sidebarOpen, isMobile, perfil, user } = useApp()
+  // Fallback inmediato al rol del token JWT si perfil aún no cargó de BD
+  const rolEfectivo = perfil?.rol_id || user?.user_metadata?.rol_id || user?.user_metadata?.rol
   // En celular NO se usan las páginas de escritorio (children): MobileShell trae las suyas, de src/mobile/.
   if (isMobile) return <MobileShell />
   return (
@@ -99,7 +104,7 @@ function Marco({ children, sidebar = true, desktopExtras = false }) {
         {children}
         {desktopExtras && <Footer />}
       </main>
-      {desktopExtras && ROLES_CON_CHAT.includes(perfil?.rol_id) && <AgenteOperativo />}
+      {desktopExtras && rolEfectivo && !ROLES_SIN_CHAT.includes(rolEfectivo) && <AgenteOperativo />}
       <Toaster position="top-right" />
     </div>
   )
