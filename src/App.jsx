@@ -83,7 +83,7 @@ function SinAcceso({ rol }) {
 // Exclusión en vez de lista blanca: cualquier rol que llegue al layout principal ve el agente,
 // salvo los roles que tienen su propio shell restringido (locatario, restaurante, etc. — nunca
 // llegan a Marco, pero se defiende igual).
-const ROLES_SIN_CHAT = ['locatario', 'restaurante', 'prospecto', 'arrendatario', 'asistente']
+const ROLES_SIN_CHAT = ['locatario', 'restaurante', 'prospecto', 'arrendatario', 'asistente', 'finanzas']
 
 function Marco({ children, sidebar = true, desktopExtras = false }) {
   const { sidebarOpen, isMobile, perfil, user } = useApp()
