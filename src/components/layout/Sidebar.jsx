@@ -188,7 +188,7 @@ export default function Sidebar() {
   const location = useLocation()
 
   // Checa perfil de BD y también metadata del JWT como fallback inmediato
-  const rolId = perfil?.rol_id || user?.user_metadata?.rol_id
+  const rolId = perfil?.rol_id || user?.user_metadata?.rol_id || user?.user_metadata?.rol
   const esRestaurante = rolId === 'restaurante'
   const esLocatario = rolId === 'locatario'
   const esFinanzas = rolId === 'finanzas'
