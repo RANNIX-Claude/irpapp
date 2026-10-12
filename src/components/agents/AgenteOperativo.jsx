@@ -23,7 +23,7 @@ export default function AgenteOperativo() {
       <button
         onClick={() => setOpen(!open)}
         style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 200,
+          position: 'fixed', bottom: '90px', right: '24px', zIndex: 200,
           width: '56px', height: '56px', borderRadius: '50%',
           background: 'var(--color-primary)', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -39,7 +39,7 @@ export default function AgenteOperativo() {
       {/* Panel. Se mantiene montado al cerrarlo para no perder la conversación. */}
       <div style={{
         display: open ? 'flex' : 'none',
-        position: 'fixed', bottom: '92px', right: '24px', zIndex: 199,
+        position: 'fixed', bottom: '158px', right: '24px', zIndex: 199,
         width: tam.width, height: tam.height, maxWidth: 'calc(100vw - 48px)', maxHeight: 'calc(100vh - 116px)',
         background: 'white', borderRadius: '14px', boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
         flexDirection: 'column', overflow: 'hidden', border: '1px solid #E5E7EB',
