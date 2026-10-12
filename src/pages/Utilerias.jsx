@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { MessageSquare, ChevronDown, ChevronRight, Bot, User, Clock, Wrench, AlertCircle, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useApp } from '../context/AppContext'
-import { useNavigate } from 'react-router-dom'
 
 const C = {
   primary: '#0A66C2', dark: '#1A3C5E', gold: '#E8A020',
@@ -19,9 +17,6 @@ const CANAL_COLOR = { web: '#3B82F6', movil: '#8B5CF6', voz: '#10B981' }
 const ROL_COLOR   = { superadmin: '#E8A020', admin: '#0A66C2', asistente: '#8B5CF6', propietario: '#057642', finanzas: '#10B981' }
 
 export default function Utilerias() {
-  const { perfil } = useApp()
-  const navigate = useNavigate()
-
   const [todasConvs, setTodasConvs]     = useState([])
   const [usuarios, setUsuarios]          = useState({})   // { uuid: { nombre, rol_id } }
   const [loading, setLoading]            = useState(true)
@@ -34,11 +29,6 @@ export default function Utilerias() {
   const [canalFiltro, setCanalFiltro]    = useState('')
   const [usuarioFiltro, setUsuarioFiltro] = useState('')
   const [busqueda, setBusqueda]          = useState('')
-
-  // Solo superadmin
-  useEffect(() => {
-    if (perfil && perfil.rol_id !== 'superadmin') navigate('/', { replace: true })
-  }, [perfil, navigate])
 
   useEffect(() => { cargar() }, [])
 
