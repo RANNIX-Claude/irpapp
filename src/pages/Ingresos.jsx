@@ -317,8 +317,6 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
   // quitó de la distribución se quedan vivas y el pago acaba aplicado por más
   // de lo que valió.
   const [aplicacionesPrevias, setAplicacionesPrevias] = useState([])
-  // Si el usuario ya movió el combo a mano, adjuntar un comprobante no lo pisa.
-  const estatusTocado = useRef(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -429,10 +427,10 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     if (!file) return
     setCompFile(file)
     setCompPreview(URL.createObjectURL(file))
-    // Adjuntar el comprobante es justo el acto de respaldar el depósito, así que
-    // el estatus salta solo a VALIDADO. Si el usuario ya movió el combo a mano,
-    // manda su decisión: no se le pisa.
-    if (!estatusTocado.current) setForm(f => ({ ...f, estatus_validacion: 'VALIDADO' }))
+    // Adjuntar el comprobante NO valida el pago: la validación es un paso
+    // aparte que hace Finanzas en /finanzas. El pago se guarda POR_VALIDAR
+    // (o lo que ya tuviera) y solo cambia a VALIDADO cuando alguien de
+    // Finanzas lo confirma ahí, no por el simple hecho de subir un archivo.
     setLeyendoOCR(true)
     setOcrData(null)
     setOcrMsg({ ok: null, txt: 'Leyendo comprobante con IA…' })
@@ -950,7 +948,7 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
             <div>
               <label style={{ fontSize:'11px', fontWeight:700, color:'var(--color-text-light)', textTransform:'uppercase' }}>Validación del pago</label>
               <select value={form.estatus_validacion}
-                onChange={e => { estatusTocado.current = true; set('estatus_validacion', e.target.value) }}
+                onChange={e => set('estatus_validacion', e.target.value)}
                 title="VALIDADO = el depósito, la transferencia o la entrega de efectivo ya se verificó contra el banco"
                 style={{ width:'100%', padding:'8px 10px', borderRadius:'6px', fontSize:'13px', marginTop:'4px',
                   border:'1.5px solid', borderColor: VALIDACION[form.estatus_validacion]?.color || '#D1D5DB',
