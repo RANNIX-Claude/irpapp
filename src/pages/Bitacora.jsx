@@ -12,20 +12,50 @@ function tryParseJson(str) {
   try { return JSON.parse(t) } catch (_) { return null }
 }
 
-// Renderiza el detalle: JSON → chips clave:valor; texto plano → as-is
+// Detecta si un valor es un objeto diff {antes, despues}
+function isDiff(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v) && ('antes' in v || 'despues' in v)
+}
+
+// Renderiza el detalle:
+//   · JSON diff {campo: {antes, despues}} → tabla de cambios con tachado/verde
+//   · JSON plano {k: v}                   → chips clave:valor
+//   · texto plano                          → as-is
 function DetalleCell({ descripcion, entidad, entidad_id }) {
   const obj = tryParseJson(descripcion)
+  const hasDiffs = obj && Object.values(obj).some(isDiff)
+
   return (
     <div>
       {obj ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {Object.entries(obj).map(([k, v]) => (
-            <span key={k} style={{ display: 'inline-flex', gap: '3px', background: '#F3F4F6', borderRadius: '5px', padding: '2px 7px', fontSize: '11px', fontFamily: 'monospace' }}>
-              <span style={{ color: '#6B7280' }}>{k}:</span>
-              <span style={{ color: '#111827', fontWeight: 600 }}>{String(v)}</span>
-            </span>
-          ))}
-        </div>
+        hasDiffs ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {Object.entries(obj).map(([k, v]) =>
+              isDiff(v) ? (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontFamily: 'monospace' }}>
+                  <span style={{ color: '#9CA3AF', minWidth: '80px' }}>{k}</span>
+                  <span style={{ color: '#EF4444', textDecoration: 'line-through' }}>{v.antes !== null && v.antes !== undefined ? String(v.antes) : '—'}</span>
+                  <span style={{ color: '#9CA3AF' }}>→</span>
+                  <span style={{ color: '#059669', fontWeight: 700 }}>{v.despues !== null && v.despues !== undefined ? String(v.despues) : '—'}</span>
+                </div>
+              ) : (
+                <div key={k} style={{ display: 'inline-flex', gap: '3px', fontSize: '11px', fontFamily: 'monospace' }}>
+                  <span style={{ color: '#9CA3AF' }}>{k}:</span>
+                  <span style={{ color: '#374151' }}>{String(v)}</span>
+                </div>
+              )
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {Object.entries(obj).map(([k, v]) => (
+              <span key={k} style={{ display: 'inline-flex', gap: '3px', background: '#F3F4F6', borderRadius: '5px', padding: '2px 7px', fontSize: '11px', fontFamily: 'monospace' }}>
+                <span style={{ color: '#6B7280' }}>{k}:</span>
+                <span style={{ color: '#111827', fontWeight: 600 }}>{String(v)}</span>
+              </span>
+            ))}
+          </div>
+        )
       ) : (
         <span style={{ color: '#4B5563', fontSize: '13px' }}>{descripcion || <span style={{ color: '#D1D5DB' }}>—</span>}</span>
       )}

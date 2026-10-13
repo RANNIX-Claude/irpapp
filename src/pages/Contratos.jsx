@@ -1,4 +1,4 @@
-﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
+﻿import { useModuleAudit, logAudit, diffObjetos } from '../hooks/useAudit'
 import { useApp } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
@@ -547,7 +547,11 @@ export function DetalleModal({ contrato: c, onClose, onUpdated, diasAnticip = 60
       await supabase.from('cat_locales').update({ contrato_activo_id: c.id, estatus: 'OCUPADO' }).in('id_local', localesSel)
     }
 
-    logAudit({ modulo: 'CONTRATOS', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: { folio: payload.numero_contrato || c.numero_contrato, arrendatario: editForm.arr_locatario || c.arrendatario_nombre, locales: payload.locales_display, renta: payload.renta_mensual, fecha_inicio: payload.fecha_inicio, fecha_fin: payload.fecha_fin, estatus: payload.estatus } })
+    const diff = diffObjetos(
+      { arrendatario: c.arrendatario_nombre, locales: c.locales_display, renta: c.renta_mensual, fecha_inicio: c.fecha_inicio, fecha_fin: c.fecha_fin, estatus: c.estatus, estatus_proceso: c.estatus_proceso },
+      { arrendatario: editForm.arr_locatario || c.arrendatario_nombre, locales: payload.locales_display, renta: payload.renta_mensual, fecha_inicio: payload.fecha_inicio, fecha_fin: payload.fecha_fin, estatus: payload.estatus, estatus_proceso: payload.estatus_proceso }
+    )
+    logAudit({ modulo: 'CONTRATOS', accion: 'EDITAR', entidad: 'contrato', entidad_id: c.id, descripcion: diff || { folio: c.numero_contrato || c.folio, sin_cambios: true } })
     setSavingEdit(false)
     setEditMode(false)
     onUpdated?.()

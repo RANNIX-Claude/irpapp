@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit, diffObjetos } from '../hooks/useAudit'
 import { Plus, Search, X, Save, DollarSign, AlertCircle, Calendar, Pencil, Trash2, Image, CheckCircle2, Circle, Eye, FileText, Paperclip, Target, CalendarCheck, History, ExternalLink, ZoomIn, Layers, AlertTriangle, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePRP } from '../hooks/usePRP'
@@ -543,7 +543,10 @@ export function IngresoModal({ ingreso = null, onClose, onSaved, contratoFijo = 
     }
     if (error) { setSaving(false); setErr(error.message); return }
     const contratoInfo = (contratos || []).find(ct => ct.id === (form.contrato_id || ingreso?.contrato_id))
-    logAudit({ modulo: 'INGRESOS', accion: ingreso ? 'EDITAR' : 'CREAR', entidad: 'ingreso', entidad_id: ingreso?.id || data?.id, descripcion: { folio: contratoInfo?.folio || contratoInfo?.arrendatario_nombre, importe: payload.importe, fecha: payload.fecha, origen: payload.origen, concepto: payload.concepto_origen || null, ref: payload.referencia_banco || null } })
+    logAudit({ modulo: 'INGRESOS', accion: ingreso ? 'EDITAR' : 'CREAR', entidad: 'ingreso', entidad_id: ingreso?.id || data?.id,
+      descripcion: ingreso
+        ? (diffObjetos({ importe: ingreso.importe, fecha: ingreso.fecha, origen: ingreso.origen, concepto: ingreso.concepto_origen || null, ref: ingreso.referencia_banco || null }, { importe: payload.importe, fecha: payload.fecha, origen: payload.origen, concepto: payload.concepto_origen || null, ref: payload.referencia_banco || null }) || { folio: contratoInfo?.folio || contratoInfo?.arrendatario_nombre, sin_cambios: true })
+        : { folio: contratoInfo?.folio || contratoInfo?.arrendatario_nombre, importe: payload.importe, fecha: payload.fecha, origen: payload.origen, concepto: payload.concepto_origen || null, ref: payload.referencia_banco || null } })
 
     const ingresoId = ingreso?.id || data?.id
     const aplicaciones = Object.entries(dist)

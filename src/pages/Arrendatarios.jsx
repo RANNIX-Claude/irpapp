@@ -10,7 +10,7 @@ import KPICard from '../components/ui/KPICard'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { usePRP } from '../hooks/usePRP'
-import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit, diffObjetos } from '../hooks/useAudit'
 import { supabase } from '../lib/supabase'
 import NuevoContratoModal from '../components/ui/NuevoContratoModal'
 
@@ -58,7 +58,7 @@ function ArrendatarioModal({ initial, onClose, onSaved }) {
       if (editando) {
         const { error: e } = await supabase.from('arrendatarios').update(payload).eq('id', initial.id)
         if (e) throw e
-        logAudit({ modulo: 'ARRENDATARIOS', accion: 'EDITAR', entidad: 'ARRENDATARIO', entidad_id: initial.id, descripcion: { locatario: payload.locatario, nombre_negocio: payload.nombre_negocio, rfc: payload.rfc, estatus: payload.estatus } })
+        logAudit({ modulo: 'ARRENDATARIOS', accion: 'EDITAR', entidad: 'ARRENDATARIO', entidad_id: initial.id, descripcion: diffObjetos({ locatario: initial.locatario, nombre_negocio: initial.nombre_negocio, rfc: initial.rfc, estatus: initial.estatus }, { locatario: payload.locatario, nombre_negocio: payload.nombre_negocio, rfc: payload.rfc, estatus: payload.estatus }) || { locatario: payload.locatario, sin_cambios: true } })
       } else {
         const { error: e } = await supabase.from('arrendatarios').insert(payload)
         if (e) throw e

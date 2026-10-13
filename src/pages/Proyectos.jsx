@@ -1,4 +1,4 @@
-import { useModuleAudit, logAudit } from '../hooks/useAudit'
+import { useModuleAudit, logAudit, diffObjetos } from '../hooks/useAudit'
 import { useApp } from '../context/AppContext'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
@@ -529,7 +529,7 @@ function TabResumen({ proyecto: p, proveedores, onReload }) {
     }).eq('id', p.id)
     setSaving(false)
     if (error) { toast.error(error.message); return }
-    logAudit({ modulo: 'PROYECTOS', accion: 'EDITAR', entidad: 'proyecto', entidad_id: p.id, descripcion: { nombre: form.nombre, estado: form.estado, presupuesto: parseFloat(form.presupuesto_total) || null, proveedor: prov?.nombre || form.proveedor_nombre || null } })
+    logAudit({ modulo: 'PROYECTOS', accion: 'EDITAR', entidad: 'proyecto', entidad_id: p.id, descripcion: diffObjetos({ nombre: p.nombre, estado: p.estado, presupuesto: p.presupuesto_total || null, proveedor: p.proveedor_nombre || null }, { nombre: form.nombre, estado: form.estado, presupuesto: parseFloat(form.presupuesto_total) || null, proveedor: prov?.nombre || form.proveedor_nombre || null }) || { nombre: form.nombre, sin_cambios: true } })
     toast.success('Guardado')
     setEditing(false)
     onReload()

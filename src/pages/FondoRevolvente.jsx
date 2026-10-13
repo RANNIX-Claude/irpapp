@@ -1,4 +1,4 @@
-﻿import { useModuleAudit, logAudit } from '../hooks/useAudit'
+﻿import { useModuleAudit, logAudit, diffObjetos } from '../hooks/useAudit'
 import { useState, useEffect } from 'react'
 import { Wallet, Plus, CheckCircle, AlertTriangle, Receipt, X, TrendingDown, List, Pencil, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -93,7 +93,7 @@ function GastoModal({ gasto = null, fondo, onClose, onSaved }) {
       let error
       if (gasto) {
         ;({ error } = await supabase.from('gastos_operativos').update(payload).eq('id', gasto.id))
-        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'EDITAR', entidad: 'gasto', entidad_id: gasto.id, descripcion: { descripcion: form.descripcion || rubro?.label, importe: parseFloat(form.monto_pagado), grupo: form.grupo_gasto } })
+        if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'EDITAR', entidad: 'gasto', entidad_id: gasto.id, descripcion: diffObjetos({ descripcion: gasto.descripcion, importe: gasto.cantidad, grupo: gasto.grupo_gasto, fecha: gasto.fecha }, { descripcion: form.descripcion || null, importe: parseFloat(form.monto_pagado), grupo: rubro?.label || form.grupo_gasto, fecha: form.fecha }) || { descripcion: gasto.descripcion, sin_cambios: true } })
       } else {
         ;({ error } = await supabase.from('gastos_operativos').insert(payload))
         if (!error) logAudit({ modulo: 'FONDO_REVOLVENTE', accion: 'CREAR', descripcion: { descripcion: form.descripcion || rubro?.label, importe: parseFloat(form.monto_pagado), grupo: form.grupo_gasto } })
